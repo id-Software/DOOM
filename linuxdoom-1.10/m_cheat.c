@@ -21,8 +21,6 @@
 //
 //-----------------------------------------------------------------------------
 
-static const char rcsid[] = "$Id: m_cheat.c,v 1.1 1997/02/03 21:24:34 b1 Exp $";
-
 #include "m_cheat.h"
 
 //
@@ -36,11 +34,13 @@ static unsigned char cheat_xlate_table[256];
 // Called in st_stuff module, which handles the input.
 // Returns a 1 if the cheat was successful, 0 if failed.
 //
-int cht_CheckCheat(cheatseq_t *cht, char key) {
+int cht_CheckCheat(cheatseq_t *cht, char key)
+{
   int i;
   int rc = 0;
 
-  if (firsttime) {
+  if (firsttime)
+  {
     firsttime = 0;
     for (i = 0; i < 256; i++)
       cheat_xlate_table[i] = SCRAMBLE(i);
@@ -67,7 +67,8 @@ int cht_CheckCheat(cheatseq_t *cht, char key) {
   return rc;
 }
 
-void cht_GetParam(cheatseq_t *cht, char *buffer) {
+void cht_GetParam(cheatseq_t *cht, char *buffer)
+{
 
   unsigned char *p, c;
 
@@ -75,7 +76,8 @@ void cht_GetParam(cheatseq_t *cht, char *buffer) {
   while (*(p++) != 1)
     ;
 
-  do {
+  do
+  {
     c = *p;
     *(buffer++) = c;
     *(p++) = 0;

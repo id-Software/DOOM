@@ -24,8 +24,6 @@
 //
 //-----------------------------------------------------------------------------
 
-static const char rcsid[] = "$Id: m_misc.c,v 1.6 1997/02/03 22:45:10 b1 Exp $";
-
 #include <fcntl.h>
 #include <stdlib.h>
 #include <sys/stat.h>
@@ -64,14 +62,17 @@ static const char rcsid[] = "$Id: m_misc.c,v 1.6 1997/02/03 22:45:10 b1 Exp $";
 //
 extern patch_t *hu_font[HU_FONTSIZE];
 
-int M_DrawText(int x, int y, boolean direct, char *string) {
+int M_DrawText(int x, int y, boolean direct, char *string)
+{
   int c;
   int w;
 
-  while (*string) {
+  while (*string)
+  {
     c = toupper(*string) - HU_FONTSTART;
     string++;
-    if (c < 0 || c > HU_FONTSIZE) {
+    if (c < 0 || c > HU_FONTSIZE)
+    {
       x += 4;
       continue;
     }
@@ -96,7 +97,8 @@ int M_DrawText(int x, int y, boolean direct, char *string) {
 #define O_BINARY 0
 #endif
 
-boolean M_WriteFile(char const *name, void *source, int length) {
+boolean M_WriteFile(char const *name, void *source, int length)
+{
   int handle;
   int count;
 
@@ -117,7 +119,8 @@ boolean M_WriteFile(char const *name, void *source, int length) {
 //
 // M_ReadFile
 //
-int M_ReadFile(char const *name, byte **buffer) {
+int M_ReadFile(char const *name, byte **buffer)
+{
   int handle, count, length;
   struct stat fileinfo;
   byte *buf;
@@ -197,7 +200,8 @@ extern char *chat_macros[];
 
 #include <stdint.h>
 
-typedef struct {
+typedef struct
+{
   char *name;
   int *location;
   uintptr_t defaultvalue;
@@ -274,7 +278,8 @@ char *defaultfile;
 //
 // M_SaveDefaults
 //
-void M_SaveDefaults(void) {
+void M_SaveDefaults(void)
+{
   int i;
   int v;
   FILE *f;
@@ -283,11 +288,15 @@ void M_SaveDefaults(void) {
   if (!f)
     return; // can't write the file, but don't complain
 
-  for (i = 0; i < numdefaults; i++) {
-    if (defaults[i].defaultvalue > -0xfff && defaults[i].defaultvalue < 0xfff) {
+  for (i = 0; i < numdefaults; i++)
+  {
+    if (defaults[i].defaultvalue > -0xfff && defaults[i].defaultvalue < 0xfff)
+    {
       v = *defaults[i].location;
       fprintf(f, "%s\t\t%i\n", defaults[i].name, v);
-    } else {
+    }
+    else
+    {
       fprintf(f, "%s\t\t\"%s\"\n", defaults[i].name,
               *(char **)(defaults[i].location));
     }
@@ -301,7 +310,8 @@ void M_SaveDefaults(void) {
 //
 extern byte scantokey[128];
 
-void M_LoadDefaults(void) {
+void M_LoadDefaults(void)
+{
   int i;
   int len;
   FILE *f;
@@ -318,31 +328,39 @@ void M_LoadDefaults(void) {
 
   // check for a custom default file
   i = M_CheckParm("-config");
-  if (i && i < myargc - 1) {
+  if (i && i < myargc - 1)
+  {
     defaultfile = myargv[i + 1];
     printf("	default file: %s\n", defaultfile);
-  } else
+  }
+  else
     defaultfile = basedefault;
 
   // read the file in, overriding any set defaults
   f = fopen(defaultfile, "r");
-  if (f) {
-    while (!feof(f)) {
+  if (f)
+  {
+    while (!feof(f))
+    {
       isstring = false;
-      if (fscanf(f, "%79s %[^\n]\n", def, strparm) == 2) {
-        if (strparm[0] == '"') {
+      if (fscanf(f, "%79s %[^\n]\n", def, strparm) == 2)
+      {
+        if (strparm[0] == '"')
+        {
           // get a string default
           isstring = true;
           len = strlen(strparm);
           newstring = (char *)malloc(len);
           strparm[len - 1] = 0;
           strcpy(newstring, strparm + 1);
-        } else if (strparm[0] == '0' && strparm[1] == 'x')
+        }
+        else if (strparm[0] == '0' && strparm[1] == 'x')
           sscanf(strparm + 2, "%x", &parm);
         else
           sscanf(strparm, "%i", &parm);
         for (i = 0; i < numdefaults; i++)
-          if (!strcmp(def, defaults[i].name)) {
+          if (!strcmp(def, defaults[i].name))
+          {
             if (!isstring)
               *defaults[i].location = parm;
             else
@@ -360,7 +378,8 @@ void M_LoadDefaults(void) {
 // SCREEN SHOTS
 //
 
-typedef struct {
+typedef struct
+{
   char manufacturer;
   char version;
   char encoding;
@@ -389,7 +408,8 @@ typedef struct {
 // WritePCXfile
 //
 void WritePCXfile(char *filename, byte *data, int width, int height,
-                  byte *palette) {
+                  byte *palette)
+{
   int i;
   int length;
   pcx_t *pcx;
@@ -416,10 +436,12 @@ void WritePCXfile(char *filename, byte *data, int width, int height,
   // pack the image
   pack = &pcx->data;
 
-  for (i = 0; i < width * height; i++) {
+  for (i = 0; i < width * height; i++)
+  {
     if ((*data & 0xc0) != 0xc0)
       *pack++ = *data++;
-    else {
+    else
+    {
       *pack++ = 0xc1;
       *pack++ = *data++;
     }
@@ -440,7 +462,8 @@ void WritePCXfile(char *filename, byte *data, int width, int height,
 //
 // M_ScreenShot
 //
-void M_ScreenShot(void) {
+void M_ScreenShot(void)
+{
   int i;
   byte *linear;
   char lbmname[12];
@@ -452,7 +475,8 @@ void M_ScreenShot(void) {
   // find a file name to save it to
   strcpy(lbmname, "DOOM00.pcx");
 
-  for (i = 0; i <= 99; i++) {
+  for (i = 0; i <= 99; i++)
+  {
     lbmname[4] = i / 10 + '0';
     lbmname[5] = i % 10 + '0';
     if (access(lbmname, 0) == -1)

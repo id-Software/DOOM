@@ -21,8 +21,6 @@
 //
 //-----------------------------------------------------------------------------
 
-static const char rcsid[] = "$Id: i_unix.c,v 1.5 1997/02/03 22:45:10 b1 Exp $";
-
 #include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -147,12 +145,14 @@ int *channelrightvol_lookup[NUM_CHANNELS];
 //
 // Safe ioctl, convenience.
 //
-void myioctl(int fd, int command, int *arg) {
+void myioctl(int fd, int command, int *arg)
+{
   int rc;
   extern int errno;
 
   rc = ioctl(fd, command, arg);
-  if (rc < 0) {
+  if (rc < 0)
+  {
     fprintf(stderr, "ioctl(dsp,%d,arg) failed\n", command);
     fprintf(stderr, "errno=%d\n", errno);
     exit(-1);
@@ -163,7 +163,8 @@ void myioctl(int fd, int command, int *arg) {
 // This function loads the sound data from the WAD lump,
 //  for single sound.
 //
-void *getsfx(char *sfxname, int *len) {
+void *getsfx(char *sfxname, int *len)
+{
   unsigned char *sfx;
   unsigned char *paddedsfx;
   int i;
@@ -233,7 +234,8 @@ void *getsfx(char *sfxname, int *len) {
 //  (eight, usually) of internal channels.
 // Returns a handle.
 //
-int addsfx(int sfxid, int volume, int step, int seperation) {
+int addsfx(int sfxid, int volume, int step, int seperation)
+{
   static unsigned short handlenums = 0;
 
   int i;
@@ -249,11 +251,14 @@ int addsfx(int sfxid, int volume, int step, int seperation) {
   // Chainsaw troubles.
   // Play these sound effects only one at a time.
   if (sfxid == sfx_sawup || sfxid == sfx_sawidl || sfxid == sfx_sawful ||
-      sfxid == sfx_sawhit || sfxid == sfx_stnmov || sfxid == sfx_pistol) {
+      sfxid == sfx_sawhit || sfxid == sfx_stnmov || sfxid == sfx_pistol)
+  {
     // Loop all channels, check.
-    for (i = 0; i < NUM_CHANNELS; i++) {
+    for (i = 0; i < NUM_CHANNELS; i++)
+    {
       // Active, and using the same SFX?
-      if ((channels[i]) && (channelids[i] == sfxid)) {
+      if ((channels[i]) && (channelids[i] == sfxid))
+      {
         // Reset.
         channels[i] = 0;
         // We are sure that iff,
@@ -264,8 +269,10 @@ int addsfx(int sfxid, int volume, int step, int seperation) {
   }
 
   // Loop all channels to find oldest SFX.
-  for (i = 0; (i < NUM_CHANNELS) && (channels[i]); i++) {
-    if (channelstart[i] < oldest) {
+  for (i = 0; (i < NUM_CHANNELS) && (channels[i]); i++)
+  {
+    if (channelstart[i] < oldest)
+    {
       oldestnum = i;
       oldest = channelstart[i];
     }
@@ -343,7 +350,8 @@ int addsfx(int sfxid, int volume, int step, int seperation) {
 // version.
 // See soundserver initdata().
 //
-void I_SetChannels() {
+void I_SetChannels()
+{
   // Init internal lookups (raw data, mixing buffer, channels).
   // This function sets up internal lookups used during
   //  the mixing process.
@@ -371,7 +379,8 @@ void I_SetChannels() {
       vol_lookup[i * 256 + j] = (i * (j - 128) * 256) / 127;
 }
 
-void I_SetSfxVolume(int volume) {
+void I_SetSfxVolume(int volume)
+{
   // Identical to DOS.
   // Basically, this should propagate
   //  the menu/config file setting
@@ -381,7 +390,8 @@ void I_SetSfxVolume(int volume) {
 }
 
 // MUSIC API - dummy. Some code from DOS version.
-void I_SetMusicVolume(int volume) {
+void I_SetMusicVolume(int volume)
+{
   // Internal state variable.
   snd_MusicVolume = volume;
   // Now set volume on output device.
@@ -392,7 +402,8 @@ void I_SetMusicVolume(int volume) {
 // Retrieve the raw data lump index
 //  for a given SFX name.
 //
-int I_GetSfxLumpNum(sfxinfo_t *sfx) {
+int I_GetSfxLumpNum(sfxinfo_t *sfx)
+{
   char namebuf[9];
   sprintf(namebuf, "ds%s", sfx->name);
   return W_GetNumForName(namebuf);
@@ -410,13 +421,15 @@ int I_GetSfxLumpNum(sfxinfo_t *sfx) {
 // Pitching (that is, increased speed of playback)
 //  is set, but currently not used by mixing.
 //
-int I_StartSound(int id, int vol, int sep, int pitch, int priority) {
+int I_StartSound(int id, int vol, int sep, int pitch, int priority)
+{
 
   // UNUSED
   priority = 0;
 
 #ifdef SNDSERV
-  if (sndserver) {
+  if (sndserver)
+  {
     fprintf(sndserver, "p%2.2x%2.2x%2.2x%2.2x\n", id, pitch, vol, sep);
     fflush(sndserver);
   }
@@ -435,7 +448,8 @@ int I_StartSound(int id, int vol, int sep, int pitch, int priority) {
 #endif
 }
 
-void I_StopSound(int handle) {
+void I_StopSound(int handle)
+{
   // You need the handle returned by StartSound.
   // Would be looping all channels,
   //  tracking down the handle,
@@ -445,7 +459,8 @@ void I_StopSound(int handle) {
   handle = 0;
 }
 
-int I_SoundIsPlaying(int handle) {
+int I_SoundIsPlaying(int handle)
+{
   // Ouch.
   return gametic < handle;
 }
@@ -463,7 +478,8 @@ int I_SoundIsPlaying(int handle) {
 //
 // This function currently supports only 16bit.
 //
-void I_UpdateSound(void) {
+void I_UpdateSound(void)
+{
 #ifdef SNDINTR
   // Debug. Count buffer misses with interrupt.
   static int misses = 0;
@@ -498,7 +514,8 @@ void I_UpdateSound(void) {
   // Mix sounds into the mixing buffer.
   // Loop over step*SAMPLECOUNT,
   //  that is 512 values for two channels.
-  while (leftout != leftend) {
+  while (leftout != leftend)
+  {
     // Reset left/right value.
     dl = 0;
     dr = 0;
@@ -506,9 +523,11 @@ void I_UpdateSound(void) {
     // Love thy L2 chache - made this a loop.
     // Now more channels could be set at compile time
     //  as well. Thus loop those  channels.
-    for (chan = 0; chan < NUM_CHANNELS; chan++) {
+    for (chan = 0; chan < NUM_CHANNELS; chan++)
+    {
       // Check channel, if active.
-      if (channels[chan]) {
+      if (channels[chan])
+      {
         // Get the raw data from the channel.
         sample = *channels[chan];
         // Add left and right part
@@ -558,12 +577,14 @@ void I_UpdateSound(void) {
 
 #ifdef SNDINTR
   // Debug check.
-  if (flag) {
+  if (flag)
+  {
     misses += flag;
     flag = 0;
   }
 
-  if (misses > 10) {
+  if (misses > 10)
+  {
     fprintf(stderr, "I_SoundUpdate: missed 10 buffer writes\n");
     misses = 0;
   }
@@ -581,12 +602,14 @@ void I_UpdateSound(void) {
 // Mixing now done synchronous, and
 //  only output be done asynchronous?
 //
-void I_SubmitSound(void) {
+void I_SubmitSound(void)
+{
   // Write it to DSP device.
   write(audio_fd, mixbuffer, SAMPLECOUNT * BUFMUL);
 }
 
-void I_UpdateSoundParams(int handle, int vol, int sep, int pitch) {
+void I_UpdateSoundParams(int handle, int vol, int sep, int pitch)
+{
   // I fail too see that this is used.
   // Would be using the handle to identify
   //  on which channel the sound might be active,
@@ -596,9 +619,11 @@ void I_UpdateSoundParams(int handle, int vol, int sep, int pitch) {
   handle = vol = sep = pitch = 0;
 }
 
-void I_ShutdownSound(void) {
+void I_ShutdownSound(void)
+{
 #ifdef SNDSERV
-  if (sndserver) {
+  if (sndserver)
+  {
     // Send a "quit" command.
     fprintf(sndserver, "q\n");
     fflush(sndserver);
@@ -612,7 +637,8 @@ void I_ShutdownSound(void) {
   fprintf(stderr, "I_ShutdownSound: NOT finishing pending sounds\n");
   fflush(stderr);
 
-  while (!done) {
+  while (!done)
+  {
     for (i = 0; i < 8 && !channels[i]; i++)
       ;
 
@@ -632,7 +658,8 @@ void I_ShutdownSound(void) {
   return;
 }
 
-void I_InitSound() {
+void I_InitSound()
+{
 #ifdef SNDSERV
   char buffer[256];
 
@@ -642,10 +669,12 @@ void I_InitSound() {
     sprintf(buffer, "%s", sndserver_filename);
 
   // start sound process
-  if (!access(buffer, X_OK)) {
+  if (!access(buffer, X_OK))
+  {
     strcat(buffer, " -quiet");
     sndserver = popen(buffer, "w");
-  } else
+  }
+  else
     fprintf(stderr, "Could not start sound server [%s]\n", buffer);
 #else
 
@@ -686,12 +715,16 @@ void I_InitSound() {
   // Initialize external data (all sounds) at start, keep static.
   fprintf(stderr, "I_InitSound: ");
 
-  for (i = 1; i < NUMSFX; i++) {
+  for (i = 1; i < NUMSFX; i++)
+  {
     // Alias? Example is the chaingun sound linked to pistol.
-    if (!S_sfx[i].link) {
+    if (!S_sfx[i].link)
+    {
       // Load data from WAD file.
       S_sfx[i].data = getsfx(S_sfx[i].name, &lengths[i]);
-    } else {
+    }
+    else
+    {
       // Previously loaded already?
       S_sfx[i].data = S_sfx[i].link->data;
       lengths[i] = lengths[(S_sfx[i].link - S_sfx) / sizeof(sfxinfo_t)];
@@ -721,23 +754,27 @@ void I_ShutdownMusic(void) {}
 static int looping = 0;
 static int musicdies = -1;
 
-void I_PlaySong(int handle, int looping) {
+void I_PlaySong(int handle, int looping)
+{
   // UNUSED.
   handle = looping = 0;
   musicdies = gametic + TICRATE * 30;
 }
 
-void I_PauseSong(int handle) {
+void I_PauseSong(int handle)
+{
   // UNUSED.
   handle = 0;
 }
 
-void I_ResumeSong(int handle) {
+void I_ResumeSong(int handle)
+{
   // UNUSED.
   handle = 0;
 }
 
-void I_StopSong(int handle) {
+void I_StopSong(int handle)
+{
   // UNUSED.
   handle = 0;
 
@@ -745,12 +782,14 @@ void I_StopSong(int handle) {
   musicdies = 0;
 }
 
-void I_UnRegisterSong(int handle) {
+void I_UnRegisterSong(int handle)
+{
   // UNUSED.
   handle = 0;
 }
 
-int I_RegisterSong(void *data) {
+int I_RegisterSong(void *data)
+{
   // UNUSED.
   data = NULL;
 
@@ -758,7 +797,8 @@ int I_RegisterSong(void *data) {
 }
 
 // Is the song playing?
-int I_QrySongPlaying(int handle) {
+int I_QrySongPlaying(int handle)
+{
   // UNUSED.
   handle = 0;
   return looping || musicdies > gametic;
@@ -787,19 +827,22 @@ static int /*__itimer_which*/ itimer = ITIMER_REAL;
 static int sig = SIGALRM;
 
 // Interrupt handler.
-void I_HandleSoundTimer(int ignore) {
+void I_HandleSoundTimer(int ignore)
+{
   // Debug.
   // fprintf( stderr, "%c", '+' ); fflush( stderr );
 
   // Feed sound device if necesary.
-  if (flag) {
+  if (flag)
+  {
     // See I_SubmitSound().
     // Write it to DSP device.
     write(audio_fd, mixbuffer, SAMPLECOUNT * BUFMUL);
 
     // Reset flag counter.
     flag = 0;
-  } else
+  }
+  else
     return;
 
   // UNUSED, but required.
@@ -808,7 +851,8 @@ void I_HandleSoundTimer(int ignore) {
 }
 
 // Get the interrupt. Set duration in millisecs.
-int I_SoundSetTimer(int duration_of_tick) {
+int I_SoundSetTimer(int duration_of_tick)
+{
   // Needed for gametick clockwork.
   struct itimerval value;
   struct itimerval ovalue;
@@ -845,7 +889,8 @@ int I_SoundSetTimer(int duration_of_tick) {
 }
 
 // Remove the interrupt. Set duration to zero.
-void I_SoundDelTimer() {
+void I_SoundDelTimer()
+{
   // Debug.
   if (I_SoundSetTimer(0) == -1)
     fprintf(stderr, "I_SoundDelTimer: failed to remove interrupt. Doh!\n");

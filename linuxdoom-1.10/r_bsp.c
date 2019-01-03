@@ -21,8 +21,6 @@
 //
 //-----------------------------------------------------------------------------
 
-static const char rcsid[] = "$Id: r_bsp.c,v 1.4 1997/02/03 22:45:12 b1 Exp $";
-
 #include "doomdef.h"
 
 #include "m_bbox.h"
@@ -60,7 +58,8 @@ void R_ClearDrawSegs(void) { ds_p = drawsegs; }
 // Clips the given range of columns
 // and includes it in the new clip list.
 //
-typedef struct {
+typedef struct
+{
   int first;
   int last;
 
@@ -78,7 +77,8 @@ cliprange_t solidsegs[MAXSEGS];
 //  e.g. single sided LineDefs (middle texture)
 //  that entirely block the view.
 //
-void R_ClipSolidWallSegment(int first, int last) {
+void R_ClipSolidWallSegment(int first, int last)
+{
   cliprange_t *next;
   cliprange_t *start;
 
@@ -88,15 +88,18 @@ void R_ClipSolidWallSegment(int first, int last) {
   while (start->last < first - 1)
     start++;
 
-  if (first < start->first) {
-    if (last < start->first - 1) {
+  if (first < start->first)
+  {
+    if (last < start->first - 1)
+    {
       // Post is entirely visible (above start),
       //  so insert a new clippost.
       R_StoreWallRange(first, last);
       next = newend;
       newend++;
 
-      while (next != start) {
+      while (next != start)
+      {
         *next = *(next - 1);
         next--;
       }
@@ -116,12 +119,14 @@ void R_ClipSolidWallSegment(int first, int last) {
     return;
 
   next = start;
-  while (last >= (next + 1)->first - 1) {
+  while (last >= (next + 1)->first - 1)
+  {
     // There is a fragment between two posts.
     R_StoreWallRange(next->last + 1, (next + 1)->first - 1);
     next++;
 
-    if (last <= next->last) {
+    if (last <= next->last)
+    {
       // Bottom is contained in next.
       // Adjust the clip size.
       start->last = next->last;
@@ -137,12 +142,14 @@ void R_ClipSolidWallSegment(int first, int last) {
   // Remove start+1 to next from the clip list,
   // because start now covers their area.
 crunch:
-  if (next == start) {
+  if (next == start)
+  {
     // Post just extended past the bottom of one post.
     return;
   }
 
-  while (next++ != newend) {
+  while (next++ != newend)
+  {
     // Remove a post.
     *++start = *next;
   }
@@ -157,7 +164,8 @@ crunch:
 // Does handle windows,
 //  e.g. LineDefs with upper and lower texture.
 //
-void R_ClipPassWallSegment(int first, int last) {
+void R_ClipPassWallSegment(int first, int last)
+{
   cliprange_t *start;
 
   // Find the first range that touches the range
@@ -166,8 +174,10 @@ void R_ClipPassWallSegment(int first, int last) {
   while (start->last < first - 1)
     start++;
 
-  if (first < start->first) {
-    if (last < start->first - 1) {
+  if (first < start->first)
+  {
+    if (last < start->first - 1)
+    {
       // Post is entirely visible (above start).
       R_StoreWallRange(first, last);
       return;
@@ -181,7 +191,8 @@ void R_ClipPassWallSegment(int first, int last) {
   if (last <= start->last)
     return;
 
-  while (last >= (start + 1)->first - 1) {
+  while (last >= (start + 1)->first - 1)
+  {
     // There is a fragment between two posts.
     R_StoreWallRange(start->last + 1, (start + 1)->first - 1);
     start++;
@@ -197,7 +208,8 @@ void R_ClipPassWallSegment(int first, int last) {
 //
 // R_ClearClipSegs
 //
-void R_ClearClipSegs(void) {
+void R_ClearClipSegs(void)
+{
   solidsegs[0].first = -0x7fffffff;
   solidsegs[0].last = -1;
   solidsegs[1].first = viewwidth;
@@ -210,7 +222,8 @@ void R_ClearClipSegs(void) {
 // Clips the given segment
 // and adds any visible pieces to the line list.
 //
-void R_AddLine(seg_t *line) {
+void R_AddLine(seg_t *line)
+{
   int x1;
   int x2;
   angle_t angle1;
@@ -238,7 +251,8 @@ void R_AddLine(seg_t *line) {
   angle2 -= viewangle;
 
   tspan = angle1 + clipangle;
-  if (tspan > 2 * clipangle) {
+  if (tspan > 2 * clipangle)
+  {
     tspan -= 2 * clipangle;
 
     // Totally off the left edge?
@@ -248,7 +262,8 @@ void R_AddLine(seg_t *line) {
     angle1 = clipangle;
   }
   tspan = clipangle - angle2;
-  if (tspan > 2 * clipangle) {
+  if (tspan > 2 * clipangle)
+  {
     tspan -= 2 * clipangle;
 
     // Totally off the left edge?
@@ -292,7 +307,8 @@ void R_AddLine(seg_t *line) {
   if (backsector->ceilingpic == frontsector->ceilingpic &&
       backsector->floorpic == frontsector->floorpic &&
       backsector->lightlevel == frontsector->lightlevel &&
-      curline->sidedef->midtexture == 0) {
+      curline->sidedef->midtexture == 0)
+  {
     return;
   }
 
@@ -310,11 +326,10 @@ clipsolid:
 // Returns true
 //  if some part of the bbox might be visible.
 //
-int checkcoord[12][4] = {{3, 0, 2, 1}, {3, 0, 2, 0}, {3, 1, 2, 0}, {0},
-                         {2, 0, 2, 1}, {0, 0, 0, 0}, {3, 1, 3, 0}, {0},
-                         {2, 0, 3, 1}, {2, 1, 3, 1}, {2, 1, 3, 0}};
+int checkcoord[12][4] = {{3, 0, 2, 1}, {3, 0, 2, 0}, {3, 1, 2, 0}, {0}, {2, 0, 2, 1}, {0, 0, 0, 0}, {3, 1, 3, 0}, {0}, {2, 0, 3, 1}, {2, 1, 3, 1}, {2, 1, 3, 0}};
 
-boolean R_CheckBBox(fixed_t *bspcoord) {
+boolean R_CheckBBox(fixed_t *bspcoord)
+{
   int boxx;
   int boxy;
   int boxpos;
@@ -371,7 +386,8 @@ boolean R_CheckBBox(fixed_t *bspcoord) {
 
   tspan = angle1 + clipangle;
 
-  if (tspan > 2 * clipangle) {
+  if (tspan > 2 * clipangle)
+  {
     tspan -= 2 * clipangle;
 
     // Totally off the left edge?
@@ -381,7 +397,8 @@ boolean R_CheckBBox(fixed_t *bspcoord) {
     angle1 = clipangle;
   }
   tspan = clipangle - angle2;
-  if (tspan > 2 * clipangle) {
+  if (tspan > 2 * clipangle)
+  {
     tspan -= 2 * clipangle;
 
     // Totally off the left edge?
@@ -408,7 +425,8 @@ boolean R_CheckBBox(fixed_t *bspcoord) {
   while (start->last < sx2)
     start++;
 
-  if (sx1 >= start->first && sx2 <= start->last) {
+  if (sx1 >= start->first && sx2 <= start->last)
+  {
     // The clippost contains the new span.
     return false;
   }
@@ -422,7 +440,8 @@ boolean R_CheckBBox(fixed_t *bspcoord) {
 // Add sprites of things in sector.
 // Draw one or more line segments.
 //
-void R_Subsector(int num) {
+void R_Subsector(int num)
+{
   int count;
   seg_t *line;
   subsector_t *sub;
@@ -438,23 +457,28 @@ void R_Subsector(int num) {
   count = sub->numlines;
   line = &segs[sub->firstline];
 
-  if (frontsector->floorheight < viewz) {
+  if (frontsector->floorheight < viewz)
+  {
     floorplane = R_FindPlane(frontsector->floorheight, frontsector->floorpic,
                              frontsector->lightlevel);
-  } else
+  }
+  else
     floorplane = NULL;
 
   if (frontsector->ceilingheight > viewz ||
-      frontsector->ceilingpic == skyflatnum) {
+      frontsector->ceilingpic == skyflatnum)
+  {
     ceilingplane =
         R_FindPlane(frontsector->ceilingheight, frontsector->ceilingpic,
                     frontsector->lightlevel);
-  } else
+  }
+  else
     ceilingplane = NULL;
 
   R_AddSprites(frontsector);
 
-  while (count--) {
+  while (count--)
+  {
     R_AddLine(line);
     line++;
   }
@@ -465,12 +489,14 @@ void R_Subsector(int num) {
 // Renders all subsectors below a given node,
 //  traversing subtree recursively.
 // Just call with BSP root.
-void R_RenderBSPNode(int bspnum) {
+void R_RenderBSPNode(int bspnum)
+{
   node_t *bsp;
   int side;
 
   // Found a subsector?
-  if (bspnum & NF_SUBSECTOR) {
+  if (bspnum & NF_SUBSECTOR)
+  {
     if (bspnum == -1)
       R_Subsector(0);
     else

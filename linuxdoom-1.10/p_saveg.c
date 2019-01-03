@@ -21,8 +21,6 @@
 //
 //-----------------------------------------------------------------------------
 
-static const char rcsid[] = "$Id: p_tick.c,v 1.4 1997/02/03 16:47:55 b1 Exp $";
-
 #include "i_system.h"
 #include "p_local.h"
 #include "z_zone.h"
@@ -40,12 +38,14 @@ byte *save_p;
 //
 // P_ArchivePlayers
 //
-void P_ArchivePlayers(void) {
+void P_ArchivePlayers(void)
+{
   int i;
   int j;
   player_t *dest;
 
-  for (i = 0; i < MAXPLAYERS; i++) {
+  for (i = 0; i < MAXPLAYERS; i++)
+  {
     if (!playeringame[i])
       continue;
 
@@ -54,8 +54,10 @@ void P_ArchivePlayers(void) {
     dest = (player_t *)save_p;
     memcpy(dest, &players[i], sizeof(player_t));
     save_p += sizeof(player_t);
-    for (j = 0; j < NUMPSPRITES; j++) {
-      if (dest->psprites[j].state) {
+    for (j = 0; j < NUMPSPRITES; j++)
+    {
+      if (dest->psprites[j].state)
+      {
         dest->psprites[j].state = (state_t *)(dest->psprites[j].state - states);
       }
     }
@@ -65,11 +67,13 @@ void P_ArchivePlayers(void) {
 //
 // P_UnArchivePlayers
 //
-void P_UnArchivePlayers(void) {
+void P_UnArchivePlayers(void)
+{
   int i;
   int j;
 
-  for (i = 0; i < MAXPLAYERS; i++) {
+  for (i = 0; i < MAXPLAYERS; i++)
+  {
     if (!playeringame[i])
       continue;
 
@@ -83,8 +87,10 @@ void P_UnArchivePlayers(void) {
     players[i].message = NULL;
     players[i].attacker = NULL;
 
-    for (j = 0; j < NUMPSPRITES; j++) {
-      if (players[i].psprites[j].state) {
+    for (j = 0; j < NUMPSPRITES; j++)
+    {
+      if (players[i].psprites[j].state)
+      {
         players[i].psprites[j].state =
             &states[(int)players[i].psprites[j].state];
       }
@@ -95,7 +101,8 @@ void P_UnArchivePlayers(void) {
 //
 // P_ArchiveWorld
 //
-void P_ArchiveWorld(void) {
+void P_ArchiveWorld(void)
+{
   int i;
   int j;
   sector_t *sec;
@@ -106,7 +113,8 @@ void P_ArchiveWorld(void) {
   put = (short *)save_p;
 
   // do sectors
-  for (i = 0, sec = sectors; i < numsectors; i++, sec++) {
+  for (i = 0, sec = sectors; i < numsectors; i++, sec++)
+  {
     *put++ = sec->floorheight >> FRACBITS;
     *put++ = sec->ceilingheight >> FRACBITS;
     *put++ = sec->floorpic;
@@ -117,11 +125,13 @@ void P_ArchiveWorld(void) {
   }
 
   // do lines
-  for (i = 0, li = lines; i < numlines; i++, li++) {
+  for (i = 0, li = lines; i < numlines; i++, li++)
+  {
     *put++ = li->flags;
     *put++ = li->special;
     *put++ = li->tag;
-    for (j = 0; j < 2; j++) {
+    for (j = 0; j < 2; j++)
+    {
       if (li->sidenum[j] == -1)
         continue;
 
@@ -141,7 +151,8 @@ void P_ArchiveWorld(void) {
 //
 // P_UnArchiveWorld
 //
-void P_UnArchiveWorld(void) {
+void P_UnArchiveWorld(void)
+{
   int i;
   int j;
   sector_t *sec;
@@ -152,7 +163,8 @@ void P_UnArchiveWorld(void) {
   get = (short *)save_p;
 
   // do sectors
-  for (i = 0, sec = sectors; i < numsectors; i++, sec++) {
+  for (i = 0, sec = sectors; i < numsectors; i++, sec++)
+  {
     sec->floorheight = *get++ << FRACBITS;
     sec->ceilingheight = *get++ << FRACBITS;
     sec->floorpic = *get++;
@@ -165,11 +177,13 @@ void P_UnArchiveWorld(void) {
   }
 
   // do lines
-  for (i = 0, li = lines; i < numlines; i++, li++) {
+  for (i = 0, li = lines; i < numlines; i++, li++)
+  {
     li->flags = *get++;
     li->special = *get++;
     li->tag = *get++;
-    for (j = 0; j < 2; j++) {
+    for (j = 0; j < 2; j++)
+    {
       if (li->sidenum[j] == -1)
         continue;
       si = &sides[li->sidenum[j]];
@@ -186,7 +200,8 @@ void P_UnArchiveWorld(void) {
 //
 // Thinkers
 //
-typedef enum {
+typedef enum
+{
   tc_end,
   tc_mobj
 
@@ -195,13 +210,16 @@ typedef enum {
 //
 // P_ArchiveThinkers
 //
-void P_ArchiveThinkers(void) {
+void P_ArchiveThinkers(void)
+{
   thinker_t *th;
   mobj_t *mobj;
 
   // save off the current thinkers
-  for (th = thinkercap.next; th != &thinkercap; th = th->next) {
-    if (th->function.acp1 == (actionf_p1)P_MobjThinker) {
+  for (th = thinkercap.next; th != &thinkercap; th = th->next)
+  {
+    if (th->function.acp1 == (actionf_p1)P_MobjThinker)
+    {
       *save_p++ = tc_mobj;
       PADSAVEP();
       mobj = (mobj_t *)save_p;
@@ -224,7 +242,8 @@ void P_ArchiveThinkers(void) {
 //
 // P_UnArchiveThinkers
 //
-void P_UnArchiveThinkers(void) {
+void P_UnArchiveThinkers(void)
+{
   byte tclass;
   thinker_t *currentthinker;
   thinker_t *next;
@@ -232,7 +251,8 @@ void P_UnArchiveThinkers(void) {
 
   // remove all the current thinkers
   currentthinker = thinkercap.next;
-  while (currentthinker != &thinkercap) {
+  while (currentthinker != &thinkercap)
+  {
     next = currentthinker->next;
 
     if (currentthinker->function.acp1 == (actionf_p1)P_MobjThinker)
@@ -245,9 +265,11 @@ void P_UnArchiveThinkers(void) {
   P_InitThinkers();
 
   // read in saved thinkers
-  while (1) {
+  while (1)
+  {
     tclass = *save_p++;
-    switch (tclass) {
+    switch (tclass)
+    {
     case tc_end:
       return; // end of list
 
@@ -258,7 +280,8 @@ void P_UnArchiveThinkers(void) {
       save_p += sizeof(*mobj);
       mobj->state = &states[(int)mobj->state];
       mobj->target = NULL;
-      if (mobj->player) {
+      if (mobj->player)
+      {
         mobj->player = &players[(int)mobj->player - 1];
         mobj->player->mo = mobj;
       }
@@ -279,7 +302,8 @@ void P_UnArchiveThinkers(void) {
 //
 // P_ArchiveSpecials
 //
-enum {
+enum
+{
   tc_ceiling,
   tc_door,
   tc_floor,
@@ -302,7 +326,8 @@ enum {
 // T_Glow, (glow_t: sector_t *),
 // T_PlatRaise, (plat_t: sector_t *), - active list
 //
-void P_ArchiveSpecials(void) {
+void P_ArchiveSpecials(void)
+{
   thinker_t *th;
   ceiling_t *ceiling;
   vldoor_t *door;
@@ -314,13 +339,16 @@ void P_ArchiveSpecials(void) {
   int i;
 
   // save off the current thinkers
-  for (th = thinkercap.next; th != &thinkercap; th = th->next) {
-    if (th->function.acv == (actionf_v)NULL) {
+  for (th = thinkercap.next; th != &thinkercap; th = th->next)
+  {
+    if (th->function.acv == (actionf_v)NULL)
+    {
       for (i = 0; i < MAXCEILINGS; i++)
         if (activeceilings[i] == (ceiling_t *)th)
           break;
 
-      if (i < MAXCEILINGS) {
+      if (i < MAXCEILINGS)
+      {
         *save_p++ = tc_ceiling;
         PADSAVEP();
         ceiling = (ceiling_t *)save_p;
@@ -331,7 +359,8 @@ void P_ArchiveSpecials(void) {
       continue;
     }
 
-    if (th->function.acp1 == (actionf_p1)T_MoveCeiling) {
+    if (th->function.acp1 == (actionf_p1)T_MoveCeiling)
+    {
       *save_p++ = tc_ceiling;
       PADSAVEP();
       ceiling = (ceiling_t *)save_p;
@@ -341,7 +370,8 @@ void P_ArchiveSpecials(void) {
       continue;
     }
 
-    if (th->function.acp1 == (actionf_p1)T_VerticalDoor) {
+    if (th->function.acp1 == (actionf_p1)T_VerticalDoor)
+    {
       *save_p++ = tc_door;
       PADSAVEP();
       door = (vldoor_t *)save_p;
@@ -351,7 +381,8 @@ void P_ArchiveSpecials(void) {
       continue;
     }
 
-    if (th->function.acp1 == (actionf_p1)T_MoveFloor) {
+    if (th->function.acp1 == (actionf_p1)T_MoveFloor)
+    {
       *save_p++ = tc_floor;
       PADSAVEP();
       floor = (floormove_t *)save_p;
@@ -361,7 +392,8 @@ void P_ArchiveSpecials(void) {
       continue;
     }
 
-    if (th->function.acp1 == (actionf_p1)T_PlatRaise) {
+    if (th->function.acp1 == (actionf_p1)T_PlatRaise)
+    {
       *save_p++ = tc_plat;
       PADSAVEP();
       plat = (plat_t *)save_p;
@@ -371,7 +403,8 @@ void P_ArchiveSpecials(void) {
       continue;
     }
 
-    if (th->function.acp1 == (actionf_p1)T_LightFlash) {
+    if (th->function.acp1 == (actionf_p1)T_LightFlash)
+    {
       *save_p++ = tc_flash;
       PADSAVEP();
       flash = (lightflash_t *)save_p;
@@ -381,7 +414,8 @@ void P_ArchiveSpecials(void) {
       continue;
     }
 
-    if (th->function.acp1 == (actionf_p1)T_StrobeFlash) {
+    if (th->function.acp1 == (actionf_p1)T_StrobeFlash)
+    {
       *save_p++ = tc_strobe;
       PADSAVEP();
       strobe = (strobe_t *)save_p;
@@ -391,7 +425,8 @@ void P_ArchiveSpecials(void) {
       continue;
     }
 
-    if (th->function.acp1 == (actionf_p1)T_Glow) {
+    if (th->function.acp1 == (actionf_p1)T_Glow)
+    {
       *save_p++ = tc_glow;
       PADSAVEP();
       glow = (glow_t *)save_p;
@@ -409,7 +444,8 @@ void P_ArchiveSpecials(void) {
 //
 // P_UnArchiveSpecials
 //
-void P_UnArchiveSpecials(void) {
+void P_UnArchiveSpecials(void)
+{
   byte tclass;
   ceiling_t *ceiling;
   vldoor_t *door;
@@ -420,9 +456,11 @@ void P_UnArchiveSpecials(void) {
   glow_t *glow;
 
   // read in saved thinkers
-  while (1) {
+  while (1)
+  {
     tclass = *save_p++;
-    switch (tclass) {
+    switch (tclass)
+    {
     case tc_endspecials:
       return; // end of list
 

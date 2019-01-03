@@ -21,9 +21,6 @@
 //
 //-----------------------------------------------------------------------------
 
-static const char rcsid[] =
-    "$Id: p_telept.c,v 1.3 1997/01/28 22:08:29 b1 Exp $";
-
 #include "doomdef.h"
 
 #include "s_sound.h"
@@ -39,7 +36,8 @@ static const char rcsid[] =
 //
 // TELEPORTATION
 //
-int EV_Teleport(line_t *line, int side, mobj_t *thing) {
+int EV_Teleport(line_t *line, int side, mobj_t *thing)
+{
   int i;
   int tag;
   mobj_t *m;
@@ -61,11 +59,14 @@ int EV_Teleport(line_t *line, int side, mobj_t *thing) {
     return 0;
 
   tag = line->tag;
-  for (i = 0; i < numsectors; i++) {
-    if (sectors[i].tag == tag) {
+  for (i = 0; i < numsectors; i++)
+  {
+    if (sectors[i].tag == tag)
+    {
       thinker = thinkercap.next;
       for (thinker = thinkercap.next; thinker != &thinkercap;
-           thinker = thinker->next) {
+           thinker = thinker->next)
+      {
         // not a mobj
         if (thinker->function.acp1 != (actionf_p1)P_MobjThinker)
           continue;

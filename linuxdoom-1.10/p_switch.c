@@ -22,9 +22,6 @@
 //
 //-----------------------------------------------------------------------------
 
-static const char rcsid[] =
-    "$Id: p_switch.c,v 1.3 1997/01/28 22:08:29 b1 Exp $";
-
 #include "doomdef.h"
 #include "i_system.h"
 #include "p_local.h"
@@ -100,7 +97,8 @@ button_t buttonlist[MAXBUTTONS];
 // P_InitSwitchList
 // Only called at game initialization.
 //
-void P_InitSwitchList(void) {
+void P_InitSwitchList(void)
+{
   int i;
   int index;
   int episode;
@@ -112,14 +110,17 @@ void P_InitSwitchList(void) {
   else if (gamemode == commercial)
     episode = 3;
 
-  for (index = 0, i = 0; i < MAXSWITCHES; i++) {
-    if (!alphSwitchList[i].episode) {
+  for (index = 0, i = 0; i < MAXSWITCHES; i++)
+  {
+    if (!alphSwitchList[i].episode)
+    {
       numswitches = index / 2;
       switchlist[index] = -1;
       break;
     }
 
-    if (alphSwitchList[i].episode <= episode) {
+    if (alphSwitchList[i].episode <= episode)
+    {
 #if 0 // UNUSED - debug?
 	    int		value;
 			
@@ -141,19 +142,24 @@ void P_InitSwitchList(void) {
 //
 // Start a button counting down till it turns off.
 //
-void P_StartButton(line_t *line, bwhere_e w, int texture, int time) {
+void P_StartButton(line_t *line, bwhere_e w, int texture, int time)
+{
   int i;
 
   // See if button is already pressed
-  for (i = 0; i < MAXBUTTONS; i++) {
-    if (buttonlist[i].btimer && buttonlist[i].line == line) {
+  for (i = 0; i < MAXBUTTONS; i++)
+  {
+    if (buttonlist[i].btimer && buttonlist[i].line == line)
+    {
 
       return;
     }
   }
 
-  for (i = 0; i < MAXBUTTONS; i++) {
-    if (!buttonlist[i].btimer) {
+  for (i = 0; i < MAXBUTTONS; i++)
+  {
+    if (!buttonlist[i].btimer)
+    {
       buttonlist[i].line = line;
       buttonlist[i].where = w;
       buttonlist[i].btexture = texture;
@@ -170,7 +176,8 @@ void P_StartButton(line_t *line, bwhere_e w, int texture, int time) {
 // Function that changes wall texture.
 // Tell it if switch is ok to use again (1=yes, it's a button).
 //
-void P_ChangeSwitchTexture(line_t *line, int useAgain) {
+void P_ChangeSwitchTexture(line_t *line, int useAgain)
+{
   int texTop;
   int texMid;
   int texBot;
@@ -190,8 +197,10 @@ void P_ChangeSwitchTexture(line_t *line, int useAgain) {
   if (line->special == 11)
     sound = sfx_swtchx;
 
-  for (i = 0; i < numswitches * 2; i++) {
-    if (switchlist[i] == texTop) {
+  for (i = 0; i < numswitches * 2; i++)
+  {
+    if (switchlist[i] == texTop)
+    {
       S_StartSound(buttonlist->soundorg, sound);
       sides[line->sidenum[0]].toptexture = switchlist[i ^ 1];
 
@@ -199,8 +208,11 @@ void P_ChangeSwitchTexture(line_t *line, int useAgain) {
         P_StartButton(line, top, switchlist[i], BUTTONTIME);
 
       return;
-    } else {
-      if (switchlist[i] == texMid) {
+    }
+    else
+    {
+      if (switchlist[i] == texMid)
+      {
         S_StartSound(buttonlist->soundorg, sound);
         sides[line->sidenum[0]].midtexture = switchlist[i ^ 1];
 
@@ -208,8 +220,11 @@ void P_ChangeSwitchTexture(line_t *line, int useAgain) {
           P_StartButton(line, middle, switchlist[i], BUTTONTIME);
 
         return;
-      } else {
-        if (switchlist[i] == texBot) {
+      }
+      else
+      {
+        if (switchlist[i] == texBot)
+        {
           S_StartSound(buttonlist->soundorg, sound);
           sides[line->sidenum[0]].bottomtexture = switchlist[i ^ 1];
 
@@ -228,12 +243,15 @@ void P_ChangeSwitchTexture(line_t *line, int useAgain) {
 // Called when a thing uses a special line.
 // Only the front sides of lines are usable.
 //
-boolean P_UseSpecialLine(mobj_t *thing, line_t *line, int side) {
+boolean P_UseSpecialLine(mobj_t *thing, line_t *line, int side)
+{
 
   // Err...
   // Use the back sides of VERY SPECIAL lines...
-  if (side) {
-    switch (line->special) {
+  if (side)
+  {
+    switch (line->special)
+    {
     case 124:
       // Sliding door open&close
       // UNUSED?
@@ -246,12 +264,14 @@ boolean P_UseSpecialLine(mobj_t *thing, line_t *line, int side) {
   }
 
   // Switches that other things can activate.
-  if (!thing->player) {
+  if (!thing->player)
+  {
     // never open secret doors
     if (line->flags & ML_SECRET)
       return false;
 
-    switch (line->special) {
+    switch (line->special)
+    {
     case 1:  // MANUAL DOOR RAISE
     case 32: // MANUAL BLUE
     case 33: // MANUAL RED
@@ -265,7 +285,8 @@ boolean P_UseSpecialLine(mobj_t *thing, line_t *line, int side) {
   }
 
   // do something
-  switch (line->special) {
+  switch (line->special)
+  {
     // MANUALS
   case 1:  // Vertical Door
   case 26: // Blue Door/Locked

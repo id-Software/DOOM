@@ -25,8 +25,6 @@
 //
 //-----------------------------------------------------------------------------
 
-static const char rcsid[] = "$Id: m_bbox.c,v 1.1 1997/02/03 22:45:10 b1 Exp $";
-
 // Needed for FRACUNIT.
 #include "m_fixed.h"
 
@@ -49,7 +47,8 @@ int skytexturemid;
 // R_InitSkyMap
 // Called whenever the view size changes.
 //
-void R_InitSkyMap(void) {
+void R_InitSkyMap(void)
+{
   // skyflatnum = R_FlatNumForName ( SKYFLATNAME );
   skytexturemid = 100 * FRACUNIT;
 }

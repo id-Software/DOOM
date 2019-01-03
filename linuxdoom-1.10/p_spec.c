@@ -25,8 +25,6 @@
 //
 //-----------------------------------------------------------------------------
 
-static const char rcsid[] = "$Id: p_spec.c,v 1.6 1997/02/03 22:45:12 b1 Exp $";
-
 #include <stdlib.h>
 
 #include "doomdef.h"
@@ -55,7 +53,8 @@ static const char rcsid[] = "$Id: p_spec.c,v 1.6 1997/02/03 22:45:12 b1 Exp $";
 // Animating textures and planes
 // There is another anim_t used in wi_stuff, unrelated.
 //
-typedef struct {
+typedef struct
+{
   boolean istexture;
   int picnum;
   int basepic;
@@ -67,7 +66,8 @@ typedef struct {
 //
 //      source animation definition
 //
-typedef struct {
+typedef struct
+{
   boolean istexture; // if false, it is a flat
   char endname[9];
   char startname[9];
@@ -133,20 +133,25 @@ anim_t *lastanim;
 extern short numlinespecials;
 extern line_t *linespeciallist[MAXLINEANIMS];
 
-void P_InitPicAnims(void) {
+void P_InitPicAnims(void)
+{
   int i;
 
   //	Init animation
   lastanim = anims;
-  for (i = 0; animdefs[i].istexture != -1; i++) {
-    if (animdefs[i].istexture) {
+  for (i = 0; animdefs[i].istexture != -1; i++)
+  {
+    if (animdefs[i].istexture)
+    {
       // different episode ?
       if (R_CheckTextureNumForName(animdefs[i].startname) == -1)
         continue;
 
       lastanim->picnum = R_TextureNumForName(animdefs[i].endname);
       lastanim->basepic = R_TextureNumForName(animdefs[i].startname);
-    } else {
+    }
+    else
+    {
       if (W_CheckNumForName(animdefs[i].startname) == -1)
         continue;
 
@@ -176,7 +181,8 @@ void P_InitPicAnims(void) {
 //  given the number of the current sector,
 //  the line number, and the side (0/1) that you want.
 //
-side_t *getSide(int currentSector, int line, int side) {
+side_t *getSide(int currentSector, int line, int side)
+{
   return &sides[(sectors[currentSector].lines[line])->sidenum[side]];
 }
 
@@ -186,7 +192,8 @@ side_t *getSide(int currentSector, int line, int side) {
 //  given the number of the current sector,
 //  the line number and the side (0/1) that you want.
 //
-sector_t *getSector(int currentSector, int line, int side) {
+sector_t *getSector(int currentSector, int line, int side)
+{
   return sides[(sectors[currentSector].lines[line])->sidenum[side]].sector;
 }
 
@@ -195,7 +202,8 @@ sector_t *getSector(int currentSector, int line, int side) {
 // Given the sector number and the line number,
 //  it will tell you whether the line is two-sided or not.
 //
-int twoSided(int sector, int line) {
+int twoSided(int sector, int line)
+{
   return (sectors[sector].lines[line])->flags & ML_TWOSIDED;
 }
 
@@ -204,7 +212,8 @@ int twoSided(int sector, int line) {
 // Return sector_t * of sector next to current.
 // NULL if not two-sided line
 //
-sector_t *getNextSector(line_t *line, sector_t *sec) {
+sector_t *getNextSector(line_t *line, sector_t *sec)
+{
   if (!(line->flags & ML_TWOSIDED))
     return NULL;
 
@@ -218,13 +227,15 @@ sector_t *getNextSector(line_t *line, sector_t *sec) {
 // P_FindLowestFloorSurrounding()
 // FIND LOWEST FLOOR HEIGHT IN SURROUNDING SECTORS
 //
-fixed_t P_FindLowestFloorSurrounding(sector_t *sec) {
+fixed_t P_FindLowestFloorSurrounding(sector_t *sec)
+{
   int i;
   line_t *check;
   sector_t *other;
   fixed_t floor = sec->floorheight;
 
-  for (i = 0; i < sec->linecount; i++) {
+  for (i = 0; i < sec->linecount; i++)
+  {
     check = sec->lines[i];
     other = getNextSector(check, sec);
 
@@ -241,13 +252,15 @@ fixed_t P_FindLowestFloorSurrounding(sector_t *sec) {
 // P_FindHighestFloorSurrounding()
 // FIND HIGHEST FLOOR HEIGHT IN SURROUNDING SECTORS
 //
-fixed_t P_FindHighestFloorSurrounding(sector_t *sec) {
+fixed_t P_FindHighestFloorSurrounding(sector_t *sec)
+{
   int i;
   line_t *check;
   sector_t *other;
   fixed_t floor = -500 * FRACUNIT;
 
-  for (i = 0; i < sec->linecount; i++) {
+  for (i = 0; i < sec->linecount; i++)
+  {
     check = sec->lines[i];
     other = getNextSector(check, sec);
 
@@ -268,7 +281,8 @@ fixed_t P_FindHighestFloorSurrounding(sector_t *sec) {
 // 20 adjoining sectors max!
 #define MAX_ADJOINING_SECTORS 20
 
-fixed_t P_FindNextHighestFloor(sector_t *sec, int currentheight) {
+fixed_t P_FindNextHighestFloor(sector_t *sec, int currentheight)
+{
   int i;
   int h;
   int min;
@@ -278,7 +292,8 @@ fixed_t P_FindNextHighestFloor(sector_t *sec, int currentheight) {
 
   fixed_t heightlist[MAX_ADJOINING_SECTORS];
 
-  for (i = 0, h = 0; i < sec->linecount; i++) {
+  for (i = 0, h = 0; i < sec->linecount; i++)
+  {
     check = sec->lines[i];
     other = getNextSector(check, sec);
 
@@ -289,7 +304,8 @@ fixed_t P_FindNextHighestFloor(sector_t *sec, int currentheight) {
       heightlist[h++] = other->floorheight;
 
     // Check for overflow. Exit.
-    if (h >= MAX_ADJOINING_SECTORS) {
+    if (h >= MAX_ADJOINING_SECTORS)
+    {
       fprintf(stderr, "Sector with more than 20 adjoining sectors\n");
       break;
     }
@@ -312,13 +328,15 @@ fixed_t P_FindNextHighestFloor(sector_t *sec, int currentheight) {
 //
 // FIND LOWEST CEILING IN THE SURROUNDING SECTORS
 //
-fixed_t P_FindLowestCeilingSurrounding(sector_t *sec) {
+fixed_t P_FindLowestCeilingSurrounding(sector_t *sec)
+{
   int i;
   line_t *check;
   sector_t *other;
   fixed_t height = MAXINT;
 
-  for (i = 0; i < sec->linecount; i++) {
+  for (i = 0; i < sec->linecount; i++)
+  {
     check = sec->lines[i];
     other = getNextSector(check, sec);
 
@@ -334,13 +352,15 @@ fixed_t P_FindLowestCeilingSurrounding(sector_t *sec) {
 //
 // FIND HIGHEST CEILING IN THE SURROUNDING SECTORS
 //
-fixed_t P_FindHighestCeilingSurrounding(sector_t *sec) {
+fixed_t P_FindHighestCeilingSurrounding(sector_t *sec)
+{
   int i;
   line_t *check;
   sector_t *other;
   fixed_t height = 0;
 
-  for (i = 0; i < sec->linecount; i++) {
+  for (i = 0; i < sec->linecount; i++)
+  {
     check = sec->lines[i];
     other = getNextSector(check, sec);
 
@@ -356,7 +376,8 @@ fixed_t P_FindHighestCeilingSurrounding(sector_t *sec) {
 //
 // RETURN NEXT SECTOR # THAT LINE TAG REFERS TO
 //
-int P_FindSectorFromLineTag(line_t *line, int start) {
+int P_FindSectorFromLineTag(line_t *line, int start)
+{
   int i;
 
   for (i = start + 1; i < numsectors; i++)
@@ -369,14 +390,16 @@ int P_FindSectorFromLineTag(line_t *line, int start) {
 //
 // Find minimum light from an adjacent sector
 //
-int P_FindMinSurroundingLight(sector_t *sector, int max) {
+int P_FindMinSurroundingLight(sector_t *sector, int max)
+{
   int i;
   int min;
   line_t *line;
   sector_t *check;
 
   min = max;
-  for (i = 0; i < sector->linecount; i++) {
+  for (i = 0; i < sector->linecount; i++)
+  {
     line = sector->lines[i];
     check = getNextSector(line, sector);
 
@@ -400,16 +423,19 @@ int P_FindMinSurroundingLight(sector_t *sector, int max) {
 // Called every time a thing origin is about
 //  to cross a line with a non 0 special.
 //
-void P_CrossSpecialLine(int linenum, int side, mobj_t *thing) {
+void P_CrossSpecialLine(int linenum, int side, mobj_t *thing)
+{
   line_t *line;
   int ok;
 
   line = &lines[linenum];
 
   //	Triggers that other things can activate
-  if (!thing->player) {
+  if (!thing->player)
+  {
     // Things that should NOT trigger specials...
-    switch (thing->type) {
+    switch (thing->type)
+    {
     case MT_ROCKET:
     case MT_PLASMA:
     case MT_BFG:
@@ -424,7 +450,8 @@ void P_CrossSpecialLine(int linenum, int side, mobj_t *thing) {
     }
 
     ok = 0;
-    switch (line->special) {
+    switch (line->special)
+    {
     case 39:  // TELEPORT TRIGGER
     case 97:  // TELEPORT RETRIGGER
     case 125: // TELEPORT MONSTERONLY TRIGGER
@@ -440,7 +467,8 @@ void P_CrossSpecialLine(int linenum, int side, mobj_t *thing) {
   }
 
   // Note: could use some const's here.
-  switch (line->special) {
+  switch (line->special)
+  {
     // TRIGGERS.
     // All from here to RETRIGGERS.
   case 2:
@@ -667,7 +695,8 @@ void P_CrossSpecialLine(int linenum, int side, mobj_t *thing) {
 
   case 125:
     // TELEPORT MonsterONLY
-    if (!thing->player) {
+    if (!thing->player)
+    {
       EV_Teleport(line, side, thing);
       line->special = 0;
     }
@@ -855,13 +884,16 @@ void P_CrossSpecialLine(int linenum, int side, mobj_t *thing) {
 // P_ShootSpecialLine - IMPACT SPECIALS
 // Called when a thing shoots a special line.
 //
-void P_ShootSpecialLine(mobj_t *thing, line_t *line) {
+void P_ShootSpecialLine(mobj_t *thing, line_t *line)
+{
   int ok;
 
   //	Impacts that other things can activate.
-  if (!thing->player) {
+  if (!thing->player)
+  {
     ok = 0;
-    switch (line->special) {
+    switch (line->special)
+    {
     case 46:
       // OPEN DOOR IMPACT
       ok = 1;
@@ -871,7 +903,8 @@ void P_ShootSpecialLine(mobj_t *thing, line_t *line) {
       return;
   }
 
-  switch (line->special) {
+  switch (line->special)
+  {
   case 24:
     // RAISE FLOOR
     EV_DoFloor(line, raiseFloor);
@@ -897,7 +930,8 @@ void P_ShootSpecialLine(mobj_t *thing, line_t *line) {
 // Called every tic frame
 //  that the player origin is in a special sector
 //
-void P_PlayerInSpecialSector(player_t *player) {
+void P_PlayerInSpecialSector(player_t *player)
+{
   sector_t *sector;
 
   sector = player->mo->subsector->sector;
@@ -907,7 +941,8 @@ void P_PlayerInSpecialSector(player_t *player) {
     return;
 
   // Has hitten ground.
-  switch (sector->special) {
+  switch (sector->special)
+  {
   case 5:
     // HELLSLIME DAMAGE
     if (!player->powers[pw_ironfeet])
@@ -926,7 +961,8 @@ void P_PlayerInSpecialSector(player_t *player) {
     // SUPER HELLSLIME DAMAGE
   case 4:
     // STROBE HURT
-    if (!player->powers[pw_ironfeet] || (P_Random() < 5)) {
+    if (!player->powers[pw_ironfeet] || (P_Random() < 5))
+    {
       if (!(leveltime & 0x1f))
         P_DamageMobj(player->mo, NULL, NULL, 20);
     }
@@ -964,22 +1000,26 @@ void P_PlayerInSpecialSector(player_t *player) {
 boolean levelTimer;
 int levelTimeCount;
 
-void P_UpdateSpecials(void) {
+void P_UpdateSpecials(void)
+{
   anim_t *anim;
   int pic;
   int i;
   line_t *line;
 
   //	LEVEL TIMER
-  if (levelTimer == true) {
+  if (levelTimer == true)
+  {
     levelTimeCount--;
     if (!levelTimeCount)
       G_ExitLevel();
   }
 
   //	ANIMATE FLATS AND TEXTURES GLOBALLY
-  for (anim = anims; anim < lastanim; anim++) {
-    for (i = anim->basepic; i < anim->basepic + anim->numpics; i++) {
+  for (anim = anims; anim < lastanim; anim++)
+  {
+    for (i = anim->basepic; i < anim->basepic + anim->numpics; i++)
+    {
       pic = anim->basepic + ((leveltime / anim->speed + i) % anim->numpics);
       if (anim->istexture)
         texturetranslation[i] = pic;
@@ -989,9 +1029,11 @@ void P_UpdateSpecials(void) {
   }
 
   //	ANIMATE LINE SPECIALS
-  for (i = 0; i < numlinespecials; i++) {
+  for (i = 0; i < numlinespecials; i++)
+  {
     line = linespeciallist[i];
-    switch (line->special) {
+    switch (line->special)
+    {
     case 48:
       // EFFECT FIRSTCOL SCROLL +
       sides[line->sidenum[0]].textureoffset += FRACUNIT;
@@ -1001,10 +1043,13 @@ void P_UpdateSpecials(void) {
 
   //	DO BUTTONS
   for (i = 0; i < MAXBUTTONS; i++)
-    if (buttonlist[i].btimer) {
+    if (buttonlist[i].btimer)
+    {
       buttonlist[i].btimer--;
-      if (!buttonlist[i].btimer) {
-        switch (buttonlist[i].where) {
+      if (!buttonlist[i].btimer)
+      {
+        switch (buttonlist[i].where)
+        {
         case top:
           sides[buttonlist[i].line->sidenum[0]].toptexture =
               buttonlist[i].btexture;
@@ -1029,7 +1074,8 @@ void P_UpdateSpecials(void) {
 //
 // Special Stuff that can not be categorized
 //
-int EV_DoDonut(line_t *line) {
+int EV_DoDonut(line_t *line)
+{
   sector_t *s1;
   sector_t *s2;
   sector_t *s3;
@@ -1040,7 +1086,8 @@ int EV_DoDonut(line_t *line) {
 
   secnum = -1;
   rtn = 0;
-  while ((secnum = P_FindSectorFromLineTag(line, secnum)) >= 0) {
+  while ((secnum = P_FindSectorFromLineTag(line, secnum)) >= 0)
+  {
     s1 = &sectors[secnum];
 
     // ALREADY MOVING?  IF SO, KEEP GOING...
@@ -1049,7 +1096,8 @@ int EV_DoDonut(line_t *line) {
 
     rtn = 1;
     s2 = getNextSector(s1->lines[0], s1);
-    for (i = 0; i < s2->linecount; i++) {
+    for (i = 0; i < s2->linecount; i++)
+    {
       if ((!s2->lines[i]->flags & ML_TWOSIDED) ||
           (s2->lines[i]->backsector == s1))
         continue;
@@ -1099,7 +1147,8 @@ short numlinespecials;
 line_t *linespeciallist[MAXLINEANIMS];
 
 // Parses command line parameters.
-void P_SpawnSpecials(void) {
+void P_SpawnSpecials(void)
+{
   sector_t *sector;
   int i;
   int episode;
@@ -1112,13 +1161,15 @@ void P_SpawnSpecials(void) {
   levelTimer = false;
 
   i = M_CheckParm("-avg");
-  if (i && deathmatch) {
+  if (i && deathmatch)
+  {
     levelTimer = true;
     levelTimeCount = 20 * 60 * 35;
   }
 
   i = M_CheckParm("-timer");
-  if (i && deathmatch) {
+  if (i && deathmatch)
+  {
     int time;
     time = atoi(myargv[i + 1]) * 60 * 35;
     levelTimer = true;
@@ -1127,11 +1178,13 @@ void P_SpawnSpecials(void) {
 
   //	Init special SECTORs.
   sector = sectors;
-  for (i = 0; i < numsectors; i++, sector++) {
+  for (i = 0; i < numsectors; i++, sector++)
+  {
     if (!sector->special)
       continue;
 
-    switch (sector->special) {
+    switch (sector->special)
+    {
     case 1:
       // FLICKERING LIGHTS
       P_SpawnLightFlash(sector);
@@ -1190,8 +1243,10 @@ void P_SpawnSpecials(void) {
 
   //	Init line EFFECTs
   numlinespecials = 0;
-  for (i = 0; i < numlines; i++) {
-    switch (lines[i].special) {
+  for (i = 0; i < numlines; i++)
+  {
+    switch (lines[i].special)
+    {
     case 48:
       // EFFECT FIRSTCOL SCROLL+
       linespeciallist[numlinespecials] = &lines[i];

@@ -22,8 +22,6 @@
 //
 //-----------------------------------------------------------------------------
 
-static const char rcsid[] = "$Id: p_tick.c,v 1.4 1997/02/03 16:47:55 b1 Exp $";
-
 #include "p_local.h"
 #include "z_zone.h"
 
@@ -51,7 +49,8 @@ void P_InitThinkers(void) { thinkercap.prev = thinkercap.next = &thinkercap; }
 // P_AddThinker
 // Adds a new thinker at the end of the list.
 //
-void P_AddThinker(thinker_t *thinker) {
+void P_AddThinker(thinker_t *thinker)
+{
   thinkercap.prev->next = thinker;
   thinker->next = &thinkercap;
   thinker->prev = thinkercap.prev;
@@ -63,7 +62,8 @@ void P_AddThinker(thinker_t *thinker) {
 // Deallocation is lazy -- it will not actually be freed
 // until its thinking turn comes up.
 //
-void P_RemoveThinker(thinker_t *thinker) {
+void P_RemoveThinker(thinker_t *thinker)
+{
   // FIXME: NOP.
   thinker->function.acv = (actionf_v)(-1);
 }
@@ -77,17 +77,22 @@ void P_AllocateThinker(thinker_t *thinker) {}
 //
 // P_RunThinkers
 //
-void P_RunThinkers(void) {
+void P_RunThinkers(void)
+{
   thinker_t *currentthinker;
 
   currentthinker = thinkercap.next;
-  while (currentthinker != &thinkercap) {
-    if (currentthinker->function.acv == (actionf_v)(-1)) {
+  while (currentthinker != &thinkercap)
+  {
+    if (currentthinker->function.acv == (actionf_v)(-1))
+    {
       // time to remove it
       currentthinker->next->prev = currentthinker->prev;
       currentthinker->prev->next = currentthinker->next;
       Z_Free(currentthinker);
-    } else {
+    }
+    else
+    {
       if (currentthinker->function.acp1)
         currentthinker->function.acp1(currentthinker);
     }
@@ -99,7 +104,8 @@ void P_RunThinkers(void) {
 // P_Ticker
 //
 
-void P_Ticker(void) {
+void P_Ticker(void)
+{
   int i;
 
   // run the tic
@@ -108,7 +114,8 @@ void P_Ticker(void) {
 
   // pause if in menu and at least one tic has been run
   if (!netgame && menuactive && !demoplayback &&
-      players[consoleplayer].viewz != 1) {
+      players[consoleplayer].viewz != 1)
+  {
     return;
   }
 

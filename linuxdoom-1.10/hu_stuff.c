@@ -20,9 +20,6 @@
 //
 //-----------------------------------------------------------------------------
 
-static const char rcsid[] =
-    "$Id: hu_stuff.c,v 1.4 1997/02/03 16:47:52 b1 Exp $";
-
 #include <ctype.h>
 
 #include "doomdef.h"
@@ -114,8 +111,8 @@ char *mapnames[] = // DOOM shareware/registered/retail (Ultimate) names.
         "NEWLEVEL", "NEWLEVEL", "NEWLEVEL", "NEWLEVEL"};
 
 char *mapnames2[] = // DOOM 2 map names.
-    {HUSTR_1,  HUSTR_2,  HUSTR_3,  HUSTR_4,  HUSTR_5,  HUSTR_6,
-     HUSTR_7,  HUSTR_8,  HUSTR_9,  HUSTR_10, HUSTR_11,
+    {HUSTR_1, HUSTR_2, HUSTR_3, HUSTR_4, HUSTR_5, HUSTR_6,
+     HUSTR_7, HUSTR_8, HUSTR_9, HUSTR_10, HUSTR_11,
 
      HUSTR_12, HUSTR_13, HUSTR_14, HUSTR_15, HUSTR_16, HUSTR_17,
      HUSTR_18, HUSTR_19, HUSTR_20,
@@ -124,8 +121,8 @@ char *mapnames2[] = // DOOM 2 map names.
      HUSTR_27, HUSTR_28, HUSTR_29, HUSTR_30, HUSTR_31, HUSTR_32};
 
 char *mapnamesp[] = // Plutonia WAD map names.
-    {PHUSTR_1,  PHUSTR_2,  PHUSTR_3,  PHUSTR_4,  PHUSTR_5,  PHUSTR_6,
-     PHUSTR_7,  PHUSTR_8,  PHUSTR_9,  PHUSTR_10, PHUSTR_11,
+    {PHUSTR_1, PHUSTR_2, PHUSTR_3, PHUSTR_4, PHUSTR_5, PHUSTR_6,
+     PHUSTR_7, PHUSTR_8, PHUSTR_9, PHUSTR_10, PHUSTR_11,
 
      PHUSTR_12, PHUSTR_13, PHUSTR_14, PHUSTR_15, PHUSTR_16, PHUSTR_17,
      PHUSTR_18, PHUSTR_19, PHUSTR_20,
@@ -134,8 +131,8 @@ char *mapnamesp[] = // Plutonia WAD map names.
      PHUSTR_27, PHUSTR_28, PHUSTR_29, PHUSTR_30, PHUSTR_31, PHUSTR_32};
 
 char *mapnamest[] = // TNT WAD map names.
-    {THUSTR_1,  THUSTR_2,  THUSTR_3,  THUSTR_4,  THUSTR_5,  THUSTR_6,
-     THUSTR_7,  THUSTR_8,  THUSTR_9,  THUSTR_10, THUSTR_11,
+    {THUSTR_1, THUSTR_2, THUSTR_3, THUSTR_4, THUSTR_5, THUSTR_6,
+     THUSTR_7, THUSTR_8, THUSTR_9, THUSTR_10, THUSTR_11,
 
      THUSTR_12, THUSTR_13, THUSTR_14, THUSTR_15, THUSTR_16, THUSTR_17,
      THUSTR_18, THUSTR_19, THUSTR_20,
@@ -146,11 +143,11 @@ char *mapnamest[] = // TNT WAD map names.
 const char *shiftxform;
 
 const char french_shiftxform[] = {
-    0,    1,   2,   3,   4,   5,   6,   7,   8,   9,   10,  11,  12,  13,  14,
-    15,   16,  17,  18,  19,  20,  21,  22,  23,  24,  25,  26,  27,  28,  29,
-    30,   31,  ' ', '!', '"', '#', '$', '%', '&',
+    0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14,
+    15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29,
+    30, 31, ' ', '!', '"', '#', '$', '%', '&',
     '"', // shift-'
-    '(',  ')', '*', '+',
+    '(', ')', '*', '+',
     '?', // shift-,
     '_', // shift--
     '>', // shift-.
@@ -169,26 +166,26 @@ const char french_shiftxform[] = {
     '.', // shift-;
     '<',
     '+', // shift-=
-    '>',  '?', '@', 'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L',
-    'M',  'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z',
+    '>', '?', '@', 'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L',
+    'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z',
     '[', // shift-[
     '!', // shift-backslash - OH MY GOD DOES WATCOM SUCK
     ']', // shift-]
-    '"',  '_',
+    '"', '_',
     '\'', // shift-`
-    'A',  'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O',
-    'P',  'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z', '{', '|', '}', '~',
+    'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O',
+    'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z', '{', '|', '}', '~',
     127
 
 };
 
 const char english_shiftxform[] = {
 
-    0,    1,   2,   3,   4,   5,   6,   7,   8,   9,   10,  11,  12,  13,  14,
-    15,   16,  17,  18,  19,  20,  21,  22,  23,  24,  25,  26,  27,  28,  29,
-    30,   31,  ' ', '!', '"', '#', '$', '%', '&',
+    0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14,
+    15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29,
+    30, 31, ' ', '!', '"', '#', '$', '%', '&',
     '"', // shift-'
-    '(',  ')', '*', '+',
+    '(', ')', '*', '+',
     '<', // shift-,
     '_', // shift--
     '>', // shift-.
@@ -207,33 +204,35 @@ const char english_shiftxform[] = {
     ':', // shift-;
     '<',
     '+', // shift-=
-    '>',  '?', '@', 'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L',
-    'M',  'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z',
+    '>', '?', '@', 'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L',
+    'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z',
     '[', // shift-[
     '!', // shift-backslash - OH MY GOD DOES WATCOM SUCK
     ']', // shift-]
-    '"',  '_',
+    '"', '_',
     '\'', // shift-`
-    'A',  'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O',
-    'P',  'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z', '{', '|', '}', '~',
+    'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O',
+    'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z', '{', '|', '}', '~',
     127};
 
 char frenchKeyMap[128] = {
-    0,   1,   2,    3,   4,    5,   6,   7,   8,   9,   10,  11,  12,  13,  14,
-    15,  16,  17,   18,  19,   20,  21,  22,  23,  24,  25,  26,  27,  28,  29,
-    30,  31,  ' ',  '!', '"',  '#', '$', '%', '&', '%', '(', ')', '*', '+', ';',
-    '-', ':', '!',  '0', '1',  '2', '3', '4', '5', '6', '7', '8', '9', ':', 'M',
-    '<', '=', '>',  '?', '@',  'Q', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J',
-    'K', 'L', ',',  'N', 'O',  'P', 'A', 'R', 'S', 'T', 'U', 'V', 'Z', 'X', 'Y',
-    'W', '^', '\\', '$', '^',  '_', '@', 'Q', 'B', 'C', 'D', 'E', 'F', 'G', 'H',
-    'I', 'J', 'K',  'L', ',',  'N', 'O', 'P', 'A', 'R', 'S', 'T', 'U', 'V', 'Z',
-    'X', 'Y', 'W',  '^', '\\', '$', '^', 127};
+    0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14,
+    15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29,
+    30, 31, ' ', '!', '"', '#', '$', '%', '&', '%', '(', ')', '*', '+', ';',
+    '-', ':', '!', '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', ':', 'M',
+    '<', '=', '>', '?', '@', 'Q', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J',
+    'K', 'L', ',', 'N', 'O', 'P', 'A', 'R', 'S', 'T', 'U', 'V', 'Z', 'X', 'Y',
+    'W', '^', '\\', '$', '^', '_', '@', 'Q', 'B', 'C', 'D', 'E', 'F', 'G', 'H',
+    'I', 'J', 'K', 'L', ',', 'N', 'O', 'P', 'A', 'R', 'S', 'T', 'U', 'V', 'Z',
+    'X', 'Y', 'W', '^', '\\', '$', '^', 127};
 
-char ForeignTranslation(unsigned char ch) {
+char ForeignTranslation(unsigned char ch)
+{
   return ch < 128 ? frenchKeyMap[ch] : ch;
 }
 
-void HU_Init(void) {
+void HU_Init(void)
+{
 
   int i;
   int j;
@@ -246,7 +245,8 @@ void HU_Init(void) {
 
   // load the heads-up font
   j = HU_FONTSTART;
-  for (i = 0; i < HU_FONTSIZE; i++) {
+  for (i = 0; i < HU_FONTSIZE; i++)
+  {
     sprintf(buffer, "STCFN%.3d", j++);
     hu_font[i] = (patch_t *)W_CacheLumpName(buffer, PU_STATIC);
   }
@@ -254,7 +254,8 @@ void HU_Init(void) {
 
 void HU_Stop(void) { headsupactive = false; }
 
-void HU_Start(void) {
+void HU_Start(void)
+{
 
   int i;
   char *s;
@@ -275,7 +276,8 @@ void HU_Start(void) {
   // create the map title widget
   HUlib_initTextLine(&w_title, HU_TITLEX, HU_TITLEY, hu_font, HU_FONTSTART);
 
-  switch (gamemode) {
+  switch (gamemode)
+  {
   case shareware:
   case registered:
   case retail:
@@ -311,7 +313,8 @@ void HU_Start(void) {
   headsupactive = true;
 }
 
-void HU_Drawer(void) {
+void HU_Drawer(void)
+{
 
   HUlib_drawSText(&w_message);
   HUlib_drawIText(&w_chat);
@@ -319,29 +322,34 @@ void HU_Drawer(void) {
     HUlib_drawTextLine(&w_title, false);
 }
 
-void HU_Erase(void) {
+void HU_Erase(void)
+{
 
   HUlib_eraseSText(&w_message);
   HUlib_eraseIText(&w_chat);
   HUlib_eraseTextLine(&w_title);
 }
 
-void HU_Ticker(void) {
+void HU_Ticker(void)
+{
 
   int i, rc;
   char c;
 
   // tick down message counter if message is up
-  if (message_counter && !--message_counter) {
+  if (message_counter && !--message_counter)
+  {
     message_on = false;
     message_nottobefuckedwith = false;
   }
 
-  if (showMessages || message_dontfuckwithme) {
+  if (showMessages || message_dontfuckwithme)
+  {
 
     // display message if necessary
     if ((plr->message && !message_nottobefuckedwith) ||
-        (plr->message && message_dontfuckwithme)) {
+        (plr->message && message_dontfuckwithme))
+    {
       HUlib_addMessageToSText(&w_message, 0, plr->message);
       plr->message = 0;
       message_on = true;
@@ -353,20 +361,26 @@ void HU_Ticker(void) {
   } // else message_on = false;
 
   // check for incoming chat characters
-  if (netgame) {
-    for (i = 0; i < MAXPLAYERS; i++) {
+  if (netgame)
+  {
+    for (i = 0; i < MAXPLAYERS; i++)
+    {
       if (!playeringame[i])
         continue;
-      if (i != consoleplayer && (c = players[i].cmd.chatchar)) {
+      if (i != consoleplayer && (c = players[i].cmd.chatchar))
+      {
         if (c <= HU_BROADCAST)
           chat_dest[i] = c;
-        else {
+        else
+        {
           if (c >= 'a' && c <= 'z')
             c = (char)shiftxform[(unsigned char)c];
           rc = HUlib_keyInIText(&w_inputbuffer[i], c);
-          if (rc && c == KEY_ENTER) {
+          if (rc && c == KEY_ENTER)
+          {
             if (w_inputbuffer[i].l.len && (chat_dest[i] == consoleplayer + 1 ||
-                                           chat_dest[i] == HU_BROADCAST)) {
+                                           chat_dest[i] == HU_BROADCAST))
+            {
               HUlib_addMessageToSText(&w_message, player_names[i],
                                       w_inputbuffer[i].l.l);
 
@@ -393,29 +407,38 @@ static char chatchars[QUEUESIZE];
 static int head = 0;
 static int tail = 0;
 
-void HU_queueChatChar(char c) {
-  if (((head + 1) & (QUEUESIZE - 1)) == tail) {
+void HU_queueChatChar(char c)
+{
+  if (((head + 1) & (QUEUESIZE - 1)) == tail)
+  {
     plr->message = HUSTR_MSGU;
-  } else {
+  }
+  else
+  {
     chatchars[head] = c;
     head = (head + 1) & (QUEUESIZE - 1);
   }
 }
 
-char HU_dequeueChatChar(void) {
+char HU_dequeueChatChar(void)
+{
   char c;
 
-  if (head != tail) {
+  if (head != tail)
+  {
     c = chatchars[tail];
     tail = (tail + 1) & (QUEUESIZE - 1);
-  } else {
+  }
+  else
+  {
     c = 0;
   }
 
   return c;
 }
 
-boolean HU_Responder(event_t *ev) {
+boolean HU_Responder(event_t *ev)
+{
 
   static char lastmessage[HU_MAXLINELENGTH + 1];
   char *macromessage;
@@ -435,10 +458,13 @@ boolean HU_Responder(event_t *ev) {
   for (i = 0; i < MAXPLAYERS; i++)
     numplayers += playeringame[i];
 
-  if (ev->data1 == KEY_RSHIFT) {
+  if (ev->data1 == KEY_RSHIFT)
+  {
     shiftdown = ev->type == ev_keydown;
     return false;
-  } else if (ev->data1 == KEY_RALT || ev->data1 == KEY_LALT) {
+  }
+  else if (ev->data1 == KEY_RALT || ev->data1 == KEY_LALT)
+  {
     altdown = ev->type == ev_keydown;
     return false;
   }
@@ -446,24 +472,35 @@ boolean HU_Responder(event_t *ev) {
   if (ev->type != ev_keydown)
     return false;
 
-  if (!chat_on) {
-    if (ev->data1 == HU_MSGREFRESH) {
+  if (!chat_on)
+  {
+    if (ev->data1 == HU_MSGREFRESH)
+    {
       message_on = true;
       message_counter = HU_MSGTIMEOUT;
       eatkey = true;
-    } else if (netgame && ev->data1 == HU_INPUTTOGGLE) {
+    }
+    else if (netgame && ev->data1 == HU_INPUTTOGGLE)
+    {
       eatkey = chat_on = true;
       HUlib_resetIText(&w_chat);
       HU_queueChatChar(HU_BROADCAST);
-    } else if (netgame && numplayers > 2) {
-      for (i = 0; i < MAXPLAYERS; i++) {
-        if (ev->data1 == destination_keys[i]) {
-          if (playeringame[i] && i != consoleplayer) {
+    }
+    else if (netgame && numplayers > 2)
+    {
+      for (i = 0; i < MAXPLAYERS; i++)
+      {
+        if (ev->data1 == destination_keys[i])
+        {
+          if (playeringame[i] && i != consoleplayer)
+          {
             eatkey = chat_on = true;
             HUlib_resetIText(&w_chat);
             HU_queueChatChar(i + 1);
             break;
-          } else if (i == consoleplayer) {
+          }
+          else if (i == consoleplayer)
+          {
             num_nobrainers++;
             if (num_nobrainers < 3)
               plr->message = HUSTR_TALKTOSELF1;
@@ -479,10 +516,13 @@ boolean HU_Responder(event_t *ev) {
         }
       }
     }
-  } else {
+  }
+  else
+  {
     c = ev->data1;
     // send a macro
-    if (altdown) {
+    if (altdown)
+    {
       c = c - '0';
       if (c > 9)
         return false;
@@ -502,26 +542,32 @@ boolean HU_Responder(event_t *ev) {
       strcpy(lastmessage, chat_macros[c]);
       plr->message = lastmessage;
       eatkey = true;
-    } else {
+    }
+    else
+    {
       if (french)
         c = ForeignTranslation(c);
       if (shiftdown || (c >= 'a' && c <= 'z'))
         c = shiftxform[c];
       eatkey = HUlib_keyInIText(&w_chat, c);
-      if (eatkey) {
+      if (eatkey)
+      {
         // static unsigned char buf[20]; // DEBUG
         HU_queueChatChar(c);
 
         // sprintf(buf, "KEY: %d => %d", ev->data1, c);
         //      plr->message = buf;
       }
-      if (c == KEY_ENTER) {
+      if (c == KEY_ENTER)
+      {
         chat_on = false;
-        if (w_chat.l.len) {
+        if (w_chat.l.len)
+        {
           strcpy(lastmessage, w_chat.l.l);
           plr->message = lastmessage;
         }
-      } else if (c == KEY_ESCAPE)
+      }
+      else if (c == KEY_ESCAPE)
         chat_on = false;
     }
   }

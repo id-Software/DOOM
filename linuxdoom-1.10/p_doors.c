@@ -20,8 +20,6 @@
 //
 //-----------------------------------------------------------------------------
 
-static const char rcsid[] = "$Id: p_doors.c,v 1.4 1997/02/03 16:47:53 b1 Exp $";
-
 #include "doomdef.h"
 #include "p_local.h"
 #include "z_zone.h"
@@ -56,14 +54,18 @@ slidename_t	slideFrameNames[MAXSLIDEDOORS] =
 //
 // T_VerticalDoor
 //
-void T_VerticalDoor(vldoor_t *door) {
+void T_VerticalDoor(vldoor_t *door)
+{
   result_e res;
 
-  switch (door->direction) {
+  switch (door->direction)
+  {
   case 0:
     // WAITING
-    if (!--door->topcountdown) {
-      switch (door->type) {
+    if (!--door->topcountdown)
+    {
+      switch (door->type)
+      {
       case blazeRaise:
         door->direction = -1; // time to go back down
         S_StartSound((mobj_t *)&door->sector->soundorg, sfx_bdcls);
@@ -87,8 +89,10 @@ void T_VerticalDoor(vldoor_t *door) {
 
   case 2:
     //  INITIAL WAIT
-    if (!--door->topcountdown) {
-      switch (door->type) {
+    if (!--door->topcountdown)
+    {
+      switch (door->type)
+      {
       case raiseIn5Mins:
         door->direction = 1;
         door->type = normal;
@@ -105,8 +109,10 @@ void T_VerticalDoor(vldoor_t *door) {
     // DOWN
     res = T_MovePlane(door->sector, door->speed, door->sector->floorheight,
                       false, 1, door->direction);
-    if (res == pastdest) {
-      switch (door->type) {
+    if (res == pastdest)
+    {
+      switch (door->type)
+      {
       case blazeRaise:
       case blazeClose:
         door->sector->specialdata = NULL;
@@ -128,8 +134,11 @@ void T_VerticalDoor(vldoor_t *door) {
       default:
         break;
       }
-    } else if (res == crushed) {
-      switch (door->type) {
+    }
+    else if (res == crushed)
+    {
+      switch (door->type)
+      {
       case blazeClose:
       case close: // DO NOT GO BACK UP!
         break;
@@ -147,8 +156,10 @@ void T_VerticalDoor(vldoor_t *door) {
     res = T_MovePlane(door->sector, door->speed, door->topheight, false, 1,
                       door->direction);
 
-    if (res == pastdest) {
-      switch (door->type) {
+    if (res == pastdest)
+    {
+      switch (door->type)
+      {
       case blazeRaise:
       case normal:
         door->direction = 0; // wait at top
@@ -175,7 +186,8 @@ void T_VerticalDoor(vldoor_t *door) {
 // Move a locked door up/down
 //
 
-int EV_DoLockedDoor(line_t *line, vldoor_e type, mobj_t *thing) {
+int EV_DoLockedDoor(line_t *line, vldoor_e type, mobj_t *thing)
+{
   player_t *p;
 
   p = thing->player;
@@ -183,12 +195,14 @@ int EV_DoLockedDoor(line_t *line, vldoor_e type, mobj_t *thing) {
   if (!p)
     return 0;
 
-  switch (line->special) {
+  switch (line->special)
+  {
   case 99: // Blue Lock
   case 133:
     if (!p)
       return 0;
-    if (!p->cards[it_bluecard] && !p->cards[it_blueskull]) {
+    if (!p->cards[it_bluecard] && !p->cards[it_blueskull])
+    {
       p->message = PD_BLUEO;
       S_StartSound(NULL, sfx_oof);
       return 0;
@@ -199,7 +213,8 @@ int EV_DoLockedDoor(line_t *line, vldoor_e type, mobj_t *thing) {
   case 135:
     if (!p)
       return 0;
-    if (!p->cards[it_redcard] && !p->cards[it_redskull]) {
+    if (!p->cards[it_redcard] && !p->cards[it_redskull])
+    {
       p->message = PD_REDO;
       S_StartSound(NULL, sfx_oof);
       return 0;
@@ -210,7 +225,8 @@ int EV_DoLockedDoor(line_t *line, vldoor_e type, mobj_t *thing) {
   case 137:
     if (!p)
       return 0;
-    if (!p->cards[it_yellowcard] && !p->cards[it_yellowskull]) {
+    if (!p->cards[it_yellowcard] && !p->cards[it_yellowskull])
+    {
       p->message = PD_YELLOWO;
       S_StartSound(NULL, sfx_oof);
       return 0;
@@ -221,7 +237,8 @@ int EV_DoLockedDoor(line_t *line, vldoor_e type, mobj_t *thing) {
   return EV_DoDoor(line, type);
 }
 
-int EV_DoDoor(line_t *line, vldoor_e type) {
+int EV_DoDoor(line_t *line, vldoor_e type)
+{
   int secnum, rtn;
   sector_t *sec;
   vldoor_t *door;
@@ -229,7 +246,8 @@ int EV_DoDoor(line_t *line, vldoor_e type) {
   secnum = -1;
   rtn = 0;
 
-  while ((secnum = P_FindSectorFromLineTag(line, secnum)) >= 0) {
+  while ((secnum = P_FindSectorFromLineTag(line, secnum)) >= 0)
+  {
     sec = &sectors[secnum];
     if (sec->specialdata)
       continue;
@@ -246,7 +264,8 @@ int EV_DoDoor(line_t *line, vldoor_e type) {
     door->topwait = VDOORWAIT;
     door->speed = VDOORSPEED;
 
-    switch (type) {
+    switch (type)
+    {
     case blazeClose:
       door->topheight = P_FindLowestCeilingSurrounding(sec);
       door->topheight -= 4 * FRACUNIT;
@@ -297,7 +316,8 @@ int EV_DoDoor(line_t *line, vldoor_e type) {
 //
 // EV_VerticalDoor : open a door manually, no tag value
 //
-void EV_VerticalDoor(line_t *line, mobj_t *thing) {
+void EV_VerticalDoor(line_t *line, mobj_t *thing)
+{
   player_t *player;
   int secnum;
   sector_t *sec;
@@ -309,13 +329,15 @@ void EV_VerticalDoor(line_t *line, mobj_t *thing) {
   //	Check for locks
   player = thing->player;
 
-  switch (line->special) {
+  switch (line->special)
+  {
   case 26: // Blue Lock
   case 32:
     if (!player)
       return;
 
-    if (!player->cards[it_bluecard] && !player->cards[it_blueskull]) {
+    if (!player->cards[it_bluecard] && !player->cards[it_blueskull])
+    {
       player->message = PD_BLUEK;
       S_StartSound(NULL, sfx_oof);
       return;
@@ -327,7 +349,8 @@ void EV_VerticalDoor(line_t *line, mobj_t *thing) {
     if (!player)
       return;
 
-    if (!player->cards[it_yellowcard] && !player->cards[it_yellowskull]) {
+    if (!player->cards[it_yellowcard] && !player->cards[it_yellowskull])
+    {
       player->message = PD_YELLOWK;
       S_StartSound(NULL, sfx_oof);
       return;
@@ -339,7 +362,8 @@ void EV_VerticalDoor(line_t *line, mobj_t *thing) {
     if (!player)
       return;
 
-    if (!player->cards[it_redcard] && !player->cards[it_redskull]) {
+    if (!player->cards[it_redcard] && !player->cards[it_redskull])
+    {
       player->message = PD_REDK;
       S_StartSound(NULL, sfx_oof);
       return;
@@ -351,9 +375,11 @@ void EV_VerticalDoor(line_t *line, mobj_t *thing) {
   sec = sides[line->sidenum[side ^ 1]].sector;
   secnum = sec - sectors;
 
-  if (sec->specialdata) {
+  if (sec->specialdata)
+  {
     door = sec->specialdata;
-    switch (line->special) {
+    switch (line->special)
+    {
     case 1: // ONLY FOR "RAISE" DOORS, NOT "OPEN"s
     case 26:
     case 27:
@@ -361,7 +387,8 @@ void EV_VerticalDoor(line_t *line, mobj_t *thing) {
     case 117:
       if (door->direction == -1)
         door->direction = 1; // go back up
-      else {
+      else
+      {
         if (!thing->player)
           return; // JDC: bad guys never close doors
 
@@ -372,7 +399,8 @@ void EV_VerticalDoor(line_t *line, mobj_t *thing) {
   }
 
   // for proper sound
-  switch (line->special) {
+  switch (line->special)
+  {
   case 117: // BLAZING DOOR RAISE
   case 118: // BLAZING DOOR OPEN
     S_StartSound((mobj_t *)&sec->soundorg, sfx_bdopn);
@@ -398,7 +426,8 @@ void EV_VerticalDoor(line_t *line, mobj_t *thing) {
   door->speed = VDOORSPEED;
   door->topwait = VDOORWAIT;
 
-  switch (line->special) {
+  switch (line->special)
+  {
   case 1:
   case 26:
   case 27:
@@ -433,7 +462,8 @@ void EV_VerticalDoor(line_t *line, mobj_t *thing) {
 //
 // Spawn a door that closes after 30 seconds
 //
-void P_SpawnDoorCloseIn30(sector_t *sec) {
+void P_SpawnDoorCloseIn30(sector_t *sec)
+{
   vldoor_t *door;
 
   door = Z_Malloc(sizeof(*door), PU_LEVSPEC, 0);
@@ -454,7 +484,8 @@ void P_SpawnDoorCloseIn30(sector_t *sec) {
 //
 // Spawn a door that opens after 5 minutes
 //
-void P_SpawnDoorRaiseIn5Mins(sector_t *sec, int secnum) {
+void P_SpawnDoorRaiseIn5Mins(sector_t *sec, int secnum)
+{
   vldoor_t *door;
 
   door = Z_Malloc(sizeof(*door), PU_LEVSPEC, 0);

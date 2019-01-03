@@ -23,8 +23,6 @@
 //
 //-----------------------------------------------------------------------------
 
-static const char rcsid[] = "$Id: r_plane.c,v 1.4 1997/02/03 16:47:55 b1 Exp $";
-
 #include <stdlib.h>
 
 #include "i_system.h"
@@ -91,7 +89,8 @@ fixed_t cachedystep[SCREENHEIGHT];
 // R_InitPlanes
 // Only at game startup.
 //
-void R_InitPlanes(void) {
+void R_InitPlanes(void)
+{
   // Doh!
 }
 
@@ -108,24 +107,29 @@ void R_InitPlanes(void) {
 //
 // BASIC PRIMITIVE
 //
-void R_MapPlane(int y, int x1, int x2) {
+void R_MapPlane(int y, int x1, int x2)
+{
   angle_t angle;
   fixed_t distance;
   fixed_t length;
   unsigned index;
 
 #ifdef RANGECHECK
-  if (x2 < x1 || x1 < 0 || x2 >= viewwidth || (unsigned)y > viewheight) {
+  if (x2 < x1 || x1 < 0 || x2 >= viewwidth || (unsigned)y > viewheight)
+  {
     I_Error("R_MapPlane: %i, %i at %i", x1, x2, y);
   }
 #endif
 
-  if (planeheight != cachedheight[y]) {
+  if (planeheight != cachedheight[y])
+  {
     cachedheight[y] = planeheight;
     distance = cacheddistance[y] = FixedMul(planeheight, yslope[y]);
     ds_xstep = cachedxstep[y] = FixedMul(distance, basexscale);
     ds_ystep = cachedystep[y] = FixedMul(distance, baseyscale);
-  } else {
+  }
+  else
+  {
     distance = cacheddistance[y];
     ds_xstep = cachedxstep[y];
     ds_ystep = cachedystep[y];
@@ -138,7 +142,8 @@ void R_MapPlane(int y, int x1, int x2) {
 
   if (fixedcolormap)
     ds_colormap = fixedcolormap;
-  else {
+  else
+  {
     index = distance >> LIGHTZSHIFT;
 
     if (index >= MAXLIGHTZ)
@@ -159,12 +164,14 @@ void R_MapPlane(int y, int x1, int x2) {
 // R_ClearPlanes
 // At begining of frame.
 //
-void R_ClearPlanes(void) {
+void R_ClearPlanes(void)
+{
   int i;
   angle_t angle;
 
   // opening / clipping determination
-  for (i = 0; i < viewwidth; i++) {
+  for (i = 0; i < viewwidth; i++)
+  {
     floorclip[i] = viewheight;
     ceilingclip[i] = -1;
   }
@@ -186,17 +193,21 @@ void R_ClearPlanes(void) {
 //
 // R_FindPlane
 //
-visplane_t *R_FindPlane(fixed_t height, int picnum, int lightlevel) {
+visplane_t *R_FindPlane(fixed_t height, int picnum, int lightlevel)
+{
   visplane_t *check;
 
-  if (picnum == skyflatnum) {
+  if (picnum == skyflatnum)
+  {
     height = 0; // all skys map together
     lightlevel = 0;
   }
 
-  for (check = visplanes; check < lastvisplane; check++) {
+  for (check = visplanes; check < lastvisplane; check++)
+  {
     if (height == check->height && picnum == check->picnum &&
-        lightlevel == check->lightlevel) {
+        lightlevel == check->lightlevel)
+    {
       break;
     }
   }
@@ -223,25 +234,32 @@ visplane_t *R_FindPlane(fixed_t height, int picnum, int lightlevel) {
 //
 // R_CheckPlane
 //
-visplane_t *R_CheckPlane(visplane_t *pl, int start, int stop) {
+visplane_t *R_CheckPlane(visplane_t *pl, int start, int stop)
+{
   int intrl;
   int intrh;
   int unionl;
   int unionh;
   int x;
 
-  if (start < pl->minx) {
+  if (start < pl->minx)
+  {
     intrl = pl->minx;
     unionl = start;
-  } else {
+  }
+  else
+  {
     unionl = pl->minx;
     intrl = start;
   }
 
-  if (stop > pl->maxx) {
+  if (stop > pl->maxx)
+  {
     intrh = pl->maxx;
     unionh = stop;
-  } else {
+  }
+  else
+  {
     unionh = pl->maxx;
     intrh = stop;
   }
@@ -250,7 +268,8 @@ visplane_t *R_CheckPlane(visplane_t *pl, int start, int stop) {
     if (pl->top[x] != 0xff)
       break;
 
-  if (x > intrh) {
+  if (x > intrh)
+  {
     pl->minx = unionl;
     pl->maxx = unionh;
 
@@ -275,21 +294,26 @@ visplane_t *R_CheckPlane(visplane_t *pl, int start, int stop) {
 //
 // R_MakeSpans
 //
-void R_MakeSpans(int x, int t1, int b1, int t2, int b2) {
-  while (t1 < t2 && t1 <= b1) {
+void R_MakeSpans(int x, int t1, int b1, int t2, int b2)
+{
+  while (t1 < t2 && t1 <= b1)
+  {
     R_MapPlane(t1, spanstart[t1], x - 1);
     t1++;
   }
-  while (b1 > b2 && b1 >= t1) {
+  while (b1 > b2 && b1 >= t1)
+  {
     R_MapPlane(b1, spanstart[b1], x - 1);
     b1--;
   }
 
-  while (t2 < t1 && t2 <= b2) {
+  while (t2 < t1 && t2 <= b2)
+  {
     spanstart[t2] = x;
     t2++;
   }
-  while (b2 > b1 && b2 >= t2) {
+  while (b2 > b1 && b2 >= t2)
+  {
     spanstart[b2] = x;
     b2--;
   }
@@ -299,7 +323,8 @@ void R_MakeSpans(int x, int t1, int b1, int t2, int b2) {
 // R_DrawPlanes
 // At the end of each frame.
 //
-void R_DrawPlanes(void) {
+void R_DrawPlanes(void)
+{
   visplane_t *pl;
   int light;
   int x;
@@ -317,12 +342,14 @@ void R_DrawPlanes(void) {
     I_Error("R_DrawPlanes: opening overflow (%i)", lastopening - openings);
 #endif
 
-  for (pl = visplanes; pl < lastvisplane; pl++) {
+  for (pl = visplanes; pl < lastvisplane; pl++)
+  {
     if (pl->minx > pl->maxx)
       continue;
 
     // sky flat
-    if (pl->picnum == skyflatnum) {
+    if (pl->picnum == skyflatnum)
+    {
       dc_iscale = pspriteiscale >> detailshift;
 
       // Sky is allways drawn full bright,
@@ -331,11 +358,13 @@ void R_DrawPlanes(void) {
       //  by INVUL inverse mapping.
       dc_colormap = colormaps;
       dc_texturemid = skytexturemid;
-      for (x = pl->minx; x <= pl->maxx; x++) {
+      for (x = pl->minx; x <= pl->maxx; x++)
+      {
         dc_yl = pl->top[x];
         dc_yh = pl->bottom[x];
 
-        if (dc_yl <= dc_yh) {
+        if (dc_yl <= dc_yh)
+        {
           angle = (viewangle + xtoviewangle[x]) >> ANGLETOSKYSHIFT;
           dc_x = x;
           dc_source = R_GetColumn(skytexture, angle);
@@ -365,7 +394,8 @@ void R_DrawPlanes(void) {
 
     stop = pl->maxx + 1;
 
-    for (x = pl->minx; x <= stop; x++) {
+    for (x = pl->minx; x <= stop; x++)
+    {
       R_MakeSpans(x, pl->top[x - 1], pl->bottom[x - 1], pl->top[x],
                   pl->bottom[x]);
     }

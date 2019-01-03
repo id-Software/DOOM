@@ -20,8 +20,6 @@
 //
 //-----------------------------------------------------------------------------
 
-static const char rcsid[] = "$Id: m_bbox.c,v 1.1 1997/02/03 22:45:10 b1 Exp $";
-
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -47,14 +45,14 @@ static const char rcsid[] = "$Id: m_bbox.c,v 1.1 1997/02/03 22:45:10 b1 Exp $";
 #include "i_net.h"
 
 // For some odd reason...
-#define ntohl(x)                                                               \
-  ((unsigned long int)((((unsigned long int)(x)&0x000000ffU) << 24) |          \
-                       (((unsigned long int)(x)&0x0000ff00U) << 8) |           \
-                       (((unsigned long int)(x)&0x00ff0000U) >> 8) |           \
+#define ntohl(x)                                                      \
+  ((unsigned long int)((((unsigned long int)(x)&0x000000ffU) << 24) | \
+                       (((unsigned long int)(x)&0x0000ff00U) << 8) |  \
+                       (((unsigned long int)(x)&0x00ff0000U) >> 8) |  \
                        (((unsigned long int)(x)&0xff000000U) >> 24)))
 
-#define ntohs(x)                                                               \
-  ((unsigned short int)((((unsigned short int)(x)&0x00ff) << 8) |              \
+#define ntohs(x)                                                  \
+  ((unsigned short int)((((unsigned short int)(x)&0x00ff) << 8) | \
                         (((unsigned short int)(x)&0xff00) >> 8)))
 
 #define htonl(x) ntohl(x)
@@ -80,7 +78,8 @@ void (*netsend)(void);
 //
 // UDPsocket
 //
-int UDPsocket(void) {
+int UDPsocket(void)
+{
   int s;
 
   // allocate a socket
@@ -94,7 +93,8 @@ int UDPsocket(void) {
 //
 // BindToLocalPort
 //
-void BindToLocalPort(int s, int port) {
+void BindToLocalPort(int s, int port)
+{
   int v;
   struct sockaddr_in address;
 
@@ -111,7 +111,8 @@ void BindToLocalPort(int s, int port) {
 //
 // PacketSend
 //
-void PacketSend(void) {
+void PacketSend(void)
+{
   int c;
   doomdata_t sw;
 
@@ -121,7 +122,8 @@ void PacketSend(void) {
   sw.retransmitfrom = netbuffer->retransmitfrom;
   sw.starttic = netbuffer->starttic;
   sw.numtics = netbuffer->numtics;
-  for (c = 0; c < netbuffer->numtics; c++) {
+  for (c = 0; c < netbuffer->numtics; c++)
+  {
     sw.cmds[c].forwardmove = netbuffer->cmds[c].forwardmove;
     sw.cmds[c].sidemove = netbuffer->cmds[c].sidemove;
     sw.cmds[c].angleturn = htons(netbuffer->cmds[c].angleturn);
@@ -142,7 +144,8 @@ void PacketSend(void) {
 //
 // PacketGet
 //
-void PacketGet(void) {
+void PacketGet(void)
+{
   int i;
   int c;
   struct sockaddr_in fromaddress;
@@ -152,7 +155,8 @@ void PacketGet(void) {
   fromlen = sizeof(fromaddress);
   c = recvfrom(insocket, &sw, sizeof(sw), 0, (struct sockaddr *)&fromaddress,
                &fromlen);
-  if (c == -1) {
+  if (c == -1)
+  {
     if (errno != EWOULDBLOCK)
       I_Error("GetPacket: %s", strerror(errno));
     doomcom->remotenode = -1; // no packet
@@ -171,7 +175,8 @@ void PacketGet(void) {
     if (fromaddress.sin_addr.s_addr == sendaddress[i].sin_addr.s_addr)
       break;
 
-  if (i == doomcom->numnodes) {
+  if (i == doomcom->numnodes)
+  {
     // packet is not from one of the players (new game broadcast)
     doomcom->remotenode = -1; // no packet
     return;
@@ -187,7 +192,8 @@ void PacketGet(void) {
   netbuffer->starttic = sw.starttic;
   netbuffer->numtics = sw.numtics;
 
-  for (c = 0; c < netbuffer->numtics; c++) {
+  for (c = 0; c < netbuffer->numtics; c++)
+  {
     netbuffer->cmds[c].forwardmove = sw.cmds[c].forwardmove;
     netbuffer->cmds[c].sidemove = sw.cmds[c].sidemove;
     netbuffer->cmds[c].angleturn = ntohs(sw.cmds[c].angleturn);
@@ -197,7 +203,8 @@ void PacketGet(void) {
   }
 }
 
-int GetLocalAddress(void) {
+int GetLocalAddress(void)
+{
   char hostname[1024];
   struct hostent *hostentry; // host information entry
   int v;
@@ -217,7 +224,8 @@ int GetLocalAddress(void) {
 //
 // I_InitNetwork
 //
-void I_InitNetwork(void) {
+void I_InitNetwork(void)
+{
   boolean trueval = true;
   int i;
   int p;
@@ -228,13 +236,15 @@ void I_InitNetwork(void) {
 
   // set up for network
   i = M_CheckParm("-dup");
-  if (i && i < myargc - 1) {
+  if (i && i < myargc - 1)
+  {
     doomcom->ticdup = myargv[i + 1][0] - '0';
     if (doomcom->ticdup < 1)
       doomcom->ticdup = 1;
     if (doomcom->ticdup > 9)
       doomcom->ticdup = 9;
-  } else
+  }
+  else
     doomcom->ticdup = 1;
 
   if (M_CheckParm("-extratic"))
@@ -243,7 +253,8 @@ void I_InitNetwork(void) {
     doomcom->extratics = 0;
 
   p = M_CheckParm("-port");
-  if (p && p < myargc - 1) {
+  if (p && p < myargc - 1)
+  {
     DOOMPORT = atoi(myargv[p + 1]);
     printf("using alternate port %i\n", DOOMPORT);
   }
@@ -251,7 +262,8 @@ void I_InitNetwork(void) {
   // parse network game options,
   //  -net <consoleplayer> <host> <host> ...
   i = M_CheckParm("-net");
-  if (!i) {
+  if (!i)
+  {
     // single player game
     netgame = false;
     doomcom->id = DOOMCOM_ID;
@@ -271,12 +283,16 @@ void I_InitNetwork(void) {
   doomcom->numnodes = 1; // this node for sure
 
   i++;
-  while (++i < myargc && myargv[i][0] != '-') {
+  while (++i < myargc && myargv[i][0] != '-')
+  {
     sendaddress[doomcom->numnodes].sin_family = AF_INET;
     sendaddress[doomcom->numnodes].sin_port = htons(DOOMPORT);
-    if (myargv[i][0] == '.') {
+    if (myargv[i][0] == '.')
+    {
       sendaddress[doomcom->numnodes].sin_addr.s_addr = inet_addr(myargv[i] + 1);
-    } else {
+    }
+    else
+    {
       hostentry = gethostbyname(myargv[i]);
       if (!hostentry)
         I_Error("gethostbyname: couldn't find %s", myargv[i]);
@@ -297,11 +313,16 @@ void I_InitNetwork(void) {
   sendsocket = UDPsocket();
 }
 
-void I_NetCmd(void) {
-  if (doomcom->command == CMD_SEND) {
+void I_NetCmd(void)
+{
+  if (doomcom->command == CMD_SEND)
+  {
     netsend();
-  } else if (doomcom->command == CMD_GET) {
+  }
+  else if (doomcom->command == CMD_GET)
+  {
     netget();
-  } else
+  }
+  else
     I_Error("Bad net cmd: %i\n", doomcom->command);
 }

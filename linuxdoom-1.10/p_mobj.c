@@ -21,8 +21,6 @@
 //
 //-----------------------------------------------------------------------------
 
-static const char rcsid[] = "$Id: p_mobj.c,v 1.5 1997/02/03 22:45:12 b1 Exp $";
-
 #include "i_system.h"
 #include "m_random.h"
 #include "z_zone.h"
@@ -47,11 +45,14 @@ void P_SpawnMapThing(mapthing_t *mthing);
 //
 int test;
 
-boolean P_SetMobjState(mobj_t *mobj, statenum_t state) {
+boolean P_SetMobjState(mobj_t *mobj, statenum_t state)
+{
   state_t *st;
 
-  do {
-    if (state == S_NULL) {
+  do
+  {
+    if (state == S_NULL)
+    {
       mobj->state = (state_t *)S_NULL;
       P_RemoveMobj(mobj);
       return false;
@@ -77,7 +78,8 @@ boolean P_SetMobjState(mobj_t *mobj, statenum_t state) {
 //
 // P_ExplodeMissile
 //
-void P_ExplodeMissile(mobj_t *mo) {
+void P_ExplodeMissile(mobj_t *mo)
+{
   mo->momx = mo->momy = mo->momz = 0;
 
   P_SetMobjState(mo, mobjinfo[mo->type].deathstate);
@@ -99,15 +101,18 @@ void P_ExplodeMissile(mobj_t *mo) {
 #define STOPSPEED 0x1000
 #define FRICTION 0xe800
 
-void P_XYMovement(mobj_t *mo) {
+void P_XYMovement(mobj_t *mo)
+{
   fixed_t ptryx;
   fixed_t ptryy;
   player_t *player;
   fixed_t xmove;
   fixed_t ymove;
 
-  if (!mo->momx && !mo->momy) {
-    if (mo->flags & MF_SKULLFLY) {
+  if (!mo->momx && !mo->momy)
+  {
+    if (mo->flags & MF_SKULLFLY)
+    {
       // the skull slammed into something
       mo->flags &= ~MF_SKULLFLY;
       mo->momx = mo->momy = mo->momz = 0;
@@ -132,26 +137,35 @@ void P_XYMovement(mobj_t *mo) {
   xmove = mo->momx;
   ymove = mo->momy;
 
-  do {
-    if (xmove > MAXMOVE / 2 || ymove > MAXMOVE / 2) {
+  do
+  {
+    if (xmove > MAXMOVE / 2 || ymove > MAXMOVE / 2)
+    {
       ptryx = mo->x + xmove / 2;
       ptryy = mo->y + ymove / 2;
       xmove >>= 1;
       ymove >>= 1;
-    } else {
+    }
+    else
+    {
       ptryx = mo->x + xmove;
       ptryy = mo->y + ymove;
       xmove = ymove = 0;
     }
 
-    if (!P_TryMove(mo, ptryx, ptryy)) {
+    if (!P_TryMove(mo, ptryx, ptryy))
+    {
       // blocked move
-      if (mo->player) { // try to slide along it
+      if (mo->player)
+      { // try to slide along it
         P_SlideMove(mo);
-      } else if (mo->flags & MF_MISSILE) {
+      }
+      else if (mo->flags & MF_MISSILE)
+      {
         // explode a missile
         if (ceilingline && ceilingline->backsector &&
-            ceilingline->backsector->ceilingpic == skyflatnum) {
+            ceilingline->backsector->ceilingpic == skyflatnum)
+        {
           // Hack to prevent missiles exploding
           // against the sky.
           // Does not handle sky floors.
@@ -159,13 +173,15 @@ void P_XYMovement(mobj_t *mo) {
           return;
         }
         P_ExplodeMissile(mo);
-      } else
+      }
+      else
         mo->momx = mo->momy = 0;
     }
   } while (xmove || ymove);
 
   // slow down
-  if (player && player->cheats & CF_NOMOMENTUM) {
+  if (player && player->cheats & CF_NOMOMENTUM)
+  {
     // debug option for no sliding at all
     mo->momx = mo->momy = 0;
     return;
@@ -177,11 +193,13 @@ void P_XYMovement(mobj_t *mo) {
   if (mo->z > mo->floorz)
     return; // no friction when airborne
 
-  if (mo->flags & MF_CORPSE) {
+  if (mo->flags & MF_CORPSE)
+  {
     // do not stop sliding
     //  if halfway off a step with some momentum
     if (mo->momx > FRACUNIT / 4 || mo->momx < -FRACUNIT / 4 ||
-        mo->momy > FRACUNIT / 4 || mo->momy < -FRACUNIT / 4) {
+        mo->momy > FRACUNIT / 4 || mo->momy < -FRACUNIT / 4)
+    {
       if (mo->floorz != mo->subsector->sector->floorheight)
         return;
     }
@@ -190,14 +208,17 @@ void P_XYMovement(mobj_t *mo) {
   if (mo->momx > -STOPSPEED && mo->momx < STOPSPEED && mo->momy > -STOPSPEED &&
       mo->momy < STOPSPEED &&
       (!player ||
-       (player->cmd.forwardmove == 0 && player->cmd.sidemove == 0))) {
+       (player->cmd.forwardmove == 0 && player->cmd.sidemove == 0)))
+  {
     // if in a walking frame, stop moving
     if (player && (unsigned)((player->mo->state - states) - S_PLAY_RUN1) < 4)
       P_SetMobjState(player->mo, S_PLAY);
 
     mo->momx = 0;
     mo->momy = 0;
-  } else {
+  }
+  else
+  {
     mo->momx = FixedMul(mo->momx, FRICTION);
     mo->momy = FixedMul(mo->momy, FRICTION);
   }
@@ -206,12 +227,14 @@ void P_XYMovement(mobj_t *mo) {
 //
 // P_ZMovement
 //
-void P_ZMovement(mobj_t *mo) {
+void P_ZMovement(mobj_t *mo)
+{
   fixed_t dist;
   fixed_t delta;
 
   // check for smooth step up
-  if (mo->player && mo->z < mo->floorz) {
+  if (mo->player && mo->z < mo->floorz)
+  {
     mo->player->viewheight -= mo->floorz - mo->z;
 
     mo->player->deltaviewheight = (VIEWHEIGHT - mo->player->viewheight) >> 3;
@@ -220,9 +243,11 @@ void P_ZMovement(mobj_t *mo) {
   // adjust height
   mo->z += mo->momz;
 
-  if (mo->flags & MF_FLOAT && mo->target) {
+  if (mo->flags & MF_FLOAT && mo->target)
+  {
     // float down towards target if too close
-    if (!(mo->flags & MF_SKULLFLY) && !(mo->flags & MF_INFLOAT)) {
+    if (!(mo->flags & MF_SKULLFLY) && !(mo->flags & MF_INFLOAT))
+    {
       dist = P_AproxDistance(mo->x - mo->target->x, mo->y - mo->target->y);
 
       delta = (mo->target->z + (mo->height >> 1)) - mo->z;
@@ -235,19 +260,23 @@ void P_ZMovement(mobj_t *mo) {
   }
 
   // clip movement
-  if (mo->z <= mo->floorz) {
+  if (mo->z <= mo->floorz)
+  {
     // hit the floor
 
     // Note (id):
     //  somebody left this after the setting momz to 0,
     //  kinda useless there.
-    if (mo->flags & MF_SKULLFLY) {
+    if (mo->flags & MF_SKULLFLY)
+    {
       // the skull slammed into something
       mo->momz = -mo->momz;
     }
 
-    if (mo->momz < 0) {
-      if (mo->player && mo->momz < -GRAVITY * 8) {
+    if (mo->momz < 0)
+    {
+      if (mo->player && mo->momz < -GRAVITY * 8)
+      {
         // Squat down.
         // Decrease viewheight for a moment
         // after hitting the ground (hard),
@@ -259,28 +288,36 @@ void P_ZMovement(mobj_t *mo) {
     }
     mo->z = mo->floorz;
 
-    if ((mo->flags & MF_MISSILE) && !(mo->flags & MF_NOCLIP)) {
+    if ((mo->flags & MF_MISSILE) && !(mo->flags & MF_NOCLIP))
+    {
       P_ExplodeMissile(mo);
       return;
     }
-  } else if (!(mo->flags & MF_NOGRAVITY)) {
+  }
+  else if (!(mo->flags & MF_NOGRAVITY))
+  {
     if (mo->momz == 0)
       mo->momz = -GRAVITY * 2;
     else
       mo->momz -= GRAVITY;
   }
 
-  if (mo->z + mo->height > mo->ceilingz) {
+  if (mo->z + mo->height > mo->ceilingz)
+  {
     // hit the ceiling
     if (mo->momz > 0)
       mo->momz = 0;
-    { mo->z = mo->ceilingz - mo->height; }
+    {
+      mo->z = mo->ceilingz - mo->height;
+    }
 
-    if (mo->flags & MF_SKULLFLY) { // the skull slammed into something
+    if (mo->flags & MF_SKULLFLY)
+    { // the skull slammed into something
       mo->momz = -mo->momz;
     }
 
-    if ((mo->flags & MF_MISSILE) && !(mo->flags & MF_NOCLIP)) {
+    if ((mo->flags & MF_MISSILE) && !(mo->flags & MF_NOCLIP))
+    {
       P_ExplodeMissile(mo);
       return;
     }
@@ -290,7 +327,8 @@ void P_ZMovement(mobj_t *mo) {
 //
 // P_NightmareRespawn
 //
-void P_NightmareRespawn(mobj_t *mobj) {
+void P_NightmareRespawn(mobj_t *mobj)
+{
   fixed_t x;
   fixed_t y;
   fixed_t z;
@@ -345,16 +383,19 @@ void P_NightmareRespawn(mobj_t *mobj) {
 //
 // P_MobjThinker
 //
-void P_MobjThinker(mobj_t *mobj) {
+void P_MobjThinker(mobj_t *mobj)
+{
   // momentum movement
-  if (mobj->momx || mobj->momy || (mobj->flags & MF_SKULLFLY)) {
+  if (mobj->momx || mobj->momy || (mobj->flags & MF_SKULLFLY))
+  {
     P_XYMovement(mobj);
 
     // FIXME: decent NOP/NULL/Nil function pointer please.
     if (mobj->thinker.function.acv == (actionf_v)(-1))
       return; // mobj was removed
   }
-  if ((mobj->z != mobj->floorz) || mobj->momz) {
+  if ((mobj->z != mobj->floorz) || mobj->momz)
+  {
     P_ZMovement(mobj);
 
     // FIXME: decent NOP/NULL/Nil function pointer please.
@@ -364,14 +405,17 @@ void P_MobjThinker(mobj_t *mobj) {
 
   // cycle through states,
   // calling action functions at transitions
-  if (mobj->tics != -1) {
+  if (mobj->tics != -1)
+  {
     mobj->tics--;
 
     // you can cycle through multiple states in a tic
     if (!mobj->tics)
       if (!P_SetMobjState(mobj, mobj->state->nextstate))
         return; // freed itself
-  } else {
+  }
+  else
+  {
     // check for nightmare respawn
     if (!(mobj->flags & MF_COUNTKILL))
       return;
@@ -397,7 +441,8 @@ void P_MobjThinker(mobj_t *mobj) {
 //
 // P_SpawnMobj
 //
-mobj_t *P_SpawnMobj(fixed_t x, fixed_t y, fixed_t z, mobjtype_t type) {
+mobj_t *P_SpawnMobj(fixed_t x, fixed_t y, fixed_t z, mobjtype_t type)
+{
   mobj_t *mobj;
   state_t *st;
   mobjinfo_t *info;
@@ -456,9 +501,11 @@ int itemrespawntime[ITEMQUESIZE];
 int iquehead;
 int iquetail;
 
-void P_RemoveMobj(mobj_t *mobj) {
+void P_RemoveMobj(mobj_t *mobj)
+{
   if ((mobj->flags & MF_SPECIAL) && !(mobj->flags & MF_DROPPED) &&
-      (mobj->type != MT_INV) && (mobj->type != MT_INS)) {
+      (mobj->type != MT_INV) && (mobj->type != MT_INS))
+  {
     itemrespawnque[iquehead] = mobj->spawnpoint;
     itemrespawntime[iquehead] = leveltime;
     iquehead = (iquehead + 1) & (ITEMQUESIZE - 1);
@@ -481,7 +528,8 @@ void P_RemoveMobj(mobj_t *mobj) {
 //
 // P_RespawnSpecials
 //
-void P_RespawnSpecials(void) {
+void P_RespawnSpecials(void)
+{
   fixed_t x;
   fixed_t y;
   fixed_t z;
@@ -515,7 +563,8 @@ void P_RespawnSpecials(void) {
   S_StartSound(mo, sfx_itmbk);
 
   // find which type to spawn
-  for (i = 0; i < NUMMOBJTYPES; i++) {
+  for (i = 0; i < NUMMOBJTYPES; i++)
+  {
     if (mthing->type == mobjinfo[i].doomednum)
       break;
   }
@@ -540,7 +589,8 @@ void P_RespawnSpecials(void) {
 // Most of the player structure stays unchanged
 //  between levels.
 //
-void P_SpawnPlayer(mapthing_t *mthing) {
+void P_SpawnPlayer(mapthing_t *mthing)
+{
   player_t *p;
   fixed_t x;
   fixed_t y;
@@ -590,7 +640,8 @@ void P_SpawnPlayer(mapthing_t *mthing) {
     for (i = 0; i < NUMCARDS; i++)
       p->cards[i] = true;
 
-  if (mthing->type - 1 == consoleplayer) {
+  if (mthing->type - 1 == consoleplayer)
+  {
     // wake up the status bar
     ST_Start();
     // wake up the heads up text
@@ -603,7 +654,8 @@ void P_SpawnPlayer(mapthing_t *mthing) {
 // The fields of the mapthing should
 // already be in host byte order.
 //
-void P_SpawnMapThing(mapthing_t *mthing) {
+void P_SpawnMapThing(mapthing_t *mthing)
+{
   int i;
   int bit;
   mobj_t *mobj;
@@ -612,8 +664,10 @@ void P_SpawnMapThing(mapthing_t *mthing) {
   fixed_t z;
 
   // count deathmatch start positions
-  if (mthing->type == 11) {
-    if (deathmatch_p < &deathmatchstarts[10]) {
+  if (mthing->type == 11)
+  {
+    if (deathmatch_p < &deathmatchstarts[10])
+    {
       memcpy(deathmatch_p, mthing, sizeof(*mthing));
       deathmatch_p++;
     }
@@ -621,7 +675,8 @@ void P_SpawnMapThing(mapthing_t *mthing) {
   }
 
   // check for players specially
-  if (mthing->type <= 4) {
+  if (mthing->type <= 4)
+  {
     // save spots for respawning in network games
     playerstarts[mthing->type - 1] = *mthing;
     if (!deathmatch)
@@ -658,7 +713,8 @@ void P_SpawnMapThing(mapthing_t *mthing) {
     return;
 
   // don't spawn any monsters if -nomonsters
-  if (nomonsters && (i == MT_SKULL || (mobjinfo[i].flags & MF_COUNTKILL))) {
+  if (nomonsters && (i == MT_SKULL || (mobjinfo[i].flags & MF_COUNTKILL)))
+  {
     return;
   }
 
@@ -695,7 +751,8 @@ void P_SpawnMapThing(mapthing_t *mthing) {
 //
 extern fixed_t attackrange;
 
-void P_SpawnPuff(fixed_t x, fixed_t y, fixed_t z) {
+void P_SpawnPuff(fixed_t x, fixed_t y, fixed_t z)
+{
   mobj_t *th;
 
   z += ((P_Random() - P_Random()) << 10);
@@ -715,7 +772,8 @@ void P_SpawnPuff(fixed_t x, fixed_t y, fixed_t z) {
 //
 // P_SpawnBlood
 //
-void P_SpawnBlood(fixed_t x, fixed_t y, fixed_t z, int damage) {
+void P_SpawnBlood(fixed_t x, fixed_t y, fixed_t z, int damage)
+{
   mobj_t *th;
 
   z += ((P_Random() - P_Random()) << 10);
@@ -737,7 +795,8 @@ void P_SpawnBlood(fixed_t x, fixed_t y, fixed_t z, int damage) {
 // Moves the missile forward a bit
 //  and possibly explodes it right there.
 //
-void P_CheckMissileSpawn(mobj_t *th) {
+void P_CheckMissileSpawn(mobj_t *th)
+{
   th->tics -= P_Random() & 3;
   if (th->tics < 1)
     th->tics = 1;
@@ -755,7 +814,8 @@ void P_CheckMissileSpawn(mobj_t *th) {
 //
 // P_SpawnMissile
 //
-mobj_t *P_SpawnMissile(mobj_t *source, mobj_t *dest, mobjtype_t type) {
+mobj_t *P_SpawnMissile(mobj_t *source, mobj_t *dest, mobjtype_t type)
+{
   mobj_t *th;
   angle_t an;
   int dist;
@@ -793,7 +853,8 @@ mobj_t *P_SpawnMissile(mobj_t *source, mobj_t *dest, mobjtype_t type) {
 // P_SpawnPlayerMissile
 // Tries to aim at a nearby monster
 //
-void P_SpawnPlayerMissile(mobj_t *source, mobjtype_t type) {
+void P_SpawnPlayerMissile(mobj_t *source, mobjtype_t type)
+{
   mobj_t *th;
   angle_t an;
 
@@ -806,16 +867,19 @@ void P_SpawnPlayerMissile(mobj_t *source, mobjtype_t type) {
   an = source->angle;
   slope = P_AimLineAttack(source, an, 16 * 64 * FRACUNIT);
 
-  if (!linetarget) {
+  if (!linetarget)
+  {
     an += 1 << 26;
     slope = P_AimLineAttack(source, an, 16 * 64 * FRACUNIT);
 
-    if (!linetarget) {
+    if (!linetarget)
+    {
       an -= 2 << 26;
       slope = P_AimLineAttack(source, an, 16 * 64 * FRACUNIT);
     }
 
-    if (!linetarget) {
+    if (!linetarget)
+    {
       an = source->angle;
       slope = 0;
     }

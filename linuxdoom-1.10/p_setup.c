@@ -22,8 +22,6 @@
 //
 //-----------------------------------------------------------------------------
 
-static const char rcsid[] = "$Id: p_setup.c,v 1.5 1997/02/03 22:45:12 b1 Exp $";
-
 #include <math.h>
 
 #include "z_zone.h"
@@ -108,7 +106,8 @@ mapthing_t playerstarts[MAXPLAYERS];
 //
 // P_LoadVertexes
 //
-void P_LoadVertexes(int lump) {
+void P_LoadVertexes(int lump)
+{
   byte *data;
   int i;
   mapvertex_t *ml;
@@ -129,7 +128,8 @@ void P_LoadVertexes(int lump) {
 
   // Copy and convert vertex coordinates,
   // internal representation as fixed.
-  for (i = 0; i < numvertexes; i++, li++, ml++) {
+  for (i = 0; i < numvertexes; i++, li++, ml++)
+  {
     li->x = SHORT(ml->x) << FRACBITS;
     li->y = SHORT(ml->y) << FRACBITS;
   }
@@ -141,7 +141,8 @@ void P_LoadVertexes(int lump) {
 //
 // P_LoadSegs
 //
-void P_LoadSegs(int lump) {
+void P_LoadSegs(int lump)
+{
   byte *data;
   int i;
   mapseg_t *ml;
@@ -157,7 +158,8 @@ void P_LoadSegs(int lump) {
 
   ml = (mapseg_t *)data;
   li = segs;
-  for (i = 0; i < numsegs; i++, li++, ml++) {
+  for (i = 0; i < numsegs; i++, li++, ml++)
+  {
     li->v1 = &vertexes[SHORT(ml->v1)];
     li->v2 = &vertexes[SHORT(ml->v2)];
 
@@ -181,7 +183,8 @@ void P_LoadSegs(int lump) {
 //
 // P_LoadSubsectors
 //
-void P_LoadSubsectors(int lump) {
+void P_LoadSubsectors(int lump)
+{
   byte *data;
   int i;
   mapsubsector_t *ms;
@@ -195,7 +198,8 @@ void P_LoadSubsectors(int lump) {
   memset(subsectors, 0, numsubsectors * sizeof(subsector_t));
   ss = subsectors;
 
-  for (i = 0; i < numsubsectors; i++, ss++, ms++) {
+  for (i = 0; i < numsubsectors; i++, ss++, ms++)
+  {
     ss->numlines = SHORT(ms->numsegs);
     ss->firstline = SHORT(ms->firstseg);
   }
@@ -206,7 +210,8 @@ void P_LoadSubsectors(int lump) {
 //
 // P_LoadSectors
 //
-void P_LoadSectors(int lump) {
+void P_LoadSectors(int lump)
+{
   byte *data;
   int i;
   mapsector_t *ms;
@@ -219,7 +224,8 @@ void P_LoadSectors(int lump) {
 
   ms = (mapsector_t *)data;
   ss = sectors;
-  for (i = 0; i < numsectors; i++, ss++, ms++) {
+  for (i = 0; i < numsectors; i++, ss++, ms++)
+  {
     ss->floorheight = SHORT(ms->floorheight) << FRACBITS;
     ss->ceilingheight = SHORT(ms->ceilingheight) << FRACBITS;
     ss->floorpic = R_FlatNumForName(ms->floorpic);
@@ -236,7 +242,8 @@ void P_LoadSectors(int lump) {
 //
 // P_LoadNodes
 //
-void P_LoadNodes(int lump) {
+void P_LoadNodes(int lump)
+{
   byte *data;
   int i;
   int j;
@@ -251,12 +258,14 @@ void P_LoadNodes(int lump) {
   mn = (mapnode_t *)data;
   no = nodes;
 
-  for (i = 0; i < numnodes; i++, no++, mn++) {
+  for (i = 0; i < numnodes; i++, no++, mn++)
+  {
     no->x = SHORT(mn->x) << FRACBITS;
     no->y = SHORT(mn->y) << FRACBITS;
     no->dx = SHORT(mn->dx) << FRACBITS;
     no->dy = SHORT(mn->dy) << FRACBITS;
-    for (j = 0; j < 2; j++) {
+    for (j = 0; j < 2; j++)
+    {
       no->children[j] = SHORT(mn->children[j]);
       for (k = 0; k < 4; k++)
         no->bbox[j][k] = SHORT(mn->bbox[j][k]) << FRACBITS;
@@ -269,7 +278,8 @@ void P_LoadNodes(int lump) {
 //
 // P_LoadThings
 //
-void P_LoadThings(int lump) {
+void P_LoadThings(int lump)
+{
   byte *data;
   int i;
   mapthing_t *mt;
@@ -280,12 +290,15 @@ void P_LoadThings(int lump) {
   numthings = W_LumpLength(lump) / sizeof(mapthing_t);
 
   mt = (mapthing_t *)data;
-  for (i = 0; i < numthings; i++, mt++) {
+  for (i = 0; i < numthings; i++, mt++)
+  {
     spawn = true;
 
     // Do not spawn cool, new monsters if !commercial
-    if (gamemode != commercial) {
-      switch (mt->type) {
+    if (gamemode != commercial)
+    {
+      switch (mt->type)
+      {
       case 68: // Arachnotron
       case 64: // Archvile
       case 88: // Boss Brain
@@ -320,7 +333,8 @@ void P_LoadThings(int lump) {
 // P_LoadLineDefs
 // Also counts secret lines for intermissions.
 //
-void P_LoadLineDefs(int lump) {
+void P_LoadLineDefs(int lump)
+{
   byte *data;
   int i;
   maplinedef_t *mld;
@@ -335,7 +349,8 @@ void P_LoadLineDefs(int lump) {
 
   mld = (maplinedef_t *)data;
   ld = lines;
-  for (i = 0; i < numlines; i++, mld++, ld++) {
+  for (i = 0; i < numlines; i++, mld++, ld++)
+  {
     ld->flags = SHORT(mld->flags);
     ld->special = SHORT(mld->special);
     ld->tag = SHORT(mld->tag);
@@ -348,25 +363,32 @@ void P_LoadLineDefs(int lump) {
       ld->slopetype = ST_VERTICAL;
     else if (!ld->dy)
       ld->slopetype = ST_HORIZONTAL;
-    else {
+    else
+    {
       if (FixedDiv(ld->dy, ld->dx) > 0)
         ld->slopetype = ST_POSITIVE;
       else
         ld->slopetype = ST_NEGATIVE;
     }
 
-    if (v1->x < v2->x) {
+    if (v1->x < v2->x)
+    {
       ld->bbox[BOXLEFT] = v1->x;
       ld->bbox[BOXRIGHT] = v2->x;
-    } else {
+    }
+    else
+    {
       ld->bbox[BOXLEFT] = v2->x;
       ld->bbox[BOXRIGHT] = v1->x;
     }
 
-    if (v1->y < v2->y) {
+    if (v1->y < v2->y)
+    {
       ld->bbox[BOXBOTTOM] = v1->y;
       ld->bbox[BOXTOP] = v2->y;
-    } else {
+    }
+    else
+    {
       ld->bbox[BOXBOTTOM] = v2->y;
       ld->bbox[BOXTOP] = v1->y;
     }
@@ -391,7 +413,8 @@ void P_LoadLineDefs(int lump) {
 //
 // P_LoadSideDefs
 //
-void P_LoadSideDefs(int lump) {
+void P_LoadSideDefs(int lump)
+{
   byte *data;
   int i;
   mapsidedef_t *msd;
@@ -404,7 +427,8 @@ void P_LoadSideDefs(int lump) {
 
   msd = (mapsidedef_t *)data;
   sd = sides;
-  for (i = 0; i < numsides; i++, msd++, sd++) {
+  for (i = 0; i < numsides; i++, msd++, sd++)
+  {
     sd->textureoffset = SHORT(msd->textureoffset) << FRACBITS;
     sd->rowoffset = SHORT(msd->rowoffset) << FRACBITS;
     sd->toptexture = R_TextureNumForName(msd->toptexture);
@@ -419,7 +443,8 @@ void P_LoadSideDefs(int lump) {
 //
 // P_LoadBlockMap
 //
-void P_LoadBlockMap(int lump) {
+void P_LoadBlockMap(int lump)
+{
   int i;
   int count;
 
@@ -446,7 +471,8 @@ void P_LoadBlockMap(int lump) {
 // Builds sector line lists and subsector sector numbers.
 // Finds block bounding boxes for sectors.
 //
-void P_GroupLines(void) {
+void P_GroupLines(void)
+{
   line_t **linebuffer;
   int i;
   int j;
@@ -460,7 +486,8 @@ void P_GroupLines(void) {
 
   // look up sector number for each subsector
   ss = subsectors;
-  for (i = 0; i < numsubsectors; i++, ss++) {
+  for (i = 0; i < numsubsectors; i++, ss++)
+  {
     seg = &segs[ss->firstline];
     ss->sector = seg->sidedef->sector;
   }
@@ -468,11 +495,13 @@ void P_GroupLines(void) {
   // count number of lines in each sector
   li = lines;
   total = 0;
-  for (i = 0; i < numlines; i++, li++) {
+  for (i = 0; i < numlines; i++, li++)
+  {
     total++;
     li->frontsector->linecount++;
 
-    if (li->backsector && li->backsector != li->frontsector) {
+    if (li->backsector && li->backsector != li->frontsector)
+    {
       li->backsector->linecount++;
       total++;
     }
@@ -481,12 +510,15 @@ void P_GroupLines(void) {
   // build line tables for each sector
   linebuffer = Z_Malloc(total * 4, PU_LEVEL, 0);
   sector = sectors;
-  for (i = 0; i < numsectors; i++, sector++) {
+  for (i = 0; i < numsectors; i++, sector++)
+  {
     M_ClearBox(bbox);
     sector->lines = linebuffer;
     li = lines;
-    for (j = 0; j < numlines; j++, li++) {
-      if (li->frontsector == sector || li->backsector == sector) {
+    for (j = 0; j < numlines; j++, li++)
+    {
+      if (li->frontsector == sector || li->backsector == sector)
+      {
         *linebuffer++ = li;
         M_AddToBox(bbox, li->v1->x, li->v1->y);
         M_AddToBox(bbox, li->v2->x, li->v2->y);
@@ -521,14 +553,16 @@ void P_GroupLines(void) {
 //
 // P_SetupLevel
 //
-void P_SetupLevel(int episode, int map, int playermask, skill_t skill) {
+void P_SetupLevel(int episode, int map, int playermask, skill_t skill)
+{
   int i;
   char lumpname[9];
   int lumpnum;
 
   totalkills = totalitems = totalsecret = wminfo.maxfrags = 0;
   wminfo.partime = 180;
-  for (i = 0; i < MAXPLAYERS; i++) {
+  for (i = 0; i < MAXPLAYERS; i++)
+  {
     players[i].killcount = players[i].secretcount = players[i].itemcount = 0;
   }
 
@@ -556,12 +590,15 @@ void P_SetupLevel(int episode, int map, int playermask, skill_t skill) {
   W_Reload();
 
   // find map name
-  if (gamemode == commercial) {
+  if (gamemode == commercial)
+  {
     if (map < 10)
       sprintf(lumpname, "map0%i", map);
     else
       sprintf(lumpname, "map%i", map);
-  } else {
+  }
+  else
+  {
     lumpname[0] = 'E';
     lumpname[1] = '0' + episode;
     lumpname[2] = 'M';
@@ -592,9 +629,11 @@ void P_SetupLevel(int episode, int map, int playermask, skill_t skill) {
   P_LoadThings(lumpnum + ML_THINGS);
 
   // if deathmatch, randomly spawn the active players
-  if (deathmatch) {
+  if (deathmatch)
+  {
     for (i = 0; i < MAXPLAYERS; i++)
-      if (playeringame[i]) {
+      if (playeringame[i])
+      {
         players[i].mo = NULL;
         G_DeathMatchSpawnPlayer(i);
       }
@@ -619,7 +658,8 @@ void P_SetupLevel(int episode, int map, int playermask, skill_t skill) {
 //
 // P_Init
 //
-void P_Init(void) {
+void P_Init(void)
+{
   P_InitSwitchList();
   P_InitPicAnims();
   R_InitSprites(sprnames);

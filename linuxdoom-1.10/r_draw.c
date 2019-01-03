@@ -23,8 +23,6 @@
 //
 //-----------------------------------------------------------------------------
 
-static const char rcsid[] = "$Id: r_draw.c,v 1.4 1997/02/03 16:47:55 b1 Exp $";
-
 #include "doomdef.h"
 
 #include "i_system.h"
@@ -94,7 +92,8 @@ int dccount;
 // Thus a special case loop for very fast rendering can
 //  be used. It has also been used with Wolfenstein 3D.
 //
-void R_DrawColumn(void) {
+void R_DrawColumn(void)
+{
   int count;
   byte *dest;
   fixed_t frac;
@@ -124,7 +123,8 @@ void R_DrawColumn(void) {
   // Inner loop that does the actual texture mapping,
   //  e.g. a DDA-lile scaling.
   // This is as fast as it gets.
-  do {
+  do
+  {
     // Re-map color indices from wall texture column
     //  using a lighting/special effects LUT.
     *dest = dc_colormap[dc_source[(frac >> FRACBITS) & 127]];
@@ -193,7 +193,8 @@ void R_DrawColumn (void)
 }
 #endif
 
-void R_DrawColumnLow(void) {
+void R_DrawColumnLow(void)
+{
   int count;
   byte *dest;
   byte *dest2;
@@ -207,7 +208,8 @@ void R_DrawColumnLow(void) {
     return;
 
 #ifdef RANGECHECK
-  if ((unsigned)dc_x >= SCREENWIDTH || dc_yl < 0 || dc_yh >= SCREENHEIGHT) {
+  if ((unsigned)dc_x >= SCREENWIDTH || dc_yl < 0 || dc_yh >= SCREENHEIGHT)
+  {
 
     I_Error("R_DrawColumn: %i to %i at %i", dc_yl, dc_yh, dc_x);
   }
@@ -222,7 +224,8 @@ void R_DrawColumnLow(void) {
   fracstep = dc_iscale;
   frac = dc_texturemid + (dc_yl - centery) * fracstep;
 
-  do {
+  do
+  {
     // Hack. Does not work corretly.
     *dest2 = *dest = dc_colormap[dc_source[(frac >> FRACBITS) & 127]];
     dest += SCREENWIDTH;
@@ -239,13 +242,13 @@ void R_DrawColumnLow(void) {
 #define FUZZOFF (SCREENWIDTH)
 
 int fuzzoffset[FUZZTABLE] = {
-    FUZZOFF,  -FUZZOFF, FUZZOFF,  -FUZZOFF, FUZZOFF,  FUZZOFF,  -FUZZOFF,
-    FUZZOFF,  FUZZOFF,  -FUZZOFF, FUZZOFF,  FUZZOFF,  FUZZOFF,  -FUZZOFF,
-    FUZZOFF,  FUZZOFF,  FUZZOFF,  -FUZZOFF, -FUZZOFF, -FUZZOFF, -FUZZOFF,
-    FUZZOFF,  -FUZZOFF, -FUZZOFF, FUZZOFF,  FUZZOFF,  FUZZOFF,  FUZZOFF,
-    -FUZZOFF, FUZZOFF,  -FUZZOFF, FUZZOFF,  FUZZOFF,  -FUZZOFF, -FUZZOFF,
-    FUZZOFF,  FUZZOFF,  -FUZZOFF, -FUZZOFF, -FUZZOFF, -FUZZOFF, FUZZOFF,
-    FUZZOFF,  FUZZOFF,  FUZZOFF,  -FUZZOFF, FUZZOFF,  FUZZOFF,  -FUZZOFF,
+    FUZZOFF, -FUZZOFF, FUZZOFF, -FUZZOFF, FUZZOFF, FUZZOFF, -FUZZOFF,
+    FUZZOFF, FUZZOFF, -FUZZOFF, FUZZOFF, FUZZOFF, FUZZOFF, -FUZZOFF,
+    FUZZOFF, FUZZOFF, FUZZOFF, -FUZZOFF, -FUZZOFF, -FUZZOFF, -FUZZOFF,
+    FUZZOFF, -FUZZOFF, -FUZZOFF, FUZZOFF, FUZZOFF, FUZZOFF, FUZZOFF,
+    -FUZZOFF, FUZZOFF, -FUZZOFF, FUZZOFF, FUZZOFF, -FUZZOFF, -FUZZOFF,
+    FUZZOFF, FUZZOFF, -FUZZOFF, -FUZZOFF, -FUZZOFF, -FUZZOFF, FUZZOFF,
+    FUZZOFF, FUZZOFF, FUZZOFF, -FUZZOFF, FUZZOFF, FUZZOFF, -FUZZOFF,
     FUZZOFF};
 
 int fuzzpos = 0;
@@ -258,7 +261,8 @@ int fuzzpos = 0;
 //  could create the SHADOW effect,
 //  i.e. spectres and invisible players.
 //
-void R_DrawFuzzColumn(void) {
+void R_DrawFuzzColumn(void)
+{
   int count;
   byte *dest;
   fixed_t frac;
@@ -279,7 +283,8 @@ void R_DrawFuzzColumn(void) {
     return;
 
 #ifdef RANGECHECK
-  if ((unsigned)dc_x >= SCREENWIDTH || dc_yl < 0 || dc_yh >= SCREENHEIGHT) {
+  if ((unsigned)dc_x >= SCREENWIDTH || dc_yl < 0 || dc_yh >= SCREENHEIGHT)
+  {
     I_Error("R_DrawFuzzColumn: %i to %i at %i", dc_yl, dc_yh, dc_x);
   }
 #endif
@@ -318,7 +323,8 @@ void R_DrawFuzzColumn(void) {
   // Looks like an attempt at dithering,
   //  using the colormap #6 (of 0-31, a bit
   //  brighter than average).
-  do {
+  do
+  {
     // Lookup framebuffer, and retrieve
     //  a pixel that is either one column
     //  left or right of the current one.
@@ -347,7 +353,8 @@ void R_DrawFuzzColumn(void) {
 byte *dc_translation;
 byte *translationtables;
 
-void R_DrawTranslatedColumn(void) {
+void R_DrawTranslatedColumn(void)
+{
   int count;
   byte *dest;
   fixed_t frac;
@@ -358,7 +365,8 @@ void R_DrawTranslatedColumn(void) {
     return;
 
 #ifdef RANGECHECK
-  if ((unsigned)dc_x >= SCREENWIDTH || dc_yl < 0 || dc_yh >= SCREENHEIGHT) {
+  if ((unsigned)dc_x >= SCREENWIDTH || dc_yl < 0 || dc_yh >= SCREENHEIGHT)
+  {
     I_Error("R_DrawColumn: %i to %i at %i", dc_yl, dc_yh, dc_x);
   }
 
@@ -390,7 +398,8 @@ void R_DrawTranslatedColumn(void) {
   frac = dc_texturemid + (dc_yl - centery) * fracstep;
 
   // Here we do an additional index re-mapping.
-  do {
+  do
+  {
     // Translation tables are used
     //  to map certain colorramps to other ones,
     //  used with PLAY sprites.
@@ -410,20 +419,25 @@ void R_DrawTranslatedColumn(void) {
 // Assumes a given structure of the PLAYPAL.
 // Could be read from a lump instead.
 //
-void R_InitTranslationTables(void) {
+void R_InitTranslationTables(void)
+{
   int i;
 
   translationtables = Z_Malloc(256 * 3 + 255, PU_STATIC, 0);
   translationtables = (byte *)(((int)translationtables + 255) & ~255);
 
   // translate just the 16 green colors
-  for (i = 0; i < 256; i++) {
-    if (i >= 0x70 && i <= 0x7f) {
+  for (i = 0; i < 256; i++)
+  {
+    if (i >= 0x70 && i <= 0x7f)
+    {
       // map green ramp to gray, brown, red
       translationtables[i] = 0x60 + (i & 0xf);
       translationtables[i + 256] = 0x40 + (i & 0xf);
       translationtables[i + 512] = 0x20 + (i & 0xf);
-    } else {
+    }
+    else
+    {
       // Keep all other colors as is.
       translationtables[i] = translationtables[i + 256] =
           translationtables[i + 512] = i;
@@ -462,7 +476,8 @@ int dscount;
 
 //
 // Draws the actual span.
-void R_DrawSpan(void) {
+void R_DrawSpan(void)
+{
   fixed_t xfrac;
   fixed_t yfrac;
   byte *dest;
@@ -471,7 +486,8 @@ void R_DrawSpan(void) {
 
 #ifdef RANGECHECK
   if (ds_x2 < ds_x1 || ds_x1 < 0 || ds_x2 >= SCREENWIDTH ||
-      (unsigned)ds_y > SCREENHEIGHT) {
+      (unsigned)ds_y > SCREENHEIGHT)
+  {
     I_Error("R_DrawSpan: %i to %i at %i", ds_x1, ds_x2, ds_y);
   }
 //	dscount++;
@@ -485,7 +501,8 @@ void R_DrawSpan(void) {
   // We do not check for zero spans here?
   count = ds_x2 - ds_x1;
 
-  do {
+  do
+  {
     // Current texture index in u,v.
     spot = ((yfrac >> (16 - 6)) & (63 * 64)) + ((xfrac >> 16) & 63);
 
@@ -575,7 +592,8 @@ void R_DrawSpan (void)
 //
 // Again..
 //
-void R_DrawSpanLow(void) {
+void R_DrawSpanLow(void)
+{
   fixed_t xfrac;
   fixed_t yfrac;
   byte *dest;
@@ -584,7 +602,8 @@ void R_DrawSpanLow(void) {
 
 #ifdef RANGECHECK
   if (ds_x2 < ds_x1 || ds_x1 < 0 || ds_x2 >= SCREENWIDTH ||
-      (unsigned)ds_y > SCREENHEIGHT) {
+      (unsigned)ds_y > SCREENHEIGHT)
+  {
     I_Error("R_DrawSpan: %i to %i at %i", ds_x1, ds_x2, ds_y);
   }
 //	dscount++;
@@ -600,7 +619,8 @@ void R_DrawSpanLow(void) {
   dest = ylookup[ds_y] + columnofs[ds_x1];
 
   count = ds_x2 - ds_x1;
-  do {
+  do
+  {
     spot = ((yfrac >> (16 - 6)) & (63 * 64)) + ((xfrac >> 16) & 63);
     // Lowres/blocky mode does it twice,
     //  while scale is adjusted appropriately.
@@ -620,7 +640,8 @@ void R_DrawSpanLow(void) {
 //  for getting the framebuffer address
 //  of a pixel to draw.
 //
-void R_InitBuffer(int width, int height) {
+void R_InitBuffer(int width, int height)
+{
   int i;
 
   // Handle resize,
@@ -649,7 +670,8 @@ void R_InitBuffer(int width, int height) {
 //  for variable screen sizes
 // Also draws a beveled edge.
 //
-void R_FillBackScreen(void) {
+void R_FillBackScreen(void)
+{
   byte *src;
   byte *dest;
   int x;
@@ -675,13 +697,16 @@ void R_FillBackScreen(void) {
   src = W_CacheLumpName(name, PU_CACHE);
   dest = screens[1];
 
-  for (y = 0; y < SCREENHEIGHT - SBARHEIGHT; y++) {
-    for (x = 0; x < SCREENWIDTH / 64; x++) {
+  for (y = 0; y < SCREENHEIGHT - SBARHEIGHT; y++)
+  {
+    for (x = 0; x < SCREENWIDTH / 64; x++)
+    {
       memcpy(dest, src + ((y & 63) << 6), 64);
       dest += 64;
     }
 
-    if (SCREENWIDTH & 63) {
+    if (SCREENWIDTH & 63)
+    {
       memcpy(dest, src + ((y & 63) << 6), SCREENWIDTH & 63);
       dest += (SCREENWIDTH & 63);
     }
@@ -721,7 +746,8 @@ void R_FillBackScreen(void) {
 //
 // Copy a screen buffer.
 //
-void R_VideoErase(unsigned ofs, int count) {
+void R_VideoErase(unsigned ofs, int count)
+{
   // LFB copy.
   // This might not be a good idea if memcpy
   //  is not optiomal, e.g. byte by byte on
@@ -737,7 +763,8 @@ void R_VideoErase(unsigned ofs, int count) {
 //
 void V_MarkRect(int x, int y, int width, int height);
 
-void R_DrawViewBorder(void) {
+void R_DrawViewBorder(void)
+{
   int top;
   int side;
   int ofs;
@@ -760,7 +787,8 @@ void R_DrawViewBorder(void) {
   ofs = top * SCREENWIDTH + SCREENWIDTH - side;
   side <<= 1;
 
-  for (i = 1; i < viewheight; i++) {
+  for (i = 1; i < viewheight; i++)
+  {
     R_VideoErase(ofs, side);
     ofs += SCREENWIDTH;
   }

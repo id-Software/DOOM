@@ -21,8 +21,6 @@
 //
 //-----------------------------------------------------------------------------
 
-static const char rcsid[] = "$Id: p_sight.c,v 1.3 1997/01/28 22:08:28 b1 Exp $";
-
 #include "doomdef.h"
 
 #include "i_system.h"
@@ -48,13 +46,15 @@ int sightcounts[2];
 // P_DivlineSide
 // Returns side 0 (front), 1 (back), or 2 (on).
 //
-int P_DivlineSide(fixed_t x, fixed_t y, divline_t *node) {
+int P_DivlineSide(fixed_t x, fixed_t y, divline_t *node)
+{
   fixed_t dx;
   fixed_t dy;
   fixed_t left;
   fixed_t right;
 
-  if (!node->dx) {
+  if (!node->dx)
+  {
     if (x == node->x)
       return 2;
 
@@ -64,7 +64,8 @@ int P_DivlineSide(fixed_t x, fixed_t y, divline_t *node) {
     return node->dy < 0;
   }
 
-  if (!node->dy) {
+  if (!node->dy)
+  {
     if (x == node->y)
       return 2;
 
@@ -94,7 +95,8 @@ int P_DivlineSide(fixed_t x, fixed_t y, divline_t *node) {
 // along the first divline.
 // This is only called by the addthings and addlines traversers.
 //
-fixed_t P_InterceptVector2(divline_t *v2, divline_t *v1) {
+fixed_t P_InterceptVector2(divline_t *v2, divline_t *v1)
+{
   fixed_t frac;
   fixed_t num;
   fixed_t den;
@@ -117,7 +119,8 @@ fixed_t P_InterceptVector2(divline_t *v2, divline_t *v1) {
 // Returns true
 //  if strace crosses the given subsector successfully.
 //
-boolean P_CrossSubsector(int num) {
+boolean P_CrossSubsector(int num)
+{
   seg_t *seg;
   line_t *line;
   int s1;
@@ -145,7 +148,8 @@ boolean P_CrossSubsector(int num) {
   count = sub->numlines;
   seg = &segs[sub->firstline];
 
-  for (; count; seg++, count--) {
+  for (; count; seg++, count--)
+  {
     line = seg->linedef;
 
     // allready checked other side?
@@ -207,13 +211,15 @@ boolean P_CrossSubsector(int num) {
 
     frac = P_InterceptVector2(&strace, &divl);
 
-    if (front->floorheight != back->floorheight) {
+    if (front->floorheight != back->floorheight)
+    {
       slope = FixedDiv(openbottom - sightzstart, frac);
       if (slope > bottomslope)
         bottomslope = slope;
     }
 
-    if (front->ceilingheight != back->ceilingheight) {
+    if (front->ceilingheight != back->ceilingheight)
+    {
       slope = FixedDiv(opentop - sightzstart, frac);
       if (slope < topslope)
         topslope = slope;
@@ -231,11 +237,13 @@ boolean P_CrossSubsector(int num) {
 // Returns true
 //  if strace crosses the given node successfully.
 //
-boolean P_CrossBSPNode(int bspnum) {
+boolean P_CrossBSPNode(int bspnum)
+{
   node_t *bsp;
   int side;
 
-  if (bspnum & NF_SUBSECTOR) {
+  if (bspnum & NF_SUBSECTOR)
+  {
     if (bspnum == -1)
       return P_CrossSubsector(0);
     else
@@ -254,7 +262,8 @@ boolean P_CrossBSPNode(int bspnum) {
     return false;
 
   // the partition plane is crossed here
-  if (side == P_DivlineSide(t2x, t2y, (divline_t *)bsp)) {
+  if (side == P_DivlineSide(t2x, t2y, (divline_t *)bsp))
+  {
     // the line doesn't touch the other side
     return true;
   }
@@ -269,7 +278,8 @@ boolean P_CrossBSPNode(int bspnum) {
 //  if a straight line between t1 and t2 is unobstructed.
 // Uses REJECT.
 //
-boolean P_CheckSight(mobj_t *t1, mobj_t *t2) {
+boolean P_CheckSight(mobj_t *t1, mobj_t *t2)
+{
   int s1;
   int s2;
   int pnum;
@@ -286,7 +296,8 @@ boolean P_CheckSight(mobj_t *t1, mobj_t *t2) {
   bitnum = 1 << (pnum & 7);
 
   // Check in REJECT table.
-  if (rejectmatrix[bytenum] & bitnum) {
+  if (rejectmatrix[bytenum] & bitnum)
+  {
     sightcounts[0]++;
 
     // can't possibly be connected
