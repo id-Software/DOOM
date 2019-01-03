@@ -21,10 +21,10 @@
 //
 //-----------------------------------------------------------------------------
 
+#include <errno.h>
 #include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
-
 #include <math.h>
 
 #include <sys/time.h>
@@ -148,7 +148,6 @@ int *channelrightvol_lookup[NUM_CHANNELS];
 void myioctl(int fd, int command, int *arg)
 {
   int rc;
-  extern int errno;
 
   rc = ioctl(fd, command, arg);
   if (rc < 0)

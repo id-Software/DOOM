@@ -90,13 +90,11 @@ static int multiply = 1;
 //  Translates the key currently in X_event
 //
 
-int xlatekey(void)
-{
+int xlatekey(void) {
 
   int rc;
 
-  switch (rc = XKeycodeToKeysym(X_display, X_event.xkey.keycode, 0))
-  {
+  switch (rc = XKeycodeToKeysym(X_display, X_event.xkey.keycode, 0)) {
   case XK_Left:
     rc = KEY_LEFTARROW;
     break;
@@ -202,8 +200,7 @@ int xlatekey(void)
   return rc;
 }
 
-void I_ShutdownGraphics(void)
-{
+void I_ShutdownGraphics(void) {
   // Detach from X server
   if (!XShmDetach(X_display, &X_shminfo))
     I_Error("XShmDetach() failed in I_ShutdownGraphics()");
@@ -219,8 +216,7 @@ void I_ShutdownGraphics(void)
 //
 // I_StartFrame
 //
-void I_StartFrame(void)
-{
+void I_StartFrame(void) {
   // er?
 }
 
@@ -229,15 +225,13 @@ static int lastmousey = 0;
 boolean mousemoved = false;
 boolean shmFinished;
 
-void I_GetEvent(void)
-{
+void I_GetEvent(void) {
 
   event_t event;
 
   // put event-grabbing stuff in here
   XNextEvent(X_display, &X_event);
-  switch (X_event.type)
-  {
+  switch (X_event.type) {
   case KeyPress:
     event.type = ev_keydown;
     event.data1 = xlatekey();
@@ -283,19 +277,15 @@ void I_GetEvent(void)
     event.data2 = (X_event.xmotion.x - lastmousex) << 2;
     event.data3 = (lastmousey - X_event.xmotion.y) << 2;
 
-    if (event.data2 || event.data3)
-    {
+    if (event.data2 || event.data3) {
       lastmousex = X_event.xmotion.x;
       lastmousey = X_event.xmotion.y;
       if (X_event.xmotion.x != X_width / 2 &&
-          X_event.xmotion.y != X_height / 2)
-      {
+          X_event.xmotion.y != X_height / 2) {
         D_PostEvent(&event);
         // fprintf(stderr, "m");
         mousemoved = false;
-      }
-      else
-      {
+      } else {
         mousemoved = true;
       }
     }
@@ -312,8 +302,7 @@ void I_GetEvent(void)
   }
 }
 
-Cursor createnullcursor(Display *display, Window root)
-{
+Cursor createnullcursor(Display *display, Window root) {
   Pixmap cursormask;
   XGCValues xgc;
   GC gc;
@@ -337,8 +326,7 @@ Cursor createnullcursor(Display *display, Window root)
 //
 // I_StartTic
 //
-void I_StartTic(void)
-{
+void I_StartTic(void) {
 
   if (!X_display)
     return;
@@ -349,10 +337,8 @@ void I_StartTic(void)
   // Warp the pointer back to the middle of the window
   //  or it will wander off - that is, the game will
   //  loose input focus within X11.
-  if (grabMouse)
-  {
-    if (!--doPointerWarp)
-    {
+  if (grabMouse) {
+    if (!--doPointerWarp) {
       XWarpPointer(X_display, None, X_mainWindow, 0, 0, 0, 0, X_width / 2,
                    X_height / 2);
 
@@ -366,16 +352,14 @@ void I_StartTic(void)
 //
 // I_UpdateNoBlit
 //
-void I_UpdateNoBlit(void)
-{
+void I_UpdateNoBlit(void) {
   // what is this?
 }
 
 //
 // I_FinishUpdate
 //
-void I_FinishUpdate(void)
-{
+void I_FinishUpdate(void) {
 
   static int lasttic;
   int tics;
@@ -383,8 +367,7 @@ void I_FinishUpdate(void)
   // UNUSED static unsigned char *bigscreen=0;
 
   // draws little dots on the bottom of the screen
-  if (devparm)
-  {
+  if (devparm) {
 
     i = I_GetTime();
     tics = i - lasttic;
@@ -399,8 +382,7 @@ void I_FinishUpdate(void)
   }
 
   // scales the screen size before blitting it
-  if (multiply == 2)
-  {
+  if (multiply == 2) {
     unsigned int *olineptrs[2];
     unsigned int *ilineptr;
     int x, y, i;
@@ -413,11 +395,9 @@ void I_FinishUpdate(void)
       olineptrs[i] = (unsigned int *)&image->data[i * X_width];
 
     y = SCREENHEIGHT;
-    while (y--)
-    {
+    while (y--) {
       x = SCREENWIDTH;
-      do
-      {
+      do {
         fouripixels = *ilineptr++;
         twoopixels = (fouripixels & 0xff000000) |
                      ((fouripixels >> 8) & 0xffff00) |
@@ -439,9 +419,7 @@ void I_FinishUpdate(void)
       olineptrs[0] += X_width / 4;
       olineptrs[1] += X_width / 4;
     }
-  }
-  else if (multiply == 3)
-  {
+  } else if (multiply == 3) {
     unsigned int *olineptrs[3];
     unsigned int *ilineptr;
     int x, y, i;
@@ -453,11 +431,9 @@ void I_FinishUpdate(void)
       olineptrs[i] = (unsigned int *)&image->data[i * X_width];
 
     y = SCREENHEIGHT;
-    while (y--)
-    {
+    while (y--) {
       x = SCREENWIDTH;
-      do
-      {
+      do {
         fouripixels = *ilineptr++;
         fouropixels[0] = (fouripixels & 0xff000000) |
                          ((fouripixels >> 8) & 0xff0000) |
@@ -492,16 +468,13 @@ void I_FinishUpdate(void)
       olineptrs[1] += 2 * X_width / 4;
       olineptrs[2] += 2 * X_width / 4;
     }
-  }
-  else if (multiply == 4)
-  {
+  } else if (multiply == 4) {
     // Broken. Gotta fix this some day.
     void Expand4(unsigned *, double *);
     Expand4((unsigned *)(screens[0]), (double *)(image->data));
   }
 
-  if (doShm)
-  {
+  if (doShm) {
 
     if (!XShmPutImage(X_display, X_mainWindow, X_gc, image, 0, 0, 0, 0, X_width,
                       X_height, True))
@@ -509,13 +482,10 @@ void I_FinishUpdate(void)
 
     // wait for it to finish and processes all input events
     shmFinished = false;
-    do
-    {
+    do {
       I_GetEvent();
     } while (!shmFinished);
-  }
-  else
-  {
+  } else {
 
     // draw the image
     XPutImage(X_display, X_mainWindow, X_gc, image, 0, 0, 0, 0, X_width,
@@ -529,8 +499,7 @@ void I_FinishUpdate(void)
 //
 // I_ReadScreen
 //
-void I_ReadScreen(byte *scr)
-{
+void I_ReadScreen(byte *scr) {
   memcpy(scr, screens[0], SCREENWIDTH * SCREENHEIGHT);
 }
 
@@ -539,8 +508,7 @@ void I_ReadScreen(byte *scr)
 //
 static XColor colors[256];
 
-void UploadNewPalette(Colormap cmap, byte *palette)
-{
+void UploadNewPalette(Colormap cmap, byte *palette) {
 
   register int i;
   register int c;
@@ -553,19 +521,16 @@ void UploadNewPalette(Colormap cmap, byte *palette)
 #endif
   {
     // initialize the colormap
-    if (firstcall)
-    {
+    if (firstcall) {
       firstcall = false;
-      for (i = 0; i < 256; i++)
-      {
+      for (i = 0; i < 256; i++) {
         colors[i].pixel = i;
         colors[i].flags = DoRed | DoGreen | DoBlue;
       }
     }
 
     // set the X colormap entries
-    for (i = 0; i < 256; i++)
-    {
+    for (i = 0; i < 256; i++) {
       c = gammatable[usegamma][*palette++];
       colors[i].red = (c << 8) + c;
       c = gammatable[usegamma][*palette++];
@@ -591,8 +556,7 @@ void I_SetPalette(byte *palette) { UploadNewPalette(X_cmap, palette); }
 //  thus there might have been stale
 //  handles accumulating.
 //
-void grabsharedmemory(int size)
-{
+void grabsharedmemory(int size) {
 
   int key = ('d' << 24) | ('o' << 16) | ('o' << 8) | 'm';
   struct shmid_ds shminfo;
@@ -603,26 +567,19 @@ void grabsharedmemory(int size)
   int pollution = 5;
 
   // try to use what was here before
-  do
-  {
+  do {
     id = shmget((key_t)key, minsize, 0777); // just get the id
-    if (id != -1)
-    {
+    if (id != -1) {
       rc = shmctl(id, IPC_STAT, &shminfo); // get stats on it
-      if (!rc)
-      {
-        if (shminfo.shm_nattch)
-        {
+      if (!rc) {
+        if (shminfo.shm_nattch) {
           fprintf(stderr,
                   "User %d appears to be running "
                   "DOOM.  Is that wise?\n",
                   shminfo.shm_cpid);
           key++;
-        }
-        else
-        {
-          if (getuid() == shminfo.shm_perm.cuid)
-          {
+        } else {
+          if (getuid() == shminfo.shm_perm.cuid) {
             rc = shmctl(id, IPC_RMID, 0);
             if (!rc)
               fprintf(stderr, "Was able to kill my old shared memory\n");
@@ -637,14 +594,11 @@ void grabsharedmemory(int size)
 
             break;
           }
-          if (size >= shminfo.shm_segsz)
-          {
+          if (size >= shminfo.shm_segsz) {
             fprintf(stderr, "will use %d's stale shared memory\n",
                     shminfo.shm_cpid);
             break;
-          }
-          else
-          {
+          } else {
             fprintf(stderr,
                     "warning: can't use stale "
                     "shared memory belonging to id %d, "
@@ -653,18 +607,12 @@ void grabsharedmemory(int size)
             key++;
           }
         }
-      }
-      else
-      {
+      } else {
         I_Error("could not get stats on key=%d", key);
       }
-    }
-    else
-    {
+    } else {
       id = shmget((key_t)key, size, IPC_CREAT | 0777);
-      if (id == -1)
-      {
-        extern int errno;
+      if (id == -1) {
         fprintf(stderr, "errno=%d\n", errno);
         I_Error("Could not get any shared memory");
       }
@@ -672,8 +620,7 @@ void grabsharedmemory(int size)
     }
   } while (--pollution);
 
-  if (!pollution)
-  {
+  if (!pollution) {
     I_Error("Sorry, system too polluted with stale "
             "shared memory segments.\n");
   }
@@ -686,8 +633,7 @@ void grabsharedmemory(int size)
   fprintf(stderr, "shared memory id=%d, addr=0x%x\n", id, (int)(image->data));
 }
 
-void I_InitGraphics(void)
-{
+void I_InitGraphics(void) {
 
   char *displayname;
   char *d;
@@ -742,21 +688,18 @@ void I_InitGraphics(void)
 
     if (n == 2)
       x = y = 0;
-    else if (n == 6)
-    {
+    else if (n == 6) {
       if (xsign == '-')
         x = -x;
       if (ysign == '-')
         y = -y;
-    }
-    else
+    } else
       I_Error("bad -geom parameter");
   }
 
   // open the display
   X_display = XOpenDisplay(displayname);
-  if (!X_display)
-  {
+  if (!X_display) {
     if (displayname)
       I_Error("Could not open display [%s]", displayname);
     else
@@ -773,12 +716,10 @@ void I_InitGraphics(void)
   doShm = XShmQueryExtension(X_display);
 
   // even if it's available, make sure it's a local connection
-  if (doShm)
-  {
+  if (doShm) {
     if (!displayname)
       displayname = (char *)getenv("DISPLAY");
-    if (displayname)
-    {
+    if (displayname) {
       d = displayname;
       while (*d && (*d != ':'))
         d++;
@@ -826,11 +767,9 @@ void I_InitGraphics(void)
 
   // wait until it is OK to draw
   oktodraw = 0;
-  while (!oktodraw)
-  {
+  while (!oktodraw) {
     XNextEvent(X_display, &X_event);
-    if (X_event.type == Expose && !X_event.xexpose.count)
-    {
+    if (X_event.type == Expose && !X_event.xexpose.count) {
       oktodraw = 1;
     }
   }
@@ -841,8 +780,7 @@ void I_InitGraphics(void)
                  ButtonPressMask | ButtonReleaseMask | PointerMotionMask,
                  GrabModeAsync, GrabModeAsync, X_mainWindow, None, CurrentTime);
 
-  if (doShm)
-  {
+  if (doShm) {
 
     X_shmeventtype = XShmGetEventBase(X_display) + ShmCompletion;
 
@@ -865,8 +803,7 @@ void I_InitGraphics(void)
     // attach to the shared memory segment
     // image->data = X_shminfo.shmaddr = shmat(X_shminfo.shmid, 0, 0);
 
-    if (!image->data)
-    {
+    if (!image->data) {
       perror("");
       I_Error("shmat() failed in InitGraphics()");
     }
@@ -874,9 +811,7 @@ void I_InitGraphics(void)
     // get the X server to attach to it
     if (!XShmAttach(X_display, &X_shminfo))
       I_Error("XShmAttach() failed in InitGraphics()");
-  }
-  else
-  {
+  } else {
     image = XCreateImage(X_display, X_visual, 8, ZPixmap, 0,
                          (char *)malloc(X_width * X_height), X_width, X_height,
                          8, X_width);
@@ -890,8 +825,7 @@ void I_InitGraphics(void)
 
 unsigned exptable[256];
 
-void InitExpand(void)
-{
+void InitExpand(void) {
   int i;
 
   for (i = 0; i < 256; i++)
@@ -900,8 +834,7 @@ void InitExpand(void)
 
 double exptable2[256 * 256];
 
-void InitExpand2(void)
-{
+void InitExpand2(void) {
   int i;
   int j;
   // UNUSED unsigned	iexp, jexp;
@@ -913,11 +846,9 @@ void InitExpand2(void)
 
   printf("building exptable2...\n");
   exp = exptable2;
-  for (i = 0; i < 256; i++)
-  {
+  for (i = 0; i < 256; i++) {
     pixel.u[0] = i | (i << 8) | (i << 16) | (i << 24);
-    for (j = 0; j < 256; j++)
-    {
+    for (j = 0; j < 256; j++) {
       pixel.u[1] = j | (j << 8) | (j << 16) | (j << 24);
       *exp++ = pixel.d;
     }
@@ -927,8 +858,7 @@ void InitExpand2(void)
 
 int inited;
 
-void Expand4(unsigned *lineptr, double *xline)
-{
+void Expand4(unsigned *lineptr, double *xline) {
   double dpixel;
   unsigned x;
   unsigned y;
@@ -937,8 +867,7 @@ void Expand4(unsigned *lineptr, double *xline)
   double *exp;
 
   exp = exptable2;
-  if (!inited)
-  {
+  if (!inited) {
     inited = 1;
     InitExpand2();
   }
@@ -946,12 +875,10 @@ void Expand4(unsigned *lineptr, double *xline)
   step = 3 * SCREENWIDTH / 2;
 
   y = SCREENHEIGHT - 1;
-  do
-  {
+  do {
     x = SCREENWIDTH;
 
-    do
-    {
+    do {
       fourpixels = lineptr[0];
 
       dpixel = *(double *)((int)exp + ((fourpixels & 0xffff0000) >> 13));
