@@ -1,4 +1,4 @@
-// Emacs style mode select   -*- C++ -*- 
+// Emacs style mode select   -*- C++ -*-
 //-----------------------------------------------------------------------------
 //
 // $Id:$
@@ -19,23 +19,17 @@
 //
 //-----------------------------------------------------------------------------
 
-
 #ifndef __I_NET__
 #define __I_NET__
-
 
 #ifdef __GNUG__
 #pragma interface
 #endif
 
-
-
 // Called by D_DoomMain.
 
-
-void I_InitNetwork (void);
-void I_NetCmd (void);
-
+void I_InitNetwork(void);
+void I_NetCmd(void);
 
 #endif
 //-----------------------------------------------------------------------------

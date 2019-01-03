@@ -1,4 +1,4 @@
-// Emacs style mode select   -*- C++ -*- 
+// Emacs style mode select   -*- C++ -*-
 //-----------------------------------------------------------------------------
 //
 // $Id:$
@@ -23,25 +23,24 @@
 
 #include "d_event.h"
 
-
 //
 // Globally visible constants.
 //
-#define HU_FONTSTART	'!'	// the first font characters
-#define HU_FONTEND	'_'	// the last font characters
+#define HU_FONTSTART '!' // the first font characters
+#define HU_FONTEND '_'   // the last font characters
 
 // Calculate # of glyphs in font.
-#define HU_FONTSIZE	(HU_FONTEND - HU_FONTSTART + 1)	
+#define HU_FONTSIZE (HU_FONTEND - HU_FONTSTART + 1)
 
-#define HU_BROADCAST	5
+#define HU_BROADCAST 5
 
-#define HU_MSGREFRESH	KEY_ENTER
-#define HU_MSGX		0
-#define HU_MSGY		0
-#define HU_MSGWIDTH	64	// in characters
-#define HU_MSGHEIGHT	1	// in lines
+#define HU_MSGREFRESH KEY_ENTER
+#define HU_MSGX 0
+#define HU_MSGY 0
+#define HU_MSGWIDTH 64 // in characters
+#define HU_MSGHEIGHT 1 // in lines
 
-#define HU_MSGTIMEOUT	(4*TICRATE)
+#define HU_MSGTIMEOUT (4 * TICRATE)
 
 //
 // HEADS UP TEXT
@@ -50,13 +49,12 @@
 void HU_Init(void);
 void HU_Start(void);
 
-boolean HU_Responder(event_t* ev);
+boolean HU_Responder(event_t *ev);
 
 void HU_Ticker(void);
 void HU_Drawer(void);
 char HU_dequeueChatChar(void);
 void HU_Erase(void);
-
 
 #endif
 //-----------------------------------------------------------------------------
