@@ -254,6 +254,7 @@ typedef enum
 #define KEY_ESCAPE	27
 #define KEY_ENTER	13
 #define KEY_TAB		9
+#define KEY_SPACE   32
 #define KEY_F1		(0x80+0x3b)
 #define KEY_F2		(0x80+0x3c)
 #define KEY_F3		(0x80+0x3d)

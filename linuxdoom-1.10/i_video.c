@@ -24,21 +24,9 @@
 static const char
 rcsid[] = "$Id: i_x.c,v 1.6 1997/02/03 22:45:10 b1 Exp $";
 
+#include "raylib.h"
+
 #include <stdlib.h>
-// #include <unistd.h>
-// #include <sys/ipc.h>
-// #include <sys/shm.h>
-
-// #include <X11/Xlib.h>
-// #include <X11/Xutil.h>
-// #include <X11/keysym.h>
-
-// #include <X11/extensions/XShm.h>
-// Had to dig up XShm.c for this one.
-// It is in the libXext, but not in the XFree86 headers.
-#ifdef LINUX
-int XShmGetEventBase( Display* dpy ); // problems with g++?
-#endif
 
 #include <stdarg.h>
 // #include <sys/time.h>
@@ -59,20 +47,13 @@ int XShmGetEventBase( Display* dpy ); // problems with g++?
 
 #define POINTER_WARP_COUNTDOWN	1
 
-// Display*	X_display=0;
-// Window		X_mainWindow;
-// Colormap	X_cmap;
-// Visual*		X_visual;
-// GC		X_gc;
-// XEvent		X_event;
-int		X_screen;
-// XVisualInfo	X_visualinfo;
-// XImage*		image;
+typedef struct {
+	unsigned char *data;
+} XImage;
+
+XImage*		image;
 int		X_width;
 int		X_height;
-
-// MIT SHared Memory extension.
-boolean		doShm;
 
 // XShmSegmentInfo	X_shminfo;
 int		X_shmeventtype;
@@ -89,24 +70,48 @@ int		doPointerWarp = POINTER_WARP_COUNTDOWN;
 // to use ....
 static int	multiply=1;
 
+static Color colors[256];
+
+Image *buffer;
+Texture2D texture;
+RenderTexture2D target;
+
+int lastX = 0;
+int lastY = 0;
 
 //
 //  Translates the key currently in X_event
 //
 
-int xlatekey(void)
+int xlatekey(int key)
 {
-	return 1;
-    // int rc;
+	int rc = 0;
 
-    // switch(rc = XKeycodeToKeysym(X_display, X_event.xkey.keycode, 0))
-    // {
-    //   case XK_Left:	rc = KEY_LEFTARROW;	break;
-    //   case XK_Right:	rc = KEY_RIGHTARROW;	break;
-    //   case XK_Down:	rc = KEY_DOWNARROW;	break;
-    //   case XK_Up:	rc = KEY_UPARROW;	break;
-    //   case XK_Escape:	rc = KEY_ESCAPE;	break;
-    //   case XK_Return:	rc = KEY_ENTER;		break;
+    switch(key)
+    {
+		case KEY_A:
+		case KEY_LEFT:			rc = KEY_LEFTARROW;		break;
+		case KEY_D:
+		case KEY_RIGHT:			rc = KEY_RIGHTARROW;	break;
+		case KEY_S:
+		case KEY_DOWN:			rc = KEY_DOWNARROW;		break;
+		case KEY_W:
+		case KEY_UP: 			rc = KEY_UPARROW;		break;
+		case RAY_KEY_ESCAPE: 	rc = KEY_ESCAPE;		break;
+		case RAY_KEY_ENTER:		rc = KEY_ENTER;			break;
+		case KEY_LEFT_CONTROL:
+		case KEY_RIGHT_CONTROL:
+								rc = KEY_RCTRL;			break;
+		case KEY_LEFT_SHIFT:
+		case KEY_RIGHT_SHIFT:
+								rc = KEY_RSHIFT;		break;
+		default:
+		if (rc >= RAY_KEY_SPACE && rc <= KEY_GRAVE)
+			rc = rc - RAY_KEY_SPACE + ' ';
+		if (rc >= 'A' && rc <= 'Z')
+			rc = rc;
+		break;
+	}
     //   case XK_Tab:	rc = KEY_TAB;		break;
     //   case XK_F1:	rc = KEY_F1;		break;
     //   case XK_F2:	rc = KEY_F2;		break;
@@ -149,33 +154,18 @@ int xlatekey(void)
 	// rc = KEY_RALT;
 	// break;
 	
-    //   default:
-	// if (rc >= XK_space && rc <= XK_asciitilde)
-	//     rc = rc - XK_space + ' ';
-	// if (rc >= 'A' && rc <= 'Z')
-	//     rc = rc - 'A' + 'a';
+    
 	// break;
     // }
 
-    // return rc;
+    return rc;
 
 }
 
 void I_ShutdownGraphics(void)
 {
-//   // Detach from X server
-//   if (!XShmDetach(X_display, &X_shminfo))
-// 	    I_Error("XShmDetach() failed in I_ShutdownGraphics()");
 
-//   // Release shared memory.
-//   shmdt(X_shminfo.shmaddr);
-//   shmctl(X_shminfo.shmid, IPC_RMID, 0);
-
-//   // Paranoia.
-//   image->data = NULL;
 }
-
-
 
 //
 // I_StartFrame
@@ -193,11 +183,46 @@ boolean		shmFinished;
 
 void I_GetEvent(void)
 {
+    event_t event;
 
-    // event_t event;
+	for (int i = 0; i < 512; i++) {
+		boolean keyDown = IsKeyPressed(i);
+		boolean keyUp = IsKeyReleased(i);
 
-    // // put event-grabbing stuff in here
-    // XNextEvent(X_display, &X_event);
+		if (keyDown) {
+			event.type = ev_keydown;
+			event.data1 = xlatekey(i);
+			if (event.data1 > 0)
+				D_PostEvent(&event);
+
+		}
+		else if(keyUp) {
+			event.type = ev_keyup;
+			event.data1 = xlatekey(i);
+			if (event.data1 > 0)
+				D_PostEvent(&event);
+		}
+	}
+	
+
+	if (IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) {
+		event.type = ev_mouse;
+		event.data1 = 1;
+		D_PostEvent(&event);
+	}
+
+	event.type = ev_mouse;
+	event.data1 = 0;
+	event.data2 = (GetMouseX() - GetScreenWidth() / 2) * 2;
+	event.data3 = (GetScreenHeight() / 2 - GetMouseY()) * 2;
+	D_PostEvent(&event);
+
+	SetMousePosition(GetScreenWidth() / 2, GetScreenHeight() / 2);
+
+
+
+    // put event-grabbing stuff in here
+	
     // switch (X_event.type)
     // {
     //   case KeyPress:
@@ -308,13 +333,8 @@ void I_GetEvent(void)
 //
 void I_StartTic (void)
 {
-	return;
 
-    // if (!X_display)
-	// return;
-
-    // while (XPending(X_display))
-	// I_GetEvent();
+	I_GetEvent();
 
     // // Warp the pointer back to the middle of the window
     // //  or it will wander off - that is, the game will
@@ -385,8 +405,8 @@ void I_FinishUpdate (void)
 	unsigned int fouripixels;
 
 	ilineptr = (unsigned int *) (screens[0]);
-	// for (i=0 ; i<2 ; i++)
-	//     olineptrs[i] = (unsigned int *) &image->data[i*X_width];
+	for (i=0 ; i<2 ; i++)
+	    olineptrs[i] = (unsigned int *) &image->data[i*X_width];
 
 	y = SCREENHEIGHT;
 	while (y--)
@@ -427,8 +447,8 @@ void I_FinishUpdate (void)
 	unsigned int fouripixels;
 
 	ilineptr = (unsigned int *) (screens[0]);
-	// for (i=0 ; i<3 ; i++)
-	//     olineptrs[i] = (unsigned int *) &image->data[i*X_width];
+	for (i=0 ; i<3 ; i++)
+	    olineptrs[i] = (unsigned int *) &image->data[i*X_width];
 
 	y = SCREENHEIGHT;
 	while (y--)
@@ -477,33 +497,38 @@ void I_FinishUpdate (void)
     else if (multiply == 4)
     {
 	// Broken. Gotta fix this some day.
-	// void Expand4(unsigned *, double *);
-  	// Expand4 ((unsigned *)(screens[0]), (double *) (image->data));
+	void Expand4(unsigned *, double *);
+  	Expand4 ((unsigned *)(screens[0]), (double *) (image->data));
     }
 
-    if (doShm)
-    {
 
-	// if (!XShmPutImage(	X_display,
-	// 			X_mainWindow,
-	// 			X_gc,
-	// 			image,
-	// 			0, 0,
-	// 			0, 0,
-	// 			X_width, X_height,
-	// 			True ))
-	//     I_Error("XShmPutImage() failed\n");
+	#define min(a, b) ((a)<(b)? (a) : (b))
+	float scale = min((float)GetScreenWidth()/SCREENWIDTH, (float)GetScreenHeight()/SCREENHEIGHT);
+	int fps = GetFPS();
+	char fpsString[5];
+	snprintf(fpsString, 5, "%d", fps);
 
-	// wait for it to finish and processes all input events
-	shmFinished = false;
-	do
-	{
-	    I_GetEvent();
-	} while (!shmFinished);
 
-    }
-    else
-    {
+	BeginDrawing();
+		
+		BeginTextureMode(target);
+			for (int i = 0; i < SCREENWIDTH * SCREENHEIGHT; i++) {
+				Color c = colors[image->data[i]];
+				if (c.a != 255) {
+					printf("%d\n", image->data[i]);
+				}
+				DrawPixel(i % SCREENWIDTH, (int) i / SCREENWIDTH, c);
+			}
+		EndTextureMode();
+
+		// Draw RenderTexture2D to window, properly scaled
+		DrawTexturePro(target.texture, (Rectangle){ 0.0f, 0.0f, (float)target.texture.width, (float)-target.texture.height },
+			(Rectangle){ (GetScreenWidth() - ((float)SCREENWIDTH * scale)) * 0.5, (GetScreenHeight() - ((float)SCREENHEIGHT * scale)) * 0.5,
+			(float)SCREENWIDTH * scale, (float)SCREENHEIGHT * scale }, (Vector2){ 0, 0 }, 0.0f, WHITE);
+	
+
+		DrawText(fpsString, 0, 0, 20, WHITE);
+	EndDrawing();
 
 	// // draw the image
 	// XPutImage(	X_display,
@@ -517,7 +542,7 @@ void I_FinishUpdate (void)
 	// // sync up with server
 	// XSync(X_display, False);
 
-    }
+    
 
 }
 
@@ -531,163 +556,51 @@ void I_ReadScreen (byte* scr)
 }
 
 
-//
+
 // Palette stuff.
-//
-// static XColor	colors[256];
+void UploadNewPalette(byte *palette)
+{
 
-// void UploadNewPalette(Colormap cmap, byte *palette)
-// {
+    register int	i;
+    register int	c;
+    static boolean	firstcall = true;
 
-//     register int	i;
-//     register int	c;
-//     static boolean	firstcall = true;
+	// initialize the colormap
+	if (firstcall)
+	{
+		firstcall = false;
+		for (i=0 ; i<256 ; i++)
+		{
+			// colors[i].pixel = i;
+			// colors[i].flags = DoRed|DoGreen|DoBlue;
+			colors[i] = PINK;
+			colors[i].a = 255;
+		}
+	}
 
-// #ifdef __cplusplus
-//     if (X_visualinfo.c_class == PseudoColor && X_visualinfo.depth == 8)
-// #else
-//     if (X_visualinfo.class == PseudoColor && X_visualinfo.depth == 8)
-// #endif
-// 	{
-// 	    // initialize the colormap
-// 	    if (firstcall)
-// 	    {
-// 		firstcall = false;
-// 		for (i=0 ; i<256 ; i++)
-// 		{
-// 		    colors[i].pixel = i;
-// 		    colors[i].flags = DoRed|DoGreen|DoBlue;
-// 		}
-// 	    }
+	// set the X colormap entries
+	for (i = 0; i < 256; i++)
+	{
+		c = gammatable[usegamma][*palette++];
+		colors[i].r = (c<<8) + c;
+		c = gammatable[usegamma][*palette++];
+		colors[i].g = (c<<8) + c;
+		c = gammatable[usegamma][*palette++];
+		colors[i].b = (c<<8) + c;
 
-// 	    // set the X colormap entries
-// 	    for (i=0 ; i<256 ; i++)
-// 	    {
-// 		c = gammatable[usegamma][*palette++];
-// 		colors[i].red = (c<<8) + c;
-// 		c = gammatable[usegamma][*palette++];
-// 		colors[i].green = (c<<8) + c;
-// 		c = gammatable[usegamma][*palette++];
-// 		colors[i].blue = (c<<8) + c;
-// 	    }
+		colors[i].a = 255;
+	
+	}
 
-// 	    // store the colors to the current colormap
-// 	    XStoreColors(X_display, cmap, colors, 256);
-
-// 	}
-// }
+	
+}
 
 //
 // I_SetPalette
 //
 void I_SetPalette (byte* palette)
 {
-    // UploadNewPalette(X_cmap, palette);
-}
-
-
-//
-// This function is probably redundant,
-//  if XShmDetach works properly.
-// ddt never detached the XShm memory,
-//  thus there might have been stale
-//  handles accumulating.
-//
-void grabsharedmemory(int size)
-{
-
-  int			key = ('d'<<24) | ('o'<<16) | ('o'<<8) | 'm';
-//   struct shmid_ds	shminfo;
-  int			minsize = 320*200;
-  int			id;
-  int			rc;
-  // UNUSED int done=0;
-  int			pollution=5;
-  
-  // try to use what was here before
-//   do
-//   {
-//     id = shmget((key_t) key, minsize, 0777); // just get the id
-//     if (id != -1)
-//     {
-//       rc=shmctl(id, IPC_STAT, &shminfo); // get stats on it
-//       if (!rc) 
-//       {
-// 	if (shminfo.shm_nattch)
-// 	{
-// 	  fprintf(stderr, "User %d appears to be running "
-// 		  "DOOM.  Is that wise?\n", shminfo.shm_cpid);
-// 	  key++;
-// 	}
-// 	else
-// 	{
-// 	  if (getuid() == shminfo.shm_perm.cuid)
-// 	  {
-// 	    rc = shmctl(id, IPC_RMID, 0);
-// 	    if (!rc)
-// 	      fprintf(stderr,
-// 		      "Was able to kill my old shared memory\n");
-// 	    else
-// 	      I_Error("Was NOT able to kill my old shared memory");
-	    
-// 	    id = shmget((key_t)key, size, IPC_CREAT|0777);
-// 	    if (id==-1)
-// 	      I_Error("Could not get shared memory");
-	    
-// 	    rc=shmctl(id, IPC_STAT, &shminfo);
-	    
-// 	    break;
-	    
-// 	  }
-// 	  if (size >= shminfo.shm_segsz)
-// 	  {
-// 	    fprintf(stderr,
-// 		    "will use %d's stale shared memory\n",
-// 		    shminfo.shm_cpid);
-// 	    break;
-// 	  }
-// 	  else
-// 	  {
-// 	    fprintf(stderr,
-// 		    "warning: can't use stale "
-// 		    "shared memory belonging to id %d, "
-// 		    "key=0x%x\n",
-// 		    shminfo.shm_cpid, key);
-// 	    key++;
-// 	  }
-// 	}
-//       }
-//       else
-//       {
-// 	I_Error("could not get stats on key=%d", key);
-//       }
-//     }
-//     else
-//     {
-//       id = shmget((key_t)key, size, IPC_CREAT|0777);
-//       if (id==-1)
-//       {
-// 	extern int errno;
-// 	fprintf(stderr, "errno=%d\n", errno);
-// 	I_Error("Could not get any shared memory");
-//       }
-//       break;
-//     }
-//   } while (--pollution);
-  
-//   if (!pollution)
-//   {
-//     I_Error("Sorry, system too polluted with stale "
-// 	    "shared memory segments.\n");
-//     }	
-  
-//   X_shminfo.shmid = id;
-  
-//   // attach to the shared memory segment
-//   image->data = X_shminfo.shmaddr = shmat(id, 0, 0);
-  
-//   fprintf(stderr, "shared memory id=%d, addr=0x%x\n", id,
-// 	  (int) (image->data));
+    UploadNewPalette(palette);
 }
 
 void I_InitGraphics(void)
@@ -757,39 +670,25 @@ void I_InitGraphics(void)
 	    I_Error("bad -geom parameter");
     }
 
-    // open the display
-    // X_display = XOpenDisplay(displayname);
-    // if (!X_display)
-    // {
-	// if (displayname)
-	//     I_Error("Could not open display [%s]", displayname);
-	// else
-	//     I_Error("Could not open display (DISPLAY=[%s])", getenv("DISPLAY"));
-    // }
+	InitWindow(960, 600, "DOOM");
+	SetExitKey(0);
+	DisableCursor();
 
-    // // use the default visual 
-    // X_screen = DefaultScreen(X_display);
-    // if (!XMatchVisualInfo(X_display, X_screen, 8, PseudoColor, &X_visualinfo))
-	// I_Error("xdoom currently only supports 256-color PseudoColor screens");
-    // X_visual = X_visualinfo.visual;
+	image = malloc(sizeof(XImage));
+	image->data = malloc(SCREENWIDTH * SCREENHEIGHT);
+	screens[0] = (unsigned char *) (image->data);
+	
+	buffer = malloc(sizeof(Image));
 
-    // check for the MITSHM extension
-    // doShm = XShmQueryExtension(X_display);
+	buffer->width = SCREENWIDTH;
+	buffer->height = SCREENHEIGHT;
+	buffer->mipmaps = 1;
+	buffer->format = UNCOMPRESSED_R8G8B8A8;
+	buffer->data = (unsigned char *) malloc(buffer->width * buffer->height * 4);
 
-    // even if it's available, make sure it's a local connection
-    // if (doShm)
-    // {
-	// if (!displayname) displayname = (char *) getenv("DISPLAY");
-	// if (displayname)
-	// {
-	//     d = displayname;
-	//     while (*d && (*d != ':')) d++;
-	//     if (*d) *d = 0;
-	//     if (!(!strcasecmp(displayname, "unix") || !*displayname)) doShm = false;
-	// }
-    // }
-
-    // fprintf(stderr, "Using MITSHM extension\n");
+	// Render texture initialization, used to hold the rendering result so we can easily resize it
+    target = LoadRenderTexture(SCREENWIDTH, SCREENHEIGHT);
+    SetTextureFilter(target.texture, FILTER_POINT);  // Texture scale filter to use
 
     // // create the colormap
     // X_cmap = XCreateColormap(X_display, RootWindow(X_display,
@@ -867,21 +766,6 @@ void I_InitGraphics(void)
 	// 				X_height );
 
 	// grabsharedmemory(image->bytes_per_line * image->height);
-
-
-	// UNUSED
-	// create the shared memory segment
-	// X_shminfo.shmid = shmget (IPC_PRIVATE,
-	// image->bytes_per_line * image->height, IPC_CREAT | 0777);
-	// if (X_shminfo.shmid < 0)
-	// {
-	// perror("");
-	// I_Error("shmget() failed in InitGraphics()");
-	// }
-	// fprintf(stderr, "shared memory id=%d\n", X_shminfo.shmid);
-	// attach to the shared memory segment
-	// image->data = X_shminfo.shmaddr = shmat(X_shminfo.shmid, 0, 0);
-	
 
 	// if (!image->data)
 	// {

@@ -368,7 +368,7 @@ void D_DoomLoop (void)
 	
     I_InitGraphics ();
 
-    while (1)
+    while (!WindowShouldClose())
     {
 	// frame syncronous IO operations
 	I_StartFrame ();                
