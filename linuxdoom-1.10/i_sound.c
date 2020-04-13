@@ -30,19 +30,19 @@ rcsid[] = "$Id: i_unix.c,v 1.5 1997/02/03 22:45:10 b1 Exp $";
 
 #include <math.h>
 
-#include <sys/time.h>
+// #include <sys/time.h>
 #include <sys/types.h>
 
 #ifndef LINUX
-#include <sys/filio.h>
+// #include <sys/filio.h>
 #endif
 
 #include <fcntl.h>
-#include <unistd.h>
-#include <sys/ioctl.h>
+// #include <unistd.h>
+// #include <sys/ioctl.h>
 
 // Linux voxware output.
-#include <linux/soundcard.h>
+// #include <linux/soundcard.h>
 
 // Timer stuff. Experimental.
 #include <time.h>
@@ -162,16 +162,16 @@ myioctl
   int	command,
   int*	arg )
 {   
-    int		rc;
-    extern int	errno;
+  //   int		rc;
+  //   extern int	errno;
     
-    rc = ioctl(fd, command, arg);  
-    if (rc < 0)
-    {
-	fprintf(stderr, "ioctl(dsp,%d,arg) failed\n", command);
-	fprintf(stderr, "errno=%d\n", errno);
-	exit(-1);
-    }
+  //   rc = ioctl(fd, command, arg);  
+  //   if (rc < 0)
+  //   {
+	// fprintf(stderr, "ioctl(dsp,%d,arg) failed\n", command);
+	// fprintf(stderr, "errno=%d\n", errno);
+	// exit(-1);
+    // }
 }
 
 
@@ -748,12 +748,12 @@ I_InitSound()
     sprintf(buffer, "%s", sndserver_filename);
   
   // start sound process
-  if ( !access(buffer, X_OK) )
-  {
-    strcat(buffer, " -quiet");
-    sndserver = popen(buffer, "w");
-  }
-  else
+  // if ( !access(buffer, X_OK) )
+  // {
+  //   strcat(buffer, " -quiet");
+  //   sndserver = popen(buffer, "w");
+  // }
+  // else
     fprintf(stderr, "Could not start sound server [%s]\n", buffer);
 #else
     
@@ -909,9 +909,9 @@ int I_QrySongPlaying(int handle)
 //  time independend timer happens to get lost due to heavy load.
 // SIGALRM and ITIMER_REAL doesn't really work well.
 // There are issues with profiling as well.
-static int /*__itimer_which*/  itimer = ITIMER_REAL;
+// static int /*__itimer_which*/  itimer = ITIMER_REAL;
 
-static int sig = SIGALRM;
+// static int sig = SIGALRM;
 
 // Interrupt handler.
 void I_HandleSoundTimer( int ignore )
@@ -940,39 +940,40 @@ void I_HandleSoundTimer( int ignore )
 // Get the interrupt. Set duration in millisecs.
 int I_SoundSetTimer( int duration_of_tick )
 {
+  return -1;
   // Needed for gametick clockwork.
-  struct itimerval    value;
-  struct itimerval    ovalue;
-  struct sigaction    act;
-  struct sigaction    oact;
+//   struct itimerval    value;
+//   struct itimerval    ovalue;
+//   struct sigaction    act;
+//   struct sigaction    oact;
 
-  int res;
+//   int res;
   
-  // This sets to SA_ONESHOT and SA_NOMASK, thus we can not use it.
-  //     signal( _sig, handle_SIG_TICK );
+//   // This sets to SA_ONESHOT and SA_NOMASK, thus we can not use it.
+//   //     signal( _sig, handle_SIG_TICK );
   
-  // Now we have to change this attribute for repeated calls.
-  act.sa_handler = I_HandleSoundTimer;
-#ifndef sun    
-  //ac	t.sa_mask = _sig;
-#endif
-  act.sa_flags = SA_RESTART;
+//   // Now we have to change this attribute for repeated calls.
+//   act.sa_handler = I_HandleSoundTimer;
+// #ifndef sun    
+//   //ac	t.sa_mask = _sig;
+// #endif
+//   act.sa_flags = SA_RESTART;
   
-  sigaction( sig, &act, &oact );
+//   sigaction( sig, &act, &oact );
 
-  value.it_interval.tv_sec    = 0;
-  value.it_interval.tv_usec   = duration_of_tick;
-  value.it_value.tv_sec       = 0;
-  value.it_value.tv_usec      = duration_of_tick;
+//   value.it_interval.tv_sec    = 0;
+//   value.it_interval.tv_usec   = duration_of_tick;
+//   value.it_value.tv_sec       = 0;
+//   value.it_value.tv_usec      = duration_of_tick;
 
-  // Error is -1.
-  res = setitimer( itimer, &value, &ovalue );
+//   // Error is -1.
+//   res = setitimer( itimer, &value, &ovalue );
 
-  // Debug.
-  if ( res == -1 )
-    fprintf( stderr, "I_SoundSetTimer: interrupt n.a.\n");
+//   // Debug.
+//   if ( res == -1 )
+//     fprintf( stderr, "I_SoundSetTimer: interrupt n.a.\n");
   
-  return res;
+//   return res;
 }
 
 

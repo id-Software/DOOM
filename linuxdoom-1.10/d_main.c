@@ -29,7 +29,7 @@ static const char rcsid[] = "$Id: d_main.c,v 1.8 1997/02/03 22:45:09 b1 Exp $";
 
 #define	BGCOLOR		7
 #define	FGCOLOR		8
-
+#define R_OK	0
 
 #ifdef NORMALUNIX
 #include <stdio.h>
@@ -39,6 +39,8 @@ static const char rcsid[] = "$Id: d_main.c,v 1.8 1997/02/03 22:45:09 b1 Exp $";
 #include <sys/stat.h>
 #include <fcntl.h>
 #endif
+
+#include <io.h>
 
 
 #include "doomdef.h"
@@ -572,7 +574,7 @@ void IdentifyVersion (void)
     char*	plutoniawad;
     char*	tntwad;
 
-#ifdef NORMALUNIX
+// #ifdef NORMALUNIX
     char *home;
     char *doomwaddir;
     doomwaddir = getenv("DOOMWADDIR");
@@ -581,7 +583,7 @@ void IdentifyVersion (void)
 
     // Commercial.
     doom2wad = malloc(strlen(doomwaddir)+1+9+1);
-    sprintf(doom2wad, "%s/doom2.wad", doomwaddir);
+    sprintf(doom2wad, "%s/DOOM2.wad", doomwaddir);
 
     // Retail.
     doomuwad = malloc(strlen(doomwaddir)+1+8+1);
@@ -598,7 +600,7 @@ void IdentifyVersion (void)
      // Bug, dear Shawn.
     // Insufficient malloc, caused spurious realloc errors.
     plutoniawad = malloc(strlen(doomwaddir)+1+/*9*/12+1);
-    sprintf(plutoniawad, "%s/plutonia.wad", doomwaddir);
+	    sprintf(plutoniawad, "%s/plutonia.wad", doomwaddir);
 
     tntwad = malloc(strlen(doomwaddir)+1+9+1);
     sprintf(tntwad, "%s/tnt.wad", doomwaddir);
@@ -608,11 +610,11 @@ void IdentifyVersion (void)
     doom2fwad = malloc(strlen(doomwaddir)+1+10+1);
     sprintf(doom2fwad, "%s/doom2f.wad", doomwaddir);
 
-    home = getenv("HOME");
-    if (!home)
-      I_Error("Please set $HOME to your home directory");
-    sprintf(basedefault, "%s/.doomrc", home);
-#endif
+    // home = getenv("HOME");
+    // if (!home)
+    //   I_Error("Please set $HOME to your home directory");
+    sprintf(basedefault, ".");
+// #endif
 
     if (M_CheckParm ("-shdev"))
     {
@@ -655,16 +657,16 @@ void IdentifyVersion (void)
 	return;
     }
 
-    if ( !access (doom2fwad,R_OK) )
-    {
-	gamemode = commercial;
-	// C'est ridicule!
-	// Let's handle languages in config files, okay?
-	language = french;
-	printf("French version\n");
-	D_AddFile (doom2fwad);
-	return;
-    }
+    // if ( !access (doom2fwad,R_OK) )
+    // {
+	// gamemode = commercial;
+	// // C'est ridicule!
+	// // Let's handle languages in config files, okay?
+	// language = french;
+	// printf("French version\n");
+	// D_AddFile (doom2fwad);
+	// return;
+    // }
 
     if ( !access (doom2wad,R_OK) )
     {
@@ -874,12 +876,12 @@ void D_DoomMain (void)
     if (devparm)
 	printf(D_DEVSTR);
     
-    if (M_CheckParm("-cdrom"))
-    {
-	printf(D_CDROM);
-	mkdir("c:\\doomdata",0);
-	strcpy (basedefault,"c:/doomdata/default.cfg");
-    }	
+    // if (M_CheckParm("-cdrom"))
+    // {
+	// printf(D_CDROM);
+	// mkdir("c:\\doomdata",0);
+	// strcpy (basedefault,"c:/doomdata/default.cfg");
+    // }	
     
     // turbo option
     if ( (p=M_CheckParm ("-turbo")) )

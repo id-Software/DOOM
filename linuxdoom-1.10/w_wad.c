@@ -25,6 +25,8 @@
 static const char
 rcsid[] = "$Id: w_wad.c,v 1.5 1997/02/03 16:47:57 b1 Exp $";
 
+#include <fcntl.h>
+#include <sys/stat.h>
 
 #ifdef NORMALUNIX
 #include <ctype.h>
@@ -33,7 +35,6 @@ rcsid[] = "$Id: w_wad.c,v 1.5 1997/02/03 16:47:57 b1 Exp $";
 #include <unistd.h>
 #include <malloc.h>
 #include <fcntl.h>
-#include <sys/stat.h>
 #include <alloca.h>
 #define O_BINARY		0
 #endif
@@ -66,12 +67,12 @@ void**			lumpcache;
 
 #define strcmpi	strcasecmp
 
-void strupr (char* s)
-{
-    while (*s) { *s = toupper(*s); s++; }
-}
+// void strupr (char* s)
+// {
+//     while (*s) { *s = toupper(*s); s++; }
+// }
 
-int filelength (int handle) 
+int file_length (int handle) 
 { 
     struct stat	fileinfo;
     
@@ -174,7 +175,7 @@ void W_AddFile (char *filename)
 	// single lump file
 	fileinfo = &singleinfo;
 	singleinfo.filepos = 0;
-	singleinfo.size = LONG(filelength(handle));
+	singleinfo.size = LONG(file_length(handle));
 	ExtractFileBase (filename, singleinfo.name);
 	numlumps++;
     }
