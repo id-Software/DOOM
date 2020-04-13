@@ -303,31 +303,6 @@ void I_GetEvent(void)
 
 }
 
-// Cursor
-// createnullcursor
-// ( Display*	display,
-//   Window	root )
-// {
-//     Pixmap cursormask;
-//     XGCValues xgc;
-//     GC gc;
-//     XColor dummycolour;
-//     Cursor cursor;
-
-//     cursormask = XCreatePixmap(display, root, 1, 1, 1/*depth*/);
-//     xgc.function = GXclear;
-//     gc =  XCreateGC(display, cursormask, GCFunction, &xgc);
-//     XFillRectangle(display, cursormask, gc, 0, 0, 1, 1);
-//     dummycolour.pixel = 0;
-//     dummycolour.red = 0;
-//     dummycolour.flags = 04;
-//     cursor = XCreatePixmapCursor(display, cursormask, cursormask,
-// 				 &dummycolour,&dummycolour, 0,0);
-//     XFreePixmap(display,cursormask);
-//     XFreeGC(display,gc);
-//     return cursor;
-// }
-
 //
 // I_StartTic
 //
@@ -527,22 +502,8 @@ void I_FinishUpdate (void)
 			(float)SCREENWIDTH * scale, (float)SCREENHEIGHT * scale }, (Vector2){ 0, 0 }, 0.0f, WHITE);
 	
 
-		DrawText(fpsString, 0, 0, 20, WHITE);
+		DrawText(fpsString, GetScreenWidth() - (strlen(fpsString) - 1) * 25, 0, 20, WHITE);
 	EndDrawing();
-
-	// // draw the image
-	// XPutImage(	X_display,
-	// 		X_mainWindow,
-	// 		X_gc,
-	// 		image,
-	// 		0, 0,
-	// 		0, 0,
-	// 		X_width, X_height );
-
-	// // sync up with server
-	// XSync(X_display, False);
-
-    
 
 }
 
@@ -670,7 +631,8 @@ void I_InitGraphics(void)
 	    I_Error("bad -geom parameter");
     }
 
-	InitWindow(960, 600, "DOOM");
+	SetConfigFlags(FLAG_WINDOW_RESIZABLE);  
+	InitWindow(960, 600, "raylib-doom");
 	SetExitKey(0);
 	DisableCursor();
 
@@ -690,113 +652,11 @@ void I_InitGraphics(void)
     target = LoadRenderTexture(SCREENWIDTH, SCREENHEIGHT);
     SetTextureFilter(target.texture, FILTER_POINT);  // Texture scale filter to use
 
-    // // create the colormap
-    // X_cmap = XCreateColormap(X_display, RootWindow(X_display,
-	// 					   X_screen), X_visual, AllocAll);
-
-    // // setup attributes for main window
-    // attribmask = CWEventMask | CWColormap | CWBorderPixel;
-    // attribs.event_mask =
-	// KeyPressMask
-	// | KeyReleaseMask
-	// // | PointerMotionMask | ButtonPressMask | ButtonReleaseMask
-	// | ExposureMask;
-
-    // attribs.colormap = X_cmap;
-    // attribs.border_pixel = 0;
-
-    // // create the main window
-    // X_mainWindow = XCreateWindow(	X_display,
-	// 				RootWindow(X_display, X_screen),
-	// 				x, y,
-	// 				X_width, X_height,
-	// 				0, // borderwidth
-	// 				8, // depth
-	// 				InputOutput,
-	// 				X_visual,
-	// 				attribmask,
-	// 				&attribs );
-
-    // XDefineCursor(X_display, X_mainWindow,
-	// 	  createnullcursor( X_display, X_mainWindow ) );
-
-    // // create the GC
-    // valuemask = GCGraphicsExposures;
-    // xgcvalues.graphics_exposures = False;
-    // X_gc = XCreateGC(	X_display,
-  	// 		X_mainWindow,
-  	// 		valuemask,
-  	// 		&xgcvalues );
-
-    // // map the window
-    // XMapWindow(X_display, X_mainWindow);
-
-    // // wait until it is OK to draw
-    // oktodraw = 0;
-    // while (!oktodraw)
-    // {
-	// XNextEvent(X_display, &X_event);
-	// if (X_event.type == Expose
-	//     && !X_event.xexpose.count)
-	// {
-	//     oktodraw = 1;
-	// }
-    // }
-
-    // // grabs the pointer so it is restricted to this window
-    // if (grabMouse)
-	// XGrabPointer(X_display, X_mainWindow, True,
-	// 	     ButtonPressMask|ButtonReleaseMask|PointerMotionMask,
-	// 	     GrabModeAsync, GrabModeAsync,
-	// 	     X_mainWindow, None, CurrentTime);
-
-    // if (doShm)
-    // {
-
-	// X_shmeventtype = XShmGetEventBase(X_display) + ShmCompletion;
-
-	// // create the image
-	// image = XShmCreateImage(	X_display,
-	// 				X_visual,
-	// 				8,
-	// 				ZPixmap,
-	// 				0,
-	// 				&X_shminfo,
-	// 				X_width,
-	// 				X_height );
-
-	// grabsharedmemory(image->bytes_per_line * image->height);
-
-	// if (!image->data)
-	// {
-	//     perror("");
-	//     I_Error("shmat() failed in InitGraphics()");
-	// }
-
-	// // get the X server to attach to it
-	// if (!XShmAttach(X_display, &X_shminfo))
-	//     I_Error("XShmAttach() failed in InitGraphics()");
-
-    // }
-    // else
-    // {
-	// image = XCreateImage(	X_display,
-    // 				X_visual,
-    // 				8,
-    // 				ZPixmap,
-    // 				0,
-    // 				(char*)malloc(X_width * X_height),
-    // 				X_width, X_height,
-    // 				8,
-    // 				X_width );
-
-    // }
 
     // if (multiply == 1)
 	// screens[0] = (unsigned char *) (image->data);
     // else
 	// screens[0] = (unsigned char *) malloc (SCREENWIDTH * SCREENHEIGHT);
-
 }
 
 
