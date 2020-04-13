@@ -4,11 +4,12 @@
 #
 # $Log:$
 #
-CC=  gcc  # gcc or g++
-
-CFLAGS=-g -Wall -DNORMALUNIX -DLINUX # -DUSEASM 
-LDFLAGS=-L/usr/X11R6/lib
-LIBS=-lXext -lX11 -lnsl -lm
+CC=gcc # gcc or g++
+RAYLIB_PATH=C:/raylib
+RAYLIB_LIB=$(RAYLIB_PATH)/MinGW/i686-w64-mingw32/lib
+CFLAGS=-g #-g -DNORMALUNIX -DLINUX # -DUSEASM 
+LDFLAGS=-I$(RAYLIB_PATH)/raylib/src -L$(RAYLIB_PATH)/MinGW/i686-w64-mingw32/lib
+LIBS=-lraylib -lopengl32 -lgdi32 -lwinmm
 
 # subdirectory for objects
 O=linux
@@ -77,15 +78,14 @@ OBJS=				\
 		$(O)/info.o				\
 		$(O)/sounds.o
 
-all:	 $(O)/linuxxdoom
+all:	 $(O)/doom
 
 clean:
-	rm -f *.o *~ *.flc
-	rm -f linux/*
+	del *.o *.exe /s
 
-$(O)/linuxxdoom:	$(OBJS) $(O)/i_main.o
+$(O)/doom:	$(OBJS) $(O)/i_main.o
 	$(CC) $(CFLAGS) $(LDFLAGS) $(OBJS) $(O)/i_main.o \
-	-o $(O)/linuxxdoom $(LIBS)
+	-o $(O)/doom $(LIBS)
 
 $(O)/%.o:	%.c
 	$(CC) $(CFLAGS) -c $< -o $@
