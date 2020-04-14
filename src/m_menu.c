@@ -339,7 +339,7 @@ enum
 {
     endgame,
     messages,
-    detail,
+    // detail,
     scrnsize,
     option_empty1,
     mousesens,
@@ -352,7 +352,7 @@ menuitem_t OptionsMenu[]=
 {
     {1,"M_ENDGAM",	M_EndGame,'e'},
     {1,"M_MESSG",	M_ChangeMessages,'m'},
-    {1,"M_DETAIL",	M_ChangeDetail,'g'},
+    // {1,"M_DETAIL",	M_ChangeDetail,'g'},
     {2,"M_SCRNSZ",	M_SizeDisplay,'s'},
     {-1,"",0},
     {2,"M_MSENS",	M_ChangeSensitivity,'m'},
@@ -951,8 +951,8 @@ void M_DrawOptions(void)
 {
     V_DrawPatchDirect (108,15,0,W_CacheLumpName("M_OPTTTL",PU_CACHE));
 	
-    V_DrawPatchDirect (OptionsDef.x + 175,OptionsDef.y+LINEHEIGHT*detail,0,
-		       W_CacheLumpName(detailNames[detailLevel],PU_CACHE));
+    // V_DrawPatchDirect (OptionsDef.x + 175,OptionsDef.y+LINEHEIGHT*detail,0,
+	// 	       W_CacheLumpName(detailNames[detailLevel],PU_CACHE));
 
     V_DrawPatchDirect (OptionsDef.x + 120,OptionsDef.y+LINEHEIGHT*messages,0,
 		       W_CacheLumpName(msgNames[showMessages],PU_CACHE));
