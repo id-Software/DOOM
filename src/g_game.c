@@ -145,19 +145,19 @@ byte*		savebuffer;
 // 
 // controls (have defaults) 
 // 
-int key_right;
-int	key_left;
+int key_right = KEY_RIGHTARROW;
+int	key_left = KEY_LEFTARROW;
 
 int	key_up = KEY_UPARROW;
 int	key_down = KEY_DOWNARROW; 
-int key_strafeleft = KEY_LEFTARROW;
-int	key_straferight = KEY_RIGHTARROW; 
+int key_strafeleft;
+int	key_straferight; 
 int key_fire = KEY_RCTRL;
-int	key_use = 'E';
-int	key_strafe;
-int	key_speed; 
+int	key_use = KEY_SPACE;
+int	key_strafe = KEY_LALT;
+int	key_speed = KEY_RSHIFT; 
  
-int mousebfire = 1; 
+int mousebfire; 
 int mousebstrafe; 
 int mousebforward; 
  
@@ -305,12 +305,12 @@ void G_BuildTiccmd (ticcmd_t* cmd)
 	    cmd->angleturn += angleturn[tspeed]; 
     } 
  
-    if (gamekeydown[key_up]) 
+    if (gamekeydown[key_up] || gamekeydown['w']) 
     {
 	// fprintf(stderr, "up\n");
 	forward += forwardmove[speed]; 
     }
-    if (gamekeydown[key_down]) 
+    if (gamekeydown[key_down] || gamekeydown['s']) 
     {
 	// fprintf(stderr, "down\n");
 	forward -= forwardmove[speed]; 
@@ -319,9 +319,9 @@ void G_BuildTiccmd (ticcmd_t* cmd)
 	forward += forwardmove[speed]; 
     if (joyymove > 0) 
 	forward -= forwardmove[speed]; 
-    if (gamekeydown[key_straferight]) 
+    if (gamekeydown[key_straferight] || gamekeydown['d']) 
 	side += sidemove[speed]; 
-    if (gamekeydown[key_strafeleft]) 
+    if (gamekeydown[key_strafeleft] || gamekeydown['a']) 
 	side -= sidemove[speed];
     
     // buttons
@@ -331,7 +331,7 @@ void G_BuildTiccmd (ticcmd_t* cmd)
 	|| joybuttons[joybfire]) 
 	cmd->buttons |= BT_ATTACK; 
  
-    if (gamekeydown[key_use] || joybuttons[joybuse] ) 
+    if (gamekeydown[key_use] || joybuttons[joybuse] || gamekeydown['e'] ) 
     { 
 	cmd->buttons |= BT_USE;
 	// clear double clicks if hit use button 
@@ -402,10 +402,10 @@ void G_BuildTiccmd (ticcmd_t* cmd)
 	} 
     } 
  
-    forward += mousey; 
-    if (strafe) 
-	side += mousex*2; 
-    else 
+    // forward += mousey; 
+    // if (strafe) 
+	// side += mousex*2; 
+    // else 
 	cmd->angleturn -= mousex*0x8; 
 
     mousex = mousey = 0; 
@@ -1586,7 +1586,7 @@ void G_DoPlayDemo (void)
 	 
     gameaction = ga_nothing; 
     demobuffer = demo_p = W_CacheLumpName (defdemoname, PU_STATIC); 
-    if ( *demo_p++ != VERSION)
+    if ( *demo_p++ < 109) // Support at least 1.09
     {
       fprintf( stderr, "Demo is from a different game version!\n");
       gameaction = ga_nothing;

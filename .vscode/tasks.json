@@ -1,0 +1,15 @@
+{
+    "tasks": [
+        {
+            "type": "shell",
+            "label": "make",
+            "command": "C:\\MinGW\\bin\\make.exe",
+            "args": [
+            ],
+            "options": {
+                "cwd": "${workspaceRoot}"
+            }
+        }
+    ],
+    "version": "2.0.0"
+}

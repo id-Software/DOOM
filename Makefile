@@ -12,7 +12,8 @@ LDFLAGS=-I$(RAYLIB_PATH)/raylib/src -L$(RAYLIB_PATH)/MinGW/i686-w64-mingw32/lib
 LIBS=-lraylib -lopengl32 -lgdi32 -lwinmm
 
 # subdirectory for objects
-O=linux
+SRC=src
+O=build
 
 # not too sophisticated dependency
 OBJS=				\
@@ -87,7 +88,7 @@ $(O)/doom:	$(OBJS) $(O)/i_main.o
 	$(CC) $(CFLAGS) $(LDFLAGS) $(OBJS) $(O)/i_main.o \
 	-o $(O)/doom $(LIBS)
 
-$(O)/%.o:	%.c
+$(O)/%.o:	$(SRC)/%.c
 	$(CC) $(CFLAGS) -c $< -o $@
 
 #############################################################

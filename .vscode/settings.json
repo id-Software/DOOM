@@ -1,0 +1,8 @@
+{
+    "files.associations": {
+        "limits.h": "c",
+        "DOOMNET.C": "cpp",
+        "io.h": "c",
+        "types.h": "c"
+    }
+}

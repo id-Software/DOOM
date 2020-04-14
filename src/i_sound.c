@@ -24,6 +24,8 @@
 static const char
 rcsid[] = "$Id: i_unix.c,v 1.5 1997/02/03 22:45:10 b1 Exp $";
 
+#include "raylib.h"
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdarg.h>
@@ -150,33 +152,7 @@ int		vol_lookup[128*256];
 int*		channelleftvol_lookup[NUM_CHANNELS];
 int*		channelrightvol_lookup[NUM_CHANNELS];
 
-
-
-
-//
-// Safe ioctl, convenience.
-//
-void
-myioctl
-( int	fd,
-  int	command,
-  int*	arg )
-{   
-  //   int		rc;
-  //   extern int	errno;
-    
-  //   rc = ioctl(fd, command, arg);  
-  //   if (rc < 0)
-  //   {
-	// fprintf(stderr, "ioctl(dsp,%d,arg) failed\n", command);
-	// fprintf(stderr, "errno=%d\n", errno);
-	// exit(-1);
-    // }
-}
-
-
-
-
+AudioStream audioStream;
 
 //
 // This function loads the sound data from the WAD lump,
@@ -250,10 +226,6 @@ getsfx
     return (void *) (paddedsfx + 8);
 }
 
-
-
-
-
 //
 // This function adds a sound to the
 //  list of currently active sounds,
@@ -269,7 +241,8 @@ addsfx
   int		seperation )
 {
     static unsigned short	handlenums = 0;
- 
+
+  
     int		i;
     int		rc = -1;
     
@@ -380,10 +353,6 @@ addsfx
     return rc;
 }
 
-
-
-
-
 //
 // SFX API
 // Note: this was called by S_Init.
@@ -476,28 +445,33 @@ I_StartSound
   int		priority )
 {
 
-  // UNUSED
-  priority = 0;
+    // UNUSED
+    priority = 0;
   
-#ifdef SNDSERV 
-    if (sndserver)
-    {
-	fprintf(sndserver, "p%2.2x%2.2x%2.2x%2.2x\n", id, pitch, vol, sep);
-	fflush(sndserver);
-    }
-    // warning: control reaches end of non-void function.
-    return id;
-#else
     // Debug.
     //fprintf( stderr, "starting sound %d", id );
     
     // Returns a handle (not used).
-    id = addsfx( id, vol, steptable[pitch], sep );
+    int channelid = addsfx( id, vol, steptable[pitch], sep );
+
+    if (IsAudioStreamProcessed(audioStream)) {
+
+      unsigned char * data = (unsigned char *) S_sfx[id].data;
+      short *newData = malloc(lengths[id] * sizeof(short));
+
+      for (int i = 0; i < lengths[id]; i++) {
+        newData[i] = data[i] << 8;
+        newData[i] ^= 0x8000;
+      }
+
+
+      UpdateAudioStream(audioStream, newData, lengths[id]);
+    }
 
     // fprintf( stderr, "/handle is %d\n", id );
     
-    return id;
-#endif
+    return channelid;
+
 }
 
 
@@ -520,9 +494,6 @@ int I_SoundIsPlaying(int handle)
     return gametic < handle;
 }
 
-
-
-
 //
 // This function loops all active (internal) sound
 //  channels, retrieves a given number of samples
@@ -538,11 +509,6 @@ int I_SoundIsPlaying(int handle)
 //
 void I_UpdateSound( void )
 {
-#ifdef SNDINTR
-  // Debug. Count buffer misses with interrupt.
-  static int misses = 0;
-#endif
-
   
   // Mix current sound data.
   // Data, from raw sound, for right and left.
@@ -634,23 +600,6 @@ void I_UpdateSound( void )
 	rightout += step;
     }
 
-#ifdef SNDINTR
-    // Debug check.
-    if ( flag )
-    {
-      misses += flag;
-      flag = 0;
-    }
-    
-    if ( misses > 10 )
-    {
-      fprintf( stderr, "I_SoundUpdate: missed 10 buffer writes\n");
-      misses = 0;
-    }
-    
-    // Increment flag for update.
-    flag++;
-#endif
 }
 
 
@@ -665,8 +614,15 @@ void I_UpdateSound( void )
 void
 I_SubmitSound(void)
 {
-  // Write it to DSP device.
-  write(audio_fd, mixbuffer, SAMPLECOUNT*BUFMUL);
+  for(int i = 0; i < MIXBUFFERSIZE; i++) {
+    if (mixbuffer[i] != 0) {
+      printf("%d %d\n", i, mixbuffer[i]);
+    }
+  }
+
+  if (IsAudioStreamProcessed(audioStream)) {
+    UpdateAudioStream(audioStream, mixbuffer, MIXBUFFERSIZE);
+  }
 }
 
 
@@ -729,14 +685,45 @@ void I_ShutdownSound(void)
   return;
 }
 
-
-
-
-
-
 void
 I_InitSound()
 { 
+
+  InitAudioDevice();
+  audioStream = InitAudioStream(SAMPLERATE, 16, NUM_CHANNELS);
+  // PlayAudioStream(audioStream);
+  SetAudioStreamVolume(audioStream, 0.2);
+
+  // Initialize external data (all sounds) at start, keep static.
+  fprintf( stderr, "I_InitSound: ");
+  
+  for (int i=1 ; i<NUMSFX ; i++)
+  { 
+    // Alias? Example is the chaingun sound linked to pistol.
+    if (!S_sfx[i].link)
+    {
+      // Load data from WAD file.
+      S_sfx[i].data = getsfx( S_sfx[i].name, &lengths[i] );
+    }	
+    else
+    {
+      // Previously loaded already?
+      S_sfx[i].data = S_sfx[i].link->data;
+      lengths[i] = lengths[(S_sfx[i].link - S_sfx)/sizeof(sfxinfo_t)];
+    }
+  }
+
+  fprintf( stderr, " pre-cached all sound data\n");
+  
+  // Now initialize mixbuffer with zero.
+  for (int i = 0; i< MIXBUFFERSIZE; i++ )
+    mixbuffer[i] = 0;
+  
+  // Finished initialization.
+  fprintf(stderr, "I_InitSound: sound module ready\n");
+
+  return;
+
 #ifdef SNDSERV
   char buffer[256];
   
