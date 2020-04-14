@@ -2,7 +2,7 @@
 
 raylib-doom is a port of DOOM to [raylib](https://www.raylib.com/) from the linuxdoom-1.10 open source release.
 
-![doom1](https://raw.githubusercontent.com/sbuggay/DOOM/master/screenshots/doom1.png)
+![doom1](https://raw.githubusercontent.com/sbuggay/raylib-doom/master/screenshots/doom1.png)
 
 There are very little changes from the original source, mostly just the `I_` interface files.
 Theres no reason to use this over something much more mature like Chocolate Doom. This was an excercise to learn how to port DOOM.
