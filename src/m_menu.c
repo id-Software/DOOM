@@ -62,6 +62,7 @@ rcsid[] = "$Id: m_menu.c,v 1.7 1997/02/03 22:45:10 b1 Exp $";
 
 #include "m_menu.h"
 
+#include "raylib.h"
 
 
 extern patch_t*		hu_font[HU_FONTSIZE];
@@ -960,8 +961,8 @@ void M_DrawOptions(void)
     M_DrawThermo(OptionsDef.x,OptionsDef.y+LINEHEIGHT*(mousesens+1),
 		 10,mouseSensitivity);
 	
-    M_DrawThermo(OptionsDef.x,OptionsDef.y+LINEHEIGHT*(scrnsize+1),
-		 9,screenSize);
+    M_DrawThermo(OptionsDef.x,OptionsDef.y+LINEHEIGHT*(scrnsize + 1),
+		 9,screenSize - 2);
 }
 
 void M_Options(int choice)
@@ -1124,50 +1125,31 @@ void M_ChangeSensitivity(int choice)
     }
 }
 
-
-
-
+// NOOP
 void M_ChangeDetail(int choice)
 {
-    choice = 0;
-    detailLevel = 1 - detailLevel;
-
-    // FIXME - does not work. Remove anyway?
-    fprintf( stderr, "M_ChangeDetail: low detail mode n.a.\n");
-
     return;
-    
-    /*R_SetViewSize (screenblocks, detailLevel);
-
-    if (!detailLevel)
-	players[consoleplayer].message = DETAILHI;
-    else
-	players[consoleplayer].message = DETAILLO;*/
 }
-
-
-
 
 void M_SizeDisplay(int choice)
 {
     switch(choice)
     {
       case 0:
-	if (screenSize > 0)
+	if (screenSize > 2)
 	{
 	    screenblocks--;
 	    screenSize--;
 	}
 	break;
       case 1:
-	if (screenSize < 8)
+	if (screenSize < 10)
 	{
 	    screenblocks++;
 	    screenSize++;
 	}
 	break;
     }
-	
 
     R_SetViewSize (screenblocks, detailLevel);
 }
@@ -1564,7 +1546,9 @@ boolean M_Responder (event_t* ev)
 	    return true;
 				
 	  case KEY_F5:            // Detail toggle
-	    M_ChangeDetail(0);
+        if (!IsWindowFullscreen()) {
+	        ToggleFullscreen();
+        }
 	    S_StartSound(NULL,sfx_swtchn);
 	    return true;
 				
