@@ -137,7 +137,9 @@ int raylibkey(int key)
 
 void I_ShutdownGraphics(void)
 {
-	CloseWindow();
+	if (IsWindowReady()) {
+		CloseWindow();
+	}
 }
 
 //
