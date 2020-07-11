@@ -273,8 +273,8 @@ void I_FinishUpdate (void)
 
 		// Draw RenderTexture2D to window, properly scaled
 		DrawTexturePro(target.texture, (Rectangle){ 0.0f, 0.0f, (float)target.texture.width, (float)-target.texture.height },
-			(Rectangle){ (GetScreenWidth() - ((float)SCREENWIDTH * scale)) * 0.5, (GetScreenHeight() - ((float)SCREENHEIGHT * scale)) * 0.5,
-			(float)SCREENWIDTH * scale, (float)SCREENHEIGHT * scale }, (Vector2){ 0, 0 }, 0.0f, WHITE);
+			(Rectangle){ 0, 0, (float)SCREENWIDTH * scale * 2, (float)SCREENHEIGHT * scale * 2 },
+			(Vector2){ 0, 0 }, 0.0f, WHITE);
 	
 
 		DrawText(fpsString, GetScreenWidth() - (strlen(fpsString) - 1) * 25, 0, 20, WHITE);
@@ -422,6 +422,8 @@ void I_InitGraphics(void)
 	buffer->mipmaps = 1;
 	buffer->format = UNCOMPRESSED_R8G8B8A8;
 	buffer->data = (unsigned char *) malloc(buffer->width * buffer->height * 4);
+
+	ClearBackground(BLACK);
 
 	// Render texture initialization, used to hold the rendering result so we can easily resize it
     target = LoadRenderTexture(SCREENWIDTH, SCREENHEIGHT);
