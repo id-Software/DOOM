@@ -28,6 +28,7 @@ rcsid[] = "$Id: i_x.c,v 1.6 1997/02/03 22:45:10 b1 Exp $";
 #include <stdarg.h>
 #include <sys/types.h>
 #include <signal.h>
+#include <stdint.h>
 
 #include "raylib.h"
 #include "doomstat.h"
@@ -37,6 +38,12 @@ rcsid[] = "$Id: i_x.c,v 1.6 1997/02/03 22:45:10 b1 Exp $";
 #include "d_main.h"
 
 #include "doomdef.h"
+
+#if INTPTR_MAX == INT64_MAX
+#define BIT_SCALE 2
+#elif INTPTR_MAX == INT32_MAX
+#define BIT_SCALE 1
+#endif
 
 typedef struct {
 	unsigned char *data;
@@ -260,26 +267,23 @@ void I_FinishUpdate (void)
 
 
 	BeginDrawing();
-		
-		BeginTextureMode(target);
-			for (int i = 0; i < SCREENWIDTH * SCREENHEIGHT; i++) {
-				Color c = colors[image->data[i]];
-				if (c.a != 255) {
-					printf("%d\n", image->data[i]);
-				}
-				DrawPixel(i % SCREENWIDTH, (int) i / SCREENWIDTH, c);
-			}
-		EndTextureMode();
+	BeginTextureMode(target);
+	for (int i = 0; i < SCREENWIDTH * SCREENHEIGHT; i++) {
+		Color c = colors[image->data[i]];
+		if (c.a != 255) {
+			printf("%d\n", image->data[i]);
+		}
+		DrawPixel(i % SCREENWIDTH, (int) i / SCREENWIDTH, c);
+	}
+	EndTextureMode();
 
-		// Draw RenderTexture2D to window, properly scaled
-		DrawTexturePro(target.texture, (Rectangle){ 0.0f, 0.0f, (float)target.texture.width, (float)-target.texture.height },
-			(Rectangle){ 0, 0, (float)SCREENWIDTH * scale * 2, (float)SCREENHEIGHT * scale * 2 },
-			(Vector2){ 0, 0 }, 0.0f, WHITE);
-	
+	// Draw RenderTexture2D to window, properly scaled
+	DrawTexturePro(target.texture, (Rectangle){ 0.0f, 0.0f, (float)target.texture.width, (float)-target.texture.height },
+		(Rectangle){ 0, 0, (float)SCREENWIDTH * scale * BIT_SCALE, (float)SCREENHEIGHT * scale  * BIT_SCALE},
+		(Vector2){ 0, 0 }, 0.0f, WHITE);
 
-		DrawText(fpsString, GetScreenWidth() - (strlen(fpsString) - 1) * 25, 0, 20, WHITE);
+	// DrawText(fpsString, GetScreenWidth() - (strlen(fpsString) - 1) * 25, 0, 20, WHITE);
 	EndDrawing();
-
 }
 
 

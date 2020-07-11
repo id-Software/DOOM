@@ -5,7 +5,7 @@ raylib-doom is a port of DOOM to [raylib](https://www.raylib.com/) from the linu
 ![doom1](https://raw.githubusercontent.com/sbuggay/raylib-doom/master/screenshots/doom1.png)
 
 There are very little changes from the original source, mostly just the `I_` interface files.
-Theres no reason to use this over something much more mature like Chocolate Doom. This was an excercise to learn how to port DOOM.
+Theres no reason to use this over something much more mature like Chocolate Doom. 
 
 ### Controls
 |Key|Action|
@@ -23,9 +23,10 @@ Theres no reason to use this over something much more mature like Chocolate Doom
 
 ### Changes
 
+- Add 64bit support.
 - Resizable window that maintains internal aspect ratio.
-- Default game screen size to maximum
-- Load menu demos from version 1.19 WADs
+- Default game screen size to maximum.
+- Load menu demos from version 1.19 WADs.
 
 ### Roadmap
 
