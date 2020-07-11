@@ -1,3 +1,6 @@
 build/
 *.wad
 *.dsg
+*.lmp
+*.png
+*.exe

@@ -3,6 +3,7 @@
         "limits.h": "c",
         "DOOMNET.C": "cpp",
         "io.h": "c",
-        "types.h": "c"
+        "types.h": "c",
+        "doomdef.h": "c"
     }
 }
