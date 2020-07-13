@@ -21,8 +21,9 @@ fi
 
 doom_exe="./build/doom";
 if [[ ! -f "$doom_exe" ]];then
-  yes | rm -f ./buid/*.o 2>/dev/null
-  make 2>/dev/null
+  yes | rm -f ./build/*.o 2>/dev/null
+  mkdir -p ./build
+  make
 fi
 
 if [[ ! -f "$doom_exe" ]];then
