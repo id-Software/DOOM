@@ -31,7 +31,7 @@ static const char rcsid[] = "$Id: d_main.c,v 1.8 1997/02/03 22:45:09 b1 Exp $";
 #define	FGCOLOR		8
 #define R_OK	0
 
-#ifdef NORMALUNIX
+#if defined(LINUX) || defined(OSX)
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
@@ -40,7 +40,11 @@ static const char rcsid[] = "$Id: d_main.c,v 1.8 1997/02/03 22:45:09 b1 Exp $";
 #include <fcntl.h>
 #endif
 
+#ifdef OSX
+#include <sys/uio.h>
+#else
 #include <io.h>
+#endif
 
 
 #include "doomdef.h"
@@ -152,7 +156,7 @@ int 		eventtail;
 void D_PostEvent (event_t* ev)
 {
     events[eventhead] = *ev;
-    eventhead = (++eventhead)&(MAXEVENTS-1);
+    eventhead = (1+eventhead)&(MAXEVENTS-1);
 }
 
 
@@ -169,7 +173,7 @@ void D_ProcessEvents (void)
 	 && (W_CheckNumForName("map01")<0) )
       return;
 	
-    for ( ; eventtail != eventhead ; eventtail = (++eventtail)&(MAXEVENTS-1) )
+    for ( ; eventtail != eventhead ; eventtail = (1+eventtail)&(MAXEVENTS-1) )
     {
 	ev = &events[eventtail];
 	if (M_Responder (ev))

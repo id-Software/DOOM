@@ -28,15 +28,23 @@ rcsid[] = "$Id: w_wad.c,v 1.5 1997/02/03 16:47:57 b1 Exp $";
 #include <fcntl.h>
 #include <sys/stat.h>
 
-#ifdef NORMALUNIX
+#if defined(LINUX) || defined(OSX)
 #include <ctype.h>
 #include <sys/types.h>
 #include <string.h>
 #include <unistd.h>
-#include <malloc.h>
 #include <fcntl.h>
 #include <alloca.h>
+#include <stdlib.h>
+
+#ifdef LINUX
+#include <malloc.h>
+#endif
+
+#ifndef O_BINARY
 #define O_BINARY		0
+#endif
+
 #endif
 
 #include "doomtype.h"
@@ -67,10 +75,12 @@ void**			lumpcache;
 
 #define strcmpi	strcasecmp
 
-// void strupr (char* s)
-// {
-//     while (*s) { *s = toupper(*s); s++; }
-// }
+#ifdef OSX
+void strupr (char* s)
+{
+    while (*s) { *s = toupper(*s); s++; }
+}
+#endif
 
 int file_length (int handle) 
 { 

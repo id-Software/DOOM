@@ -103,7 +103,7 @@ unsigned NetbufferChecksum (void)
     c = 0x1234567;
 
     // FIXME -endianess?
-#ifdef NORMALUNIX
+#if defined(LINUX) || defined(OSX)
     return 0;			// byte order problems
 #endif
 

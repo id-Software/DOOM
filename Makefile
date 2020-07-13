@@ -4,12 +4,62 @@
 #
 # $Log:$
 #
+
+OSFLAG:=
+ifeq ($(OS),Windows_NT)
+  OSFLAG += -D WIN32
+  ifeq ($(PROCESSOR_ARCHITECTURE),AMD64)
+    OSFLAG += -D AMD64
+  endif
+  ifeq ($(PROCESSOR_ARCHITECTURE),x86)
+    OSFLAG += -D IA32
+  endif
+else
+  UNAME_S := $(shell uname -s)
+  ifeq ($(UNAME_S),Linux)
+    OSFLAG += -D LINUX
+  endif
+  ifeq ($(UNAME_S),Darwin)
+    OSFLAG += -D OSX
+  endif
+    UNAME_P := $(shell uname -p)
+  ifeq ($(UNAME_P),x86_64)
+    OSFLAG += -D AMD64
+  endif
+    ifneq ($(filter %86,$(UNAME_P)),)
+  OSFLAG += -D IA32
+    endif
+  ifneq ($(filter arm%,$(UNAME_P)),)
+    OSFLAG += -D ARM
+  endif
+endif
+
 CC=gcc # gcc or g++
-RAYLIB_PATH=C:/raylib
-RAYLIB_LIB=$(RAYLIB_PATH)/MinGW/i686-w64-mingw32/lib
-CFLAGS=-g #-g -DNORMALUNIX -DLINUX # -DUSEASM 
-LDFLAGS=-I$(RAYLIB_PATH)/raylib/src -L$(RAYLIB_PATH)/MinGW/i686-w64-mingw32/lib
-LIBS=-lraylib -lopengl32 -lgdi32 -lwinmm
+
+
+RAYLIB_PATH:=
+RAYLIB_INCLUDE:=
+RAYLIB_LIB:=
+ifeq ($(OS),Windows_NT)
+  RAYLIB_PATH=C:/raylib
+  RAYLIB_INCLUDE=$(RAYLIB_PATH)/raylib/src
+  RAYLIB_LIB=$(RAYLIB_PATH)/MinGW/i686-w64-mingw32/lib
+else
+  ifeq ($(UNAME_S),Darwin)
+    RAYLIB_PATH=/usr/local/var/homebrew/linked/raylib
+    RAYLIB_INCLUDE=$(RAYLIB_PATH)/include
+    RAYLIB_LIB=$(RAYLIB_PATH)/lib
+  else
+    $(error unknown raylib path)
+  endif
+endif
+
+CFLAGS=-g $(OSFLAG) # -DNORMALUNIX
+LDFLAGS=-I$(RAYLIB_INCLUDE) -L$(RAYLIB_LIB)
+LIBS=-lraylib
+ifeq ($(OS),Windows_NT)
+  LIBS += -lopengl32 -lgdi32 -lwinmm
+endif
 
 # subdirectory for objects
 SRC=src
@@ -82,7 +132,12 @@ OBJS=				\
 all:	 $(O)/doom
 
 clean:
-	del *.o *.exe /s
+  ifeq ($(OS),Windows_NT)
+    del *.o *.exe /s
+  else
+    $(rm -f *.o)
+    $(rm -f $(O)/*.o)
+  endif
 
 $(O)/doom:	$(OBJS) $(O)/i_main.o
 	$(CC) $(CFLAGS) $(LDFLAGS) $(OBJS) $(O)/i_main.o \
