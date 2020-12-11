@@ -48,4 +48,4 @@ This version of Linuxdoom supports Plutonia and TNT WAD from FinalDOOM as well. 
 Enjoy!
 
  
-- 97/12/22
+97/12/22
