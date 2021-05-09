@@ -364,7 +364,7 @@ S_StartSoundAtVolume
   if (sfx->lumpnum < 0)
     sfx->lumpnum = I_GetSfxLumpNum(sfx);
 
-#ifndef SNDSRV
+#ifndef SNDSERV
   // cache data if necessary
   if (!sfx->data)
   {
