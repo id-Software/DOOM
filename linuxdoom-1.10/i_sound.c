@@ -23,6 +23,7 @@
 
 static const char
 rcsid[] = "$Id: i_unix.c,v 1.5 1997/02/03 22:45:10 b1 Exp $";
+#include "mus2mid.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -849,6 +850,9 @@ void I_PauseSong (int handle)
   handle = 0;
 }
 
+
+int songid = 0;
+
 void I_ResumeSong (int handle)
 {
   // UNUSED.
@@ -873,9 +877,24 @@ void I_UnRegisterSong(int handle)
 int I_RegisterSong(void* data)
 {
   // UNUSED.
-  data = NULL;
+  int length;
+  char* midi = malloc(1024 * 1024);
   
-  return 1;
+  Mus2Midi(data, midi, &length);
+
+  char* name = Z_Malloc(64, PU_STATIC, 0);
+  
+
+  sprintf(name, "MUS_%d.mid", songid);
+
+  printf("%s\n", name);
+  FILE* file = fopen(name, "wb");
+  fwrite(midi, length, 1, file);
+  fclose(file);
+
+  Z_Free(name);
+  songid++;
+  return songid - 1;
 }
 
 // Is the song playing?
