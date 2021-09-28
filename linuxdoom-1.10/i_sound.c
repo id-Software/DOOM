@@ -65,6 +65,8 @@ FILE*	sndserver=0;
 char*	sndserver_filename = "./sndserver ";
 #elif SNDINTR
 
+
+
 // Update all 30 millisecs, approx. 30fps synchronized.
 // Linux resolution is allegedly 10 millisecs,
 //  scale is microseconds.
@@ -76,6 +78,8 @@ void I_SoundDelTimer( void );
 #else
 // None?
 #endif
+
+#include <SFML/Audio.h>
 
 
 // A quick hack to establish a protocol between
@@ -229,7 +233,7 @@ getsfx
     paddedsize = ((size-8 + (SAMPLECOUNT-1)) / SAMPLECOUNT) * SAMPLECOUNT;
 
     // Allocate from zone memory.
-    paddedsfx = (unsigned char*)Z_Malloc( paddedsize+8, PU_STATIC, 0 );
+    paddedsfx = (unsigned char*)malloc( paddedsize+8);
     // ddt: (unsigned char *) realloc(sfx, paddedsize+8);
     // This should interfere with zone memory handling,
     //  which does not kick in in the soundserver.
@@ -240,7 +244,8 @@ getsfx
         paddedsfx[i] = 128;
 
     // Remove the cached lump.
-    Z_Free( sfx );
+  //  Z_Free( sfx );
+    
     
     // Preserve padded length.
     *len = paddedsize;
@@ -454,18 +459,10 @@ int I_GetSfxLumpNum(sfxinfo_t* sfx)
     return W_GetNumForName(namebuf);
 }
 
-//
-// Starting a sound means adding it
-//  to the current list of active sounds
-//  in the internal channels.
-// As the SFX info struct contains
-//  e.g. a pointer to the raw data,
-//  it is ignored.
-// As our sound handling does not handle
-//  priority, it is ignored.
-// Pitching (that is, increased speed of playback)
-//  is set, but currently not used by mixing.
-//
+#include <SFML/Audio.h>
+sfSound* sounds[NUMSFX];
+
+
 int
 I_StartSound
 ( int		id,
@@ -474,29 +471,10 @@ I_StartSound
   int		pitch,
   int		priority )
 {
-
-  // UNUSED
-  priority = 0;
-  
-#ifdef SNDSERV 
-    if (sndserver)
-    {
-	fprintf(sndserver, "p%2.2x%2.2x%2.2x%2.2x\n", id, pitch, vol, sep);
-	fflush(sndserver);
-    }
-    // warning: control reaches end of non-void function.
-    return id;
-#else
-    // Debug.
-    //fprintf( stderr, "starting sound %d", id );
-    
-    // Returns a handle (not used).
-    id = addsfx( id, vol, steptable[pitch], sep );
-
-    // fprintf( stderr, "/handle is %d\n", id );
-    
-    return id;
-#endif
+  printf("playing sound %d\n", id);
+  sfSound* sound = sounds[id];
+  //sfSound_setPitch(sound, (1.0 / 128.0) * (float)pitch);
+  sfSound_play(sound);
 }
 
 
@@ -733,94 +711,38 @@ void I_ShutdownSound(void)
 
 
 
+
 void
 I_InitSound()
 { 
-#ifdef SNDSERV
-  char buffer[256];
-  
-  if (getenv("DOOMWADDIR"))
-    sprintf(buffer, "%s/%s",
-	    getenv("DOOMWADDIR"),
-	    sndserver_filename);
-  else
-    sprintf(buffer, "%s", sndserver_filename);
-  
-  // start sound process
-  if ( !access(buffer, X_OK) )
-  {
-    strcat(buffer, " -quiet");
-    sndserver = popen(buffer, "w");
-  }
-  else
-    fprintf(stderr, "Could not start sound server [%s]\n", buffer);
-#else
-    
-  int i;
-  
-#ifdef SNDINTR
-  fprintf( stderr, "I_SoundSetTimer: %d microsecs\n", SOUND_INTERVAL );
-  I_SoundSetTimer( SOUND_INTERVAL );
-#endif
-    
-  // Secure and configure sound device first.
-  fprintf( stderr, "I_InitSound: ");
-  
-  audio_fd = open("/dev/dsp", O_WRONLY);
-  if (audio_fd<0)
-    fprintf(stderr, "Could not open /dev/dsp\n");
-  
-                     
-  i = 11 | (2<<16);                                           
-  myioctl(audio_fd, SNDCTL_DSP_SETFRAGMENT, &i);
-  myioctl(audio_fd, SNDCTL_DSP_RESET, 0);
-  
-  i=SAMPLERATE;
-  
-  myioctl(audio_fd, SNDCTL_DSP_SPEED, &i);
-  
-  i=1;
-  myioctl(audio_fd, SNDCTL_DSP_STEREO, &i);
-  
-  myioctl(audio_fd, SNDCTL_DSP_GETFMTS, &i);
-  
-  if (i&=AFMT_S16_LE)    
-    myioctl(audio_fd, SNDCTL_DSP_SETFMT, &i);
-  else
-    fprintf(stderr, "Could not play signed 16 data\n");
 
-  fprintf(stderr, " configured audio device\n" );
-
-    
-  // Initialize external data (all sounds) at start, keep static.
-  fprintf( stderr, "I_InitSound: ");
-  
-  for (i=1 ; i<NUMSFX ; i++)
+  for (int i=1 ; i<NUMSFX ; i++)
   { 
-    // Alias? Example is the chaingun sound linked to pistol.
     if (!S_sfx[i].link)
     {
       // Load data from WAD file.
       S_sfx[i].data = getsfx( S_sfx[i].name, &lengths[i] );
+
+      sfUint16 data[lengths[i]];
+
+
+      byte* raw = (byte*)S_sfx[i].data;
+
+      for(int k = 0; k < lengths[i]; k++)
+      {
+        data[k] = (short)((raw[k] - 128) << 8);
+      }
+
+
+      //convert to sfaudio
+      sfSoundBuffer* soundbuffer = sfSoundBuffer_createFromSamples(data, lengths[i], 1, SAMPLERATE);
+      sfSound* sound = sfSound_create();
+      sfSound_setBuffer(sound, soundbuffer);
+
+      sounds[i] = sound;
     }	
-    else
-    {
-      // Previously loaded already?
-      S_sfx[i].data = S_sfx[i].link->data;
-      lengths[i] = lengths[(S_sfx[i].link - S_sfx)/sizeof(sfxinfo_t)];
-    }
   }
 
-  fprintf( stderr, " pre-cached all sound data\n");
-  
-  // Now initialize mixbuffer with zero.
-  for ( i = 0; i< MIXBUFFERSIZE; i++ )
-    mixbuffer[i] = 0;
-  
-  // Finished initialization.
-  fprintf(stderr, "I_InitSound: sound module ready\n");
-    
-#endif
 }
 
 

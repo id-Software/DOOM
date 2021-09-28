@@ -4,6 +4,9 @@
         "*.tcc": "cpp",
         "fstream": "cpp",
         "system_error": "cpp",
-        "doomdef.h": "c"
+        "doomdef.h": "c",
+        "array": "c",
+        "string": "c",
+        "string_view": "c"
     }
 }
