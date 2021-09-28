@@ -186,7 +186,6 @@ void I_GetEvent(void)
 			d_event.type = ev_keyup;
 			d_event.data1 = sfKeyConvert();
 			d_event.data3 = sfKeyAscii();
-			printf("%c\n", d_event.data3 + '0');
 			D_PostEvent(&d_event);
 			break;
 
@@ -398,12 +397,12 @@ void I_InitGraphics(void)
 	printf("starting sfwindow..\n");
 
 	sfVideoMode mode;
-	mode.width = X_width;
+	mode.width = SCREENWIDTH;
 	mode.height = 240;
 
 	window = sfRenderWindow_create(mode, window_title, sfDefaultStyle, NULL);
 	sfRenderWindow_setFramerateLimit(window, 35);
-	texture = sfTexture_create(X_width, X_height);
+	texture = sfTexture_create(SCREENWIDTH, SCREENHEIGHT);
 
 	image = sfSprite_create();
 	//screens[0] is the framebuffer btw

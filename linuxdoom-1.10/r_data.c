@@ -535,10 +535,8 @@ void R_InitTextures (void)
         {
             patch->originx = SHORT(mpatch->originx);
             patch->originy = SHORT(mpatch->originy);
-            //for some reason mpatch->patch is an unreasonably high number
             
-            if(patch < numpatches)
-                patch->patch = patchlookup[SHORT(mpatch->patch)];
+            patch->patch = patchlookup[SHORT(mpatch->patch)];
 
             if (patch->patch == -1)
             {

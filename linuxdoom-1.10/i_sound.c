@@ -867,7 +867,7 @@ void I_StopSong(int handle)
 void I_UnRegisterSong(int handle)
 {
   // UNUSED.
-  handle = 0;
+  handle = 1;
 }
 
 int I_RegisterSong(void* data)
