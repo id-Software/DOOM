@@ -90,12 +90,15 @@ int  I_GetTime (void)
     sfTime time = sfClock_getElapsedTime(timer);
 
     float elapsed = sfTime_asSeconds(time);
-    sfUint64 microseconds = sfTime_asMicroseconds(time);
+    static float basetime = 0;
+    if(!basetime)
+    {
+        basetime = sfTime_asSeconds(time);
+    }
+    sfUint64 microseconds = sfTime_asMilliseconds(time);
 
 
-
-    int newtics = (floor(elapsed))*TICRATE + microseconds*TICRATE/1000000;
-    return newtics;
+    return (elapsed - basetime)*TICRATE + microseconds*TICRATE/1000000;
 }
 
 
