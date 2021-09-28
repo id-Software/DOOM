@@ -90,15 +90,10 @@ int  I_GetTime (void)
     sfTime time = sfClock_getElapsedTime(timer);
 
     float elapsed = sfTime_asSeconds(time);
-    static float basetime = 0;
-    if(!basetime)
-    {
-        basetime = sfTime_asSeconds(time);
-    }
     sfUint64 milliseconds = sfTime_asMilliseconds(time);
 
 
-    return (elapsed - basetime)*TICRATE + milliseconds*TICRATE/1000000;
+    return (elapsed)*TICRATE + milliseconds*TICRATE/1000000;
 }
 
 
