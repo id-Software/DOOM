@@ -338,6 +338,19 @@ boolean PIT_CheckThing (mobj_t* thing)
 	}
 	return !solid;
     }
+
+    //fix infinite monster height
+    if (tmthing->z > thing->z + thing->height)
+        {
+            tmfloorz = thing->z + thing->height;
+            return true;
+        }
+        else
+        if (tmthing->z + tmthing->height < thing->z)
+        {
+            tmceilingz = thing->z;
+            return true;
+        }
 	
     return !(thing->flags & MF_SOLID);
 }

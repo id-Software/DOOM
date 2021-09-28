@@ -1,4 +1,5 @@
 *.o
 *.wad
 *.mid
+*.dsg
 doom

@@ -129,10 +129,10 @@ int sfKeyConvert(void)
 	break;
 	
       default:
-	// if (rc >= sfKeySpace && rc <= sfKeyTilde)
-	//     rc = rc - sfKeySpace + ' ';
-	// if (rc >= 'A' && rc <= 'Z')
-	//     rc = rc - 'A' + 'a';
+	if (rc >= sfKeySpace && rc <= sfKeyTilde)
+	    rc = rc - sfKeySpace + ' ';
+	if (rc >= 'A' && rc <= 'Z')
+	    rc = rc - 'A' + 'a';
 
 	break;
     }
