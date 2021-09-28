@@ -169,6 +169,40 @@ static int	lastmousey = 0;
 boolean		mousemoved = false;
 boolean		shmFinished;
 
+void PreserveAspectRatio()
+{
+	float aspect = 320.0 / 240.0;
+	printf("%f\n", aspect);
+	unsigned int m_width = event.size.width;
+	unsigned int m_height = event.size.height;
+	float new_width = aspect * m_height;
+	float new_height = m_width / aspect;
+
+	sfView* view = sfRenderWindow_getView(window);
+	float offset_width = (m_width - new_width) / 2.0;
+    float offset_height = (m_height - new_height) / 2.0;
+
+	if (m_width >= aspect * m_height) {
+		sfFloatRect rect;
+		rect.left = offset_width / m_width;
+		rect.top = 0;
+		rect.width = new_width / m_width;
+		rect.height = 1.0;
+		sfView_setViewport(view, rect);
+
+    } else {
+		sfFloatRect rect;
+		rect.left = 0.0;
+		rect.top = offset_height / m_height;
+		rect.width = 1.0;
+		rect.height = new_height / m_height;
+		sfView_setViewport(view, rect);
+       // view.setViewport(sf::FloatRect(0.0, offset_height / m_window_height, 1.0, new_height / m_window_height));
+    }
+
+	sfRenderWindow_setView(window, view);
+}
+
 void I_GetEvent(void)
 {
 	event_t d_event;
@@ -187,6 +221,10 @@ void I_GetEvent(void)
 			d_event.data1 = sfKeyConvert();
 			d_event.data3 = sfKeyAscii();
 			D_PostEvent(&d_event);
+			break;
+
+		case sfEvtResized:
+			PreserveAspectRatio();
 			break;
 
 		case sfEvtClosed:
@@ -327,7 +365,6 @@ void I_SetPalette (byte* palette)
 {
 	memcpy(colors, palette, 768);
 }
-
 
 void I_InitGraphics(void)
 {
