@@ -24,7 +24,6 @@
 static const char
 rcsid[] = "$Id: i_x.c,v 1.6 1997/02/03 22:45:10 b1 Exp $";
 static const char window_title[] = "CSFML-DOOM";
-
 #include <stdlib.h>
 #include <unistd.h>
 #include <sys/ipc.h>
@@ -45,6 +44,8 @@ static const char window_title[] = "CSFML-DOOM";
 
 #include "doomstat.h"
 #include "i_system.h"
+#include "i_input.h"
+
 #include "v_video.h"
 #include "m_argv.h"
 #include "d_main.h"
@@ -132,6 +133,7 @@ int sfKeyConvert(void)
 	    rc = rc - sfKeySpace + ' ';
 	if (rc >= 'A' && rc <= 'Z')
 	    rc = rc - 'A' + 'a';
+
 	break;
     }
     return rc;
@@ -205,20 +207,16 @@ void I_GetEvent(void)
 		case sfEvtKeyPressed:
 			d_event.type = ev_keydown;
 			d_event.data1 = sfKeyConvert();
+			d_event.data2 = sfKeyAscii() + 97;
+			d_event.data3 = sfKeyAscii() + 97;
 			D_PostEvent(&d_event);
 			break;
 
 		case sfEvtKeyReleased:
 			d_event.type = ev_keyup;
 			d_event.data1 = sfKeyConvert();
-
-			//TODO
-			char ascii = (char)sfKeyAscii();
-			
-			if(ascii < 128)
-			{
-				d_event.data3 = sfKeyAscii();
-			}
+			d_event.data2 = 0;
+			d_event.data3 = 0;
 
 			D_PostEvent(&d_event);
 			break;
@@ -229,6 +227,10 @@ void I_GetEvent(void)
 
 		case sfEvtClosed:
 			I_Quit();
+			break;
+
+		case sfEvtMouseMoved:
+			I_HandleMouse(window);
 			break;
 
 		default:

@@ -471,7 +471,6 @@ I_StartSound
   int		pitch,
   int		priority )
 {
-  printf("playing sound %d\n", id);
   sfSound* sound = sounds[id];
   //sfSound_setPitch(sound, (1.0 / 128.0) * (float)pitch);
   sfSound_play(sound);

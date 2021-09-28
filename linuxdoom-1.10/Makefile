@@ -16,6 +16,7 @@ O=build
 # not too sophisticated dependency
 OBJS=				\
 		$(O)/mus2mid.o		\
+		$(O)/i_input.o		\
 		$(O)/doomdef.o		\
 		$(O)/doomstat.o		\
 		$(O)/dstrings.o		\

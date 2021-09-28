@@ -1079,6 +1079,7 @@ int     quitsounds2[8] =
 
 void M_QuitResponse(int ch)
 {
+    printf("quit response: %c\n", ch);
     if (ch != 'y')
 	return;
     if (!netgame)
@@ -1474,7 +1475,7 @@ boolean M_Responder (event_t* ev)
 	    break;
 				
 	  default:
-	    ch = toupper(ch);
+	    ch = toupper(ev->data3);
 	    if (ch != 32)
 		if (ch-HU_FONTSTART < 0 || ch-HU_FONTSTART >= HU_FONTSIZE)
 		    break;
@@ -1488,6 +1489,7 @@ boolean M_Responder (event_t* ev)
 	    }
 	    break;
 	}
+    printf("character %c\n", ev->data1 + 33);
 	return true;
     }
     
