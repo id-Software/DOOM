@@ -23,6 +23,7 @@
 
 static const char
 rcsid[] = "$Id: i_x.c,v 1.6 1997/02/03 22:45:10 b1 Exp $";
+static const char window_title[] = "CSFML-DOOM";
 
 #include <stdlib.h>
 #include <unistd.h>
@@ -74,6 +75,12 @@ int		doPointerWarp = POINTER_WARP_COUNTDOWN;
 static int	multiply=1;
 
 
+//convert sfKey to ascii
+int sfKeyAscii(void)
+{
+	return (char)event.text.unicode;
+}
+
 //converts sfKey to key
 int sfKeyConvert(void)
 {
@@ -109,6 +116,8 @@ int sfKeyConvert(void)
 
       case sfKeySubtract:	rc = KEY_MINUS;		break;
 
+	  case sfKeySpace: rc= KEY_SPACE; break;
+
       case sfKeyLShift:
       case sfKeyRShift:
 		rc = KEY_RSHIFT;
@@ -132,7 +141,6 @@ int sfKeyConvert(void)
 	    rc = rc - 'A' + 'a';
 	break;
     }
-
     return rc;
 
 }
@@ -171,6 +179,14 @@ void I_GetEvent(void)
 		case sfEvtKeyPressed:
 			d_event.type = ev_keydown;
 			d_event.data1 = sfKeyConvert();
+			D_PostEvent(&d_event);
+			break;
+
+		case sfEvtKeyReleased:
+			d_event.type = ev_keyup;
+			d_event.data1 = sfKeyConvert();
+			d_event.data3 = sfKeyAscii();
+			printf("%c\n", d_event.data3 + '0');
 			D_PostEvent(&d_event);
 			break;
 
@@ -239,6 +255,12 @@ void I_FinishUpdate (void)
 
 		sfTexture_updateFromPixels(texture, argb_buffer, SCREENWIDTH, SCREENHEIGHT, 0, 0);
 		sfSprite_setTexture(image, texture, true);
+		//scale sprite to fill screen
+		sfVector2f spritescale;
+		spritescale.x = 1;
+		spritescale.y = 1.2;
+
+		sfSprite_setScale(image, spritescale);
 		sfRenderWindow_drawSprite(window, image, NULL);
 		sfRenderWindow_display(window);
 
@@ -377,9 +399,9 @@ void I_InitGraphics(void)
 
 	sfVideoMode mode;
 	mode.width = X_width;
-	mode.height = X_height;
+	mode.height = 240;
 
-	window = sfRenderWindow_create(mode, displayname, sfDefaultStyle, NULL);
+	window = sfRenderWindow_create(mode, window_title, sfDefaultStyle, NULL);
 	sfRenderWindow_setFramerateLimit(window, 35);
 	texture = sfTexture_create(X_width, X_height);
 

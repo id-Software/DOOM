@@ -248,6 +248,7 @@ typedef enum
 // Most key data are simple ascii (uppercased).
 //
 #define KEY_RIGHTARROW	0xae
+#define KEY_SPACE 32;
 #define KEY_LEFTARROW	0xac
 #define KEY_UPARROW	0xad
 #define KEY_DOWNARROW	0xaf

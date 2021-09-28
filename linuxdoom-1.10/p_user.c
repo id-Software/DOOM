@@ -148,7 +148,6 @@ void P_CalcHeight (player_t* player)
 void P_MovePlayer (player_t* player)
 {
     ticcmd_t*		cmd;
-	
     cmd = &player->cmd;
 	
     player->mo->angle += (cmd->angleturn<<16);
@@ -156,7 +155,7 @@ void P_MovePlayer (player_t* player)
     // Do not let the player control movement
     //  if not onground.
     onground = (player->mo->z <= player->mo->floorz);
-	
+	printf("%d\n", cmd->forwardmove);
     if (cmd->forwardmove && onground)
 	P_Thrust (player, player->mo->angle, cmd->forwardmove*2048);
     

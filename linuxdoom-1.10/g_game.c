@@ -145,17 +145,17 @@ byte*		savebuffer;
 // 
 // controls (have defaults) 
 // 
-int             key_right;
-int		key_left;
+int             key_right = KEY_RIGHTARROW;
+int		key_left = KEY_LEFTARROW;
 
-int		key_up;
-int		key_down; 
+int		key_up = KEY_UPARROW;
+int		key_down = KEY_DOWNARROW; 
 int             key_strafeleft;
 int		key_straferight; 
-int             key_fire;
-int		key_use;
+int             key_fire = KEY_RCTRL;
+int		key_use = KEY_SPACE;
 int		key_strafe;
-int		key_speed; 
+int		key_speed = KEY_RSHIFT; 
  
 int             mousebfire; 
 int             mousebstrafe; 
@@ -307,7 +307,7 @@ void G_BuildTiccmd (ticcmd_t* cmd)
  
     if (gamekeydown[key_up]) 
     {
-	// fprintf(stderr, "up\n");
+	 printf(stderr, "up\n");
 	forward += forwardmove[speed]; 
     }
     if (gamekeydown[key_down]) 
