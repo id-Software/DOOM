@@ -129,10 +129,10 @@ int sfKeyConvert(void)
 	break;
 	
       default:
-	if (rc >= sfKeySpace && rc <= sfKeyTilde)
-	    rc = rc - sfKeySpace + ' ';
-	if (rc >= 'A' && rc <= 'Z')
-	    rc = rc - 'A' + 'a';
+	// if (rc >= sfKeySpace && rc <= sfKeyTilde)
+	//     rc = rc - sfKeySpace + ' ';
+	// if (rc >= 'A' && rc <= 'Z')
+	//     rc = rc - 'A' + 'a';
 
 	break;
     }
@@ -166,7 +166,6 @@ boolean		mousemoved = false;
 void PreserveAspectRatio()
 {
 	float aspect = 320.0 / 240.0;
-	printf("%f\n", aspect);
 	unsigned int m_width = event.size.width;
 	unsigned int m_height = event.size.height;
 	float new_width = aspect * m_height;
