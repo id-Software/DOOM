@@ -78,7 +78,7 @@ static int	multiply=1;
 //convert sfKey to ascii
 int sfKeyAscii(void)
 {
-	return (char)event.text.unicode;
+	return event.text.unicode;
 }
 
 //converts sfKey to key
@@ -107,7 +107,7 @@ int sfKeyConvert(void)
       case sfKeyF11:	rc = KEY_F11;		break;
       case sfKeyF12:	rc = KEY_F12;		break;
 	
-      case sfKeyBackspace:
+      case sfKeyBack:
       case sfKeyDelete:	rc = KEY_BACKSPACE;	break;
 
       case sfKeyPause:	rc = KEY_PAUSE;		break;
@@ -219,7 +219,14 @@ void I_GetEvent(void)
 		case sfEvtKeyReleased:
 			d_event.type = ev_keyup;
 			d_event.data1 = sfKeyConvert();
-			d_event.data3 = sfKeyAscii();
+			char ascii = (char)sfKeyAscii();
+			
+			if(ascii < 128)
+			{
+				d_event.data3 = sfKeyAscii();
+				printf("key: %c\n", ascii);
+			}
+
 			D_PostEvent(&d_event);
 			break;
 
@@ -247,6 +254,7 @@ void I_StartTic (void)
 
     if (!window)
 		return;
+	sfRenderWindow_clear(window, sfColor_fromRGB(0,0,0));
 	I_GetEvent();
 
 
@@ -310,52 +318,6 @@ void I_FinishUpdate (void)
 void I_ReadScreen (byte* scr)
 {
     memcpy (scr, screens[0], SCREENWIDTH*SCREENHEIGHT);
-}
-
-
-//
-// Palette stuff.
-//
-
-void UploadNewPalette(byte *palette)
-{
-
-//     register int	i;
-//     register int	c;
-//     static boolean	firstcall = true;
-
-// #ifdef __cplusplus
-//     if (X_visualinfo.c_class == PseudoColor && X_visualinfo.depth == 8)
-// #else
-//     if (X_visualinfo.class == PseudoColor && X_visualinfo.depth == 8)
-// #endif
-// 	{
-// 	    // initialize the colormap
-// 	    if (firstcall)
-// 	    {
-// 		firstcall = false;
-// 		for (i=0 ; i<256 ; i++)
-// 		{
-// 		    colors[i].pixel = i;
-// 		    colors[i].flags = DoRed|DoGreen|DoBlue;
-// 		}
-// 	    }
-
-// 	    // set the X colormap entries
-// 	    for (i=0 ; i<256 ; i++)
-// 	    {
-// 		c = gammatable[usegamma][*palette++];
-// 		colors[i].red = (c<<8) + c;
-// 		c = gammatable[usegamma][*palette++];
-// 		colors[i].green = (c<<8) + c;
-// 		c = gammatable[usegamma][*palette++];
-// 		colors[i].blue = (c<<8) + c;
-// 	    }
-
-// 	    // store the colors to the current colormap
-// 	    XStoreColors(X_display, cmap, colors, 256);
-
-// 	}
 }
 
 //
@@ -442,8 +404,6 @@ void I_InitGraphics(void)
 	texture = sfTexture_create(SCREENWIDTH, SCREENHEIGHT);
 
 	image = sfSprite_create();
-	//screens[0] is the framebuffer btw
-
 	
 	screens[0] = (unsigned char *) malloc (SCREENWIDTH * SCREENHEIGHT);
 
