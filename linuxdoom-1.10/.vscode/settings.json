@@ -1,0 +1,9 @@
+{
+    "files.associations": {
+        "w_wad.h": "c",
+        "*.tcc": "cpp",
+        "fstream": "cpp",
+        "system_error": "cpp",
+        "doomdef.h": "c"
+    }
+}

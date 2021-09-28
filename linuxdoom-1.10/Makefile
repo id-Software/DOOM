@@ -6,12 +6,12 @@
 #
 CC=  gcc  # gcc or g++
 
-CFLAGS=-g -Wall -DNORMALUNIX -DLINUX # -DUSEASM 
-LDFLAGS=-L/usr/X11R6/lib
-LIBS=-lXext -lX11 -lnsl -lm
+CFLAGS=-g -w -DNORMALUNIX -DLINUX -DSNDSERV -DSNDSRV -Wno-narrowing -fpermissive# -DUSEASM 
+CXXFLAGS =-ISFML/include/
+LIBS=-lcsfml-system -lcsfml-graphics -lcsfml-audio -lcsfml-window -lXext -lX11 -lnsl -lm
 
 # subdirectory for objects
-O=linux
+O=build
 
 # not too sophisticated dependency
 OBJS=				\
@@ -77,18 +77,18 @@ OBJS=				\
 		$(O)/info.o				\
 		$(O)/sounds.o
 
-all:	 $(O)/linuxxdoom
+all:	 $(O)/doom
 
 clean:
 	rm -f *.o *~ *.flc
-	rm -f linux/*
+	rm -f build/*
 
-$(O)/linuxxdoom:	$(OBJS) $(O)/i_main.o
-	$(CC) $(CFLAGS) $(LDFLAGS) $(OBJS) $(O)/i_main.o \
-	-o $(O)/linuxxdoom $(LIBS)
+$(O)/doom:	$(OBJS) $(O)/i_main.o
+	$(CC) $(CFLAGS) $(OBJS) $(O)/i_main.o \
+	-o $(O)/doom $(LIBS)
 
 $(O)/%.o:	%.c
-	$(CC) $(CFLAGS) -c $< -o $@
+	$(CC) $(CFLAGS) $(CXXFLAGS) -c $< -o $@
 
 #############################################################
 #

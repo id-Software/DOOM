@@ -27,6 +27,7 @@ rcsid[] = "$Id: z_zone.c,v 1.4 1997/02/03 16:47:58 b1 Exp $";
 #include "z_zone.h"
 #include "i_system.h"
 #include "doomdef.h"
+#include <malloc.h>
 
 
 //
@@ -121,6 +122,7 @@ void Z_Init (void)
 //
 void Z_Free (void* ptr)
 {
+    //free(ptr);
     memblock_t*		block;
     memblock_t*		other;
 	
@@ -186,6 +188,7 @@ Z_Malloc
   int		tag,
   void*		user )
 {
+    //return malloc(size);
     int		extra;
     memblock_t*	start;
     memblock_t* rover;

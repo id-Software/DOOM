@@ -24,7 +24,7 @@
 #define __I_SOUND__
 
 #include "doomdef.h"
-
+#include <errno.h>
 // UNIX hack, to be removed.
 #ifdef SNDSERV
 #include <stdio.h>

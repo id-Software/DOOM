@@ -1,0 +1,6 @@
+{
+    "files.associations": {
+        "errno.h": "c",
+        "random": "c"
+    }
+}

@@ -24,7 +24,6 @@
 
 #ifndef __D_MAIN__
 #define __D_MAIN__
-
 #include "d_event.h"
 
 #ifdef __GNUG__

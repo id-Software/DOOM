@@ -900,7 +900,7 @@ void M_VerifyNightmare(int ch)
     if (ch != 'y')
 	return;
 		
-    G_DeferedInitNew(nightmare,epi+1,1);
+    G_DeferedInitNew((int)nightmare,epi+1,1);
     M_ClearMenus ();
 }
 

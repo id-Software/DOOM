@@ -32,6 +32,7 @@ rcsid[] = "$Id: m_misc.c,v 1.6 1997/02/03 22:45:10 b1 Exp $";
 #include <fcntl.h>
 #include <stdlib.h>
 #include <unistd.h>
+#include <stdint.h>
 
 #include <ctype.h>
 
@@ -226,7 +227,7 @@ typedef struct
 {
     char*	name;
     int*	location;
-    int		defaultvalue;
+    long long		defaultvalue;
     int		scantranslate;		// PC scan code hack
     int		untranslated;		// lousy hack
 } default_t;
@@ -237,33 +238,20 @@ default_t	defaults[] =
     {"sfx_volume",&snd_SfxVolume, 8},
     {"music_volume",&snd_MusicVolume, 8},
     {"show_messages",&showMessages, 1},
-    
 
-#ifdef NORMALUNIX
-    {"key_right",&key_right, KEY_RIGHTARROW},
-    {"key_left",&key_left, KEY_LEFTARROW},
-    {"key_up",&key_up, KEY_UPARROW},
-    {"key_down",&key_down, KEY_DOWNARROW},
-    {"key_strafeleft",&key_strafeleft, ','},
-    {"key_straferight",&key_straferight, '.'},
-
-    {"key_fire",&key_fire, KEY_RCTRL},
-    {"key_use",&key_use, ' '},
-    {"key_strafe",&key_strafe, KEY_RALT},
-    {"key_speed",&key_speed, KEY_RSHIFT},
 
 // UNIX hack, to be removed. 
 #ifdef SNDSERV
-    {"sndserver", (int *) &sndserver_filename, (int) "sndserver"},
+    {"sndserver", (int *) &sndserver_filename, (long long int) "sndserver"},
     {"mb_used", &mb_used, 2},
 #endif
-    
-#endif
+
 
 #ifdef LINUX
-    {"mousedev", (int*)&mousedev, (int)"/dev/ttyS0"},
-    {"mousetype", (int*)&mousetype, (int)"microsoft"},
+    {"mousedev", (int*)&mousedev, (long long int)"/dev/ttyS0"},
+    {"mousetype", (int*)&mousetype, (long long int)"microsoft"},
 #endif
+
 
     {"use_mouse",&usemouse, 1},
     {"mouseb_fire",&mousebfire,0},
@@ -285,16 +273,17 @@ default_t	defaults[] =
 
     {"usegamma",&usegamma, 0},
 
-    {"chatmacro0", (int *) &chat_macros[0], (int) HUSTR_CHATMACRO0 },
-    {"chatmacro1", (int *) &chat_macros[1], (int) HUSTR_CHATMACRO1 },
-    {"chatmacro2", (int *) &chat_macros[2], (int) HUSTR_CHATMACRO2 },
-    {"chatmacro3", (int *) &chat_macros[3], (int) HUSTR_CHATMACRO3 },
-    {"chatmacro4", (int *) &chat_macros[4], (int) HUSTR_CHATMACRO4 },
-    {"chatmacro5", (int *) &chat_macros[5], (int) HUSTR_CHATMACRO5 },
-    {"chatmacro6", (int *) &chat_macros[6], (int) HUSTR_CHATMACRO6 },
-    {"chatmacro7", (int *) &chat_macros[7], (int) HUSTR_CHATMACRO7 },
-    {"chatmacro8", (int *) &chat_macros[8], (int) HUSTR_CHATMACRO8 },
-    {"chatmacro9", (int *) &chat_macros[9], (int) HUSTR_CHATMACRO9 }
+    {"chatmacro0", (int *) &chat_macros[0], (long long int) HUSTR_CHATMACRO0 },
+    {"chatmacro1", (int *) &chat_macros[1], (long long int) HUSTR_CHATMACRO1 },
+    {"chatmacro2", (int *) &chat_macros[2], (long long int) HUSTR_CHATMACRO2 },
+    {"chatmacro3", (int *) &chat_macros[3], (long long int) HUSTR_CHATMACRO3 },
+    {"chatmacro4", (int *) &chat_macros[4], (long long int) HUSTR_CHATMACRO4 },
+    {"chatmacro5", (int *) &chat_macros[5], (long long int) HUSTR_CHATMACRO5 },
+    {"chatmacro6", (int *) &chat_macros[6], (long long int) HUSTR_CHATMACRO6 },
+    {"chatmacro7", (int *) &chat_macros[7], (long long int) HUSTR_CHATMACRO7 },
+    {"chatmacro8", (int *) &chat_macros[8], (long long int) HUSTR_CHATMACRO8 },
+    {"chatmacro9", (int *) &chat_macros[9], (long long int) HUSTR_CHATMACRO9 }
+
 
 };
 
