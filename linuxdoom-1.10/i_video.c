@@ -341,7 +341,7 @@ void I_InitGraphics(void)
 	mode.height = TRUEHEIGHT;
 
 	window = sfRenderWindow_create(mode, window_title, sfDefaultStyle, NULL);
-	sfRenderWindow_setFramerateLimit(window, 60);
+	sfRenderWindow_setFramerateLimit(window, 35);
 	texture = sfTexture_create(SCREENWIDTH, SCREENHEIGHT);
 
 	image = sfSprite_create();
