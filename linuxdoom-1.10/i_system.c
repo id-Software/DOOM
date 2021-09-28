@@ -29,9 +29,8 @@ rcsid[] = "$Id: m_bbox.c,v 1.1 1997/02/03 22:45:10 b1 Exp $";
 #include <string.h>
 
 #include <stdarg.h>
-#include <sys/time.h>
 #include <unistd.h>
-
+#include <math.h>
 #include "doomdef.h"
 #include "m_misc.h"
 #include "i_video.h"
@@ -45,8 +44,7 @@ rcsid[] = "$Id: m_bbox.c,v 1.1 1997/02/03 22:45:10 b1 Exp $";
 #endif
 #include "i_system.h"
 
-
-
+#include <SFML/System.h>
 
 int	mb_used = 6;
 
@@ -85,18 +83,22 @@ byte* I_ZoneBase (int*	size)
 // I_GetTime
 // returns time in 1/70th second tics
 //
+
+sfClock* timer;
 int  I_GetTime (void)
 {
-    struct timeval	tp;
-    struct timezone	tzp;
-    int			newtics;
-    static int		basetime=0;
-  
-    gettimeofday(&tp, &tzp);
-    if (!basetime)
-	basetime = tp.tv_sec;
-    newtics = (tp.tv_sec-basetime)*TICRATE + tp.tv_usec*TICRATE/1000000;
-    return newtics;
+    sfTime time = sfClock_getElapsedTime(timer);
+
+    float elapsed = sfTime_asSeconds(time);
+    static float basetime = 0;
+    if(!basetime)
+    {
+        basetime = sfTime_asSeconds(time);
+    }
+    sfUint64 microseconds = sfTime_asMilliseconds(time);
+
+
+    return (elapsed - basetime)*TICRATE + microseconds*TICRATE/1000000;
 }
 
 
@@ -107,6 +109,7 @@ int  I_GetTime (void)
 void I_Init (void)
 {
     I_InitSound();
+    timer = sfClock_create();
     //  I_InitGraphics();
 }
 
