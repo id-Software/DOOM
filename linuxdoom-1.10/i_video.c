@@ -56,8 +56,6 @@ static const char window_title[] = "CSFML-DOOM";
 sfRenderWindow* window;
 sfTexture* texture;
 sfSprite* image;
-int		X_width;
-int		X_height;
 
 sfEvent event;
 
@@ -68,11 +66,6 @@ sfEvent event;
 boolean		grabMouse;
 int		doPointerWarp = POINTER_WARP_COUNTDOWN;
 
-// Blocky mode,
-// replace each 320x200 pixel with multiply*multiply pixels.
-// According to Dave Taylor, it still is a bonehead thing
-// to use ....
-static int	multiply=1;
 
 
 //convert sfKey to ascii
@@ -167,7 +160,6 @@ void I_StartFrame (void)
 static int	lastmousex = 0;
 static int	lastmousey = 0;
 boolean		mousemoved = false;
-boolean		shmFinished;
 
 void PreserveAspectRatio()
 {
@@ -219,12 +211,13 @@ void I_GetEvent(void)
 		case sfEvtKeyReleased:
 			d_event.type = ev_keyup;
 			d_event.data1 = sfKeyConvert();
+
+			//TODO
 			char ascii = (char)sfKeyAscii();
 			
 			if(ascii < 128)
 			{
 				d_event.data3 = sfKeyAscii();
-				printf("key: %c\n", ascii);
 			}
 
 			D_PostEvent(&d_event);
@@ -279,13 +272,10 @@ static byte	colors[768];
 
 void I_FinishUpdate (void)
 {
-    static int	lasttic;
-    int		tics;
-    int		i;
-    // UNUSED static unsigned char *bigscreen=0;
+
 
     	byte argb_buffer[SCREENWIDTH * SCREENHEIGHT * 4];
-		for(i = 0; i < SCREENWIDTH * SCREENHEIGHT; i++)
+		for(int i = 0; i < SCREENWIDTH * SCREENHEIGHT; i++)
 		{
 			byte colorIndex = screens[0][i];
             byte r = colors[(3 * colorIndex)];
@@ -300,6 +290,7 @@ void I_FinishUpdate (void)
 
 		sfTexture_updateFromPixels(texture, argb_buffer, SCREENWIDTH, SCREENHEIGHT, 0, 0);
 		sfSprite_setTexture(image, texture, true);
+
 		//scale sprite to fill screen
 		sfVector2f spritescale;
 		spritescale.x = 1;
@@ -330,21 +321,6 @@ void I_SetPalette (byte* palette)
 
 void I_InitGraphics(void)
 {
-
-    char*		displayname;
-    char*		d;
-    int			n;
-    int			pnum;
-    int			x=0;
-    int			y=0;
-    
-    // warning: char format, different type arg
-    char		xsign=' ';
-    char		ysign=' ';
-    
-    int			oktodraw;
-    unsigned long	attribmask;
-    int			valuemask;
     static int		firsttime=1;
 
     if (!firsttime)
@@ -353,54 +329,19 @@ void I_InitGraphics(void)
 
     signal(SIGINT, (void (*)(int)) I_Quit);
 
-    if (M_CheckParm("-2"))
-	multiply = 2;
-
-    if (M_CheckParm("-3"))
-	multiply = 3;
-
-    if (M_CheckParm("-4"))
-	multiply = 4;
-
-    X_width = SCREENWIDTH * multiply;
-    X_height = SCREENHEIGHT * multiply;
-
-    // check for command-line display name
-    if ( (pnum=M_CheckParm("-disp")) ) // suggest parentheses around assignment
-	displayname = myargv[pnum+1];
-    else
-	displayname = 0;
 
     // check if the user wants to grab the mouse (quite unnice)
     grabMouse = !!M_CheckParm("-grabmouse");
 
-    // check for command-line geometry
-    if ( (pnum=M_CheckParm("-geom")) ) // suggest parentheses around assignment
-    {
-	// warning: char format, different type arg 3,5
-	n = sscanf(myargv[pnum+1], "%c%d%c%d", &xsign, &x, &ysign, &y);
-	
-	if (n==2)
-	    x = y = 0;
-	else if (n==6)
-	{
-	    if (xsign == '-')
-		x = -x;
-	    if (ysign == '-')
-		y = -y;
-	}
-	else
-	    I_Error("bad -geom parameter");
-    }
-
+  
 	printf("starting sfwindow..\n");
 
 	sfVideoMode mode;
 	mode.width = SCREENWIDTH;
-	mode.height = 240;
+	mode.height = TRUEHEIGHT;
 
 	window = sfRenderWindow_create(mode, window_title, sfDefaultStyle, NULL);
-	sfRenderWindow_setFramerateLimit(window, 35);
+	sfRenderWindow_setFramerateLimit(window, 60);
 	texture = sfTexture_create(SCREENWIDTH, SCREENHEIGHT);
 
 	image = sfSprite_create();
