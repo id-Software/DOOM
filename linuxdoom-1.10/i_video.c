@@ -107,7 +107,7 @@ int sfKeyConvert(void)
       case sfKeyF11:	rc = KEY_F11;		break;
       case sfKeyF12:	rc = KEY_F12;		break;
 	
-      case sfKeyBackspace:
+      case sfKeyBack:
       case sfKeyDelete:	rc = KEY_BACKSPACE;	break;
 
       case sfKeyPause:	rc = KEY_PAUSE;		break;
