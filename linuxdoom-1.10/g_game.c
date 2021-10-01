@@ -274,7 +274,6 @@ void G_BuildTiccmd (ticcmd_t* cmd)
 	tspeed = 2;             // slow turn 
     else 
 	tspeed = speed;
-    printf("strafe: %d\n", strafe);
     // let movement keys cancel each other out
     if (strafe) 
     { 

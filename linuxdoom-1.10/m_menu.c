@@ -1332,8 +1332,6 @@ boolean M_Responder(event_t *ev)
         }
     }
 
-    if (ch == -1)
-        return false;
 
     // Save Game string input
     if (saveStringEnter)
@@ -1360,7 +1358,8 @@ boolean M_Responder(event_t *ev)
             break;
 
         default:
-
+            if(ev->type != ev_textentered)
+                break;
             ch = toupper(ev->data2);
             if (ch != 32)
                 if (ch - HU_FONTSTART < 0 || ch - HU_FONTSTART >= HU_FONTSIZE)
@@ -1378,10 +1377,10 @@ boolean M_Responder(event_t *ev)
         return true;
     }
 
-    int textinput = ev->data2;
     // Take care of any messages that need input
     if (messageToPrint)
     {
+        int textinput = ev->data2;
         printf("menu input character %c\n", textinput);
 
         if (messageNeedsInput == true &&

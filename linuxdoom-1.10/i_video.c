@@ -129,10 +129,10 @@ int sfKeyConvert(void)
 	  	rc = KEY_RALT;
 	break;
       default:
-	// if (rc >= sfKeySpace && rc <= sfKeyTilde)
-	//     rc = rc - sfKeySpace + ' ';
-	// if (rc >= 'A' && rc <= 'Z')
-	//     rc = rc - 'A' + 'a';
+	if (rc >= sfKeySpace && rc <= sfKeyTilde)
+	    rc = rc - sfKeySpace + ' ';
+	if (rc >= 'A' && rc <= 'Z')
+	    rc = rc - 'A' + 'a';
 
 	break;
     }
@@ -195,11 +195,11 @@ void PreserveAspectRatio()
 	sfRenderWindow_setView(window, view);
 }
 
+event_t d_event;
 void I_GetEvent(void)
 {
     while(sfRenderWindow_pollEvent(window, &event))
 	{
-		event_t d_event;
 		switch (event.type)
 		{
 		case sfEvtTextEntered:
@@ -207,6 +207,7 @@ void I_GetEvent(void)
 			int ascii = sfKeyAscii();
 			d_event.data2 =  ascii;
 			d_event.data3 = ascii;
+			// printf("ascii: %d, %c\n", ascii, toupper(ascii));
 			D_PostEvent(&d_event);
 			return;
 			break;
