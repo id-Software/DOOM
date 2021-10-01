@@ -128,12 +128,11 @@ int sfKeyConvert(void)
 	  case sfKeyRAlt:
 	  	rc = KEY_RALT;
 	break;
-	
       default:
-	if (rc >= sfKeySpace && rc <= sfKeyTilde)
-	    rc = rc - sfKeySpace + ' ';
-	if (rc >= 'A' && rc <= 'Z')
-	    rc = rc - 'A' + 'a';
+	// if (rc >= sfKeySpace && rc <= sfKeyTilde)
+	//     rc = rc - sfKeySpace + ' ';
+	// if (rc >= 'A' && rc <= 'Z')
+	//     rc = rc - 'A' + 'a';
 
 	break;
     }
@@ -196,26 +195,28 @@ void PreserveAspectRatio()
 	sfRenderWindow_setView(window, view);
 }
 
-event_t d_event;
 void I_GetEvent(void)
 {
     while(sfRenderWindow_pollEvent(window, &event))
 	{
+		event_t d_event;
 		switch (event.type)
 		{
-		case sfEvtTextEntered:	
+		case sfEvtTextEntered:
 			d_event.type = ev_textentered;		
 			int ascii = sfKeyAscii();
 			d_event.data2 =  ascii;
 			d_event.data3 = ascii;
 			D_PostEvent(&d_event);
+			return;
 			break;
 
 		case sfEvtKeyPressed:
 			d_event.type = ev_keydown;
-			d_event.data1 = sfKeyConvert();
-			if(d_event.data1 > 0 && d_event.data1 < 256)
+			int key = sfKeyConvert();
+			if(key > 0 && key < 256)
 			{
+				d_event.data1 = key;
 				D_PostEvent(&d_event);
 			}
 
@@ -223,9 +224,12 @@ void I_GetEvent(void)
 
 		case sfEvtKeyReleased:
 			d_event.type = ev_keyup;
-			d_event.data1 = sfKeyConvert();
-			d_event.data3 = 0;
-			D_PostEvent(&d_event);
+			int keyreleased = sfKeyConvert();
+			if(keyreleased > 0 && keyreleased < 256)
+			{
+				d_event.data1 = keyreleased;
+				D_PostEvent(&d_event);
+			}
 			break;
 
 		case sfEvtResized:

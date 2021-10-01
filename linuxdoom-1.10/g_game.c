@@ -150,11 +150,11 @@ int		key_left = KEY_LEFTARROW;
 
 int		key_up = KEY_UPARROW;
 int		key_down = KEY_DOWNARROW; 
-int             key_strafeleft;
-int		key_straferight; 
+int             key_strafeleft = KEY_LEFTARROW;
+int		key_straferight = KEY_RIGHTARROW;  
 int             key_fire = KEY_RCTRL;
 int		key_use = KEY_SPACE;
-int		key_strafe;
+int		key_strafe = KEY_LALT;
 int		key_speed = KEY_RSHIFT; 
  
 int             mousebfire; 
@@ -274,7 +274,7 @@ void G_BuildTiccmd (ticcmd_t* cmd)
 	tspeed = 2;             // slow turn 
     else 
 	tspeed = speed;
-    
+    printf("strafe: %d\n", strafe);
     // let movement keys cancel each other out
     if (strafe) 
     { 
@@ -319,10 +319,13 @@ void G_BuildTiccmd (ticcmd_t* cmd)
 	forward += forwardmove[speed]; 
     if (joyymove > 0) 
 	forward -= forwardmove[speed]; 
-    if (gamekeydown[key_straferight]) 
-	side += sidemove[speed]; 
-    if (gamekeydown[key_strafeleft]) 
-	side -= sidemove[speed];
+    if(strafe)
+    {
+        if (gamekeydown[key_straferight]) 
+        side += sidemove[speed]; 
+        if (gamekeydown[key_strafeleft]) 
+        side -= sidemove[speed];
+    }
     
     // buttons
     cmd->chatchar = HU_dequeueChatChar(); 
