@@ -1360,6 +1360,7 @@ boolean M_Responder(event_t *ev)
             break;
 
         default:
+
             ch = toupper(ev->data2);
             if (ch != 32)
                 if (ch - HU_FONTSTART < 0 || ch - HU_FONTSTART >= HU_FONTSIZE)
@@ -1381,6 +1382,8 @@ boolean M_Responder(event_t *ev)
     // Take care of any messages that need input
     if (messageToPrint)
     {
+        printf("menu input character %c\n", textinput);
+
         if (messageNeedsInput == true &&
             !(textinput == ' ' || textinput == 'n' || textinput == 'y' || ch == KEY_ESCAPE))
             return false;

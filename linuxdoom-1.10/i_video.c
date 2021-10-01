@@ -84,7 +84,9 @@ int sfKeyConvert(void)
       case sfKeyRight:	rc = KEY_RIGHTARROW;	break;
       case sfKeyDown:	rc = KEY_DOWNARROW;	break;
       case sfKeyUp:	rc = KEY_UPARROW;	break;
-      case sfKeyEscape:	rc = KEY_ESCAPE;	break;
+      case sfKeyEscape:
+	  case sfKeyMenu:
+	  	rc = KEY_ESCAPE;	break;
       case sfKeyReturn:	rc = KEY_ENTER;		break;
       case sfKeyTab:	rc = KEY_TAB;		break;
       case sfKeyF1:	rc = KEY_F1;		break;
@@ -128,10 +130,10 @@ int sfKeyConvert(void)
 	break;
 	
       default:
-	// if (rc >= sfKeySpace && rc <= sfKeyTilde)
-	//     rc = rc - sfKeySpace + ' ';
-	// if (rc >= 'A' && rc <= 'Z')
-	//     rc = rc - 'A' + 'a';
+	if (rc >= sfKeySpace && rc <= sfKeyTilde)
+	    rc = rc - sfKeySpace + ' ';
+	if (rc >= 'A' && rc <= 'Z')
+	    rc = rc - 'A' + 'a';
 
 	break;
     }
@@ -212,8 +214,11 @@ void I_GetEvent(void)
 		case sfEvtKeyPressed:
 			d_event.type = ev_keydown;
 			d_event.data1 = sfKeyConvert();
+			if(d_event.data1 > 0 && d_event.data1 < 256)
+			{
+				D_PostEvent(&d_event);
+			}
 
-			D_PostEvent(&d_event);
 			break;
 
 		case sfEvtKeyReleased:
