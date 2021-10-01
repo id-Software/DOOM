@@ -1,5 +1,6 @@
 #include "mus2mid.h"
-
+#include <string.h>
+#include <stdio.h>
 // reads a variable length integer
 unsigned long ReadVarLen( char* buffer ) {
 	unsigned long value;
@@ -133,6 +134,8 @@ unsigned short LittleToNative( const unsigned short value ) {
 
 int Mus2Midi(unsigned char* bytes, unsigned char* out, int* len)
 {
+
+
 	// mus header and instruments
 	MUSheader_t header;
 	
@@ -318,5 +321,6 @@ int Mus2Midi(unsigned char* bytes, unsigned char* out, int* len)
 		fwrite(midiTrackHeaderOut - sizeof(MidiHeaderChunk_t), bytes_written, 1, file);
 		fclose(file);
 	}*/
+	printf("wrote midi successfully %d\n ", bytes_written);
 	return 1;
 }

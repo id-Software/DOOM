@@ -416,11 +416,6 @@ void D_DoomLoop (void)
 	// Update display, next frame, with current state.
 	D_Display ();
 	I_UpdateSound();
-	// Synchronous sound output is explicitly called.
-#ifndef SNDINTR
-	// Update sound output.
-	I_SubmitSound();
-#endif
     }
 }
 
