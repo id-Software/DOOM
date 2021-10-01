@@ -452,16 +452,9 @@ void MidiShit(sfInt16* vec)
 }
 
 #define SFMIDI_LOADERFRAMES 1024
-int I_RegisterSong(void* data)
+
+void ConvertMidiToPcm(sfInt16* vec, char* midi, int length)
 {
-  int length;
-  char* midi = malloc(1024 * 1024);
-
-
-   Mus2Midi(data, midi, &length);
-
-  sfInt16* vec = NULL;
-  
   int dataSize;
   int read;
   int outputsize = SFMIDI_LOADERFRAMES*2;
@@ -497,8 +490,41 @@ int I_RegisterSong(void* data)
     }
   }
   delete_fluid_player(player);
-
   MidiShit(vec);
+
+}
+
+
+char musheader[3] = {'M','U','S'};
+boolean IsMus(char* data)
+{
+  boolean mus = true;
+  for(int i = 0; i < 3; i++)
+  {
+    if(data[i] != musheader[i])
+    {
+      mus = false;
+    }
+  }
+  return mus;
+}
+
+int I_RegisterSong(void *data, int lumplength)
+{
+  int length;
+  char* midi = malloc(1024 * 1024);
+
+
+  sfInt16* vec = NULL;
+  
+  if(IsMus(data))
+  {
+    Mus2Midi(data, midi, &length);
+    ConvertMidiToPcm(vec, midi, length);
+  }else{
+    printf("midi size: %d\n", strlen(data));
+    ConvertMidiToPcm(vec, data, lumplength);
+  }
 
 
   free(midi);
