@@ -207,7 +207,6 @@ void I_GetEvent(void)
 			int ascii = sfKeyAscii();
 			d_event.data2 =  ascii;
 			d_event.data3 = ascii;
-			// printf("ascii: %d, %c\n", ascii, toupper(ascii));
 			D_PostEvent(&d_event);
 			return;
 			break;
