@@ -28,9 +28,10 @@ rcsid[] = "$Id: i_unix.c,v 1.5 1997/02/03 22:45:10 b1 Exp $";
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdarg.h>
-
+#include <unistd.h>
+#include <sys/stat.h>
 #include <math.h>
-
+#include "cvector.h"
 #include <sys/time.h>
 #include <sys/types.h>
 #include <errno.h>
@@ -39,13 +40,10 @@ rcsid[] = "$Id: i_unix.c,v 1.5 1997/02/03 22:45:10 b1 Exp $";
 
 #include <fcntl.h>
 #include <unistd.h>
-#include <sys/ioctl.h>
-
-// Linux voxware output.
-#include <linux/soundcard.h>
 
 // Timer stuff. Experimental.
 #include <time.h>
+#include <fluidsynth.h>
 #include <signal.h>
 
 #include "z_zone.h"
@@ -101,6 +99,7 @@ static int flag = 0;
 #define MIXBUFFERSIZE		(SAMPLECOUNT*BUFMUL)
 
 #define SAMPLERATE		11025	// Hz
+#define MUSSAMPLERATE 22050
 #define SAMPLESIZE		2   	// 16bit
 
 // The actual lengths of all sound effects.
@@ -153,29 +152,6 @@ int		vol_lookup[128*256];
 // Hardware left and right channel volume lookup.
 int*		channelleftvol_lookup[NUM_CHANNELS];
 int*		channelrightvol_lookup[NUM_CHANNELS];
-
-
-
-
-//
-// Safe ioctl, convenience.
-//
-void
-myioctl
-( int	fd,
-  int	command,
-  int*	arg )
-{   
-    int		rc;
-    
-    rc = ioctl(fd, command, arg);  
-    if (rc < 0)
-    {
-	fprintf(stderr, "ioctl(dsp,%d,arg) failed\n", command);
-	fprintf(stderr, "errno=%d\n", errno);
-	exit(-1);
-    }
-}
 
 
 
@@ -438,6 +414,13 @@ void I_SetSfxVolume(int volume)
   snd_SfxVolume = volume;
 }
 
+
+#include <SFML/Audio.h>
+sfSound* sounds[NUMSFX];
+sfSound* music;
+
+int cursong = -1;
+
 // MUSIC API - dummy. Some code from DOS version.
 void I_SetMusicVolume(int volume)
 {
@@ -445,6 +428,8 @@ void I_SetMusicVolume(int volume)
   snd_MusicVolume = volume;
   // Now set volume on output device.
   // Whatever( snd_MusciVolume );
+
+  sfSound_setVolume(music, (100.0 / 15) * (float)volume);
 }
 
 
@@ -459,8 +444,6 @@ int I_GetSfxLumpNum(sfxinfo_t* sfx)
     return W_GetNumForName(namebuf);
 }
 
-#include <SFML/Audio.h>
-sfSound* sounds[NUMSFX];
 
 
 int
@@ -472,7 +455,12 @@ I_StartSound
   int		priority )
 {
   sfSound* sound = sounds[id];
-  //sfSound_setPitch(sound, (1.0 / 128.0) * (float)pitch);
+  
+  sfSound_setVolume(sound,  (100.0 / 15.0) * (float)snd_SfxVolume);
+  if(snd_DoPitchShift)
+  {
+    sfSound_setPitch(sound, (1.0 / 128.0) * (float)pitch);
+  }
   sfSound_play(sound);
 }
 
@@ -512,121 +500,10 @@ int I_SoundIsPlaying(int handle)
 //
 // This function currently supports only 16bit.
 //
+
+
 void I_UpdateSound( void )
 {
-#ifdef SNDINTR
-  // Debug. Count buffer misses with interrupt.
-  static int misses = 0;
-#endif
-
-  
-  // Mix current sound data.
-  // Data, from raw sound, for right and left.
-  register unsigned int	sample;
-  register int		dl;
-  register int		dr;
-  
-  // Pointers in global mixbuffer, left, right, end.
-  signed short*		leftout;
-  signed short*		rightout;
-  signed short*		leftend;
-  // Step in mixbuffer, left and right, thus two.
-  int				step;
-
-  // Mixing channel index.
-  int				chan;
-    
-    // Left and right channel
-    //  are in global mixbuffer, alternating.
-    leftout = mixbuffer;
-    rightout = mixbuffer+1;
-    step = 2;
-
-    // Determine end, for left channel only
-    //  (right channel is implicit).
-    leftend = mixbuffer + SAMPLECOUNT*step;
-
-    // Mix sounds into the mixing buffer.
-    // Loop over step*SAMPLECOUNT,
-    //  that is 512 values for two channels.
-    while (leftout != leftend)
-    {
-	// Reset left/right value. 
-	dl = 0;
-	dr = 0;
-
-	// Love thy L2 chache - made this a loop.
-	// Now more channels could be set at compile time
-	//  as well. Thus loop those  channels.
-	for ( chan = 0; chan < NUM_CHANNELS; chan++ )
-	{
-	    // Check channel, if active.
-	    if (channels[ chan ])
-	    {
-		// Get the raw data from the channel. 
-		sample = *channels[ chan ];
-		// Add left and right part
-		//  for this channel (sound)
-		//  to the current data.
-		// Adjust volume accordingly.
-		dl += channelleftvol_lookup[ chan ][sample];
-		dr += channelrightvol_lookup[ chan ][sample];
-		// Increment index ???
-		channelstepremainder[ chan ] += channelstep[ chan ];
-		// MSB is next sample???
-		channels[ chan ] += channelstepremainder[ chan ] >> 16;
-		// Limit to LSB???
-		channelstepremainder[ chan ] &= 65536-1;
-
-		// Check whether we are done.
-		if (channels[ chan ] >= channelsend[ chan ])
-		    channels[ chan ] = 0;
-	    }
-	}
-	
-	// Clamp to range. Left hardware channel.
-	// Has been char instead of short.
-	// if (dl > 127) *leftout = 127;
-	// else if (dl < -128) *leftout = -128;
-	// else *leftout = dl;
-
-	if (dl > 0x7fff)
-	    *leftout = 0x7fff;
-	else if (dl < -0x8000)
-	    *leftout = -0x8000;
-	else
-	    *leftout = dl;
-
-	// Same for right hardware channel.
-	if (dr > 0x7fff)
-	    *rightout = 0x7fff;
-	else if (dr < -0x8000)
-	    *rightout = -0x8000;
-	else
-	    *rightout = dr;
-
-	// Increment current pointers in mixbuffer.
-	leftout += step;
-	rightout += step;
-    }
-
-#ifdef SNDINTR
-    // Debug check.
-    if ( flag )
-    {
-      misses += flag;
-      flag = 0;
-    }
-    
-    if ( misses > 10 )
-    {
-      fprintf( stderr, "I_SoundUpdate: missed 10 buffer writes\n");
-      misses = 0;
-    }
-    
-    // Increment flag for update.
-    flag++;
-#endif
 }
 
 
@@ -709,12 +586,10 @@ void I_ShutdownSound(void)
 
 
 
-
-
 void
 I_InitSound()
 { 
-
+  I_InitMusic();
   for (int i=1 ; i<NUMSFX ; i++)
   { 
     if (!S_sfx[i].link)
@@ -747,73 +622,137 @@ I_InitSound()
 
 
 
-//
-// MUSIC API.
-// Still no music done.
-// Remains. Dummies.
-//
-void I_InitMusic(void)		{ }
+//fluidsynth stuff
+fluid_settings_t *settings;
+fluid_synth_t *synth;
+fluid_audio_driver_t *adriver;
+void I_InitMusic(void)
+{
+  music = sfSound_create();
+  settings = new_fluid_settings();
+  int i, key;
+  settings = new_fluid_settings();
+
+
+  // since this is a non-realtime scenario, there is no need to pin the sample data
+
+
+  synth = new_fluid_synth(settings);
+  fluid_synth_set_sample_rate(synth, MUSSAMPLERATE);
+
+  fluid_settings_setstr(settings, "audio.driver", "alsa");
+  fluid_settings_setint(settings, "audio.period-size", 0);
+
+
+  int sfont_id = fluid_synth_sfload(synth, "chorium.sf2", 1);
+  
+
+
+}
+
 void I_ShutdownMusic(void)	{ }
 
 static int	looping=0;
 static int	musicdies=-1;
 
+
+int songid = 0;
 void I_PlaySong(int handle, int looping)
 {
-  // UNUSED.
-  handle = looping = 0;
+  
+  printf("playing song %d\n", handle);
   musicdies = gametic + TICRATE*30;
+  cursong = handle;
+  sfSound_setLoop(music, looping);
+  sfSound_play(music);
+  
 }
 
 void I_PauseSong (int handle)
 {
-  // UNUSED.
-  handle = 0;
+  sfSound_pause(music);
 }
 
 
-int songid = 0;
 
 void I_ResumeSong (int handle)
 {
-  // UNUSED.
-  handle = 0;
+  sfSound_play(music);
 }
 
 void I_StopSong(int handle)
 {
-  // UNUSED.
-  handle = 0;
-  
-  looping = 0;
-  musicdies = 0;
+  sfSound_stop(music);
 }
 
 void I_UnRegisterSong(int handle)
 {
   // UNUSED.
-  handle = 1;
+  handle = 0;
 }
 
+boolean songregistered[NUMMUSIC];
+#define SFMIDI_LOADERFRAMES 1024
+
+
+
+void MidiShit(sfInt16* vec)
+{
+  sfSoundBuffer_destroy(sfSound_getBuffer(music));
+  sfSoundBuffer* sbuffer = sfSoundBuffer_createFromSamples((void*)vec, cvector_size(vec), 2, MUSSAMPLERATE);
+  sfSound_setBuffer(music, sbuffer);
+  I_SetMusicVolume(snd_MusicVolume);
+  cvector_free(vec);
+}
 int I_RegisterSong(void* data)
 {
-  // UNUSED.
   int length;
   char* midi = malloc(1024 * 1024);
   
   Mus2Midi(data, midi, &length);
-
-  char* name = Z_Malloc(64, PU_STATIC, 0);
   
+  sfInt16* vec = NULL;
+  
+  int dataSize;
+  int read;
+  int outputsize = SFMIDI_LOADERFRAMES*2;
 
-  sprintf(name, "MUS_%d.mid", songid);
 
-  printf("%s\n", name);
-  FILE* file = fopen(name, "wb");
-  fwrite(midi, length, 1, file);
-  fclose(file);
+  for(int i = 0; i < outputsize; i++)
+  {
+    cvector_push_back(vec, 0);
+  }
 
-  Z_Free(name);
+  fluid_player_t *player = new_fluid_player(synth);
+  fluid_player_add_mem(player, midi, length);
+  fluid_player_play(player);
+  int fuck;
+  while(true)
+  {
+    read = fluid_synth_write_s16(synth, SFMIDI_LOADERFRAMES, &vec[dataSize], 0, 2, &vec[dataSize], 1, 2);
+  
+    if (read == FLUID_FAILED ||
+        fluid_player_get_status(player) != FLUID_PLAYER_PLAYING)
+      break;
+
+    dataSize += SFMIDI_LOADERFRAMES * 2;
+
+    if(outputsize - dataSize < SFMIDI_LOADERFRAMES * 2)
+    {
+      outputsize += SFMIDI_LOADERFRAMES * 2;
+
+      for(int i = cvector_size(vec); i < outputsize; i++)
+      {
+        cvector_push_back(vec, 0);
+      }
+    }
+  }
+  delete_fluid_player(player);
+  MidiShit(vec);
+
+
+  free(midi);
+
   songid++;
   return songid - 1;
 }

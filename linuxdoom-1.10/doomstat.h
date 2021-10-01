@@ -108,7 +108,7 @@ extern  boolean	deathmatch;
 // These are multiplied by 8.
 extern int snd_SfxVolume;      // maximum volume for sound
 extern int snd_MusicVolume;    // maximum volume for music
-
+extern int snd_DoPitchShift;
 // Current music/sfx card - index useless
 //  w/o a reference LUT in a sound module.
 // Ideally, this would use indices found

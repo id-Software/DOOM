@@ -111,7 +111,7 @@ static channel_t*	channels;
 // Maximum volume of a sound effect.
 // Internal default is max out of 0-15.
 int 		snd_SfxVolume = 15;
-
+int         snd_DoPitchShift = 0;
 // Maximum volume of music. Useless so far.
 int 		snd_MusicVolume = 15; 
 
@@ -646,6 +646,46 @@ void S_StartMusic(int m_id)
     S_ChangeMusic(m_id, false);
 }
 
+void* musicdata[NUMMUSIC];
+
+void S_CacheMusic()
+{
+    for(int musicnum = 0; musicnum < NUMMUSIC; musicnum++)
+    {
+        musicinfo_t*	music;
+        char		namebuf[9];
+
+        if ( (musicnum <= mus_None)
+        || (musicnum >= NUMMUSIC) )
+        {
+        I_Error("Bad music number %d", musicnum);
+        }
+        else
+        music = &S_music[musicnum];
+
+        if (mus_playing == music)
+        return;
+
+        // shutdown old music
+        S_StopMusic();
+
+        // get lumpnum if neccessary
+        if (!music->lumpnum)
+        {
+        sprintf(namebuf, "d_%s", music->name);
+        music->lumpnum = W_GetNumForName(namebuf);
+        }
+
+        // load & register it
+        if(music->data == NULL)
+        {
+            music->data = (void *) W_CacheLumpNum(music->lumpnum, PU_MUSIC);
+            music->handle = I_RegisterSong(music->data);
+        }
+
+    }
+}
+
 void
 S_ChangeMusic
 ( int			musicnum,
@@ -676,6 +716,8 @@ S_ChangeMusic
     }
 
     // load & register it
+    
+    
     music->data = (void *) W_CacheLumpNum(music->lumpnum, PU_MUSIC);
     music->handle = I_RegisterSong(music->data);
 

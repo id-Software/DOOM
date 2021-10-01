@@ -9,6 +9,7 @@
         "string": "c",
         "string_view": "c",
         "i_input.h": "c",
-        "graphics.h": "c"
+        "graphics.h": "c",
+        "algorithm": "c"
     }
 }

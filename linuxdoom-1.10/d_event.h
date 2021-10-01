@@ -37,7 +37,8 @@ typedef enum
     ev_keydown,
     ev_keyup,
     ev_mouse,
-    ev_joystick
+    ev_joystick,
+    ev_textentered
 } evtype_t;
 
 // Event structure.
@@ -47,6 +48,7 @@ typedef struct
     int		data1;		// keys / mouse/joystick buttons
     int		data2;		// mouse/joystick x move
     int		data3;		// mouse/joystick y move
+    int num;          // numeric input
 } event_t;
 
  

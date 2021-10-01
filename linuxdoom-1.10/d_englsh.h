@@ -60,6 +60,7 @@
 
 #define MSGOFF	"Messages OFF"
 #define MSGON		"Messages ON"
+#define PITCHSHIFTOFF "Pitch Shift Off"
 #define NETEND	"you can't end a netgame!\n\n"PRESSKEY
 #define ENDGAME	"are you sure you want to end the game?\n\n"PRESSYN
 

@@ -238,6 +238,7 @@ default_t	defaults[] =
     {"sfx_volume",&snd_SfxVolume, 8},
     {"music_volume",&snd_MusicVolume, 8},
     {"show_messages",&showMessages, 1},
+    {"sfx_pitchshift", &snd_DoPitchShift, 0},
 
 
 // UNIX hack, to be removed. 
@@ -264,7 +265,7 @@ default_t	defaults[] =
     {"joyb_use",&joybuse,3},
     {"joyb_speed",&joybspeed,2},
 
-    {"screenblocks",&screenblocks, 9},
+    {"screenblocks",&screenblocks, 10},
     {"detaillevel",&detailLevel, 0},
 
     {"snd_channels",&numChannels, 3},

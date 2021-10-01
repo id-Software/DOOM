@@ -181,6 +181,7 @@ fixed_t		angleturn[3] = {640, 1280, 320};	// + slow turn
 #define NUMKEYS		256 
 
 boolean         gamekeydown[NUMKEYS]; 
+boolean         characterkeys[NUMKEYS];//I don't know either I'm very high
 int             turnheld;				// for accelerative turning 
  
 boolean		mousearray[4]; 
@@ -339,8 +340,8 @@ void G_BuildTiccmd (ticcmd_t* cmd)
 
     // chainsaw overrides 
     for (i=0 ; i<NUMWEAPONS-1 ; i++)        
-	if (gamekeydown['1'+i]) 
-	{ 
+	if (characterkeys['1'+i]) 
+	{
 	    cmd->buttons |= BT_CHANGE; 
 	    cmd->buttons |= i<<BT_WEAPONSHIFT; 
 	    break; 
@@ -433,6 +434,11 @@ void G_BuildTiccmd (ticcmd_t* cmd)
 	sendsave = false; 
 	cmd->buttons = BT_SPECIAL | BTS_SAVEGAME | (savegameslot<<BTS_SAVESHIFT); 
     } 
+
+    for(int i = 0; i < NUMKEYS; i++)
+    {
+        characterkeys[i] = false;
+    }
 } 
  
 
@@ -556,12 +562,16 @@ boolean G_Responder (event_t* ev)
 	 
     switch (ev->type) 
     { 
-      case ev_keydown: 
+        case ev_textentered:
+        characterkeys[ev->data2] = true;
+        break;
+
+        case ev_keydown: 
 	if (ev->data1 == KEY_PAUSE) 
 	{ 
 	    sendpause = true; 
 	    return true; 
-	} 
+	}
 	if (ev->data1 <NUMKEYS) 
 	    gamekeydown[ev->data1] = true; 
 	return true;    // eat key down events 

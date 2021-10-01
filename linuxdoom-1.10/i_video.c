@@ -23,7 +23,7 @@
 
 static const char
 rcsid[] = "$Id: i_x.c,v 1.6 1997/02/03 22:45:10 b1 Exp $";
-static const char window_title[] = "CSFML-DOOM";
+static const char window_title[] = "Neapolitan Doom";
 #include <stdlib.h>
 #include <unistd.h>
 #include <sys/ipc.h>
@@ -51,8 +51,7 @@ static const char window_title[] = "CSFML-DOOM";
 #include "d_main.h"
 
 #include "doomdef.h"
-
-#define POINTER_WARP_COUNTDOWN	1
+#include <locale.h>
 
 sfRenderWindow* window;
 sfTexture* texture;
@@ -65,13 +64,13 @@ sfEvent event;
 // This cannot work properly w/o DGA.
 // Needs an invisible mouse cursor at least.
 boolean		grabMouse;
-int		doPointerWarp = POINTER_WARP_COUNTDOWN;
 
 
 
 //convert sfKey to ascii
 int sfKeyAscii(void)
 {
+	
 	return event.text.unicode;
 }
 
@@ -129,10 +128,10 @@ int sfKeyConvert(void)
 	break;
 	
       default:
-	if (rc >= sfKeySpace && rc <= sfKeyTilde)
-	    rc = rc - sfKeySpace + ' ';
-	if (rc >= 'A' && rc <= 'Z')
-	    rc = rc - 'A' + 'a';
+	// if (rc >= sfKeySpace && rc <= sfKeyTilde)
+	//     rc = rc - sfKeySpace + ' ';
+	// if (rc >= 'A' && rc <= 'Z')
+	//     rc = rc - 'A' + 'a';
 
 	break;
     }
@@ -190,33 +189,37 @@ void PreserveAspectRatio()
 		rect.width = 1.0;
 		rect.height = new_height / m_height;
 		sfView_setViewport(view, rect);
-       // view.setViewport(sf::FloatRect(0.0, offset_height / m_window_height, 1.0, new_height / m_window_height));
     }
 
 	sfRenderWindow_setView(window, view);
 }
 
+event_t d_event;
 void I_GetEvent(void)
 {
-	event_t d_event;
     while(sfRenderWindow_pollEvent(window, &event))
 	{
 		switch (event.type)
 		{
+		case sfEvtTextEntered:	
+			d_event.type = ev_textentered;		
+			int ascii = sfKeyAscii();
+			d_event.data2 =  ascii;
+			d_event.data3 = ascii;
+			D_PostEvent(&d_event);
+			break;
+
 		case sfEvtKeyPressed:
 			d_event.type = ev_keydown;
 			d_event.data1 = sfKeyConvert();
-			d_event.data2 = sfKeyAscii() + 97;
-			d_event.data3 = sfKeyAscii() + 97;
+
 			D_PostEvent(&d_event);
 			break;
 
 		case sfEvtKeyReleased:
 			d_event.type = ev_keyup;
 			d_event.data1 = sfKeyConvert();
-			d_event.data2 = 0;
 			d_event.data3 = 0;
-
 			D_PostEvent(&d_event);
 			break;
 
@@ -229,7 +232,7 @@ void I_GetEvent(void)
 			break;
 
 		case sfEvtMouseMoved:
-			I_HandleMouse(window);
+			//I_HandleMouse(window);
 			break;
 
 		default:

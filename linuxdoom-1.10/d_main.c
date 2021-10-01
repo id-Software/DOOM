@@ -392,11 +392,7 @@ void D_DoomLoop (void)
 	S_UpdateSounds (players[consoleplayer].mo);// move positional sounds
 	// Update display, next frame, with current state.
 	D_Display ();
-
-#ifndef SNDSERV
-	// Sound mixing for the buffer is snychronous.
 	I_UpdateSound();
-#endif	
 	// Synchronous sound output is explicitly called.
 #ifndef SNDINTR
 	// Update sound output.

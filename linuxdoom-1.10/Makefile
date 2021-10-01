@@ -8,7 +8,7 @@ CC=  gcc  # gcc or g++
 
 CFLAGS=-g -w -DNORMALUNIX -DLINUX -DSNDSERV -DSNDSRV -Wno-narrowing -fpermissive# -DUSEASM 
 CXXFLAGS =-ISFML/include/
-LIBS=-lcsfml-system -lcsfml-graphics -lcsfml-audio -lcsfml-window -lm
+LIBS=-lcsfml-system -lcsfml-graphics -lcsfml-audio -lcsfml-window -lm -lfluidsynth -lstdc++
 
 # subdirectory for objects
 O=build
