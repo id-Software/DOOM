@@ -366,6 +366,16 @@ void D_DoomLoop (void)
 	
     I_InitGraphics ();
 
+
+	snd_DoPitchShift = M_CheckParm("-pitch");
+	if(snd_DoPitchShift)
+    {
+        printf("pitch shifting enabled\n");
+    }else
+	{
+		printf("pitch shifting disabled\n");
+	}
+
     while (1)
     {
 	// frame syncronous IO operations

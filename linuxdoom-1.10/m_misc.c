@@ -352,6 +352,7 @@ void M_LoadDefaults (void)
     }
     else
 	defaultfile = basedefault;
+
     
     // read the file in, overriding any set defaults
     f = fopen (defaultfile, "r");
