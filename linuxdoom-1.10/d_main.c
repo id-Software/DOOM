@@ -366,6 +366,19 @@ void D_DoomLoop (void)
 	
     I_InitGraphics ();
 
+	//check for custom sound font
+	int j = M_CheckParm("-soundfont");
+	if(j)
+	{
+		char filename[64];
+		sprintf(filename, myargv[j+1]);
+		printf("set soundfont to %s\n", filename);
+		I_LoadSoundFont(filename);
+	}
+	else
+	{
+		I_LoadSoundFont("chorium.sf2");
+	}
 
 	snd_DoPitchShift = M_CheckParm("-pitch");
 	if(snd_DoPitchShift)

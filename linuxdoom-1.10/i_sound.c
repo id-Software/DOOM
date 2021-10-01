@@ -626,6 +626,12 @@ I_InitSound()
 fluid_settings_t *settings;
 fluid_synth_t *synth;
 fluid_audio_driver_t *adriver;
+
+void I_LoadSoundFont(char* filename)
+{
+  int sfont_id = fluid_synth_sfload(synth, filename, 1);
+}
+
 void I_InitMusic(void)
 {
   music = sfSound_create();
@@ -644,7 +650,6 @@ void I_InitMusic(void)
   fluid_settings_setint(settings, "audio.period-size", 0);
 
 
-  int sfont_id = fluid_synth_sfload(synth, "chorium.sf2", 1);
   
 
 
