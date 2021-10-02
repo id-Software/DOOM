@@ -23,10 +23,16 @@
 #ifndef __M_BBOX__
 #define __M_BBOX__
 
+#ifdef LINUX
 #include <values.h>
+#endif
+
+#ifdef MACOS
+#include <limits.h>
+#endif
 
 #include "m_fixed.h"
-
+#include "doomtype.h"
 
 // Bounding box coordinate storage.
 enum
