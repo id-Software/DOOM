@@ -25,13 +25,18 @@
 static const char
 rcsid[] = "$Id: w_wad.c,v 1.5 1997/02/03 16:47:57 b1 Exp $";
 
+#ifdef MACOS
+#include <stdlib.h>
+#endif
 
 #ifdef NORMALUNIX
 #include <ctype.h>
 #include <sys/types.h>
 #include <string.h>
 #include <unistd.h>
+#ifndef MACOS
 #include <malloc.h>
+#endif
 #include <fcntl.h>
 #include <sys/stat.h>
 #include <alloca.h>
