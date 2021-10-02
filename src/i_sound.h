@@ -24,12 +24,6 @@
 #define __I_SOUND__
 #include "doomdef.h"
 #include <errno.h>
-// UNIX hack, to be removed.
-#ifdef SNDSERV
-#include <stdio.h>
-extern FILE* sndserver;
-extern char* sndserver_filename;
-#endif
 
 #include "doomstat.h"
 #include "sounds.h"
@@ -41,8 +35,6 @@ void I_InitSound();
 
 // ... update sound buffer and audio device at runtime...
 void I_UpdateSound(void);
-void I_SubmitSound(void);
-
 // ... shut down and relase at program termination.
 void I_ShutdownSound(void);
 
@@ -51,8 +43,6 @@ void I_ShutdownSound(void);
 //  SFX I/O
 //
 
-// Initialize channels?
-void I_SetChannels();
 
 // Get raw data lump index for sound descriptor.
 int I_GetSfxLumpNum (sfxinfo_t* sfxinfo );
@@ -98,7 +88,7 @@ void I_LoadSoundFont(char* filename);
 void I_PauseSong(int handle);
 void I_ResumeSong(int handle);
 // Registers a song handle to song data.
-int I_RegisterSong(void *data);
+int I_RegisterSong(void *data, int length);
 // Called by anything that wishes to start music.
 //  plays a song, and when the song is done,
 //  starts playing it again in an endless loop.
