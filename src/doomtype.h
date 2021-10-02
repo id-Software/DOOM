@@ -36,7 +36,21 @@ typedef enum {false, true} boolean;
 typedef unsigned char byte;
 #endif
 
+// Predefined with some OS.
+#ifdef LINUX
+#include <values.h>
+#endif
 
+#ifdef MACOS
+#include <limits.h>
+#define MAXINT INT_MAX
+#define MININT INT_MIN
+
+#define MAXSHORT SHRT_MAX
+#define MINSHORT SHRT_MIN
+#endif
+
+#ifdef WINDOWS
 #define MAXCHAR		((char)0x7f)
 #define MAXSHORT	((short)0x7fff)
 

@@ -40,6 +40,9 @@ static const char rcsid[] = "$Id: d_net.c,v 1.3 1997/02/03 22:01:47 b1 Exp $";
 #define	NCMD_KILL		0x10000000	// kill game
 #define	NCMD_CHECKSUM	 	0x0fffffff
 
+#ifdef MACOS
+#include <limits.h>
+#endif
  
 doomcom_t*	doomcom;	
 doomdata_t*	netbuffer;		// points inside doomcom
@@ -651,7 +654,6 @@ void TryRunTics (void)
     
     // get available tics
     NetUpdate ();
-	
     lowtic = MAXINT;
     numplaying = 0;
     for (i=0 ; i<doomcom->numnodes ; i++)
@@ -714,8 +716,8 @@ void TryRunTics (void)
     // wait for new tics if needed
     while (lowtic < gametic/ticdup + counts)	
     {
-	NetUpdate ();   
-	lowtic = MAXINT;
+	NetUpdate ();
+    lowtic = MAXINT;
 	
 	for (i=0 ; i<doomcom->numnodes ; i++)
 	    if (nodeingame[i] && nettics[i] < lowtic)
