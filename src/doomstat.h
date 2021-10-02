@@ -253,6 +253,7 @@ extern  boolean         precache;
 extern  gamestate_t     wipegamestate;
 
 extern  int             mouseSensitivity;
+extern  boolean         mouseLock;
 //?
 // debug flag to cancel adaptiveness
 extern  boolean         singletics;	
