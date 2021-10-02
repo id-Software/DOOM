@@ -463,8 +463,7 @@ void S_UpdateSounds(void *listener_p)
                     {
                         S_StopChannel(cnum);
                     }
-                    else
-                        I_UpdateSoundParams(c->handle, volume, sep, pitch);
+
                 }
             }
             else

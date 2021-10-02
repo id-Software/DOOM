@@ -38,6 +38,8 @@ void I_UpdateSound(void);
 // ... shut down and relase at program termination.
 void I_ShutdownSound(void);
 
+void I_UpdateSoundParams();
+
 
 //
 //  SFX I/O
@@ -66,14 +68,6 @@ void I_StopSound(int handle);
 // Returns 0 if no longer playing, 1 if playing.
 int I_SoundIsPlaying(int handle);
 
-// Updates the volume, separation,
-//  and pitch of a sound channel.
-void
-I_UpdateSoundParams
-( int		handle,
-  int		vol,
-  int		sep,
-  int		pitch );
 
 
 //

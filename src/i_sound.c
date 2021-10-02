@@ -278,7 +278,16 @@ I_StartSound
   sfSound_play(sound);
 }
 
-
+void I_UpdateSoundParams()
+{
+  if(!snd_DoPitchShift)
+  {
+    for(int i = 0; i < NUMSFX; i++)
+    {
+      sfSound_setPitch(sounds[i], 1);
+    }
+  }
+}
 
 void I_StopSound (int handle)
 {
@@ -304,22 +313,6 @@ int I_SoundIsPlaying(int handle)
 void I_UpdateSound( void )
 {
 }
-
-
-
-void
-I_UpdateSoundParams
-( int	handle,
-  int	vol,
-  int	sep,
-  int	pitch)
-{
-
-  handle = vol = sep = pitch = 0;
-}
-
-
-
 
 void I_ShutdownSound(void)
 {    

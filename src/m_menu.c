@@ -38,6 +38,7 @@ static const char
 #include "d_main.h"
 
 #include "i_system.h"
+#include "i_sound.h"
 #include "i_video.h"
 #include "z_zone.h"
 #include "v_video.h"
@@ -186,6 +187,7 @@ void M_QuitDOOM(int choice);
 void M_ChangeMessages(int choice);
 void M_ChangeSensitivity(int choice);
 void M_SfxVol(int choice);
+void M_SfxPitch(int choice);
 void M_MusicVol(int choice);
 void M_ChangeDetail(int choice);
 void M_SizeDisplay(int choice);
@@ -221,6 +223,7 @@ void M_StartControlPanel(void);
 void M_StartMessage(char *string, void *routine, boolean input);
 void M_StopMessage(void);
 void M_ClearMenus(void);
+
 
 //
 // DOOM MENU
@@ -340,7 +343,7 @@ menuitem_t OptionsMenu[] =
         {-1, "", 0},
         {2, "M_MSENS", M_ChangeSensitivity, 'm'},
         {-1, "", 0},
-        {1, "M_SVOL", M_Sound, 's'}};
+        {1, "M_SNDOPT", M_Sound, 's'}};
 
 menu_t OptionsDef =
     {
@@ -381,7 +384,8 @@ enum
 
 menuitem_t ReadMenu2[] =
     {
-        {1, "", M_FinishReadThis, 0}};
+        {1, "", M_FinishReadThis, 0}
+    };
 
 menu_t ReadDef2 =
     {
@@ -409,11 +413,14 @@ menuitem_t SoundMenu[] =
         {2, "M_SFXVOL", M_SfxVol, 's'},
         {-1, "", 0},
         {2, "M_MUSVOL", M_MusicVol, 'm'},
-        {-1, "", 0}};
+        {-1, "", 0},
+        {2, "M_SNDPCH", M_SfxPitch, 'p'},
+        {-1, "", 0}
+    };
 
 menu_t SoundDef =
     {
-        sound_end,
+        sound_end+1,
         &OptionsDef,
         SoundMenu,
         M_DrawSound,
@@ -749,22 +756,37 @@ void M_DrawReadThis2(void)
 //
 // Change Sfx & Music volumes
 //
+
+
+
+char sndNames[2][9] = {"M_MSGOFF", "M_MSGON"};
+
 void M_DrawSound(void)
 {
-    V_DrawPatchDirect(60, 38, 0, W_CacheLumpName("M_SVOL", PU_CACHE));
+    V_DrawPatchDirect(60, 38, 0, W_CacheLumpName("M_SNDOPT", PU_CACHE));
 
     M_DrawThermo(SoundDef.x, SoundDef.y + LINEHEIGHT * (sfx_vol + 1),
                  16, snd_SfxVolume);
 
     M_DrawThermo(SoundDef.x, SoundDef.y + LINEHEIGHT * (music_vol + 1),
                  16, snd_MusicVolume);
+
+    
+
+    V_DrawPatchDirect(SoundDef.x + 163, SoundDef.y + LINEHEIGHT * (music_vol + 2), 0,
+                      W_CacheLumpName(sndNames[snd_DoPitchShift], PU_CACHE));
+    
 }
 
 void M_Sound(int choice)
 {
     M_SetupNextMenu(&SoundDef);
 }
-
+void M_SfxPitch(int choice)
+{
+    snd_DoPitchShift = choice;
+    I_UpdateSoundParams();
+}
 void M_SfxVol(int choice)
 {
     switch (choice)
@@ -888,7 +910,7 @@ void M_Episode(int choice)
 //
 char detailNames[2][9] = {"M_GDHIGH", "M_GDLOW"};
 char msgNames[2][9] = {"M_MSGOFF", "M_MSGON"};
-char ptcNames[2][9] = {"M_PTCOFF", "M_PTCON"};
+
 void M_DrawOptions(void)
 {
     V_DrawPatchDirect(108, 15, 0, W_CacheLumpName("M_OPTTTL", PU_CACHE));
@@ -898,9 +920,6 @@ void M_DrawOptions(void)
 
     V_DrawPatchDirect(OptionsDef.x + 120, OptionsDef.y + LINEHEIGHT * messages, 0,
                       W_CacheLumpName(msgNames[showMessages], PU_CACHE));
-
-    V_DrawPatchDirect(OptionsDef.x + 120, OptionsDef.y + LINEHEIGHT * messages, 0,
-                      W_CacheLumpName(ptcNames[snd_DoPitchShift], PU_CACHE));
 
     M_DrawThermo(OptionsDef.x, OptionsDef.y + LINEHEIGHT * (mousesens + 1),
                  10, mouseSensitivity);

@@ -88,6 +88,7 @@ static const char rcsid[] = "$Id: d_main.c,v 1.8 1997/02/03 22:45:09 b1 Exp $";
 //
 void D_DoomLoop (void);
 
+#define NEAPOLITAN_WAD "Neapolitan.wad"
 
 char*		wadfiles[MAXWADFILES];
 
@@ -947,6 +948,8 @@ void D_DoomMain (void)
 	}
 	D_AddFile (file);
     }
+
+	D_AddFile (NEAPOLITAN_WAD);
 	
     p = M_CheckParm ("-file");
     if (p)
