@@ -65,7 +65,7 @@ sfEvent event;
 // Needs an invisible mouse cursor at least.
 boolean		grabMouse;
 
-
+float windowScale = 1;
 
 //convert sfKey to ascii
 int sfKeyAscii(void)
@@ -175,6 +175,7 @@ void PreserveAspectRatio()
 	float offset_width = (m_width - new_width) / 2.0;
     float offset_height = (m_height - new_height) / 2.0;
 
+
 	if (m_width >= aspect * m_height) {
 		sfFloatRect rect;
 		rect.left = offset_width / m_width;
@@ -191,6 +192,8 @@ void PreserveAspectRatio()
 		rect.height = new_height / m_height;
 		sfView_setViewport(view, rect);
     }
+
+	windowScale = (1.0/320.0) * sfView_getSize(view).x;// height;
 
 	sfRenderWindow_setView(window, view);
 }
@@ -253,7 +256,7 @@ void I_GetEvent(void)
 			break;
 		}
 	}
-	I_HandleMouse(window);
+	I_HandleMouse(window, windowScale);
 
 }
 

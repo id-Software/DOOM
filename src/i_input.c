@@ -5,6 +5,7 @@
 #include <stdio.h>
 
 unsigned int mouse_state = 0;
+int usemouse = 1;
 int oldmouseX = 0;
 int oldMouseY = 0;
 
@@ -27,13 +28,16 @@ int AccelerateMouse(int val)
     }
 }
 
-void I_HandleMouse(sfRenderWindow* window)
+void I_HandleMouse(sfRenderWindow* window, float windowScale)
 {
-    sfVector2i rawmouse = sfMouse_getPositionRenderWindow(window);
-    sfVector2f mouse = sfRenderWindow_mapPixelToCoords(window, rawmouse, sfRenderWindow_getView(window));
+    if(usemouse)
+    {
+        
+    }
+    sfVector2i mouse = sfMouse_getPositionRenderWindow(window);
+    mouse.x /= windowScale;
+    mouse.y /= windowScale;
 
-
-    //return if it's within deadzone
     int tempx = oldmouseX;
     int tempy = oldMouseY;
     oldmouseX = mouse.x;
@@ -53,7 +57,7 @@ void I_HandleMouse(sfRenderWindow* window)
         D_PostEvent(&event);
     }
 
-    sfRenderWindow_setMouseCursorVisible(window, mouseLock);
+    sfRenderWindow_setMouseCursorVisible(window, !mouseLock);
     //lock mouse
     if(mouseLock)
     {
@@ -61,6 +65,8 @@ void I_HandleMouse(sfRenderWindow* window)
         sfVector2i lockedPosition;
         lockedPosition.x = windowsize.x/2;
         lockedPosition.y = windowsize.y/2;
+        oldmouseX = lockedPosition.x;
+        oldMouseY = lockedPosition.y;
         sfMouse_setPositionRenderWindow(lockedPosition, window);
     }
 }

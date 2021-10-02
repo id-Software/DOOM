@@ -661,7 +661,10 @@ void G_Ticker (void)
 	    break; 
 	} 
     }
-    
+    if(gamestate == GS_LEVEL)
+    {
+        mouseLock = !paused;
+    }
     // get commands, check consistancy,
     // and build new consistancy check
     buf = (gametic/ticdup)%BACKUPTICS; 

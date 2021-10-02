@@ -70,6 +70,7 @@ extern boolean chat_on; // in heads-up code
 // defaulted values
 //
 int mouseSensitivity; // has default
+boolean mouseLock = false;
 
 // Show messages has default, 0 = off, 1 = on
 int showMessages;
@@ -887,7 +888,7 @@ void M_Episode(int choice)
 //
 char detailNames[2][9] = {"M_GDHIGH", "M_GDLOW"};
 char msgNames[2][9] = {"M_MSGOFF", "M_MSGON"};
-
+char ptcNames[2][9] = {"M_PTCOFF", "M_PTCON"};
 void M_DrawOptions(void)
 {
     V_DrawPatchDirect(108, 15, 0, W_CacheLumpName("M_OPTTTL", PU_CACHE));
@@ -897,6 +898,9 @@ void M_DrawOptions(void)
 
     V_DrawPatchDirect(OptionsDef.x + 120, OptionsDef.y + LINEHEIGHT * messages, 0,
                       W_CacheLumpName(msgNames[showMessages], PU_CACHE));
+
+    V_DrawPatchDirect(OptionsDef.x + 120, OptionsDef.y + LINEHEIGHT * messages, 0,
+                      W_CacheLumpName(ptcNames[snd_DoPitchShift], PU_CACHE));
 
     M_DrawThermo(OptionsDef.x, OptionsDef.y + LINEHEIGHT * (mousesens + 1),
                  10, mouseSensitivity);
@@ -1503,6 +1507,7 @@ boolean M_Responder(event_t *ev)
         return false;
     }
 
+
     // Keys usable within menu
     switch (ch)
     {
@@ -1607,9 +1612,11 @@ boolean M_Responder(event_t *ev)
 void M_StartControlPanel(void)
 {
     // intro might call this repeatedly
+    
     if (menuactive)
+    {
         return;
-
+    }
     menuactive = 1;
     currentMenu = &MainDef;       // JDC
     itemOn = currentMenu->lastOn; // JDC

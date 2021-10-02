@@ -167,7 +167,7 @@ M_ReadFile
 //
 // DEFAULTS
 //
-int		usemouse;
+extern int		usemouse;
 int		usejoystick;
 
 extern int	key_right;
@@ -233,8 +233,6 @@ default_t	defaults[] =
     {"music_volume",&snd_MusicVolume, 8},
     {"show_messages",&showMessages, 1},
     {"sfx_pitchshift", &snd_DoPitchShift, 0},
-
-
 
 #ifdef LINUX
     {"mousedev", (int*)&mousedev, (long long int)"/dev/ttyS0"},
