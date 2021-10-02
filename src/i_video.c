@@ -241,13 +241,19 @@ void I_GetEvent(void)
 			break;
 
 		case sfEvtMouseMoved:
-			//I_HandleMouse(window);
+			printf("mouse move: {%d,%d}\n", event.mouseMove.x, event.mouseMove.y);
+			
 			break;
-
+		case sfEvtMouseButtonPressed:
+			I_Click(event.mouseButton.button, true);
+		case sfEvtMouseButtonReleased:
+			I_Click(event.mouseButton.button, false);
+			break;
 		default:
 			break;
 		}
 	}
+	I_HandleMouse(window);
 
 }
 

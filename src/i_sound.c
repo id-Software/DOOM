@@ -24,7 +24,7 @@
 static const char
 rcsid[] = "$Id: i_unix.c,v 1.5 1997/02/03 22:45:10 b1 Exp $";
 #include "mus2mid.h"
-
+#include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdarg.h>
@@ -89,7 +89,7 @@ static int flag = 0;
 #define MIXBUFFERSIZE		(SAMPLECOUNT*BUFMUL)
 
 #define SAMPLERATE		11025	// Hz
-#define MUSSAMPLERATE 22050
+#define MUSSAMPLERATE 44100
 #define SAMPLESIZE		2   	// 16bit
 
 // The actual lengths of all sound effects.
@@ -270,7 +270,6 @@ I_StartSound
   int		priority )
 {
   sfSound* sound = sounds[id];
-  
   sfSound_setVolume(sound,  (100.0 / 15.0) * (float)snd_SfxVolume);
   if(snd_DoPitchShift)
   {
@@ -445,7 +444,11 @@ void I_UnRegisterSong(int handle)
 
 void MidiShit(sfInt16* vec)
 { 
-  sfSoundBuffer* sbuffer = sfSoundBuffer_createFromSamples((void*)vec, cvector_size(vec), 2, MUSSAMPLERATE);
+  //remove previous song
+ // sfSoundBuffer_destroy(sfSound_getBuffer(music));
+ // sfSound_destroy(music);
+  music = sfSound_create();
+  sfSoundBuffer* sbuffer = sfSoundBuffer_createFromSamples(vec, cvector_size(vec), 2, MUSSAMPLERATE);
   sfSound_setBuffer(music, sbuffer);
   I_SetMusicVolume(snd_MusicVolume);
   cvector_free(vec);
@@ -468,7 +471,6 @@ void ConvertMidiToPcm(sfInt16* vec, char* midi, int length)
   fluid_player_t *player = new_fluid_player(synth);
   fluid_player_add_mem(player, midi, length);
   fluid_player_play(player);
-  int fuck;
   while(true)
   {
     read = fluid_synth_write_s16(synth, SFMIDI_LOADERFRAMES, &vec[dataSize], 0, 2, &vec[dataSize], 1, 2);
@@ -489,6 +491,7 @@ void ConvertMidiToPcm(sfInt16* vec, char* midi, int length)
       }
     }
   }
+  fluid_player_join(player);
   delete_fluid_player(player);
   MidiShit(vec);
 
@@ -522,13 +525,11 @@ int I_RegisterSong(void *data, int lumplength)
     Mus2Midi(data, midi, &length);
     ConvertMidiToPcm(vec, midi, length);
   }else{
-    printf("midi size: %d\n", strlen(data));
     ConvertMidiToPcm(vec, data, lumplength);
   }
 
-
   free(midi);
-
+  
   songid++;
   return songid - 1;
 }

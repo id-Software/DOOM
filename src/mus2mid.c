@@ -321,6 +321,5 @@ int Mus2Midi(unsigned char* bytes, unsigned char* out, int* len)
 		fwrite(midiTrackHeaderOut - sizeof(MidiHeaderChunk_t), bytes_written, 1, file);
 		fclose(file);
 	}*/
-	printf("wrote midi successfully %d\n ", bytes_written);
 	return 1;
 }
