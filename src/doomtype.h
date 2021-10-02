@@ -64,6 +64,7 @@ typedef unsigned char byte;
 #define MININT		((int)0x80000000)	
 #define MINLONG		((long)0x80000000)
 #endif
+#endif
 
 //-----------------------------------------------------------------------------
 //
