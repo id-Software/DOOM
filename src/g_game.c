@@ -26,7 +26,6 @@ rcsid[] = "$Id: g_game.c,v 1.8 1997/02/03 22:45:09 b1 Exp $";
 
 #include <string.h>
 #include <stdlib.h>
-
 #include "doomdef.h" 
 #include "doomstat.h"
 
@@ -167,7 +166,58 @@ int             joybstrafe;
 int             joybuse; 
 int             joybspeed; 
  
- 
+typedef enum controlscheme_t
+{
+    WASD,
+    ARROWKEYS
+}controlscheme_t;
+
+controlscheme_t controls;
+
+void G_SetWasd()
+{
+    key_up = 'w';
+    key_down = 's';
+    key_left = 'a';
+    key_right = 'd';
+    key_use = 'e';
+}
+
+void G_SetArrows()
+{
+    key_up = KEY_UPARROW;
+    key_down = KEY_DOWNARROW;
+    key_left = KEY_LEFTARROW;
+    key_right = KEY_RIGHTARROW;
+}
+
+void G_SetDefaultControls()
+{
+    G_SetWasd();
+    key_use = KEY_SPACE;
+    key_fire = KEY_RCTRL;
+    key_speed = KEY_RSHIFT;
+    key_strafe = KEY_LALT;
+
+}
+
+void G_ChangeControls(int scheme)
+{
+    switch (scheme)
+    {
+    case WASD:
+        G_SetWasd();
+        break;
+    case ARROWKEYS:
+        G_SetArrows();
+    
+    default:
+        break;
+    }
+    key_strafeleft = key_left;
+    key_straferight = key_right;
+}
+
  
 #define MAXPLMOVE		(forwardmove[1]) 
  
@@ -187,7 +237,7 @@ int             turnheld;				// for accelerative turning
  
 boolean		mousearray[4]; 
 boolean*	mousebuttons = &mousearray[1];		// allow [-1]
-
+boolean mouseMovement;
 // mouse values are used once 
 int             mousex;
 int		mousey;         
@@ -280,14 +330,38 @@ void G_BuildTiccmd (ticcmd_t* cmd)
     else 
 	tspeed = speed;
     // let movement keys cancel each other out
+
+    if(useMouse)
+    {
+        strafe = true;
+    }
+
+    //??? write better input code at some point BBQ!!!
+    boolean upkey, downkey, rightkey, leftkey, usekey;
+    if(controls == WASD)
+    {
+        upkey = characterkeys[key_up];
+        downkey = characterkeys[key_down];
+        leftkey = characterkeys[key_left];
+        rightkey = characterkeys[key_right];
+    }else{
+        upkey = gamekeydown[key_up];
+        downkey = gamekeydown[key_up];
+        leftkey = gamekeydown[key_left];
+        rightkey = gamekeydown[key_right];
+    }
+
+    printf("%d\n", leftkey);
+    
+
     if (strafe) 
     { 
-	if (gamekeydown[key_right]) 
+	if (rightkey) 
 	{
 	    // fprintf(stderr, "strafe right\n");
 	    side += sidemove[speed]; 
 	}
-	if (gamekeydown[key_left]) 
+	if (leftkey) 
 	{
 	    //	fprintf(stderr, "strafe left\n");
 	    side -= sidemove[speed]; 
@@ -300,7 +374,7 @@ void G_BuildTiccmd (ticcmd_t* cmd)
     } 
     else 
     { 
-	if (gamekeydown[key_right]) 
+	if (rightkey) 
 	    cmd->angleturn -= angleturn[tspeed]; 
 	if (gamekeydown[key_left]) 
 	    cmd->angleturn += angleturn[tspeed]; 
@@ -309,12 +383,15 @@ void G_BuildTiccmd (ticcmd_t* cmd)
 	if (joyxmove < 0) 
 	    cmd->angleturn += angleturn[tspeed]; 
     } 
- 
-    if (gamekeydown[key_up]) 
+    
+
+
+
+    if (upkey) 
     {
 	forward += forwardmove[speed]; 
     }
-    if (gamekeydown[key_down]) 
+    if (downkey) 
     {
 	// fprintf(stderr, "down\n");
 	forward -= forwardmove[speed]; 
@@ -408,12 +485,16 @@ void G_BuildTiccmd (ticcmd_t* cmd)
 	    dclickstate2 = 0; 
 	} 
     } 
- 
-    forward += mousey; 
-    if (strafe) 
-	side += mousex*2; 
-    else 
-	cmd->angleturn -= mousex*0x8; 
+
+    if(mouseMovement)
+    {
+        forward += mousey; 
+        if (strafe) 
+        side += mousex*2; 
+        else 
+        cmd->angleturn -= mousex*0x8; 
+    }
+
 
     mousex = mousey = 0; 
 	 
@@ -1207,7 +1288,9 @@ char	savename[256];
 void G_LoadGame (char* name) 
 { 
     strcpy (savename, name); 
-    gameaction = ga_loadgame; 
+    gameaction = ga_loadgame;
+    G_SetDefaultControls();
+ 
 } 
  
 #define VERSIONSIZE		16 

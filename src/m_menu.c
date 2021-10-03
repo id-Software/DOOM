@@ -128,6 +128,9 @@ char savegamestrings[10][SAVESTRINGSIZE];
 
 char endstring[160];
 
+
+extern boolean mouseMovement;
+
 //
 // MENU TYPEDEFS
 //
@@ -185,6 +188,9 @@ void M_QuitDOOM(int choice);
 
 void M_ChangeMessages(int choice);
 void M_EnableMouse(int choice);
+void M_ToggleMouseMovement(int choice);
+void M_ControlScheme(int choice);
+
 void M_ChangeSensitivity(int choice);
 void M_SfxVol(int choice);
 void M_SfxPitch(int choice);
@@ -346,12 +352,13 @@ menuitem_t OptionsMenu[] =
         {2, "M_SCRNSZ", M_SizeDisplay, 's'},
         {-1, "", 0},
         {2, "M_SNDOPT", M_Sound, 's'},
-        {2, "M_MOUSE", M_Mouse, 'm'}};
-        
+        {2, "M_MOUSE", M_Mouse, 'm'},
+        {2, "M_CONTR", M_ControlScheme, 'c'}
+    };
 
 menu_t OptionsDef =
     {
-        opt_end-1,
+        opt_end,
         &MainDef,
         OptionsMenu,
         M_DrawOptions,
@@ -362,12 +369,14 @@ menu_t OptionsDef =
 menuitem_t MouseMenu[] = 
 {
         {2, "M_MLOOK", M_EnableMouse, 'm'},
-        {2, "M_MSENS", M_ChangeSensitivity, 'm'}
+        {2, "M_MSENS", M_ChangeSensitivity, 'm'},
+         {-1, "", 0},
+        {2, "M_MOUSEM", M_ToggleMouseMovement, 'm'}
 };
 
 menu_t MouseDef = 
 {
-    2,
+    4,
     &OptionsDef,
     MouseMenu,
     M_DrawMouse,
@@ -545,6 +554,9 @@ void M_DrawMouse(void)
 
     M_DrawThermo(OptionsDef.x, OptionsDef.y + LINEHEIGHT * 2,
 		 10, mouseSensitivity);
+
+    V_DrawPatchDirect(MouseDef.x + 202, MouseDef.y + LINEHEIGHT * 3, 0,
+                      W_CacheLumpName(msgNames[mouseMovement], PU_CACHE));
 }
 
 void M_Mouse(void)
@@ -951,6 +963,9 @@ void M_Episode(int choice)
 //
 char detailNames[2][9] = {"M_GDHIGH", "M_GDLOW"};
 
+char controlSchemeNames[2][9] = {"M_WASD", "M_ARROW"};
+int controlIndex = 0;
+
 void M_DrawOptions(void)
 {
     V_DrawPatchDirect(108, 15, 0, W_CacheLumpName("M_OPTTTL", PU_CACHE));
@@ -964,7 +979,8 @@ void M_DrawOptions(void)
     M_DrawThermo(OptionsDef.x, OptionsDef.y + LINEHEIGHT * (scrnsize + 1),
                  9, screenSize);
 
-    
+    V_DrawPatchDirect(OptionsDef.x + 121, OptionsDef.y + LINEHEIGHT * (scrnsize+4), 0,
+                      W_CacheLumpName(controlSchemeNames[controlIndex], PU_CACHE));
 }
 
 void M_Options(int choice)
@@ -1098,6 +1114,30 @@ void M_QuitDOOM(int choice)
 void M_EnableMouse(int choice)
 {
     useMouse = choice;
+}
+
+void M_ToggleMouseMovement(int choice)
+{
+    mouseMovement = choice;
+}
+
+
+
+#define NUMCONTROLSCHEMES 2
+void M_ControlScheme(int choice)
+{
+    switch (choice)
+    {
+    case 0:
+        if (controlIndex)
+            controlIndex--;
+        break;
+    case 1:
+        if (controlIndex < NUMCONTROLSCHEMES-1)
+            controlIndex++;
+        break;
+    }
+    G_ChangeControls(controlIndex);
 }
 
 void M_ChangeSensitivity(int choice)

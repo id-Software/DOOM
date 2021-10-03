@@ -243,9 +243,7 @@ void I_GetEvent(void)
 			I_Quit();
 			break;
 
-		case sfEvtMouseMoved:
-			printf("mouse move: {%d,%d}\n", event.mouseMove.x, event.mouseMove.y);
-			
+		case sfEvtMouseMoved:			
 			break;
 		case sfEvtMouseButtonPressed:
 			I_Click(event.mouseButton.button, true);

@@ -31,6 +31,8 @@
 //
 // GAME
 //
+void G_SetDefaultControls();
+void G_ChangeControls(int scheme);
 void G_DeathMatchSpawnPlayer (int playernum);
 
 void G_InitNew (skill_t skill, int episode, int map);
