@@ -71,7 +71,6 @@ extern boolean chat_on; // in heads-up code
 // defaulted values
 //
 int mouseSensitivity; // has default
-boolean mouseLock = false;
 
 // Show messages has default, 0 = off, 1 = on
 int showMessages;
@@ -185,6 +184,7 @@ void M_ReadThis2(int choice);
 void M_QuitDOOM(int choice);
 
 void M_ChangeMessages(int choice);
+void M_EnableMouse(int choice);
 void M_ChangeSensitivity(int choice);
 void M_SfxVol(int choice);
 void M_SfxPitch(int choice);
@@ -193,6 +193,8 @@ void M_ChangeDetail(int choice);
 void M_SizeDisplay(int choice);
 void M_StartGame(int choice);
 void M_Sound(int choice);
+void M_Mouse(void);
+
 
 void M_FinishReadThis(int choice);
 void M_LoadSelect(int choice);
@@ -210,6 +212,8 @@ void M_DrawOptions(void);
 void M_DrawSound(void);
 void M_DrawLoad(void);
 void M_DrawSave(void);
+void M_DrawKeyBinds(void);
+void M_DrawMouse(void);
 
 void M_DrawSaveLoadBorder(int x, int y);
 void M_SetupNextMenu(menu_t *menudef);
@@ -341,18 +345,37 @@ menuitem_t OptionsMenu[] =
         {1, "M_DETAIL", M_ChangeDetail, 'g'},
         {2, "M_SCRNSZ", M_SizeDisplay, 's'},
         {-1, "", 0},
-        {2, "M_MSENS", M_ChangeSensitivity, 'm'},
-        {-1, "", 0},
-        {1, "M_SNDOPT", M_Sound, 's'}};
+        {2, "M_SNDOPT", M_Sound, 's'},
+        {2, "M_MOUSE", M_Mouse, 'm'}};
+        
 
 menu_t OptionsDef =
     {
-        opt_end,
+        opt_end-1,
         &MainDef,
         OptionsMenu,
         M_DrawOptions,
         60, 37,
         0};
+
+
+menuitem_t MouseMenu[] = 
+{
+        {2, "M_MLOOK", M_EnableMouse, 'm'},
+        {2, "M_MSENS", M_ChangeSensitivity, 'm'}
+};
+
+menu_t MouseDef = 
+{
+    2,
+    &OptionsDef,
+    MouseMenu,
+    M_DrawMouse,
+    60, 37,
+    0
+};
+
+
 
 //
 // Read This! MENU 1 & 2
@@ -509,6 +532,24 @@ void M_ReadSaveStrings(void)
         close(handle);
         LoadMenu[i].status = 1;
     }
+}
+
+char msgNames[2][9] = {"M_MSGOFF", "M_MSGON"};
+void M_DrawMouse(void)
+{
+    V_DrawPatchDirect(60, LINEHEIGHT, 0, W_CacheLumpName("M_MOPT", PU_CACHE));
+
+
+    V_DrawPatchDirect(MouseDef.x + 163, MouseDef.y, 0,
+                      W_CacheLumpName(msgNames[useMouse], PU_CACHE));
+
+    M_DrawThermo(OptionsDef.x, OptionsDef.y + LINEHEIGHT * 2,
+		 10, mouseSensitivity);
+}
+
+void M_Mouse(void)
+{
+    M_SetupNextMenu(&MouseDef);
 }
 
 //
@@ -909,7 +950,6 @@ void M_Episode(int choice)
 // M_Options
 //
 char detailNames[2][9] = {"M_GDHIGH", "M_GDLOW"};
-char msgNames[2][9] = {"M_MSGOFF", "M_MSGON"};
 
 void M_DrawOptions(void)
 {
@@ -921,11 +961,10 @@ void M_DrawOptions(void)
     V_DrawPatchDirect(OptionsDef.x + 120, OptionsDef.y + LINEHEIGHT * messages, 0,
                       W_CacheLumpName(msgNames[showMessages], PU_CACHE));
 
-    M_DrawThermo(OptionsDef.x, OptionsDef.y + LINEHEIGHT * (mousesens + 1),
-                 10, mouseSensitivity);
-
     M_DrawThermo(OptionsDef.x, OptionsDef.y + LINEHEIGHT * (scrnsize + 1),
                  9, screenSize);
+
+    
 }
 
 void M_Options(int choice)
@@ -1052,6 +1091,13 @@ void M_QuitDOOM(int choice)
         sprintf(endstring, "%s\n\n" DOSY, endmsg[(gametic % (NUM_QUITMESSAGES - 2)) + 1]);
 
     M_StartMessage(endstring, M_QuitResponse, true);
+}
+
+
+
+void M_EnableMouse(int choice)
+{
+    useMouse = choice;
 }
 
 void M_ChangeSensitivity(int choice)

@@ -167,7 +167,6 @@ M_ReadFile
 //
 // DEFAULTS
 //
-extern int		usemouse;
 int		usejoystick;
 
 extern int	key_right;
@@ -240,7 +239,7 @@ default_t	defaults[] =
 #endif
 
 
-    {"use_mouse",&usemouse, 1},
+    {"use_mouse",&useMouse, 1},
     {"mouseb_fire",&mousebfire,0},
     {"mouseb_strafe",&mousebstrafe,1},
     {"mouseb_forward",&mousebforward,2},

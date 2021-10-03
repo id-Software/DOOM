@@ -270,6 +270,7 @@ void I_StartTic (void)
     if (!window)
 		return;
 	sfRenderWindow_clear(window, sfColor_fromRGB(0,0,0));
+	
 	I_GetEvent();
 
 
