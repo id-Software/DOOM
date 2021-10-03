@@ -200,7 +200,7 @@ void M_SizeDisplay(int choice);
 void M_StartGame(int choice);
 void M_Sound(int choice);
 void M_Mouse(void);
-
+void M_ChangeKey(void);
 
 void M_FinishReadThis(int choice);
 void M_LoadSelect(int choice);
@@ -367,14 +367,21 @@ menu_t OptionsDef =
 
 
 
+//M_ChangeKey is a dummy function 
 menuitem_t KeyBindMenu[] =
 {
-        {2, "M_FORWAR", M_KeySelection, 'k'}
+    {0, "M_FORWAR", M_ChangeKey, 'm'},
+    {0, "M_BACK", M_ChangeKey, 'm'},
+    {0, "M_LEFT", M_ChangeKey, 'm'},
+    {0, "M_RIGHT", M_ChangeKey, 'm'},
+    {0, "M_USE", M_ChangeKey, 'm'},
+    {0, "M_FIRE", M_ChangeKey, 'm'},
+    {0, "M_RUN", M_ChangeKey, 'm'}
 };
 
 menu_t KeyBindsDef = 
 {
-    1,
+    7,
     &MainDef,
     KeyBindMenu,
     M_DrawKeyBinds,
@@ -996,13 +1003,53 @@ void M_DrawOptions(void)
     M_DrawThermo(OptionsDef.x, OptionsDef.y + LINEHEIGHT * (scrnsize + 1),
                  9, screenSize);
 
-    V_DrawPatchDirect(OptionsDef.x + 121, OptionsDef.y + LINEHEIGHT * (scrnsize+4), 0,
-                      W_CacheLumpName(controlSchemeNames[controlIndex], PU_CACHE));
+    // V_DrawPatchDirect(OptionsDef.x + 121, OptionsDef.y + LINEHEIGHT * (scrnsize+4), 0,
+    //                   W_CacheLumpName(controlSchemeNames[controlIndex], PU_CACHE));
 }
+
+typedef struct keybind_t
+{
+    int* key;
+    int code;
+}keybind_t;
+
+keybind_t keybinds[] = 
+{
+    {&key_up, KEY_UPARROW},
+    {&key_down, KEY_DOWNARROW},
+    {&key_left, KEY_LEFTARROW},
+    {&key_right, KEY_RIGHTARROW},
+    {&key_use, KEY_SPACE},
+    {&key_fire, KEY_RCTRL},
+    {&key_speed, KEY_RSHIFT}
+};
+
+int keybindCount = 7;
+
+void M_DrawKeyBind(int i)
+{
+
+    M_WriteText(KeyBindsDef.x + 144, KeyBindsDef.y + 8 + i * LINEHEIGHT, keybinds[i].key);
+}
+
+void M_ChangeKey()
+{
+
+}
+
 
 void M_DrawKeyBinds(void)
 {
     int key = itemOn;
+    for(int i = 0; i < keybindCount; i++)
+    {
+        M_DrawKeyBind(i);
+    }
+
+    if(sfKeyboard_isKeyPressed(KEY_ENTER))
+    {
+
+    }
 }
 
 void M_KeySelection(void)
