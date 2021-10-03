@@ -166,22 +166,7 @@ int             joybstrafe;
 int             joybuse; 
 int             joybspeed; 
  
-typedef enum controlscheme_t
-{
-    WASD,
-    ARROWKEYS
-}controlscheme_t;
 
-controlscheme_t controls;
-
-void G_SetWasd()
-{
-    key_up = 'w';
-    key_down = 's';
-    key_left = 'a';
-    key_right = 'd';
-    key_use = 'e';
-}
 
 void G_SetArrows()
 {
@@ -193,7 +178,7 @@ void G_SetArrows()
 
 void G_SetDefaultControls()
 {
-    G_SetWasd();
+    G_SetArrows();
     key_use = sfKeySpace;
     key_fire = sfKeyLControl;
     key_speed = sfKeyLShift;
@@ -203,17 +188,7 @@ void G_SetDefaultControls()
 
 void G_ChangeControls(int scheme)
 {
-    switch (scheme)
-    {
-    case WASD:
-        G_SetWasd();
-        break;
-    case ARROWKEYS:
-        G_SetArrows();
-    
-    default:
-        break;
-    }
+   
     key_strafeleft = key_left;
     key_straferight = key_right;
 }
@@ -338,21 +313,11 @@ void G_BuildTiccmd (ticcmd_t* cmd)
 
     //??? write better input code at some point BBQ!!!
     boolean upkey, downkey, rightkey, leftkey, usekey;
-    if(controls == WASD)
-    {
-        upkey = characterkeys[key_up];
-        downkey = characterkeys[key_down];
-        leftkey = characterkeys[key_left];
-        rightkey = characterkeys[key_right];
-    }else{
-        upkey = gamekeydown[key_up];
-        downkey = gamekeydown[key_up];
-        leftkey = gamekeydown[key_left];
-        rightkey = gamekeydown[key_right];
-    }
+    upkey = gamekeydown[key_up];
+    downkey = gamekeydown[key_down];
+    rightkey = gamekeydown[key_right];
+    leftkey = gamekeydown[key_left];    
 
-    printf("%d\n", leftkey);
-    
 
     if (strafe) 
     { 
