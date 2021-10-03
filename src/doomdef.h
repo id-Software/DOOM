@@ -25,6 +25,7 @@
 
 #include <stdio.h>
 #include <string.h>
+#include <SFML/Window.h>
 
 //
 // Global parameters/defines.
@@ -248,26 +249,27 @@ typedef enum
 // This is the stuff configured by Setup.Exe.
 // Most key data are simple ascii (uppercased).
 //
-#define KEY_RIGHTARROW	0xae
-#define KEY_SPACE 32;
-#define KEY_LEFTARROW	0xac
-#define KEY_UPARROW	0xad
-#define KEY_DOWNARROW	0xaf
-#define KEY_ESCAPE	27
-#define KEY_ENTER	13
-#define KEY_TAB		9
-#define KEY_F1		(0x80+0x3b)
-#define KEY_F2		(0x80+0x3c)
-#define KEY_F3		(0x80+0x3d)
-#define KEY_F4		(0x80+0x3e)
-#define KEY_F5		(0x80+0x3f)
-#define KEY_F6		(0x80+0x40)
-#define KEY_F7		(0x80+0x41)
-#define KEY_F8		(0x80+0x42)
-#define KEY_F9		(0x80+0x43)
-#define KEY_F10		(0x80+0x44)
-#define KEY_F11		(0x80+0x57)
-#define KEY_F12		(0x80+0x58)
+
+#define KEY_RIGHTARROW	sfKeyRight
+#define KEY_SPACE sfKeySpace
+#define KEY_LEFTARROW	sfKeyLeft
+#define KEY_UPARROW	sfKeyUp
+#define KEY_DOWNARROW	sfKeyDown
+#define KEY_ESCAPE	sfKeyEscape
+#define KEY_ENTER	sfKeyReturn
+#define KEY_TAB		sfKeyTab
+#define KEY_F1		sfKeyF1
+#define KEY_F2		sfKeyF2
+#define KEY_F3		sfKeyF3
+#define KEY_F4		sfKeyF4
+#define KEY_F5		sfKeyF5
+#define KEY_F6		sfKeyF6
+#define KEY_F7		sfKeyF7
+#define KEY_F8		sfKeyF8
+#define KEY_F9		sfKeyF9
+#define KEY_F10		sfKeyF10
+#define KEY_F11		sfKeyF11
+#define KEY_F12		sfKeyF12
 
 #define KEY_BACKSPACE	127
 #define KEY_PAUSE	0xff
@@ -281,6 +283,7 @@ typedef enum
 
 #define KEY_LALT	KEY_RALT
 
+#define KEY_W       
 
 
 // DOOM basic types (boolean),

@@ -185,19 +185,19 @@ void G_SetWasd()
 
 void G_SetArrows()
 {
-    key_up = KEY_UPARROW;
-    key_down = KEY_DOWNARROW;
-    key_left = KEY_LEFTARROW;
-    key_right = KEY_RIGHTARROW;
+    key_up = sfKeyUp;
+    key_down = sfKeyDown;
+    key_left = sfKeyLeft;
+    key_right = sfKeyRight;
 }
 
 void G_SetDefaultControls()
 {
     G_SetWasd();
-    key_use = KEY_SPACE;
-    key_fire = KEY_RCTRL;
-    key_speed = KEY_RSHIFT;
-    key_strafe = KEY_LALT;
+    key_use = sfKeySpace;
+    key_fire = sfKeyLControl;
+    key_speed = sfKeyLShift;
+    key_strafe = sfKeyLAlt;
 
 }
 
@@ -376,7 +376,7 @@ void G_BuildTiccmd (ticcmd_t* cmd)
     { 
 	if (rightkey) 
 	    cmd->angleturn -= angleturn[tspeed]; 
-	if (gamekeydown[key_left]) 
+	if (leftkey) 
 	    cmd->angleturn += angleturn[tspeed]; 
 	if (joyxmove > 0) 
 	    cmd->angleturn -= angleturn[tspeed]; 
@@ -393,18 +393,18 @@ void G_BuildTiccmd (ticcmd_t* cmd)
     }
     if (downkey) 
     {
-	// fprintf(stderr, "down\n");
 	forward -= forwardmove[speed]; 
     }
     if (joyymove < 0) 
 	forward += forwardmove[speed]; 
     if (joyymove > 0) 
 	forward -= forwardmove[speed]; 
+    
     if(strafe)
     {
-        if (gamekeydown[key_straferight]) 
+        if (rightkey) 
         side += sidemove[speed]; 
-        if (gamekeydown[key_strafeleft]) 
+        if (leftkey) 
         side -= sidemove[speed];
     }
     
@@ -598,7 +598,7 @@ boolean G_Responder (event_t* ev)
 { 
     // allow spy mode changes even during the demo
     if (gamestate == GS_LEVEL && ev->type == ev_keydown 
-	&& ev->data1 == KEY_F12 && (singledemo || !deathmatch) )
+	&& ev->data1 == sfKeyF1 && (singledemo || !deathmatch) )
     {
 	// spy mode 
 	do 
@@ -655,7 +655,7 @@ boolean G_Responder (event_t* ev)
         break;
 
         case ev_keydown: 
-	if (ev->data1 == KEY_PAUSE) 
+	if (ev->data1 == sfKeyPause) 
 	{ 
 	    sendpause = true; 
 	    return true; 

@@ -189,8 +189,8 @@ void M_QuitDOOM(int choice);
 void M_ChangeMessages(int choice);
 void M_EnableMouse(int choice);
 void M_ToggleMouseMovement(int choice);
-void M_ControlScheme(int choice);
-
+void M_KeySelection(void);
+void M_ControlScheme(void);
 void M_ChangeSensitivity(int choice);
 void M_SfxVol(int choice);
 void M_SfxPitch(int choice);
@@ -365,6 +365,23 @@ menu_t OptionsDef =
         60, 37,
         0};
 
+
+
+menuitem_t KeyBindMenu[] =
+{
+        {2, "M_FORWAR", M_KeySelection, 'k'}
+};
+
+menu_t KeyBindsDef = 
+{
+    1,
+    &MainDef,
+    KeyBindMenu,
+    M_DrawKeyBinds,
+    60,
+    37,
+    0
+};
 
 menuitem_t MouseMenu[] = 
 {
@@ -983,6 +1000,16 @@ void M_DrawOptions(void)
                       W_CacheLumpName(controlSchemeNames[controlIndex], PU_CACHE));
 }
 
+void M_DrawKeyBinds(void)
+{
+    int key = itemOn;
+}
+
+void M_KeySelection(void)
+{
+
+}
+
 void M_Options(int choice)
 {
     M_SetupNextMenu(&OptionsDef);
@@ -1124,20 +1151,9 @@ void M_ToggleMouseMovement(int choice)
 
 
 #define NUMCONTROLSCHEMES 2
-void M_ControlScheme(int choice)
+void M_ControlScheme()
 {
-    switch (choice)
-    {
-    case 0:
-        if (controlIndex)
-            controlIndex--;
-        break;
-    case 1:
-        if (controlIndex < NUMCONTROLSCHEMES-1)
-            controlIndex++;
-        break;
-    }
-    G_ChangeControls(controlIndex);
+    M_SetupNextMenu(&KeyBindsDef);
 }
 
 void M_ChangeSensitivity(int choice)

@@ -74,71 +74,6 @@ int sfKeyAscii(void)
 	return event.text.unicode;
 }
 
-//converts sfKey to key
-int sfKeyConvert(void)
-{
-	int rc;
-    switch(event.key.code)
-    {
-      case sfKeyLeft:	rc = KEY_LEFTARROW;	break;
-      case sfKeyRight:	rc = KEY_RIGHTARROW;	break;
-      case sfKeyDown:	rc = KEY_DOWNARROW;	break;
-      case sfKeyUp:	rc = KEY_UPARROW;	break;
-      case sfKeyEscape:
-	  case sfKeyMenu:
-	  	rc = KEY_ESCAPE;	break;
-      case sfKeyReturn:	rc = KEY_ENTER;		break;
-      case sfKeyTab:	rc = KEY_TAB;		break;
-      case sfKeyF1:	rc = KEY_F1;		break;
-      case sfKeyF2:	rc = KEY_F2;		break;
-      case sfKeyF3:	rc = KEY_F3;		break;
-      case sfKeyF4:	rc = KEY_F4;		break;
-      case sfKeyF5:	rc = KEY_F5;		break;
-      case sfKeyF6:	rc = KEY_F6;		break;
-      case sfKeyF7:	rc = KEY_F7;		break;
-      case sfKeyF8:	rc = KEY_F8;		break;
-      case sfKeyF9:	rc = KEY_F9;		break;
-      case sfKeyF10:	rc = KEY_F10;		break;
-      case sfKeyF11:	rc = KEY_F11;		break;
-      case sfKeyF12:	rc = KEY_F12;		break;
-	
-      case sfKeyBack:
-      case sfKeyDelete:	rc = KEY_BACKSPACE;	break;
-
-      case sfKeyPause:	rc = KEY_PAUSE;		break;
-
-      case sfKeyEqual:	rc = KEY_EQUALS;	break;
-
-      case sfKeySubtract:	rc = KEY_MINUS;		break;
-
-	  case sfKeySpace: rc= KEY_SPACE; break;
-
-      case sfKeyLShift:
-      case sfKeyRShift:
-		rc = KEY_RSHIFT;
-	break;
-	
-      case sfKeyLControl:
-      case sfKeyRControl:
-		rc = KEY_RCTRL;
-	break;
-	
-      case sfKeyLAlt:
-		rc = KEY_LALT;
-	  case sfKeyRAlt:
-	  	rc = KEY_RALT;
-	break;
-      default:
-	if (rc >= sfKeySpace && rc <= sfKeyTilde)
-	    rc = rc - sfKeySpace + ' ';
-	if (rc >= 'A' && rc <= 'Z')
-	    rc = rc - 'A' + 'a';
-
-	break;
-    }
-    return rc;
-
-}
 
 void I_ShutdownGraphics(void)
 {
@@ -216,7 +151,7 @@ void I_GetEvent(void)
 
 		case sfEvtKeyPressed:
 			d_event.type = ev_keydown;
-			int key = sfKeyConvert();
+			int key = event.key.code;
 			if(key > 0 && key < 256)
 			{
 				d_event.data1 = key;
@@ -227,7 +162,7 @@ void I_GetEvent(void)
 
 		case sfEvtKeyReleased:
 			d_event.type = ev_keyup;
-			int keyreleased = sfKeyConvert();
+			int keyreleased = event.key.code;
 			if(keyreleased > 0 && keyreleased < 256)
 			{
 				d_event.data1 = keyreleased;
