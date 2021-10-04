@@ -52,9 +52,9 @@ void I_HandleMouse(sfRenderWindow* window, float windowScale)
             event.data1 = mouse_state;
             event.data2 = AccelerateMouse(mouse.x);
             event.data3 = AccelerateMouse(mouse.y);
-
             D_PostEvent(&event);
         }
+
 
         if(mouseLocked)
         {

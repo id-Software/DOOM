@@ -381,9 +381,9 @@ menuitem_t KeyBindMenu[] =
     {0, "M_BACK", M_ChangeKey, 'm'},
     {0, "M_LEFT", M_ChangeKey, 'm'},
     {0, "M_RIGHT", M_ChangeKey, 'm'},
-    {0, "M_USE", M_ChangeKey, 'm'},
     {0, "M_FIRE", M_ChangeKey, 'm'},
-    {0, "M_RUN", M_ChangeKey, 'm'}
+    {0, "M_RUN", M_ChangeKey, 'm'},
+    {0, "M_USE", M_ChangeKey, 'm'}
 };
 
 menu_t KeyBindsDef = 
@@ -1015,23 +1015,27 @@ void M_DrawOptions(void)
 }
 
 
-//don't ask I used an int* array but that didn't seem to like extern int
-//I'm tired and want to sleep 
-typedef struct keybind_t
+int keybinds[] = 
 {
-    int(*key);
-}keybind_t;
-
-keybind_t keybinds[] = 
-{
-    {&key_up},
-    {&key_down},
-    {&key_left},
-    {&key_right},
-    {&key_fire},
-    {&key_speed},
-    {&key_use}
+    KEY_UPARROW,
+    KEY_DOWNARROW,
+    KEY_LEFTARROW,
+    KEY_RIGHTARROW,
+    KEY_RCTRL,
+    KEY_RSHIFT,
+    KEY_SPACE
 };
+
+void RebindKeys()
+{
+    key_up = keybinds[0];
+    key_down = keybinds[1];
+    key_left = keybinds[2];
+    key_right = keybinds[3];
+    key_fire = keybinds[4];
+    key_speed = keybinds[5];
+    key_use = keybinds[6];
+}
 
 char bindnames[7][32] = {"Forward", "Backwards", "Left", "Right", "Use", "Fire", "Run"};
 
@@ -1065,16 +1069,16 @@ char keynames[sfKeyCount][16] =
     "X",
     "Y",
     "Z",
-    "Num0",
-    "Num1",
-    "Num2",
-    "Num3",
-    "Num4",
-    "Num5",
-    "Num6",
-    "Num7",
-    "Num8",
-    "Num9",
+    "0",
+    "1",
+    "2",
+    "3",
+    "4",
+    "5",
+    "6",
+    "7",
+    "8",
+    "9",
     "Escape", //unbindable 
     "LControl",
     "LShift",
@@ -1083,7 +1087,38 @@ char keynames[sfKeyCount][16] =
     "RControl",
     "RShift",
     "RAlt",
-    "RSystem"
+    "RSystem",
+    "Menu",
+    "[",
+    "]",
+    ";",
+    ",",
+    ".",
+    "\'",
+    "/",
+    "\\",
+    "~",
+    "=",
+    "-",
+    "Space",
+    "Enter",
+    "Backspace",
+    "Tab",
+    "Page Up",
+    "Page Down",
+    "End",
+    "Home",
+    "Insert",
+    "Delete",
+    "+",
+    "-",
+    "*",
+    "/",
+    "Left",
+    "Right",
+    "Up",
+    "Down"
+
 };
 int unbindablekeys[] = 
 {
@@ -1096,12 +1131,7 @@ int unbindableKeyCount = 4;
 
 void M_DrawKeyBind(int i)
 {
-    char* text = malloc(64);
-    int keyid = (int)keybinds[i].key;
-    sprintf(text, "%d", keyid);
-    printf("%s\n", text);
-    M_WriteText(KeyBindsDef.x + 144, KeyBindsDef.y + 8 + i * LINEHEIGHT, text);
-    free(text);
+    M_WriteText(KeyBindsDef.x + 144, KeyBindsDef.y + 8 + i * LINEHEIGHT, keynames[keybinds[i]]);
 }
 
 void M_ChangeKey()
@@ -1125,6 +1155,9 @@ boolean KeyCanBeBound(int key)
 void M_DrawKeyBinds(void)
 {
     int key = itemOn;
+    static int keywait = 0;
+    static int keytime = 15;
+
     for(int i = 0; i < keybindCount; i++)
     {
         M_DrawKeyBind(i);
@@ -1138,25 +1171,30 @@ void M_DrawKeyBinds(void)
 
     if(sfKeyboard_isKeyPressed(KEY_ENTER) && canMoveSelection)
     {
-        canMoveSelection = false;
-        S_StartSound(NULL, sfx_pstop);
-        return;
+        if(I_GetTime() % keytime == 0)
+        {
+            keywait = I_GetTime() + 5;
+            canMoveSelection = false;
+            S_StartSound(NULL, sfx_pstop);
+            return;
+        }
+
     }
 
     if(!canMoveSelection)
     {
         char* text = malloc(64);
         sprintf(text, "Press new key bind for %s", bindnames[itemOn]);
-        M_WriteText(0, 184, text);
+        M_WriteText(0, 0, text);
         free(text);
 
         if(lastPressedKey > -1 && KeyCanBeBound(lastPressedKey))
         {
-            keybinds[key].key = lastPressedKey;
-            printf("made new selection %s\n", keynames[(int)keybinds[key].key]);
+            keybinds[key] = lastPressedKey;
+            printf("made new selection %s\n", keynames[keybinds[key]]);
             lastPressedKey = -1;
             canMoveSelection = true;
-
+            RebindKeys();
 
             //apply keybinds, fuck you I'm tired I'll write a better thing tommorow I hate pointers
         }
