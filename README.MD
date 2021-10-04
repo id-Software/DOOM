@@ -1,5 +1,5 @@
 # Neapolitan Doom
-Neapolitan Doom aims to maintain vanilla gameplay while adding 
+Neapolitan Doom aims to maintain vanilla gameplay while adding new enhancements and modding features
 
 ## features
 - infinite monster height fix
