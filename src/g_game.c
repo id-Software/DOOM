@@ -28,7 +28,7 @@ rcsid[] = "$Id: g_game.c,v 1.8 1997/02/03 22:45:09 b1 Exp $";
 #include <stdlib.h>
 #include "doomdef.h" 
 #include "doomstat.h"
-
+#include "m_keybinds.h"
 #include "z_zone.h"
 #include "f_finale.h"
 #include "m_argv.h"
@@ -141,50 +141,10 @@ short		consistancy[MAXPLAYERS][BACKUPTICS];
 byte*		savebuffer;
 
 extern boolean mouseLocked;
- 
-// 
-// controls (have defaults) 
-// 
-int             key_right;
-int		key_left;
-
-int		key_up;
-int		key_down; 
-int             key_strafeleft;
-int		key_straferight;  
-int             key_fire;
-int		key_use;
-int		key_strafe;
-int		key_speed; 
- 
-int             mousebfire; 
-int             mousebstrafe; 
-int             mousebforward; 
- 
-int             joybfire; 
-int             joybstrafe; 
-int             joybuse; 
-int             joybspeed; 
- 
 
 
-void G_SetArrows()
-{
-    key_up = sfKeyUp;
-    key_down = sfKeyDown;
-    key_left = sfKeyLeft;
-    key_right = sfKeyRight;
-}
 
-void G_SetDefaultControls()
-{
-    G_SetArrows();
-    key_use = sfKeySpace;
-    key_fire = sfKeyLControl;
-    key_speed = sfKeyLShift;
-    key_strafe = sfKeyLAlt;
 
-}
 
 void G_ChangeControls(int scheme)
 {
@@ -1254,7 +1214,6 @@ void G_LoadGame (char* name)
 { 
     strcpy (savename, name); 
     gameaction = ga_loadgame;
-    G_SetDefaultControls();
  
 } 
  

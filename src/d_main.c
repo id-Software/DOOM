@@ -1035,7 +1035,6 @@ void D_DoomMain (void)
 
     printf ("W_Init: Init WADfiles.\n");
     W_InitMultipleFiles (wadfiles);
-    G_SetDefaultControls();
 
     // Check for -file in shareware
     if (modifiedgame)

@@ -31,7 +31,6 @@
 //
 // GAME
 //
-void G_SetDefaultControls();
 void G_ChangeControls(int scheme);
 void G_DeathMatchSpawnPlayer (int playernum);
 

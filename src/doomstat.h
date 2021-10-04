@@ -118,22 +118,7 @@ extern int snd_SfxDevice;
 // Config file? Same disclaimer as above.
 extern int snd_DesiredMusicDevice;
 extern int snd_DesiredSfxDevice;
-
-//key binds
-
-// 
-extern int             key_right;
-extern int		key_left;
-
-extern int		key_up ;
-extern int		key_down; 
-extern int             key_strafeleft;
-extern int		key_straferight;  
-extern int             key_fire;
-extern int		key_use;
-extern int		key_strafe;
-extern int		key_speed; 
-
+#include "m_keybinds.h"
 
 // -------------------------
 // Status flags for refresh.

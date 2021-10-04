@@ -58,7 +58,7 @@ sfTexture* texture;
 sfSprite* image;
 
 sfEvent event;
-
+extern int lastPressedKey;
 
 // Fake mouse handling.
 // This cannot work properly w/o DGA.
@@ -155,8 +155,11 @@ void I_GetEvent(void)
 			if(key > 0 && key < 256)
 			{
 				d_event.data1 = key;
+				lastPressedKey = key;
 				D_PostEvent(&d_event);
 			}
+
+			
 
 			break;
 

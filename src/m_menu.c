@@ -62,10 +62,14 @@ static const char
 
 #include "m_menu.h"
 
+#include "m_keybinds.h"
+
 extern patch_t *hu_font[HU_FONTSIZE];
 extern boolean message_dontfuckwithme;
 
 extern boolean chat_on; // in heads-up code
+
+
 
 //
 // defaulted values
@@ -97,6 +101,9 @@ int messageLastMenuActive;
 
 // timed message = no input from user
 boolean messageNeedsInput;
+
+//prevents user from moving selection while changing an input
+boolean canMoveSelection = true;
 
 void (*messageRoutine)(int response);
 
@@ -1007,29 +1014,94 @@ void M_DrawOptions(void)
     //                   W_CacheLumpName(controlSchemeNames[controlIndex], PU_CACHE));
 }
 
+
+//don't ask I used an int* array but that didn't seem to like extern int
+//I'm tired and want to sleep 
 typedef struct keybind_t
 {
-    int* key;
-    int code;
+    int(*key);
 }keybind_t;
 
 keybind_t keybinds[] = 
 {
-    {&key_up, KEY_UPARROW},
-    {&key_down, KEY_DOWNARROW},
-    {&key_left, KEY_LEFTARROW},
-    {&key_right, KEY_RIGHTARROW},
-    {&key_use, KEY_SPACE},
-    {&key_fire, KEY_RCTRL},
-    {&key_speed, KEY_RSHIFT}
+    {&key_up},
+    {&key_down},
+    {&key_left},
+    {&key_right},
+    {&key_fire},
+    {&key_speed},
+    {&key_use}
 };
 
+char bindnames[7][32] = {"Forward", "Backwards", "Left", "Right", "Use", "Fire", "Run"};
+
 int keybindCount = 7;
+//typing this out really makes me miss C#
+char keynames[sfKeyCount][16] = 
+{
+    "A",
+    "B",
+    "C",
+    "D",
+    "E",
+    "F",
+    "G",
+    "H",
+    "I",
+    "J",
+    "K",
+    "L",
+    "M",
+    "N",
+    "O",
+    "P",
+    "Q",
+    "R",
+    "S",
+    "T",
+    "U",
+    "V",
+    "W",
+    "X",
+    "Y",
+    "Z",
+    "Num0",
+    "Num1",
+    "Num2",
+    "Num3",
+    "Num4",
+    "Num5",
+    "Num6",
+    "Num7",
+    "Num8",
+    "Num9",
+    "Escape", //unbindable 
+    "LControl",
+    "LShift",
+    "LAlt",
+    "LSystem", //unbindable
+    "RControl",
+    "RShift",
+    "RAlt",
+    "RSystem"
+};
+int unbindablekeys[] = 
+{
+    sfKeyEscape,
+    sfKeyLSystem,
+    sfKeyRSystem,
+    sfKeyEnter
+};
+int unbindableKeyCount = 4;
 
 void M_DrawKeyBind(int i)
 {
-
-    M_WriteText(KeyBindsDef.x + 144, KeyBindsDef.y + 8 + i * LINEHEIGHT, keybinds[i].key);
+    char* text = malloc(64);
+    int keyid = (int)keybinds[i].key;
+    sprintf(text, "%d", keyid);
+    printf("%s\n", text);
+    M_WriteText(KeyBindsDef.x + 144, KeyBindsDef.y + 8 + i * LINEHEIGHT, text);
+    free(text);
 }
 
 void M_ChangeKey()
@@ -1037,6 +1109,18 @@ void M_ChangeKey()
 
 }
 
+int lastPressedKey = -1;
+
+
+boolean KeyCanBeBound(int key)
+{
+    if(key <= -1){return;}
+    for(int i = 0; i < unbindableKeyCount; i++)
+    {
+        if(unbindablekeys[i] == key){return false;}
+    }
+    return true;
+}
 
 void M_DrawKeyBinds(void)
 {
@@ -1046,10 +1130,38 @@ void M_DrawKeyBinds(void)
         M_DrawKeyBind(i);
     }
 
-    if(sfKeyboard_isKeyPressed(KEY_ENTER))
+    if(sfKeyboard_isKeyPressed(KEY_ESCAPE) || sfKeyboard_isKeyPressed(KEY_BACKSPACE))
     {
-
+        canMoveSelection = true;
+        return;
     }
+
+    if(sfKeyboard_isKeyPressed(KEY_ENTER) && canMoveSelection)
+    {
+        canMoveSelection = false;
+        S_StartSound(NULL, sfx_pstop);
+        return;
+    }
+
+    if(!canMoveSelection)
+    {
+        char* text = malloc(64);
+        sprintf(text, "Press new key bind for %s", bindnames[itemOn]);
+        M_WriteText(0, 184, text);
+        free(text);
+
+        if(lastPressedKey > -1 && KeyCanBeBound(lastPressedKey))
+        {
+            keybinds[key].key = lastPressedKey;
+            printf("made new selection %s\n", keynames[(int)keybinds[key].key]);
+            lastPressedKey = -1;
+            canMoveSelection = true;
+
+
+            //apply keybinds, fuck you I'm tired I'll write a better thing tommorow I hate pointers
+        }
+    }
+
 }
 
 void M_KeySelection(void)
@@ -1682,22 +1794,28 @@ boolean M_Responder(event_t *ev)
     case KEY_DOWNARROW:
         do
         {
-            if (itemOn + 1 > currentMenu->numitems - 1)
+            if(canMoveSelection)
+            {
+                if (itemOn + 1 > currentMenu->numitems - 1)
                 itemOn = 0;
-            else
-                itemOn++;
-            S_StartSound(NULL, sfx_pstop);
+                else
+                    itemOn++;
+                S_StartSound(NULL, sfx_pstop);
+            }
         } while (currentMenu->menuitems[itemOn].status == -1);
         return true;
 
     case KEY_UPARROW:
         do
         {
-            if (!itemOn)
+            if(canMoveSelection)
+            {
+                if (!itemOn)
                 itemOn = currentMenu->numitems - 1;
-            else
-                itemOn--;
-            S_StartSound(NULL, sfx_pstop);
+                else
+                    itemOn--;
+                S_StartSound(NULL, sfx_pstop);
+            }
         } while (currentMenu->menuitems[itemOn].status == -1);
         return true;
 
@@ -1738,6 +1856,7 @@ boolean M_Responder(event_t *ev)
         return true;
 
     case KEY_ESCAPE:
+        
         currentMenu->lastOn = itemOn;
         M_ClearMenus();
         S_StartSound(NULL, sfx_swtchx);
