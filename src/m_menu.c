@@ -353,17 +353,16 @@ menuitem_t OptionsMenu[] =
     {
         {1, "M_ENDGAM", M_EndGame, 'e'},
         {1, "M_MESSG", M_ChangeMessages, 'm'},
-        {1, "M_DETAIL", M_ChangeDetail, 'g'},
         {2, "M_SCRNSZ", M_SizeDisplay, 's'},
         {-1, "", 0},
         {2, "M_SNDOPT", M_Sound, 's'},
         {2, "M_CONTR", M_ControlScheme, 'c'},
         {2, "M_ENHANC", M_Enhancements, 'e'},
-    };
-    
+};
+
 menu_t OptionsDef =
     {
-        opt_end,
+        opt_end - 1,
         &MainDef,
         OptionsMenu,
         M_DrawOptions,
@@ -381,7 +380,7 @@ menuitem_t KeyBindMenu[] =
         {0, "M_RUN", M_ChangeKey, 'm'},
         {0, "M_USE", M_ChangeKey, 'm'},
         {2, "M_MOUSE", M_Mouse, 'm'},
-    };
+};
 
 menu_t KeyBindsDef =
     {
@@ -393,20 +392,18 @@ menu_t KeyBindsDef =
         37,
         0};
 
-menuitem_t EnhancementsMenu[] = 
-{
-    {2, "M_FIXMON", N_MonsterHeightFix, 'e'}
-};
+menuitem_t EnhancementsMenu[] =
+    {
+        {2, "M_FIXMON", N_MonsterHeightFix, 'e'}};
 
-menu_t EnhancementsDef = 
-{
-    1,
-    &MainDef,
-    EnhancementsMenu,
-    M_DrawEnhancements,
-    60,37,
-    0
-};
+menu_t EnhancementsDef =
+    {
+        1,
+        &MainDef,
+        EnhancementsMenu,
+        M_DrawEnhancements,
+        60, 37,
+        0};
 
 menuitem_t MouseMenu[] =
     {
@@ -1007,20 +1004,18 @@ void M_DrawOptions(void)
 {
     V_DrawPatchDirect(108, 15, 0, W_CacheLumpName("M_OPTTTL", PU_CACHE));
 
-    V_DrawPatchDirect(OptionsDef.x + 175, OptionsDef.y + LINEHEIGHT * detail, 0,
-                      W_CacheLumpName(detailNames[detailLevel], PU_CACHE));
+    // V_DrawPatchDirect(OptionsDef.x + 175, OptionsDef.y + LINEHEIGHT * detail, 0,
+    //                   W_CacheLumpName(detailNames[detailLevel], PU_CACHE));
 
     V_DrawPatchDirect(OptionsDef.x + 120, OptionsDef.y + LINEHEIGHT * messages, 0,
                       W_CacheLumpName(msgNames[showMessages], PU_CACHE));
 
-    M_DrawThermo(OptionsDef.x, OptionsDef.y + LINEHEIGHT * (scrnsize + 1),
+    M_DrawThermo(OptionsDef.x, OptionsDef.y + LINEHEIGHT * (scrnsize),
                  9, screenSize);
 
     // V_DrawPatchDirect(OptionsDef.x + 121, OptionsDef.y + LINEHEIGHT * (scrnsize+4), 0,
     //                   W_CacheLumpName(controlSchemeNames[controlIndex], PU_CACHE));
 }
-
-
 
 void RebindKeys()
 {
@@ -1032,8 +1027,6 @@ void RebindKeys()
     key_speed = keybinds[5];
     key_use = keybinds[6];
 }
-
-
 
 void M_DrawKeyBind(int i)
 {
@@ -1247,7 +1240,6 @@ void M_ToggleMouseMovement(int choice)
 {
     mouseMovement = choice;
 }
-
 
 void M_Enhancements(void)
 {
