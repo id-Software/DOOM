@@ -357,14 +357,13 @@ menuitem_t OptionsMenu[] =
         {2, "M_SCRNSZ", M_SizeDisplay, 's'},
         {-1, "", 0},
         {2, "M_SNDOPT", M_Sound, 's'},
-        {2, "M_MOUSE", M_Mouse, 'm'},
         {2, "M_CONTR", M_ControlScheme, 'c'},
         {2, "M_ENHANC", M_Enhancements, 'e'},
     };
     
 menu_t OptionsDef =
     {
-        opt_end+1,
+        opt_end,
         &MainDef,
         OptionsMenu,
         M_DrawOptions,
@@ -380,11 +379,13 @@ menuitem_t KeyBindMenu[] =
         {0, "M_RIGHT", M_ChangeKey, 'm'},
         {0, "M_FIRE", M_ChangeKey, 'm'},
         {0, "M_RUN", M_ChangeKey, 'm'},
-        {0, "M_USE", M_ChangeKey, 'm'}};
+        {0, "M_USE", M_ChangeKey, 'm'},
+        {2, "M_MOUSE", M_Mouse, 'm'},
+    };
 
 menu_t KeyBindsDef =
     {
-        7,
+        8,
         &MainDef,
         KeyBindMenu,
         M_DrawKeyBinds,
