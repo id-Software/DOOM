@@ -270,9 +270,9 @@ typedef enum
 #define KEY_F10		sfKeyF10
 #define KEY_F11		sfKeyF11
 #define KEY_F12		sfKeyF12
-
-#define KEY_BACKSPACE	127
+#define KEY_BACKSPACE	sfKeyBack
 #define KEY_PAUSE	0xff
+
 
 #define KEY_EQUALS	0x3d
 #define KEY_MINUS	0x2d
@@ -282,8 +282,6 @@ typedef enum
 #define KEY_RALT	(0x80+0x38)
 
 #define KEY_LALT	KEY_RALT
-
-#define KEY_W       
 
 
 // DOOM basic types (boolean),

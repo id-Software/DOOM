@@ -351,7 +351,6 @@ enum
 
 menuitem_t OptionsMenu[] =
     {
-        {1, "M_ENDGAM", M_EndGame, 'e'},
         {1, "M_MESSG", M_ChangeMessages, 'm'},
         {2, "M_SCRNSZ", M_SizeDisplay, 's'},
         {-1, "", 0},
@@ -362,7 +361,7 @@ menuitem_t OptionsMenu[] =
 
 menu_t OptionsDef =
     {
-        opt_end - 1,
+        opt_end - 2,
         &MainDef,
         OptionsMenu,
         M_DrawOptions,
@@ -1004,10 +1003,10 @@ void M_DrawOptions(void)
 {
     V_DrawPatchDirect(108, 15, 0, W_CacheLumpName("M_OPTTTL", PU_CACHE));
 
-    V_DrawPatchDirect(OptionsDef.x + 120, OptionsDef.y + LINEHEIGHT * messages, 0,
+    V_DrawPatchDirect(OptionsDef.x + 120, OptionsDef.y + LINEHEIGHT * (messages-1), 0,
                       W_CacheLumpName(msgNames[showMessages], PU_CACHE));
 
-    M_DrawThermo(OptionsDef.x, OptionsDef.y + LINEHEIGHT * (scrnsize),
+    M_DrawThermo(OptionsDef.x, OptionsDef.y + LINEHEIGHT * (scrnsize-1),
                  9, screenSize);
 }
 
