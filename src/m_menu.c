@@ -1004,17 +1004,11 @@ void M_DrawOptions(void)
 {
     V_DrawPatchDirect(108, 15, 0, W_CacheLumpName("M_OPTTTL", PU_CACHE));
 
-    // V_DrawPatchDirect(OptionsDef.x + 175, OptionsDef.y + LINEHEIGHT * detail, 0,
-    //                   W_CacheLumpName(detailNames[detailLevel], PU_CACHE));
-
     V_DrawPatchDirect(OptionsDef.x + 120, OptionsDef.y + LINEHEIGHT * messages, 0,
                       W_CacheLumpName(msgNames[showMessages], PU_CACHE));
 
     M_DrawThermo(OptionsDef.x, OptionsDef.y + LINEHEIGHT * (scrnsize),
                  9, screenSize);
-
-    // V_DrawPatchDirect(OptionsDef.x + 121, OptionsDef.y + LINEHEIGHT * (scrnsize+4), 0,
-    //                   W_CacheLumpName(controlSchemeNames[controlIndex], PU_CACHE));
 }
 
 void RebindKeys()

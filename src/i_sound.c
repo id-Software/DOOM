@@ -69,83 +69,13 @@ void I_SoundDelTimer( void );
 
 #include <SFML/Audio.h>
 
-
-// A quick hack to establish a protocol between
-// synchronous mix buffer updates and asynchronous
-// audio writes. Probably redundant with gametic.
-static int flag = 0;
-
-// The number of internal mixing channels,
-//  the samples calculated for each mixing step,
-//  the size of the 16bit, 2 hardware channel (stereo)
-//  mixing buffer, and the samplerate of the raw data.
-
-
-// Needed for calling the actual sound output.
 #define SAMPLECOUNT		512
-#define NUM_CHANNELS		8
-// It is 2 for 16bit, and 2 for two channels.
-#define BUFMUL                  4
-#define MIXBUFFERSIZE		(SAMPLECOUNT*BUFMUL)
-
 #define SAMPLERATE		11025	// Hz
 #define MUSSAMPLERATE 44100
 #define SAMPLESIZE		2   	// 16bit
 
 // The actual lengths of all sound effects.
 int 		lengths[NUMSFX];
-
-// The actual output device.
-int	audio_fd;
-
-// The global mixing buffer.
-// Basically, samples from all active internal channels
-//  are modifed and added, and stored in the buffer
-//  that is submitted to the audio device.
-signed short	mixbuffer[MIXBUFFERSIZE];
-
-
-// The channel step amount...
-unsigned int	channelstep[NUM_CHANNELS];
-// ... and a 0.16 bit remainder of last step.
-unsigned int	channelstepremainder[NUM_CHANNELS];
-
-
-// The channel data pointers, start and end.
-unsigned char*	channels[NUM_CHANNELS];
-unsigned char*	channelsend[NUM_CHANNELS];
-
-
-// Time/gametic that the channel started playing,
-//  used to determine oldest, which automatically
-//  has lowest priority.
-// In case number of active sounds exceeds
-//  available channels.
-int		channelstart[NUM_CHANNELS];
-
-// The sound in channel handles,
-//  determined on registration,
-//  might be used to unregister/stop/modify,
-//  currently unused.
-int 		channelhandles[NUM_CHANNELS];
-
-// SFX id of the playing sound effect.
-// Used to catch duplicates (like chainsaw).
-int		channelids[NUM_CHANNELS];			
-
-// Pitch to stepping lookup, unused.
-int		steptable[256];
-
-// Volume lookups.
-int		vol_lookup[128*256];
-
-// Hardware left and right channel volume lookup.
-int*		channelleftvol_lookup[NUM_CHANNELS];
-int*		channelrightvol_lookup[NUM_CHANNELS];
-
-
-
-
 
 //
 // This function loads the sound data from the WAD lump,
@@ -169,16 +99,6 @@ getsfx
     //  in zone memory.
     sprintf(name, "ds%s", sfxname);
 
-    // Now, there is a severe problem with the
-    //  sound handling, in it is not (yet/anymore)
-    //  gamemode aware. That means, sounds from
-    //  DOOM II will be requested even with DOOM
-    //  shareware.
-    // The sound list is wired into sounds.c,
-    //  which sets the external variable.
-    // I do not do runtime patches to that
-    //  variable. Instead, we will use a
-    //  default sound for replacement.
     if ( W_CheckNumForName(name) == -1 )
       sfxlump = W_GetNumForName("dspistol");
     else
@@ -186,12 +106,6 @@ getsfx
     
     size = W_LumpLength( sfxlump );
 
-    // Debug.
-    // fprintf( stderr, "." );
-    //fprintf( stderr, " -loading  %s (lump %d, %d bytes)\n",
-    //	     sfxname, sfxlump, size );
-    //fflush( stderr );
-    
     sfx = (unsigned char*)W_CacheLumpNum( sfxlump, PU_STATIC );
 
     // Pads the sound effect out to the mixing buffer size.
