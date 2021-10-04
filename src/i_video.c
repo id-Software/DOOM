@@ -17,7 +17,7 @@
 // $Log:$
 //
 // DESCRIPTION:
-//	DOOM graphics stuff for X11, UNIX.
+//	DOOM graphics stuff for SFML
 //
 //-----------------------------------------------------------------------------
 
@@ -26,19 +26,10 @@ rcsid[] = "$Id: i_x.c,v 1.6 1997/02/03 22:45:10 b1 Exp $";
 static const char window_title[] = "Neapolitan Doom";
 #include <stdlib.h>
 #include <unistd.h>
-#include <sys/ipc.h>
-#include <sys/shm.h>
 
 #include <SFML/Graphics.h>
 #include <SFML/System.h>
 #include <SFML/Window.h>
-
-#include <stdarg.h>
-#include <sys/time.h>
-#include <sys/types.h>
-#include <sys/socket.h>
-
-#include <netinet/in.h>
 #include <errno.h>
 #include <signal.h>
 
@@ -152,21 +143,19 @@ void I_GetEvent(void)
 		case sfEvtKeyPressed:
 			d_event.type = ev_keydown;
 			int key = event.key.code;
-			if(key > 0 && key < 256)
+			if(key >= 0 && key < 256)
 			{
 				d_event.data1 = key;
 				lastPressedKey = key;
 				D_PostEvent(&d_event);
 			}
 
-			
-
 			break;
 
 		case sfEvtKeyReleased:
 			d_event.type = ev_keyup;
 			int keyreleased = event.key.code;
-			if(keyreleased > 0 && keyreleased < 256)
+			if(keyreleased >= 0 && keyreleased < 256)
 			{
 				d_event.data1 = keyreleased;
 				D_PostEvent(&d_event);

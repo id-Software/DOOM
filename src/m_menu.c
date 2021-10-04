@@ -179,6 +179,9 @@ char skullName[2][/*8*/ 9] = {"M_SKULL1", "M_SKULL2"};
 // current menudef
 menu_t *currentMenu;
 
+//timer that prevents the enter key from being pressed after opening a scene
+int keytime = 15;
+
 //
 // PROTOTYPES
 //
@@ -1125,7 +1128,7 @@ int unbindablekeys[] =
     sfKeyEscape,
     sfKeyLSystem,
     sfKeyRSystem,
-    sfKeyEnter
+    sfKeyReturn
 };
 int unbindableKeyCount = 4;
 
@@ -1156,7 +1159,6 @@ void M_DrawKeyBinds(void)
 {
     int key = itemOn;
     static int keywait = 0;
-    static int keytime = 15;
 
     for(int i = 0; i < keybindCount; i++)
     {
@@ -1171,7 +1173,7 @@ void M_DrawKeyBinds(void)
 
     if(sfKeyboard_isKeyPressed(KEY_ENTER) && canMoveSelection)
     {
-        if(I_GetTime() % keytime == 0)
+        if(I_GetTime() > keytime)
         {
             keywait = I_GetTime() + 5;
             canMoveSelection = false;
@@ -1350,6 +1352,7 @@ void M_ToggleMouseMovement(int choice)
 #define NUMCONTROLSCHEMES 2
 void M_ControlScheme()
 {
+    keytime = I_GetTime() + 15;
     M_SetupNextMenu(&KeyBindsDef);
 }
 
