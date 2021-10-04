@@ -340,7 +340,6 @@ boolean PIT_CheckThing (mobj_t* thing)
     }
 
     //fix infinite monster height
-
     if(tmthing->player && thing->flags & MF_SHOOTABLE)
     {
         if (tmthing->z > thing->z + thing->height)

@@ -170,8 +170,7 @@ short skullAnimCounter; // skull animation counter
 short whichSkull;       // which skull to draw
 
 // graphic name of skulls
-// warning: initializer-string for array of chars is too long
-char skullName[2][/*8*/ 9] = {"M_SKULL1", "M_SKULL2"};
+char skullName[2][9] = {"M_SKULL1", "M_SKULL2"};
 
 // current menudef
 menu_t *currentMenu;
@@ -197,6 +196,10 @@ void M_ChangeMessages(int choice);
 void M_EnableMouse(int choice);
 void M_ToggleMouseMovement(int choice);
 void M_ControlScheme(void);
+<<<<<<< HEAD
+void M_Enhancements(void);
+=======
+>>>>>>> 777aaed09e59d0337a6cbb5526309dae00cc5154
 void M_ChangeSensitivity(int choice);
 void M_SfxVol(int choice);
 void M_SfxPitch(int choice);
@@ -207,7 +210,10 @@ void M_StartGame(int choice);
 void M_Sound(int choice);
 void M_Mouse(void);
 void M_ChangeKey(void);
+<<<<<<< HEAD
+=======
 
+>>>>>>> 777aaed09e59d0337a6cbb5526309dae00cc5154
 void M_FinishReadThis(int choice);
 void M_LoadSelect(int choice);
 void M_SaveSelect(int choice);
@@ -226,6 +232,10 @@ void M_DrawLoad(void);
 void M_DrawSave(void);
 void M_DrawKeyBinds(void);
 void M_DrawMouse(void);
+<<<<<<< HEAD
+void M_DrawEnhancements(void);
+=======
+>>>>>>> 777aaed09e59d0337a6cbb5526309dae00cc5154
 
 void M_DrawSaveLoadBorder(int x, int y);
 void M_SetupNextMenu(menu_t *menudef);
@@ -358,11 +368,17 @@ menuitem_t OptionsMenu[] =
         {-1, "", 0},
         {2, "M_SNDOPT", M_Sound, 's'},
         {2, "M_MOUSE", M_Mouse, 'm'},
+<<<<<<< HEAD
+        {2, "M_CONTR", M_ControlScheme, 'c'},
+        {2, "M_ENHANC", M_Enhancements, 'e'},
+    };
+=======
         {2, "M_CONTR", M_ControlScheme, 'c'}};
+>>>>>>> 777aaed09e59d0337a6cbb5526309dae00cc5154
 
 menu_t OptionsDef =
     {
-        opt_end,
+        opt_end+1,
         &MainDef,
         OptionsMenu,
         M_DrawOptions,
@@ -390,6 +406,24 @@ menu_t KeyBindsDef =
         37,
         0};
 
+<<<<<<< HEAD
+menuitem_t EnhancementsMenu[] = 
+{
+    {2, "M_FIXMON", N_MonsterHeightFix, 'e'}
+};
+
+menu_t EnhancementsDef = 
+{
+    1,
+    &MainDef,
+    EnhancementsMenu,
+    M_DrawEnhancements,
+    60,37,
+    0
+};
+
+=======
+>>>>>>> 777aaed09e59d0337a6cbb5526309dae00cc5154
 menuitem_t MouseMenu[] =
     {
         {2, "M_MLOOK", M_EnableMouse, 'm'},
@@ -561,6 +595,16 @@ void M_ReadSaveStrings(void)
     }
 }
 
+<<<<<<< HEAD
+char onoffnames[2][9] = {"M_ENABLE", "M_DSABLE"};
+void M_DrawEnhancements(void)
+{
+    V_DrawPatchDirect(MouseDef.x + 193, MouseDef.y, 0,
+                      W_CacheLumpName(onoffnames[fixInfiniteMonsterHeight], PU_CACHE));
+}
+
+=======
+>>>>>>> 777aaed09e59d0337a6cbb5526309dae00cc5154
 char msgNames[2][9] = {"M_MSGOFF", "M_MSGON"};
 void M_DrawMouse(void)
 {
@@ -1223,6 +1267,14 @@ void M_ToggleMouseMovement(int choice)
     mouseMovement = choice;
 }
 
+<<<<<<< HEAD
+
+void M_Enhancements(void)
+{
+    M_SetupNextMenu(&EnhancementsDef);
+}
+=======
+>>>>>>> 777aaed09e59d0337a6cbb5526309dae00cc5154
 #define NUMCONTROLSCHEMES 2
 void M_ControlScheme()
 {

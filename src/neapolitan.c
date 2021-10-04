@@ -110,6 +110,10 @@ int keybinds[] =
 int unbindableKeyCount = 4;
 int snd_DoPitchShift;
 
+<<<<<<< HEAD
+boolean fixInfiniteMonsterHeight = 1;
+=======
+>>>>>>> 777aaed09e59d0337a6cbb5526309dae00cc5154
 
 void N_WriteConfig()
 {
@@ -123,7 +127,12 @@ void N_WriteConfig()
     cJSON_AddNumberToObject(json, "key_fire", key_fire);
     cJSON_AddNumberToObject(json, "key_use", key_use);
     cJSON_AddNumberToObject(json, "key_run", key_speed);
+<<<<<<< HEAD
+    cJSON_AddBoolToObject(json, "mouse_look", useMouse);
+    cJSON_AddBoolToObject(json, "monster_height_fix", fixInfiniteMonsterHeight);
+=======
     cJSON_AddBoolToObject(json, "mouseLook", useMouse);
+>>>>>>> 777aaed09e59d0337a6cbb5526309dae00cc5154
     char* text = cJSON_Print(json);
 
     FILE* file = fopen(NEAPOLITAN_SAVEFILE, "w");
@@ -153,5 +162,16 @@ void N_LoadConfig(void)
     keybinds[5] = cJSON_GetObjectItem(json, "key_run")->valueint;
     keybinds[6] = cJSON_GetObjectItem(json, "key_use")->valueint;
 
+<<<<<<< HEAD
+    useMouse = cJSON_IsTrue(cJSON_GetObjectItem(json, "mouse_look"));
+    fixInfiniteMonsterHeight =  cJSON_IsTrue(cJSON_GetObjectItem(json, "monster_height_fix"));
+}
+
+
+void N_MonsterHeightFix(int choice)
+{
+    fixInfiniteMonsterHeight = choice;
+=======
     useMouse = cJSON_GetObjectItem(json, "mouseLook")->valueint;
+>>>>>>> 777aaed09e59d0337a6cbb5526309dae00cc5154
 }
