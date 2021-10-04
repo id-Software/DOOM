@@ -36,7 +36,7 @@ static const char
 #include "dstrings.h"
 
 #include "d_main.h"
-
+#include "neapolitan.h"
 #include "i_system.h"
 #include "i_sound.h"
 #include "i_video.h"
@@ -68,8 +68,6 @@ extern patch_t *hu_font[HU_FONTSIZE];
 extern boolean message_dontfuckwithme;
 
 extern boolean chat_on; // in heads-up code
-
-
 
 //
 // defaulted values
@@ -135,7 +133,6 @@ char savegamestrings[10][SAVESTRINGSIZE];
 
 char endstring[160];
 
-
 extern boolean mouseMovement;
 
 //
@@ -199,7 +196,6 @@ void M_QuitDOOM(int choice);
 void M_ChangeMessages(int choice);
 void M_EnableMouse(int choice);
 void M_ToggleMouseMovement(int choice);
-void M_KeySelection(void);
 void M_ControlScheme(void);
 void M_ChangeSensitivity(int choice);
 void M_SfxVol(int choice);
@@ -243,7 +239,6 @@ void M_StartControlPanel(void);
 void M_StartMessage(char *string, void *routine, boolean input);
 void M_StopMessage(void);
 void M_ClearMenus(void);
-
 
 //
 // DOOM MENU
@@ -363,8 +358,7 @@ menuitem_t OptionsMenu[] =
         {-1, "", 0},
         {2, "M_SNDOPT", M_Sound, 's'},
         {2, "M_MOUSE", M_Mouse, 'm'},
-        {2, "M_CONTR", M_ControlScheme, 'c'}
-    };
+        {2, "M_CONTR", M_ControlScheme, 'c'}};
 
 menu_t OptionsDef =
     {
@@ -375,50 +369,42 @@ menu_t OptionsDef =
         60, 37,
         0};
 
-
-
-//M_ChangeKey is a dummy function 
+//M_ChangeKey is a dummy function
 menuitem_t KeyBindMenu[] =
-{
-    {0, "M_FORWAR", M_ChangeKey, 'm'},
-    {0, "M_BACK", M_ChangeKey, 'm'},
-    {0, "M_LEFT", M_ChangeKey, 'm'},
-    {0, "M_RIGHT", M_ChangeKey, 'm'},
-    {0, "M_FIRE", M_ChangeKey, 'm'},
-    {0, "M_RUN", M_ChangeKey, 'm'},
-    {0, "M_USE", M_ChangeKey, 'm'}
-};
+    {
+        {0, "M_FORWAR", M_ChangeKey, 'm'},
+        {0, "M_BACK", M_ChangeKey, 'm'},
+        {0, "M_LEFT", M_ChangeKey, 'm'},
+        {0, "M_RIGHT", M_ChangeKey, 'm'},
+        {0, "M_FIRE", M_ChangeKey, 'm'},
+        {0, "M_RUN", M_ChangeKey, 'm'},
+        {0, "M_USE", M_ChangeKey, 'm'}};
 
-menu_t KeyBindsDef = 
-{
-    7,
-    &MainDef,
-    KeyBindMenu,
-    M_DrawKeyBinds,
-    60,
-    37,
-    0
-};
+menu_t KeyBindsDef =
+    {
+        7,
+        &MainDef,
+        KeyBindMenu,
+        M_DrawKeyBinds,
+        60,
+        37,
+        0};
 
-menuitem_t MouseMenu[] = 
-{
+menuitem_t MouseMenu[] =
+    {
         {2, "M_MLOOK", M_EnableMouse, 'm'},
         {2, "M_MSENS", M_ChangeSensitivity, 'm'},
-         {-1, "", 0},
-        {2, "M_MOUSEM", M_ToggleMouseMovement, 'm'}
-};
+        {-1, "", 0},
+        {2, "M_MOUSEM", M_ToggleMouseMovement, 'm'}};
 
-menu_t MouseDef = 
-{
-    4,
-    &OptionsDef,
-    MouseMenu,
-    M_DrawMouse,
-    60, 37,
-    0
-};
-
-
+menu_t MouseDef =
+    {
+        4,
+        &OptionsDef,
+        MouseMenu,
+        M_DrawMouse,
+        60, 37,
+        0};
 
 //
 // Read This! MENU 1 & 2
@@ -450,8 +436,7 @@ enum
 
 menuitem_t ReadMenu2[] =
     {
-        {1, "", M_FinishReadThis, 0}
-    };
+        {1, "", M_FinishReadThis, 0}};
 
 menu_t ReadDef2 =
     {
@@ -481,12 +466,11 @@ menuitem_t SoundMenu[] =
         {2, "M_MUSVOL", M_MusicVol, 'm'},
         {-1, "", 0},
         {2, "M_SNDPCH", M_SfxPitch, 'p'},
-        {-1, "", 0}
-    };
+        {-1, "", 0}};
 
 menu_t SoundDef =
     {
-        sound_end+1,
+        sound_end + 1,
         &OptionsDef,
         SoundMenu,
         M_DrawSound,
@@ -582,12 +566,11 @@ void M_DrawMouse(void)
 {
     V_DrawPatchDirect(60, LINEHEIGHT, 0, W_CacheLumpName("M_MOPT", PU_CACHE));
 
-
     V_DrawPatchDirect(MouseDef.x + 163, MouseDef.y, 0,
                       W_CacheLumpName(msgNames[useMouse], PU_CACHE));
 
     M_DrawThermo(OptionsDef.x, OptionsDef.y + LINEHEIGHT * 2,
-		 10, mouseSensitivity);
+                 10, mouseSensitivity);
 
     V_DrawPatchDirect(MouseDef.x + 202, MouseDef.y + LINEHEIGHT * 3, 0,
                       W_CacheLumpName(msgNames[mouseMovement], PU_CACHE));
@@ -844,8 +827,6 @@ void M_DrawReadThis2(void)
 // Change Sfx & Music volumes
 //
 
-
-
 char sndNames[2][9] = {"M_MSGOFF", "M_MSGON"};
 
 void M_DrawSound(void)
@@ -858,11 +839,8 @@ void M_DrawSound(void)
     M_DrawThermo(SoundDef.x, SoundDef.y + LINEHEIGHT * (music_vol + 1),
                  16, snd_MusicVolume);
 
-    
-
     V_DrawPatchDirect(SoundDef.x + 163, SoundDef.y + LINEHEIGHT * (music_vol + 2), 0,
                       W_CacheLumpName(sndNames[snd_DoPitchShift], PU_CACHE));
-    
 }
 
 void M_Sound(int choice)
@@ -1018,16 +996,6 @@ void M_DrawOptions(void)
 }
 
 
-int keybinds[] = 
-{
-    KEY_UPARROW,
-    KEY_DOWNARROW,
-    KEY_LEFTARROW,
-    KEY_RIGHTARROW,
-    KEY_RCTRL,
-    KEY_RSHIFT,
-    KEY_SPACE
-};
 
 void RebindKeys()
 {
@@ -1040,97 +1008,7 @@ void RebindKeys()
     key_use = keybinds[6];
 }
 
-char bindnames[7][32] = {"Forward", "Backwards", "Left", "Right", "Use", "Fire", "Run"};
 
-int keybindCount = 7;
-//typing this out really makes me miss C#
-char keynames[sfKeyCount][16] = 
-{
-    "A",
-    "B",
-    "C",
-    "D",
-    "E",
-    "F",
-    "G",
-    "H",
-    "I",
-    "J",
-    "K",
-    "L",
-    "M",
-    "N",
-    "O",
-    "P",
-    "Q",
-    "R",
-    "S",
-    "T",
-    "U",
-    "V",
-    "W",
-    "X",
-    "Y",
-    "Z",
-    "0",
-    "1",
-    "2",
-    "3",
-    "4",
-    "5",
-    "6",
-    "7",
-    "8",
-    "9",
-    "Escape", //unbindable 
-    "LControl",
-    "LShift",
-    "LAlt",
-    "LSystem", //unbindable
-    "RControl",
-    "RShift",
-    "RAlt",
-    "RSystem",
-    "Menu",
-    "[",
-    "]",
-    ";",
-    ",",
-    ".",
-    "\'",
-    "/",
-    "\\",
-    "~",
-    "=",
-    "-",
-    "Space",
-    "Enter",
-    "Backspace",
-    "Tab",
-    "Page Up",
-    "Page Down",
-    "End",
-    "Home",
-    "Insert",
-    "Delete",
-    "+",
-    "-",
-    "*",
-    "/",
-    "Left",
-    "Right",
-    "Up",
-    "Down"
-
-};
-int unbindablekeys[] = 
-{
-    sfKeyEscape,
-    sfKeyLSystem,
-    sfKeyRSystem,
-    sfKeyReturn
-};
-int unbindableKeyCount = 4;
 
 void M_DrawKeyBind(int i)
 {
@@ -1139,18 +1017,22 @@ void M_DrawKeyBind(int i)
 
 void M_ChangeKey()
 {
-
 }
 
 int lastPressedKey = -1;
 
-
 boolean KeyCanBeBound(int key)
 {
-    if(key <= -1){return;}
-    for(int i = 0; i < unbindableKeyCount; i++)
+    if (key <= -1)
     {
-        if(unbindablekeys[i] == key){return false;}
+        return;
+    }
+    for (int i = 0; i < unbindableKeyCount; i++)
+    {
+        if (unbindablekeys[i] == key)
+        {
+            return false;
+        }
     }
     return true;
 }
@@ -1160,53 +1042,49 @@ void M_DrawKeyBinds(void)
     int key = itemOn;
     static int keywait = 0;
 
-    for(int i = 0; i < keybindCount; i++)
+    for (int i = 0; i < keybindCount; i++)
     {
         M_DrawKeyBind(i);
     }
 
-    if(sfKeyboard_isKeyPressed(KEY_ESCAPE) || sfKeyboard_isKeyPressed(KEY_BACKSPACE))
+    if (sfKeyboard_isKeyPressed(KEY_ESCAPE) || sfKeyboard_isKeyPressed(KEY_BACKSPACE))
     {
         canMoveSelection = true;
         return;
     }
 
-    if(sfKeyboard_isKeyPressed(KEY_ENTER) && canMoveSelection)
+    if (sfKeyboard_isKeyPressed(KEY_ENTER) && canMoveSelection)
     {
-        if(I_GetTime() > keytime)
+        if (I_GetTime() > keytime)
         {
             keywait = I_GetTime() + 5;
             canMoveSelection = false;
             S_StartSound(NULL, sfx_pstop);
             return;
         }
-
     }
 
-    if(!canMoveSelection)
+    if (!canMoveSelection)
     {
-        char* text = malloc(64);
+        char *text = malloc(64);
         sprintf(text, "Press new key bind for %s", bindnames[itemOn]);
         M_WriteText(0, 0, text);
         free(text);
 
-        if(lastPressedKey > -1 && KeyCanBeBound(lastPressedKey))
+        if (lastPressedKey > -1 && KeyCanBeBound(lastPressedKey))
         {
             keybinds[key] = lastPressedKey;
             printf("made new selection %s\n", keynames[keybinds[key]]);
             lastPressedKey = -1;
             canMoveSelection = true;
             RebindKeys();
-
             //apply keybinds, fuck you I'm tired I'll write a better thing tommorow I hate pointers
         }
     }
-
 }
 
 void M_KeySelection(void)
 {
-
 }
 
 void M_Options(int choice)
@@ -1335,8 +1213,6 @@ void M_QuitDOOM(int choice)
     M_StartMessage(endstring, M_QuitResponse, true);
 }
 
-
-
 void M_EnableMouse(int choice)
 {
     useMouse = choice;
@@ -1346,8 +1222,6 @@ void M_ToggleMouseMovement(int choice)
 {
     mouseMovement = choice;
 }
-
-
 
 #define NUMCONTROLSCHEMES 2
 void M_ControlScheme()
@@ -1657,7 +1531,6 @@ boolean M_Responder(event_t *ev)
         }
     }
 
-
     // Save Game string input
     if (saveStringEnter)
     {
@@ -1683,7 +1556,7 @@ boolean M_Responder(event_t *ev)
             break;
 
         default:
-            if(ev->type != ev_textentered)
+            if (ev->type != ev_textentered)
                 break;
             ch = toupper(ev->data2);
             if (ch != 32)
@@ -1828,17 +1701,16 @@ boolean M_Responder(event_t *ev)
         return false;
     }
 
-
     // Keys usable within menu
     switch (ch)
     {
     case KEY_DOWNARROW:
         do
         {
-            if(canMoveSelection)
+            if (canMoveSelection)
             {
                 if (itemOn + 1 > currentMenu->numitems - 1)
-                itemOn = 0;
+                    itemOn = 0;
                 else
                     itemOn++;
                 S_StartSound(NULL, sfx_pstop);
@@ -1849,10 +1721,10 @@ boolean M_Responder(event_t *ev)
     case KEY_UPARROW:
         do
         {
-            if(canMoveSelection)
+            if (canMoveSelection)
             {
                 if (!itemOn)
-                itemOn = currentMenu->numitems - 1;
+                    itemOn = currentMenu->numitems - 1;
                 else
                     itemOn--;
                 S_StartSound(NULL, sfx_pstop);
@@ -1897,10 +1769,11 @@ boolean M_Responder(event_t *ev)
         return true;
 
     case KEY_ESCAPE:
-        
+
         currentMenu->lastOn = itemOn;
         M_ClearMenus();
         S_StartSound(NULL, sfx_swtchx);
+        N_WriteConfig();
         return true;
 
     case KEY_BACKSPACE:
@@ -1940,7 +1813,7 @@ boolean M_Responder(event_t *ev)
 void M_StartControlPanel(void)
 {
     // intro might call this repeatedly
-    
+
     if (menuactive)
     {
         return;
@@ -2056,6 +1929,7 @@ void M_Ticker(void)
 void M_Init(void)
 {
     RebindKeys();
+    N_LoadConfig();
     currentMenu = &MainDef;
     menuactive = 0;
     itemOn = currentMenu->lastOn;

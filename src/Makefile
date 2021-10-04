@@ -8,13 +8,14 @@ CC=  gcc  # gcc or g++
 
 CFLAGS=-g -w -DNORMALUNIX -DLINUX -DSNDSERV -DSNDSRV -Wno-narrowing -fpermissive# -DUSEASM 
 CXXFLAGS =-ISFML/include/
-LIBS=-lcsfml-system -lcsfml-graphics -lcsfml-audio -lcsfml-window -lm -lfluidsynth -lstdc++
+LIBS=-lcsfml-system -lcsfml-graphics -lcsfml-audio -lcsfml-window -lm -lfluidsynth -lcjson -lstdc++
 
 # subdirectory for objects
 O=build
 
 # not too sophisticated dependency
 OBJS=				\
+		$(O)/neapolitan.o 	\
 		$(O)/mus2mid.o		\
 		$(O)/i_input.o		\
 		$(O)/doomdef.o		\

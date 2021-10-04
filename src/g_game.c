@@ -173,7 +173,7 @@ int             turnheld;				// for accelerative turning
  
 boolean		mousearray[4]; 
 boolean*	mousebuttons = &mousearray[1];		// allow [-1]
-boolean mouseMovement;
+boolean     mouseMovement;
 // mouse values are used once 
 int             mousex;
 int		mousey;         

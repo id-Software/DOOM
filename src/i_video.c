@@ -23,7 +23,7 @@
 
 static const char
 rcsid[] = "$Id: i_x.c,v 1.6 1997/02/03 22:45:10 b1 Exp $";
-static const char window_title[] = "Neapolitan Doom";
+#include "neapolitan.h"
 #include <stdlib.h>
 #include <unistd.h>
 
@@ -43,6 +43,9 @@ static const char window_title[] = "Neapolitan Doom";
 
 #include "doomdef.h"
 #include <locale.h>
+
+static const char window_title[] = "Neapolitan Doom";
+
 
 sfRenderWindow* window;
 sfTexture* texture;
@@ -290,7 +293,10 @@ void I_InitGraphics(void)
 	mode.width = SCREENWIDTH;
 	mode.height = TRUEHEIGHT;
 
-	window = sfRenderWindow_create(mode, window_title, sfDefaultStyle, NULL);
+	char title[64];
+	sprintf(title, "%s %s", window_title, NEAPOLITAN_VERSION);
+
+	window = sfRenderWindow_create(mode, title, sfDefaultStyle, NULL);
 	sfRenderWindow_setFramerateLimit(window, 35);
 	texture = sfTexture_create(SCREENWIDTH, SCREENHEIGHT);
 

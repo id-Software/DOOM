@@ -1,11 +1,11 @@
 #include "i_input.h"
 #include "d_main.h"
 #include "doomstat.h"
+#include "neapolitan.h"
 #include <SFML/System.h>
 #include <stdio.h>
 
 unsigned int mouse_state = 0;
-boolean useMouse = 1;
 boolean mouseLocked = false;    
 int oldmouseX = 0;
 int oldMouseY = 0;
