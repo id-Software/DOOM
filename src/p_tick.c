@@ -30,7 +30,7 @@ rcsid[] = "$Id: p_tick.c,v 1.4 1997/02/03 16:47:55 b1 Exp $";
 
 #include "doomstat.h"
 
-
+extern int mouseLocked;
 int	leveltime;
 
 //
@@ -130,7 +130,9 @@ void P_RunThinkers (void)
 void P_Ticker (void)
 {
     int		i;
-    
+
+    mouseLocked = !menuactive;
+
     // run the tic
     if (paused)
 	return;

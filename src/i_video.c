@@ -17,28 +17,19 @@
 // $Log:$
 //
 // DESCRIPTION:
-//	DOOM graphics stuff for X11, UNIX.
+//	DOOM graphics stuff for SFML
 //
 //-----------------------------------------------------------------------------
 
 static const char
 rcsid[] = "$Id: i_x.c,v 1.6 1997/02/03 22:45:10 b1 Exp $";
-static const char window_title[] = "Neapolitan Doom";
+#include "neapolitan.h"
 #include <stdlib.h>
 #include <unistd.h>
-#include <sys/ipc.h>
-#include <sys/shm.h>
 
 #include <SFML/Graphics.h>
 #include <SFML/System.h>
 #include <SFML/Window.h>
-
-#include <stdarg.h>
-#include <sys/time.h>
-#include <sys/types.h>
-#include <sys/socket.h>
-
-#include <netinet/in.h>
 #include <errno.h>
 #include <signal.h>
 
@@ -53,12 +44,15 @@ static const char window_title[] = "Neapolitan Doom";
 #include "doomdef.h"
 #include <locale.h>
 
+static const char window_title[] = "Neapolitan Doom";
+
+
 sfRenderWindow* window;
 sfTexture* texture;
 sfSprite* image;
 
 sfEvent event;
-
+extern int lastPressedKey;
 
 // Fake mouse handling.
 // This cannot work properly w/o DGA.
@@ -74,71 +68,6 @@ int sfKeyAscii(void)
 	return event.text.unicode;
 }
 
-//converts sfKey to key
-int sfKeyConvert(void)
-{
-	int rc;
-    switch(event.key.code)
-    {
-      case sfKeyLeft:	rc = KEY_LEFTARROW;	break;
-      case sfKeyRight:	rc = KEY_RIGHTARROW;	break;
-      case sfKeyDown:	rc = KEY_DOWNARROW;	break;
-      case sfKeyUp:	rc = KEY_UPARROW;	break;
-      case sfKeyEscape:
-	  case sfKeyMenu:
-	  	rc = KEY_ESCAPE;	break;
-      case sfKeyReturn:	rc = KEY_ENTER;		break;
-      case sfKeyTab:	rc = KEY_TAB;		break;
-      case sfKeyF1:	rc = KEY_F1;		break;
-      case sfKeyF2:	rc = KEY_F2;		break;
-      case sfKeyF3:	rc = KEY_F3;		break;
-      case sfKeyF4:	rc = KEY_F4;		break;
-      case sfKeyF5:	rc = KEY_F5;		break;
-      case sfKeyF6:	rc = KEY_F6;		break;
-      case sfKeyF7:	rc = KEY_F7;		break;
-      case sfKeyF8:	rc = KEY_F8;		break;
-      case sfKeyF9:	rc = KEY_F9;		break;
-      case sfKeyF10:	rc = KEY_F10;		break;
-      case sfKeyF11:	rc = KEY_F11;		break;
-      case sfKeyF12:	rc = KEY_F12;		break;
-	
-      case sfKeyBack:
-      case sfKeyDelete:	rc = KEY_BACKSPACE;	break;
-
-      case sfKeyPause:	rc = KEY_PAUSE;		break;
-
-      case sfKeyEqual:	rc = KEY_EQUALS;	break;
-
-      case sfKeySubtract:	rc = KEY_MINUS;		break;
-
-	  case sfKeySpace: rc= KEY_SPACE; break;
-
-      case sfKeyLShift:
-      case sfKeyRShift:
-		rc = KEY_RSHIFT;
-	break;
-	
-      case sfKeyLControl:
-      case sfKeyRControl:
-		rc = KEY_RCTRL;
-	break;
-	
-      case sfKeyLAlt:
-		rc = KEY_LALT;
-	  case sfKeyRAlt:
-	  	rc = KEY_RALT;
-	break;
-      default:
-	if (rc >= sfKeySpace && rc <= sfKeyTilde)
-	    rc = rc - sfKeySpace + ' ';
-	if (rc >= 'A' && rc <= 'Z')
-	    rc = rc - 'A' + 'a';
-
-	break;
-    }
-    return rc;
-
-}
 
 void I_ShutdownGraphics(void)
 {
@@ -201,6 +130,8 @@ void PreserveAspectRatio()
 event_t d_event;
 void I_GetEvent(void)
 {
+	mouseEvX = 0;
+	mouseEvY = 0;
     while(sfRenderWindow_pollEvent(window, &event))
 	{
 		switch (event.type)
@@ -216,10 +147,11 @@ void I_GetEvent(void)
 
 		case sfEvtKeyPressed:
 			d_event.type = ev_keydown;
-			int key = sfKeyConvert();
-			if(key > 0 && key < 256)
+			int key = event.key.code;
+			if(key >= 0 && key < 256)
 			{
 				d_event.data1 = key;
+				lastPressedKey = key;
 				D_PostEvent(&d_event);
 			}
 
@@ -227,8 +159,8 @@ void I_GetEvent(void)
 
 		case sfEvtKeyReleased:
 			d_event.type = ev_keyup;
-			int keyreleased = sfKeyConvert();
-			if(keyreleased > 0 && keyreleased < 256)
+			int keyreleased = event.key.code;
+			if(keyreleased >= 0 && keyreleased < 256)
 			{
 				d_event.data1 = keyreleased;
 				D_PostEvent(&d_event);
@@ -243,9 +175,8 @@ void I_GetEvent(void)
 			I_Quit();
 			break;
 
-		case sfEvtMouseMoved:
-			printf("mouse move: {%d,%d}\n", event.mouseMove.x, event.mouseMove.y);
-			
+		case sfEvtMouseMoved:	
+			I_HandleMouse(window, windowScale);		
 			break;
 		case sfEvtMouseButtonPressed:
 			I_Click(event.mouseButton.button, true);
@@ -256,7 +187,6 @@ void I_GetEvent(void)
 			break;
 		}
 	}
-	I_HandleMouse(window, windowScale);
 
 }
 
@@ -270,6 +200,7 @@ void I_StartTic (void)
     if (!window)
 		return;
 	sfRenderWindow_clear(window, sfColor_fromRGB(0,0,0));
+	
 	I_GetEvent();
 
 
@@ -362,7 +293,10 @@ void I_InitGraphics(void)
 	mode.width = SCREENWIDTH;
 	mode.height = TRUEHEIGHT;
 
-	window = sfRenderWindow_create(mode, window_title, sfDefaultStyle, NULL);
+	char title[64];
+	sprintf(title, "%s %s", window_title, NEAPOLITAN_VERSION);
+
+	window = sfRenderWindow_create(mode, title, sfDefaultStyle, NULL);
 	sfRenderWindow_setFramerateLimit(window, 35);
 	texture = sfTexture_create(SCREENWIDTH, SCREENHEIGHT);
 

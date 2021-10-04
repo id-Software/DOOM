@@ -25,7 +25,7 @@ static const char
 
 #include <stdio.h>
 #include <stdlib.h>
-
+#include "neapolitan.h"
 #include "i_system.h"
 #include "i_sound.h"
 #include "sounds.h"
@@ -95,7 +95,6 @@ static channel_t *channels;
 // Maximum volume of a sound effect.
 // Internal default is max out of 0-15.
 int snd_SfxVolume = 15;
-int snd_DoPitchShift = 0;
 // Maximum volume of music. Useless so far.
 int snd_MusicVolume = 15;
 

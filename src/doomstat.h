@@ -118,7 +118,7 @@ extern int snd_SfxDevice;
 // Config file? Same disclaimer as above.
 extern int snd_DesiredMusicDevice;
 extern int snd_DesiredSfxDevice;
-
+#include "m_keybinds.h"
 
 // -------------------------
 // Status flags for refresh.
@@ -253,7 +253,6 @@ extern  boolean         precache;
 extern  gamestate_t     wipegamestate;
 
 extern  int             mouseSensitivity;
-extern  boolean         mouseLock;
 //?
 // debug flag to cancel adaptiveness
 extern  boolean         singletics;	

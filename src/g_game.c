@@ -26,10 +26,10 @@ rcsid[] = "$Id: g_game.c,v 1.8 1997/02/03 22:45:09 b1 Exp $";
 
 #include <string.h>
 #include <stdlib.h>
-
+#include "i_input.h"
 #include "doomdef.h" 
 #include "doomstat.h"
-
+#include "m_keybinds.h"
 #include "z_zone.h"
 #include "f_finale.h"
 #include "m_argv.h"
@@ -140,33 +140,20 @@ wbstartstruct_t wminfo;               	// parms for world map / intermission
 short		consistancy[MAXPLAYERS][BACKUPTICS]; 
  
 byte*		savebuffer;
- 
- 
-// 
-// controls (have defaults) 
-// 
-int             key_right = KEY_RIGHTARROW;
-int		key_left = KEY_LEFTARROW;
 
-int		key_up = KEY_UPARROW;
-int		key_down = KEY_DOWNARROW; 
-int             key_strafeleft = KEY_LEFTARROW;
-int		key_straferight = KEY_RIGHTARROW;  
-int             key_fire = KEY_RCTRL;
-int		key_use = KEY_SPACE;
-int		key_strafe = KEY_LALT;
-int		key_speed = KEY_RSHIFT; 
- 
-int             mousebfire; 
-int             mousebstrafe; 
-int             mousebforward; 
- 
-int             joybfire; 
-int             joybstrafe; 
-int             joybuse; 
-int             joybspeed; 
- 
- 
+extern boolean mouseLocked;
+
+
+
+
+
+void G_ChangeControls(int scheme)
+{
+   
+    key_strafeleft = key_left;
+    key_straferight = key_right;
+}
+
  
 #define MAXPLMOVE		(forwardmove[1]) 
  
@@ -186,7 +173,7 @@ int             turnheld;				// for accelerative turning
  
 boolean		mousearray[4]; 
 boolean*	mousebuttons = &mousearray[1];		// allow [-1]
-
+boolean     mouseMovement;
 // mouse values are used once 
 int             mousex;
 int		mousey;         
@@ -215,7 +202,11 @@ int		bodyqueslot;
  
 void*		statcopy;				// for statistics driver
  
- 
+void G_LoadControls()
+{
+    //todo: config file
+
+}
  
 int G_CmdChecksum (ticcmd_t* cmd) 
 { 
@@ -238,6 +229,13 @@ int G_CmdChecksum (ticcmd_t* cmd)
 void G_BuildTiccmd (ticcmd_t* cmd) 
 { 
     int		i; 
+    // mousebuttons[0] = ev->data1 & 1; 
+	// mousebuttons[1] = ev->data1 & 2; 
+	// mousebuttons[2] = ev->data1 & 4; 
+    mousex = mouseEvX*(mouseSensitivity+5)/10; 
+
+	// mousey = mouseEvY*(mouseSensitivity+5)/10;
+    
     boolean	strafe;
     boolean	bstrafe; 
     int		speed;
@@ -275,14 +273,28 @@ void G_BuildTiccmd (ticcmd_t* cmd)
     else 
 	tspeed = speed;
     // let movement keys cancel each other out
+
+    if(useMouse)
+    {
+        strafe = true;
+    }
+
+    //??? write better input code at some point BBQ!!!
+    boolean upkey, downkey, rightkey, leftkey, usekey;
+    upkey = gamekeydown[key_up];
+    downkey = gamekeydown[key_down];
+    rightkey = gamekeydown[key_right];
+    leftkey = gamekeydown[key_left];    
+
+
     if (strafe) 
     { 
-	if (gamekeydown[key_right]) 
+	if (rightkey) 
 	{
 	    // fprintf(stderr, "strafe right\n");
 	    side += sidemove[speed]; 
 	}
-	if (gamekeydown[key_left]) 
+	if (leftkey) 
 	{
 	    //	fprintf(stderr, "strafe left\n");
 	    side -= sidemove[speed]; 
@@ -295,36 +307,32 @@ void G_BuildTiccmd (ticcmd_t* cmd)
     } 
     else 
     { 
-	if (gamekeydown[key_right]) 
-	    cmd->angleturn -= angleturn[tspeed]; 
-	if (gamekeydown[key_left]) 
-	    cmd->angleturn += angleturn[tspeed]; 
-	if (joyxmove > 0) 
-	    cmd->angleturn -= angleturn[tspeed]; 
-	if (joyxmove < 0) 
-	    cmd->angleturn += angleturn[tspeed]; 
+        if (rightkey) 
+            cmd->angleturn -= angleturn[tspeed]; 
+        if (leftkey) 
+            cmd->angleturn += angleturn[tspeed]; 
+        if (joyxmove > 0) 
+            cmd->angleturn -= angleturn[tspeed]; 
+        if (joyxmove < 0) 
+            cmd->angleturn += angleturn[tspeed]; 
     } 
- 
-    if (gamekeydown[key_up]) 
+    
+
+
+
+    if (upkey) 
     {
 	forward += forwardmove[speed]; 
     }
-    if (gamekeydown[key_down]) 
+    if (downkey) 
     {
-	// fprintf(stderr, "down\n");
 	forward -= forwardmove[speed]; 
     }
     if (joyymove < 0) 
 	forward += forwardmove[speed]; 
     if (joyymove > 0) 
 	forward -= forwardmove[speed]; 
-    if(strafe)
-    {
-        if (gamekeydown[key_straferight]) 
-        side += sidemove[speed]; 
-        if (gamekeydown[key_strafeleft]) 
-        side -= sidemove[speed];
-    }
+    
     
     // buttons
     cmd->chatchar = HU_dequeueChatChar(); 
@@ -403,12 +411,20 @@ void G_BuildTiccmd (ticcmd_t* cmd)
 	    dclickstate2 = 0; 
 	} 
     } 
- 
-    forward += mousey; 
-    if (strafe) 
-	side += mousex*2; 
-    else 
-	cmd->angleturn -= mousex*0x8; 
+
+    if(mouseMovement)
+    {
+        forward += mousey; 
+        if (strafe) 
+        side += mousex*2; 
+        
+    }
+
+    if(useMouse)
+    {
+        cmd->angleturn -= mousex*0x8; 
+    }
+
 
     mousex = mousey = 0; 
 	 
@@ -510,9 +526,13 @@ void G_DoLoadLevel (void)
 // 
 boolean G_Responder (event_t* ev) 
 { 
+    // mousebuttons[0] = ev->data1 & 1; 
+	// mousebuttons[1] = ev->data1 & 2; 
+	// mousebuttons[2] = ev->data1 & 4; 
+
     // allow spy mode changes even during the demo
     if (gamestate == GS_LEVEL && ev->type == ev_keydown 
-	&& ev->data1 == KEY_F12 && (singledemo || !deathmatch) )
+	&& ev->data1 == sfKeyF1 && (singledemo || !deathmatch) )
     {
 	// spy mode 
 	do 
@@ -569,7 +589,7 @@ boolean G_Responder (event_t* ev)
         break;
 
         case ev_keydown: 
-	if (ev->data1 == KEY_PAUSE) 
+	if (ev->data1 == sfKeyPause) 
 	{ 
 	    sendpause = true; 
 	    return true; 
@@ -584,11 +604,6 @@ boolean G_Responder (event_t* ev)
 	return false;   // always let key up events filter down 
 		 
       case ev_mouse: 
-	mousebuttons[0] = ev->data1 & 1; 
-	mousebuttons[1] = ev->data1 & 2; 
-	mousebuttons[2] = ev->data1 & 4; 
-	mousex = ev->data2*(mouseSensitivity+5)/10; 
-	mousey = ev->data3*(mouseSensitivity+5)/10; 
 	return true;    // eat events 
  
       case ev_joystick: 
@@ -660,10 +675,6 @@ void G_Ticker (void)
 	  case ga_nothing: 
 	    break; 
 	} 
-    }
-    if(gamestate == GS_LEVEL)
-    {
-        mouseLock = !paused;
     }
     // get commands, check consistancy,
     // and build new consistancy check
@@ -1206,7 +1217,8 @@ char	savename[256];
 void G_LoadGame (char* name) 
 { 
     strcpy (savename, name); 
-    gameaction = ga_loadgame; 
+    gameaction = ga_loadgame;
+ 
 } 
  
 #define VERSIONSIZE		16 

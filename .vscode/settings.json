@@ -2,6 +2,10 @@
     "files.associations": {
         "errno.h": "c",
         "random": "c",
-        "typeinfo": "c"
+        "typeinfo": "c",
+        "stdlib.h": "c",
+        "s_sound.h": "c",
+        "ranges": "c",
+        "*.tcc": "c"
     }
 }
