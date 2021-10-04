@@ -47,12 +47,14 @@ void I_HandleMouse(sfRenderWindow* window, float windowScale)
 
         if(mouse.x != 0 && mouse.y != 0)
         {
-            event_t event;
-            event.type = ev_mouse;
-            event.data1 = mouse_state;
-            event.data2 = AccelerateMouse(mouse.x);
-            event.data3 = AccelerateMouse(mouse.y);
-            D_PostEvent(&event);
+            // event_t event;
+            // event.type = ev_mouse;
+            // event.data1 = mouse_state;
+            // event.data2 = AccelerateMouse(mouse.x);
+            // event.data3 = AccelerateMouse(mouse.y);
+            // D_PostEvent(&event);
+            mouseEvX = AccelerateMouse(mouse.x);
+            mouseEvY = AccelerateMouse(mouse.y);
         }
 
 

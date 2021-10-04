@@ -127,6 +127,8 @@ void PreserveAspectRatio()
 event_t d_event;
 void I_GetEvent(void)
 {
+	mouseEvX = 0;
+	mouseEvY = 0;
     while(sfRenderWindow_pollEvent(window, &event))
 	{
 		switch (event.type)
@@ -170,7 +172,8 @@ void I_GetEvent(void)
 			I_Quit();
 			break;
 
-		case sfEvtMouseMoved:			
+		case sfEvtMouseMoved:	
+			I_HandleMouse(window, windowScale);		
 			break;
 		case sfEvtMouseButtonPressed:
 			I_Click(event.mouseButton.button, true);
@@ -181,7 +184,6 @@ void I_GetEvent(void)
 			break;
 		}
 	}
-	I_HandleMouse(window, windowScale);
 
 }
 

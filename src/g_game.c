@@ -26,6 +26,7 @@ rcsid[] = "$Id: g_game.c,v 1.8 1997/02/03 22:45:09 b1 Exp $";
 
 #include <string.h>
 #include <stdlib.h>
+#include "i_input.h"
 #include "doomdef.h" 
 #include "doomstat.h"
 #include "m_keybinds.h"
@@ -228,6 +229,13 @@ int G_CmdChecksum (ticcmd_t* cmd)
 void G_BuildTiccmd (ticcmd_t* cmd) 
 { 
     int		i; 
+    // mousebuttons[0] = ev->data1 & 1; 
+	// mousebuttons[1] = ev->data1 & 2; 
+	// mousebuttons[2] = ev->data1 & 4; 
+    mousex = mouseEvX*(mouseSensitivity+5)/10; 
+
+	// mousey = mouseEvY*(mouseSensitivity+5)/10;
+    
     boolean	strafe;
     boolean	bstrafe; 
     int		speed;
@@ -299,14 +307,14 @@ void G_BuildTiccmd (ticcmd_t* cmd)
     } 
     else 
     { 
-	if (rightkey) 
-	    cmd->angleturn -= angleturn[tspeed]; 
-	if (leftkey) 
-	    cmd->angleturn += angleturn[tspeed]; 
-	if (joyxmove > 0) 
-	    cmd->angleturn -= angleturn[tspeed]; 
-	if (joyxmove < 0) 
-	    cmd->angleturn += angleturn[tspeed]; 
+        if (rightkey) 
+            cmd->angleturn -= angleturn[tspeed]; 
+        if (leftkey) 
+            cmd->angleturn += angleturn[tspeed]; 
+        if (joyxmove > 0) 
+            cmd->angleturn -= angleturn[tspeed]; 
+        if (joyxmove < 0) 
+            cmd->angleturn += angleturn[tspeed]; 
     } 
     
 
@@ -325,13 +333,6 @@ void G_BuildTiccmd (ticcmd_t* cmd)
     if (joyymove > 0) 
 	forward -= forwardmove[speed]; 
     
-    if(strafe)
-    {
-        if (rightkey) 
-        side += sidemove[speed]; 
-        if (leftkey) 
-        side -= sidemove[speed];
-    }
     
     // buttons
     cmd->chatchar = HU_dequeueChatChar(); 
@@ -525,6 +526,10 @@ void G_DoLoadLevel (void)
 // 
 boolean G_Responder (event_t* ev) 
 { 
+    // mousebuttons[0] = ev->data1 & 1; 
+	// mousebuttons[1] = ev->data1 & 2; 
+	// mousebuttons[2] = ev->data1 & 4; 
+
     // allow spy mode changes even during the demo
     if (gamestate == GS_LEVEL && ev->type == ev_keydown 
 	&& ev->data1 == sfKeyF1 && (singledemo || !deathmatch) )
@@ -599,11 +604,6 @@ boolean G_Responder (event_t* ev)
 	return false;   // always let key up events filter down 
 		 
       case ev_mouse: 
-	mousebuttons[0] = ev->data1 & 1; 
-	mousebuttons[1] = ev->data1 & 2; 
-	mousebuttons[2] = ev->data1 & 4; 
-	mousex = ev->data2*(mouseSensitivity+5)/10; 
-	mousey = ev->data3*(mouseSensitivity+5)/10; 
 	return true;    // eat events 
  
       case ev_joystick: 

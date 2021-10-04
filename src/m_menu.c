@@ -2055,6 +2055,7 @@ void M_Ticker(void)
 //
 void M_Init(void)
 {
+    RebindKeys();
     currentMenu = &MainDef;
     menuactive = 0;
     itemOn = currentMenu->lastOn;
