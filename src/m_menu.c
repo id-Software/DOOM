@@ -1011,17 +1011,6 @@ void M_DrawOptions(void)
                  9, screenSize);
 }
 
-void RebindKeys()
-{
-    key_up = keybinds[0];
-    key_down = keybinds[1];
-    key_left = keybinds[2];
-    key_right = keybinds[3];
-    key_fire = keybinds[4];
-    key_speed = keybinds[5];
-    key_use = keybinds[6];
-}
-
 void M_DrawKeyBind(int i)
 {
     M_WriteText(KeyBindsDef.x + 144, KeyBindsDef.y + 8 + i * LINEHEIGHT, keynames[keybinds[i]]);
@@ -1089,7 +1078,7 @@ void M_DrawKeyBinds(void)
             printf("made new selection %s\n", keynames[keybinds[key]]);
             lastPressedKey = -1;
             canMoveSelection = true;
-            RebindKeys();
+            N_RebindKeys();
             //apply keybinds, fuck you I'm tired I'll write a better thing tommorow I hate pointers
         }
     }
@@ -1944,7 +1933,7 @@ void M_Ticker(void)
 //
 void M_Init(void)
 {
-    RebindKeys();
+    N_RebindKeys();
     N_LoadConfig();
     currentMenu = &MainDef;
     menuactive = 0;

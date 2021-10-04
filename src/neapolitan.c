@@ -133,6 +133,18 @@ void N_WriteConfig()
     fclose(file);
 }
 
+
+void N_RebindKeys()
+{
+    key_up = keybinds[0];
+    key_down = keybinds[1];
+    key_left = keybinds[2];
+    key_right = keybinds[3];
+    key_fire = keybinds[4];
+    key_speed = keybinds[5];
+    key_use = keybinds[6];
+}
+
 void N_LoadConfig(void)
 {
     if(access(NEAPOLITAN_SAVEFILE, F_OK))
@@ -157,6 +169,8 @@ void N_LoadConfig(void)
 
     useMouse = cJSON_IsTrue(cJSON_GetObjectItem(json, "mouse_look"));
     fixInfiniteMonsterHeight =  cJSON_IsTrue(cJSON_GetObjectItem(json, "monster_height_fix"));
+
+    N_RebindKeys();
 }
 
 

@@ -29,7 +29,7 @@
 #include "doomtype.h"
 void N_WriteConfig();
 void N_LoadConfig(void);
-
+void N_RebindKeys();
 void N_MonsterHeightFix(int choice);
 extern boolean fixInfiniteMonsterHeight;
 extern boolean useMouse;
