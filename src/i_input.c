@@ -27,9 +27,15 @@ int AccelerateMouse(int val)
         return val;
     }
 }
+boolean mousebuttons[3] = {false,false,false};
+
 
 void I_HandleMouse(sfRenderWindow* window, float windowScale)
 {
+    for(int i = 0; i < 3; i++)
+    {
+        mousebuttons[i] = sfMouse_isButtonPressed(i);
+    }
     if(useMouse)
     {
         sfVector2i mouse = sfMouse_getPositionRenderWindow(window);
@@ -56,10 +62,9 @@ void I_HandleMouse(sfRenderWindow* window, float windowScale)
             mouseEvY = AccelerateMouse(mouse.y);
         }
 
-
+        sfRenderWindow_setMouseCursorVisible(window, !mouseLocked);
         if(mouseLocked)
         {
-            sfRenderWindow_setMouseCursorVisible(window, !useMouse);
             //lock mouse
             if(useMouse)
             {
@@ -73,11 +78,6 @@ void I_HandleMouse(sfRenderWindow* window, float windowScale)
             }
         }
     }
-}
 
-boolean mousebuttons[3] = {false,false,false};
-
-void I_Click(sfMouseButton button, boolean down)
-{
-    mousebuttons[button] = down;
+    
 }

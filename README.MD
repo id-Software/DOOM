@@ -5,7 +5,6 @@ Neapolitan Doom aims to maintain vanilla gameplay while adding new enhancements 
 - infinite monster height fix
 - in-game keybind editor
 
-
 ## new command line args
 - `-soundfont <font>` loads a custom .sf2 soundfont instead of the default one
 - `-pitch` enables pitch shifting if you want to for some reason
@@ -14,3 +13,7 @@ Neapolitan Doom aims to maintain vanilla gameplay while adding new enhancements 
 - CSFML
 - cJSON
 - Fluidsynth
+
+## platforms tested on
+- Ubuntu
+- MacOS

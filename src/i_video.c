@@ -131,6 +131,7 @@ void I_GetEvent(void)
 {
 	mouseEvX = 0;
 	mouseEvY = 0;
+	I_HandleMouse(window, windowScale);	
     while(sfRenderWindow_pollEvent(window, &event))
 	{
 		event_t d_event;
@@ -171,20 +172,11 @@ void I_GetEvent(void)
 		case sfEvtClosed:
 			I_Quit();
 			break;
-
-		case sfEvtMouseMoved:	
-			
-			break;
-		case sfEvtMouseButtonPressed:
-			I_Click(event.mouseButton.button, true);
-		case sfEvtMouseButtonReleased:
-			I_Click(event.mouseButton.button, false);
-			break;
 		default:
 			break;
 		}
 	}
-	I_HandleMouse(window, windowScale);		
+		
 
 }
 
