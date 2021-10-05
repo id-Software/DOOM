@@ -172,7 +172,6 @@ boolean         characterkeys[NUMKEYS];//I don't know either I'm very high
 int             turnheld;				// for accelerative turning 
  
 boolean		mousearray[4]; 
-boolean*	mousebuttons = &mousearray[1];		// allow [-1]
 boolean     mouseMovement;
 // mouse values are used once 
 int             mousex;
@@ -229,9 +228,7 @@ int G_CmdChecksum (ticcmd_t* cmd)
 void G_BuildTiccmd (ticcmd_t* cmd) 
 { 
     int		i; 
-    // mousebuttons[0] = ev->data1 & 1; 
-	// mousebuttons[1] = ev->data1 & 2; 
-	// mousebuttons[2] = ev->data1 & 4; 
+   
     mousex = mouseEvX*(mouseSensitivity+5)/10; 
 
 	// mousey = mouseEvY*(mouseSensitivity+5)/10;
@@ -526,9 +523,6 @@ void G_DoLoadLevel (void)
 // 
 boolean G_Responder (event_t* ev) 
 { 
-    // mousebuttons[0] = ev->data1 & 1; 
-	// mousebuttons[1] = ev->data1 & 2; 
-	// mousebuttons[2] = ev->data1 & 4; 
 
     // allow spy mode changes even during the demo
     if (gamestate == GS_LEVEL && ev->type == ev_keydown 

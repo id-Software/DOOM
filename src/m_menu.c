@@ -578,6 +578,8 @@ void M_ReadSaveStrings(void)
 char onoffnames[2][9] = {"M_ENABLE", "M_DSABLE"};
 void M_DrawEnhancements(void)
 {
+    V_DrawPatchDirect(72, 15, 0, W_CacheLumpName("M_ENHANC", PU_CACHE));
+
     V_DrawPatchDirect(MouseDef.x + 193, MouseDef.y, 0,
                       W_CacheLumpName(onoffnames[fixInfiniteMonsterHeight], PU_CACHE));
 }
@@ -1042,10 +1044,12 @@ void M_DrawKeyBinds(void)
     int key = itemOn;
     static int keywait = 0;
 
+
     for (int i = 0; i < keybindCount; i++)
     {
         M_DrawKeyBind(i);
     }
+    if(key > keybindCount){return;}
 
     if (sfKeyboard_isKeyPressed(KEY_ESCAPE) || sfKeyboard_isKeyPressed(KEY_BACKSPACE))
     {

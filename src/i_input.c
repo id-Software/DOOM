@@ -10,7 +10,6 @@ boolean mouseLocked = false;
 int oldmouseX = 0;
 int oldMouseY = 0;
 
-event_t mousebuttonevent;
 
 float mouse_acceleration = 2.0;
 int mouse_threshold = 10;
@@ -76,35 +75,9 @@ void I_HandleMouse(sfRenderWindow* window, float windowScale)
     }
 }
 
+boolean mousebuttons[3] = {false,false,false};
+
 void I_Click(sfMouseButton button, boolean down)
 {
-    int buttonbit;
-    switch (button)
-    {
-    case sfMouseLeft:
-        buttonbit = 0;
-        break;
-    case sfMouseRight:
-        buttonbit = 1;
-        break;
-    case sfMouseMiddle:
-        buttonbit = 2;
-        break;
-    default:
-        break;
-    }
-
-    if(down)
-    {
-        mouse_state |= (1 << buttonbit);
-    }else
-    {
-        mouse_state &= ~(1 << buttonbit);
-    }
-
-    mousebuttonevent.type = ev_mouse;
-    mousebuttonevent.data1 = mouse_state;
-    mousebuttonevent.data2 = mousebuttonevent.data3 = 0;
-    
-    D_PostEvent(&mousebuttonevent);
+    mousebuttons[button] = down;
 }

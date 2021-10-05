@@ -148,12 +148,9 @@ void I_GetEvent(void)
 		case sfEvtKeyPressed:
 			d_event.type = ev_keydown;
 			int key = event.key.code;
-			if(key >= 0 && key < 256)
-			{
-				d_event.data1 = key;
-				lastPressedKey = key;
-				D_PostEvent(&d_event);
-			}
+			d_event.data1 = key;
+			lastPressedKey = key;
+			D_PostEvent(&d_event);
 
 			break;
 
