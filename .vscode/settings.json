@@ -1,6 +1,12 @@
 {
     "files.associations": {
         "errno.h": "c",
-        "random": "c"
+        "random": "c",
+        "typeinfo": "c",
+        "stdlib.h": "c",
+        "s_sound.h": "c",
+        "ranges": "c",
+        "*.tcc": "c",
+        "stat.h": "c"
     }
 }
