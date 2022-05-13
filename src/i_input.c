@@ -7,6 +7,8 @@
 
 unsigned int mouse_state = 0;
 boolean mouseLocked = false;    
+float mouseEvX, mouseEvY;
+
 int oldmouseX = 0;
 int oldMouseY = 0;
 

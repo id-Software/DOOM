@@ -6,7 +6,7 @@
 #
 CC=  gcc  # gcc or g++
 
-CFLAGS=-g -w -DNORMALUNIX -DLINUX -DSNDSERV -DSNDSRV -Wno-narrowing -fpermissive# -DUSEASM 
+CFLAGS=-g -w -DNORMALUNIX -DLINUX -DSNDSERV -DSNDSRV -Wno-narrowing -fpermissive -fcommon# -DUSEASM 
 CXXFLAGS =-ISFML/include/
 LIBS=-lcsfml-system -lcsfml-graphics -lcsfml-audio -lcsfml-window -lm -lfluidsynth -lcjson -lstdc++
 

@@ -582,6 +582,9 @@ void IdentifyVersion (void)
     char*	doomuwad;
     char*	doom2wad;
 
+	char* freedoomwad = "freedoom1.wad";
+	char* freedoom2wad = "freedoom2.wad";
+
     char*	doom2fwad;
     char*	plutoniawad;
     char*	tntwad;
@@ -686,6 +689,20 @@ void IdentifyVersion (void)
 	D_AddFile (doom2wad);
 	return;
     }
+
+	if( !access(freedoomwad, R_OK))
+	{
+		gamemode = registered;
+		D_AddFile(freedoomwad);
+		return;
+	}
+
+	if( !access(freedoom2wad, R_OK))
+	{
+		gamemode = commercial;
+		D_AddFile(freedoom2wad);
+		return;
+	}
 
     if ( !access (plutoniawad, R_OK ) )
     {

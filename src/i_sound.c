@@ -351,9 +351,6 @@ void I_UnRegisterSong(int handle)
 
 void MidiShit(sfInt16* vec)
 { 
-  //remove previous song
- // sfSoundBuffer_destroy(sfSound_getBuffer(music));
- // sfSound_destroy(music);
   music = sfSound_create();
   sfSoundBuffer* sbuffer = sfSoundBuffer_createFromSamples(vec, cvector_size(vec), 2, MUSSAMPLERATE);
   sfSound_setBuffer(music, sbuffer);
@@ -371,11 +368,10 @@ void ConvertMidiToPcm(sfInt16* vec, char* midi, int length)
 
 
   for(int i = 0; i < outputsize; i++)
-  {
     cvector_push_back(vec, 0);
-  }
 
   fluid_player_t *player = new_fluid_player(synth);
+  
   fluid_player_add_mem(player, midi, length);
   fluid_player_play(player);
   while(true)
@@ -399,7 +395,7 @@ void ConvertMidiToPcm(sfInt16* vec, char* midi, int length)
     }
   }
   fluid_player_join(player);
-  delete_fluid_player(player);
+  // delete_fluid_player(player);
   MidiShit(vec);
 
 }
@@ -421,21 +417,17 @@ boolean IsMus(char* data)
 
 int I_RegisterSong(void *data, int lumplength)
 {
-  int length;
-  char* midi = malloc(1024 * 1024);
-
-
   sfInt16* vec = NULL;
   
   if(IsMus(data))
   {
+    static char midi[1024*1024];// = malloc(1024 * 1024);
+    int length;
     Mus2Midi(data, midi, &length);
     ConvertMidiToPcm(vec, midi, length);
   }else{
     ConvertMidiToPcm(vec, data, lumplength);
   }
-
-  free(midi);
   
   songid++;
   return songid - 1;
