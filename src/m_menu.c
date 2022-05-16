@@ -1231,11 +1231,14 @@ void M_Enhancements(void)
 {
     M_SetupNextMenu(&EnhancementsDef);
 }
+
+boolean isKeybindMenu;
 #define NUMCONTROLSCHEMES 2
 void M_ControlScheme()
 {
     keytime = I_GetTime() + 15;
     M_SetupNextMenu(&KeyBindsDef);
+    isKeybindMenu = true;
 }
 
 void M_ChangeSensitivity(int choice)
@@ -1781,7 +1784,12 @@ boolean M_Responder(event_t *ev)
         currentMenu->lastOn = itemOn;
         M_ClearMenus();
         S_StartSound(NULL, sfx_swtchx);
-        N_WriteConfig();
+        if(isKeybindMenu)
+        {
+            N_WriteConfig();
+            isKeybindMenu = false;
+        }
+    
         return true;
 
     case KEY_BACKSPACE:
@@ -1936,8 +1944,8 @@ void M_Ticker(void)
 //
 void M_Init(void)
 {
-    N_RebindKeys();
     N_LoadConfig();
+    N_RebindKeys();
     currentMenu = &MainDef;
     menuactive = 0;
     itemOn = currentMenu->lastOn;

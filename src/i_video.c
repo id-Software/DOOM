@@ -64,7 +64,6 @@ float windowScale = 1;
 //convert sfKey to ascii
 int sfKeyAscii(void)
 {
-	
 	return event.text.unicode;
 }
 

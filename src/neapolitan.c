@@ -148,11 +148,12 @@ void N_RebindKeys()
 
 void N_LoadConfig(void)
 {
-    if(access(NEAPOLITAN_SAVEFILE, F_OK))
+    if(!access(NEAPOLITAN_SAVEFILE, F_OK))
     {
         N_WriteConfig();
         return;
     }
+    
     printf("N_LoadConfig: loading %s\n", NEAPOLITAN_SAVEFILE);
     char textbuffer[2048];
     FILE* file = fopen(NEAPOLITAN_SAVEFILE, "r");
