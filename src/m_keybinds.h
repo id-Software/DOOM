@@ -4,25 +4,25 @@
 // 
 // controls (have defaults) 
 // 
-static int             key_right;
-static int		        key_left;
-static int		        key_up;
-static int		        key_down; 
-static int             key_strafeleft;
-static int		        key_straferight;  
-static int             key_fire;
-static int		        key_use;
-static int		        key_strafe;
-static int		        key_speed; 
+ int             key_right;
+ int		        key_left;
+ int		        key_up;
+ int		        key_down; 
+ int             key_strafeleft;
+ int		        key_straferight;  
+ int             key_fire;
+ int		        key_use;
+ int		        key_strafe;
+ int		        key_speed; 
  
-static int             mousebfire; 
-static int             mousebstrafe; 
-static int             mousebforward; 
+ int             mousebfire; 
+ int             mousebstrafe; 
+ int             mousebforward; 
  
-static int             joybfire; 
-static int             joybstrafe; 
-static int             joybuse; 
-static int             joybspeed; 
+ int             joybfire; 
+ int             joybstrafe; 
+ int             joybuse; 
+ int             joybspeed; 
  
 
 #endif

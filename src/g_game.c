@@ -251,7 +251,7 @@ void G_BuildTiccmd (ticcmd_t* cmd)
  
     strafe = gamekeydown[key_strafe] || mousebuttons[mousebstrafe] 
 	|| joybuttons[joybstrafe]; 
-    
+
     speed = gamekeydown[key_speed] || joybuttons[joybspeed];
  
     forward = side = 0;
@@ -284,6 +284,7 @@ void G_BuildTiccmd (ticcmd_t* cmd)
     downkey = gamekeydown[key_down];
     rightkey = gamekeydown[key_right];
     leftkey = gamekeydown[key_left];    
+
 
     if (strafe) 
     { 
@@ -503,7 +504,7 @@ void G_DoLoadLevel (void)
     Z_CheckHeap ();
     
     // clear cmd building stuff
-    memset (gamekeydown, 0, sizeof(gamekeydown)); 
+    // memset (gamekeydown, 0, sizeof(gamekeydown)); 
     joyxmove = joyymove = 0; 
     mousex = mousey = 0; 
     sendpause = sendsave = paused = false; 

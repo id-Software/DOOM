@@ -1027,7 +1027,7 @@ boolean KeyCanBeBound(int key)
 {
     if (key <= -1)
     {
-        return;
+        return false;
     }
     for (int i = 0; i < unbindableKeyCount; i++)
     {
@@ -1043,7 +1043,6 @@ void M_DrawKeyBinds(void)
 {
     int key = itemOn;
     static int keywait = 0;
-
 
     for (int i = 0; i < keybindCount; i++)
     {
@@ -1083,6 +1082,7 @@ void M_DrawKeyBinds(void)
             canMoveSelection = true;
             N_RebindKeys();
             //apply keybinds, fuck you I'm tired I'll write a better thing tommorow I hate pointers
+            //I wrote that in October 2021, it was a lie -BBQ from May 2022
         }
     }
 }

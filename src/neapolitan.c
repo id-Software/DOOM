@@ -148,12 +148,12 @@ void N_RebindKeys()
 
 void N_LoadConfig(void)
 {
-    if(!access(NEAPOLITAN_SAVEFILE, F_OK))
+    if(access(NEAPOLITAN_SAVEFILE, F_OK))
     {
         N_WriteConfig();
         return;
     }
-    
+
     printf("N_LoadConfig: loading %s\n", NEAPOLITAN_SAVEFILE);
     char textbuffer[2048];
     FILE* file = fopen(NEAPOLITAN_SAVEFILE, "r");
@@ -161,13 +161,13 @@ void N_LoadConfig(void)
     fclose(file);
     cJSON* json = cJSON_Parse(textbuffer);
 
-    keybinds[0] = cJSON_GetObjectItem(json, "key_up")->valueint;
-    keybinds[1] = cJSON_GetObjectItem(json, "key_down")->valueint;
-    keybinds[2] = cJSON_GetObjectItem(json, "key_left")->valueint;
-    keybinds[3] = cJSON_GetObjectItem(json, "key_right")->valueint;
-    keybinds[4] = cJSON_GetObjectItem(json, "key_fire")->valueint;
-    keybinds[5] = cJSON_GetObjectItem(json, "key_run")->valueint;
-    keybinds[6] = cJSON_GetObjectItem(json, "key_use")->valueint;
+    keybinds[0] = key_up = cJSON_GetObjectItem(json, "key_up")->valueint;
+    keybinds[1] = key_down = cJSON_GetObjectItem(json, "key_down")->valueint;
+    keybinds[2] = key_left = cJSON_GetObjectItem(json, "key_left")->valueint;
+    keybinds[3] = key_right = cJSON_GetObjectItem(json, "key_right")->valueint;
+    keybinds[4] = key_fire = cJSON_GetObjectItem(json, "key_fire")->valueint;
+    keybinds[5] = key_speed = cJSON_GetObjectItem(json, "key_run")->valueint;
+    keybinds[6] = key_use = cJSON_GetObjectItem(json, "key_use")->valueint;
 
     useMouse = cJSON_IsTrue(cJSON_GetObjectItem(json, "mouse_look"));
     fixInfiniteMonsterHeight =  cJSON_IsTrue(cJSON_GetObjectItem(json, "monster_height_fix"));
