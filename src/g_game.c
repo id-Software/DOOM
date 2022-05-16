@@ -277,6 +277,7 @@ void G_BuildTiccmd (ticcmd_t* cmd)
     }
 
     //??? write better input code at some point BBQ!!!
+    //Roger Roger!
     boolean upkey, downkey, rightkey, leftkey, usekey;
     upkey = gamekeydown[key_up];
     downkey = gamekeydown[key_down];

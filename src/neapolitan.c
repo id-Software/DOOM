@@ -10,7 +10,7 @@ boolean useMouse = 0;
 int keybindCount = 7;
 //typing this out really makes me miss C#
 char keynames[sfKeyCount][16] =
-    {
+{
         "A",
         "B",
         "C",
@@ -88,23 +88,24 @@ char keynames[sfKeyCount][16] =
         "Down"
 
 };
+
 int unbindablekeys[] =
-    {
-        sfKeyEscape,
-        sfKeyLSystem,
-        sfKeyRSystem,
-        sfKeyReturn
+{
+    sfKeyEscape,
+    sfKeyLSystem,
+    sfKeyRSystem,
+    sfKeyReturn
 };
 
 int keybinds[] =
 {
-        KEY_UPARROW,
-        KEY_DOWNARROW,
-        KEY_LEFTARROW,
-        KEY_RIGHTARROW,
-        KEY_RCTRL,
-        KEY_RSHIFT,
-        KEY_SPACE
+    KEY_UPARROW,
+    KEY_DOWNARROW,
+    KEY_LEFTARROW,
+    KEY_RIGHTARROW,
+    KEY_RCTRL,
+    KEY_RSHIFT,
+    KEY_SPACE
 };
 
 int unbindableKeyCount = 4;

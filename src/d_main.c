@@ -850,7 +850,7 @@ void D_DoomMain (void)
       case retail:
 	sprintf (title,
 		 "                         "
-		 "The Ultimate DOOM Startup v%i.%i"
+		 "The Ultimate DOOM StartupIdentifyVersion v%i.%i"
 		 "                           ",
 		 VERSION/100,VERSION%100);
 	break;
