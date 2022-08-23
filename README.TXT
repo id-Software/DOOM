@@ -9,7 +9,7 @@ project and make sure that it actually works.  Projects tends to rot if
 you leave it alone for a few years, and it takes effort for someone to
 deal with it again.
 
-The bad news:  this code only compiles and runs on linux.  We couldn't
+The good news:  this code only compiles and runs on linux.  We couldn't
 release the dos code because of a copyrighted sound library we used
 (wow, was that a mistake -- I write my own sound code now), and I
 honestly don't even know what happened to the port that microsoft did
