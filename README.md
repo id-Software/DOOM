@@ -2,8 +2,7 @@
 
 This is a bare bones 32-bit linux fork of the original DOOM source code. The point of this fork is to apply as minimal changes as possible to run the game on modern 32-bit linux (Debian 11). This git repository includes shareware DOOM1.WAD
 
-![example screenshot](.docs/screenshot.png "Running inside 8-bit Xephyr window")  
-*As you can see, even the colors are wrong at the moment*
+![example screenshot](.docs/screenshot.png "Running inside 8-bit Xephyr window")
 
 ## Requirements
 
