@@ -7,7 +7,7 @@
 CC=  gcc  # gcc or g++
 
 CFLAGS=-std=gnu99 -g -Wall -DNORMALUNIX -DLINUX # -DUSEASM 
-LDFLAGS=-L/usr/lib64
+LDFLAGS=-L/usr/lib
 LIBS=-lXext -lX11 -lnsl -lm
 
 # subdirectory for objects

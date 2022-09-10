@@ -2,4 +2,4 @@
 
 make clean
 make
-(cd linux; ./linuxxdoom)
+(cd linux; DISPLAY=:1 ./linuxxdoom)
