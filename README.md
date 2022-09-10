@@ -35,7 +35,7 @@ The original linux DOOM uses an 8-bit 320x200 screen, modern X11 does not suppor
 # enable ALSA pcm oss sound emulation
 sudo modprobe snd-pcm-oss
 # enable X11 640x400 256-color display emulation
-Xephyr :1 -ac screen 640x400x8
+Xephyr :1 -ac -screen 640x400x8
 # run the game in DISPLAY 1
 DISPLAY=:1 ./linuxxdoom
 ```
