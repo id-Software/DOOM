@@ -7,13 +7,13 @@
 #
 
 CC=gcc
-CFLAGS=-O -DNORMALUNIX -DLINUX
-LDFLAGS=
+CFLAGS=-m32 -std=gnu99 -O -DNORMALUNIX -DLINUX
+LDFLAGS=-m32
 LIBS=-lm
 
 O=linux
 
-all:	 $(O)/sndserver
+all:	 $(O)/sndserver $(O)/doom1.wad
 
 clean:
 	rm -f *.o *~ *.flc
@@ -35,5 +35,8 @@ $(O)/sndserver: \
 # Rule
 $(O)/%.o: %.c
 	$(CC) $(CFLAGS) -c $< -o $@
+
+$(O)/doom1.wad: ../iwad/doom1.wad
+	cp -rf $< $@
 
 

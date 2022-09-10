@@ -6,8 +6,8 @@
 #
 CC=  gcc  # gcc or g++
 
-CFLAGS=-std=gnu99 -g -Wall -DNORMALUNIX -DLINUX # -DUSEASM 
-LDFLAGS=-L/usr/lib
+CFLAGS=-m32 -std=gnu99 -g -Wall -DNORMALUNIX -DLINUX # -DUSEASM 
+LDFLAGS=-m32 -L/usr/lib
 LIBS=-lXext -lX11 -lnsl -lm
 
 # subdirectory for objects
@@ -91,7 +91,7 @@ $(O)/linuxxdoom:	$(OBJS) $(O)/i_main.o
 $(O)/%.o:	%.c
 	$(CC) $(CFLAGS) -c $< -o $@
 
-$(O)/doom1.wad: iwad/doom1.wad
+$(O)/doom1.wad: ../iwad/doom1.wad
 	cp -rf $< $@
 
 

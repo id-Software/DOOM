@@ -106,8 +106,7 @@ int  I_GetTime (void)
 //
 void I_Init (void)
 {
-    // TODO: fix sound
-    //  I_InitSound();
+    I_InitSound();
     //  I_InitGraphics();
 }
 
