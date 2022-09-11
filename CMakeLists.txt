@@ -7,3 +7,4 @@ project(DOOM)
 FILE(GLOB DOOM_LINUX_IWADS "resources/iwad/*.wad")
 
 add_subdirectory(bin-doom)
+add_subdirectory(bin-sndserv)
