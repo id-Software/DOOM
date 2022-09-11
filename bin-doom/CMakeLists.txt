@@ -20,3 +20,4 @@ target_link_libraries(bin-doom PUBLIC
   nsl
   m
 )
+FILE(COPY ${DOOM_LINUX_IWADS} DESTINATION ${CMAKE_CURRENT_BINARY_DIR})

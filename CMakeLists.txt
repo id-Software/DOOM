@@ -4,4 +4,6 @@ set(CMAKE_CXX_COMPILER "g++")
 
 project(DOOM)
 
+FILE(GLOB DOOM_LINUX_IWADS "resources/iwad/*.wad")
+
 add_subdirectory(bin-doom)
