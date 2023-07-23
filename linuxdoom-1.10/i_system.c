@@ -106,7 +106,7 @@ int  I_GetTime (void)
 //
 void I_Init (void)
 {
-    I_InitSound();
+    // I_InitSound(); DISABLE SOUND
     //  I_InitGraphics();
 }
 
@@ -116,8 +116,8 @@ void I_Init (void)
 void I_Quit (void)
 {
     D_QuitNetGame ();
-    I_ShutdownSound();
-    I_ShutdownMusic();
+    // I_ShutdownSound(); DISABLE SOUND
+    // I_ShutdownMusic(); DISABLE SOUND
     M_SaveDefaults ();
     I_ShutdownGraphics();
     exit(0);

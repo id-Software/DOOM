@@ -401,7 +401,7 @@ void D_DoomLoop (void)
 	// Synchronous sound output is explicitly called.
 #ifndef SNDINTR
 	// Update sound output.
-	I_SubmitSound();
+	// I_SubmitSound(); DISABLE SOUND
 #endif
     }
 }
