@@ -575,8 +575,9 @@ void IdentifyVersion (void)
 #ifdef NORMALUNIX
     char *home;
     char *doomwaddir;
-    doomwaddir = getenv("DOOMWADDIR");
-    if (!doomwaddir)
+	// FIXME: reinstate this after adding wasi env support to zware
+    // doomwaddir = getenv("DOOMWADDIR");
+    // if (!doomwaddir)
 	doomwaddir = ".";
 
     // Commercial.
@@ -608,10 +609,12 @@ void IdentifyVersion (void)
     doom2fwad = malloc(strlen(doomwaddir)+1+10+1);
     sprintf(doom2fwad, "%s/doom2f.wad", doomwaddir);
 
-    home = getenv("HOME");
-    if (!home)
-      I_Error("Please set $HOME to your home directory");
-    sprintf(basedefault, "%s/.doomrc", home);
+	// FIXME: reinstate this after adding wasi env support to zware
+    // home = getenv("HOME");
+    // if (!home)
+    //   I_Error("Please set $HOME to your home directory");
+    // sprintf(basedefault, "%s/.doomrc", home);
+	sprintf(basedefault, "./default.cfg"); // Reinstate getenv
 #endif
 
     if (M_CheckParm ("-shdev"))
