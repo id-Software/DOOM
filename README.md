@@ -10,17 +10,26 @@ _Note_: Provided commands were tested on Linux Mint Victoria 21.2.
 
 - Linux
 - Git (`sudo apt install git`)
+- xserver-xephyr (`sudo apt-get install xserver-xephyr`)
+
+### 64-bit
+
 - libc6-dev (`sudo apt-get install libc6-dev`)
 - libx11-dev (`sudo apt-get install libx11-dev`)
 - libxext-dev (`sudo apt-get install libxext-dev`)
-- xserver-xephyr (`sudo apt-get install xserver-xephyr`)
+
+### 32-bit
+
+- libc6-dev:i386 (`sudo apt-get install libc6-dev:i386`)
+- libx11-dev:i386 (`sudo apt-get install libx11-dev:i386`)
+- libxext-dev:i386 (`sudo apt-get install libxext-dev:i386`)
 
 ## Build and Run
 
 0. Open up a terminal
 1. `git clone https://github.com/lunkums/DOOM_fixed.git` (if not already done)
 2. `cd DOOM_fixed/linuxdoom-1.10`
-3. `make`
+3. `make` (64-bit) or `make 32bit` (32-bit)
 4. `cd linux/`
 5. `curl -O https://distro.ibiblio.org/slitaz/sources/packages/d/doom1.wad` (download doom1.wad)
 6. In a separate terminal, run `Xephyr :2 -ac -screen 640x400x8`
