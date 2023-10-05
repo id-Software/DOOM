@@ -64,7 +64,7 @@ rcsid[] = "$Id: i_unix.c,v 1.5 1997/02/03 22:45:10 b1 Exp $";
 #ifdef SNDSERV
 // Separate sound server process.
 FILE*	sndserver=0;
-char*	sndserver_filename = "./sndserver ";
+char*	sndserver_filename = "sndserver";
 #elif SNDINTR
 
 // Update all 30 millisecs, approx. 30fps synchronized.
@@ -746,7 +746,7 @@ I_InitSound()
 	    getenv("DOOMWADDIR"),
 	    sndserver_filename);
   else
-    sprintf(buffer, "%s", sndserver_filename);
+    sprintf(buffer, "./%s", sndserver_filename);
   
   // start sound process
   if ( !access(buffer, X_OK) )
