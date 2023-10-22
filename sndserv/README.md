@@ -14,7 +14,7 @@ _Note_: Provided commands were tested on Linux Mint Victoria 21.2.
 ```bash
 $ cd DOOM_fixed/sndserv # navigate to the `sndserv` directory
 $ make # 64-bit build
-$ make 32bit # 32-bit build
+$ make x86 # 32-bit build
 $ cp ./linux/sndserver ../linuxdoom-1.10/linux/ # copy sndserver to the linuxdoom output directory
 ```
 

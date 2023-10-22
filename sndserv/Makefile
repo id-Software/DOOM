@@ -17,8 +17,8 @@ TARGET := $(O)/sndserver
 
 all: $(TARGET)
 
-32bit: CFLAGS += -m32
-32bit: $(TARGET)
+x86: CFLAGS += -m32
+x86: $(TARGET)
 
 clean:
 	rm -f *.o *~ *.flc

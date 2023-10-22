@@ -28,7 +28,7 @@ _Note_: Provided commands were tested on Linux Mint Victoria 21.2.
 $ git clone https://github.com/lunkums/DOOM_fixed.git # clone the repo
 $ cd DOOM_fixed/linuxdoom-1.10 # navigate to the linuxdoom-1.10 folder
 $ make # 64-bit build
-$ make 32bit # 32-bit build
+$ make x86 # 32-bit build
 $ cd linux/ # navigate to the output directory
 $ curl -O https://distro.ibiblio.org/slitaz/sources/packages/d/doom1.wad # download the shareware wad
 ...
