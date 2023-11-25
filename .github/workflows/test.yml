@@ -16,5 +16,5 @@ jobs:
       - uses: actions/checkout@v2
       - uses: goto-bus-stop/setup-zig@v1
         with:
-          version: master
+          version: 0.11.0
       - run: zig build -Dtarget=wasm32-wasi-musl -Doptimize=ReleaseFast
