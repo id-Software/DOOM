@@ -13,7 +13,12 @@ LIBS=-lm
 
 O=linux
 
-all:	 $(O)/sndserver
+TARGET := $(O)/sndserver
+
+all: $(TARGET)
+
+x86: CFLAGS += -m32
+x86: $(TARGET)
 
 clean:
 	rm -f *.o *~ *.flc
