@@ -17,7 +17,7 @@
 // $Log:$
 //
 // DESCRIPTION:
-//	Endianess handling, swapping 16bit and 32bit.
+//	Endianness handling, swapping 16bit and 32bit.
 //
 //-----------------------------------------------------------------------------
 

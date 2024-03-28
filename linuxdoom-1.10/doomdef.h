@@ -288,7 +288,7 @@ typedef enum
 // Fixed point.
 //#include "m_fixed.h"
 
-// Endianess handling.
+// Endianness handling.
 //#include "m_swap.h"
 
 
