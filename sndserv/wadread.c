@@ -92,7 +92,7 @@ void**		lumpcache;
 
 //
 // Something new.
-// This version of w_wad.c does handle endianess.
+// This version of w_wad.c does handle endianness.
 //
 #ifndef __BIG_ENDIAN__
 
