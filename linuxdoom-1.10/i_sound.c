@@ -182,73 +182,77 @@ myioctl
 // This function loads the sound data from the WAD lump,
 //  for single sound.
 //
-void*
-getsfx
-( char*         sfxname,
-  int*          len )
-{
-    unsigned char*      sfx;
-    unsigned char*      paddedsfx;
-    int                 i;
-    int                 size;
-    int                 paddedsize;
-    char                name[20];
-    int                 sfxlump;
+void* getsfx(const char* sfxname, int* len) {
+    unsigned char *sfx, *paddedsfx;
+    int i, size, paddedsize;
+    char name[64];  // Increased size for safety.
+    int sfxlump;
 
-    
-    // Get the sound data from the WAD, allocate lump
-    //  in zone memory.
-    sprintf(name, "ds%s", sfxname);
+    // Build the lump name safely.
+    if (snprintf(name, sizeof(name), "ds%s", sfxname) >= sizeof(name)) {
+        fprintf(stderr, "Error: sfxname too long for buffer\n");
+        exit(EXIT_FAILURE);
+    }
 
-    // Now, there is a severe problem with the
-    //  sound handling, in it is not (yet/anymore)
-    //  gamemode aware. That means, sounds from
-    //  DOOM II will be requested even with DOOM
-    //  shareware.
-    // The sound list is wired into sounds.c,
-    //  which sets the external variable.
-    // I do not do runtime patches to that
-    //  variable. Instead, we will use a
-    //  default sound for replacement.
-    if ( W_CheckNumForName(name) == -1 )
-      sfxlump = W_GetNumForName("dspistol");
-    else
-      sfxlump = W_GetNumForName(name);
-    
-    size = W_LumpLength( sfxlump );
+    // Check if the lump exists.
+    if (W_CheckNumForName(name) == -1) {
+        fprintf(stderr, "Warning: Lump '%s' not found. Using default sound 'dspistol'.\n", name);
+        sfxlump = W_GetNumForName("dspistol");
+        if (sfxlump == -1) {
+            fprintf(stderr, "Critical error: Default sound 'dspistol' not found in WAD.\n");
+            exit(EXIT_FAILURE);
+        }
+    } else {
+        sfxlump = W_GetNumForName(name);
+    }
 
-    // Debug.
-    // fprintf( stderr, "." );
-    //fprintf( stderr, " -loading  %s (lump %d, %d bytes)\n",
-    //	     sfxname, sfxlump, size );
-    //fflush( stderr );
-    
-    sfx = (unsigned char*)W_CacheLumpNum( sfxlump, PU_STATIC );
+    // Get the lump length.
+    size = W_LumpLength(sfxlump);
+    if (size < 8) {
+        fprintf(stderr, "Error: Lump '%s' is too small (size=%d)\n", name, size);
+        exit(EXIT_FAILURE);
+    }
 
-    // Pads the sound effect out to the mixing buffer size.
-    // The original realloc would interfere with zone memory.
-    paddedsize = ((size-8 + (SAMPLECOUNT-1)) / SAMPLECOUNT) * SAMPLECOUNT;
+    // Cache the lump data.
+    sfx = (unsigned char*)W_CacheLumpNum(sfxlump, PU_STATIC);
+    if (!sfx) {
+        fprintf(stderr, "Error: Failed to cache lump '%s'\n", name);
+        exit(EXIT_FAILURE);
+    }
 
-    // Allocate from zone memory.
-    paddedsfx = (unsigned char*)Z_Malloc( paddedsize+8, PU_STATIC, 0 );
-    // ddt: (unsigned char *) realloc(sfx, paddedsize+8);
-    // This should interfere with zone memory handling,
-    //  which does not kick in in the soundserver.
+    /* 
+     * The original code seems to assume the first 8 bytes are a header,
+     * and the actual sound data starts at offset 8.
+     * Verify that this is the intended behavior.
+     */
+    int dataSize = size - 8;
+    // Calculate the padded size to be a multiple of SAMPLECOUNT.
+    paddedsize = ((dataSize + SAMPLECOUNT - 1) / SAMPLECOUNT) * SAMPLECOUNT;
 
-    // Now copy and pad.
-    memcpy(  paddedsfx, sfx, size );
-    for (i=size ; i<paddedsize+8 ; i++)
+    // Allocate memory for padded data. We allocate 8 extra bytes at the beginning.
+    paddedsfx = (unsigned char*)Z_Malloc(paddedsize + 8, PU_STATIC, 0);
+    if (!paddedsfx) {
+        fprintf(stderr, "Error: Memory allocation failed for padded sfx data.\n");
+        exit(EXIT_FAILURE);
+    }
+
+    // Copy the entire lump (including header) into the new buffer.
+    memcpy(paddedsfx, sfx, size);
+    // Pad the rest of the buffer with the default value (128).
+    for (i = size; i < paddedsize + 8; i++) {
         paddedsfx[i] = 128;
+    }
 
-    // Remove the cached lump.
-    Z_Free( sfx );
-    
-    // Preserve padded length.
+    // Free the original cached lump.
+    Z_Free(sfx);
+
+    // Set the length to the size of the actual sound data (without header).
     *len = paddedsize;
 
-    // Return allocated padded data.
-    return (void *) (paddedsfx + 8);
+    // Return pointer offset by 8 to skip the header.
+    return (void*)(paddedsfx + 8);
 }
+
 
 
 
