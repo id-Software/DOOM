@@ -4,9 +4,8 @@
 #
 # $Log:$
 #
-CC=  gcc  # gcc or g++
-
-CFLAGS=-g -Wall -DNORMALUNIX -DLINUX # -DUSEASM 
+CC= g++
+CFLAGS= -g -Wall -DNORMALUNIX -DLINUX -std=c++11
 LDFLAGS=-L/usr/X11R6/lib
 LIBS=-lXext -lX11 -lnsl -lm
 

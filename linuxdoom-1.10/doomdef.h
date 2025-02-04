@@ -95,7 +95,12 @@ typedef enum
 // For resize of screen, at start of game.
 // It will not work dynamically, see visplanes.
 //
-#define	BASE_WIDTH		320
+#define	BASEWIDTH		320
+#define	BASEHEIGHT		240  // Changed from 200 to 240 for proper 4:3
+
+// Support for higher resolutions
+#define SCREENWIDTH     640  // Can be modified at runtime
+#define SCREENHEIGHT    480
 
 // It is educational but futile to change this
 //  scaling e.g. to 2. Drawing of status bar,

@@ -691,7 +691,18 @@ void grabsharedmemory(int size)
 
 void I_InitGraphics(void)
 {
-
+#ifdef USE_SVGA
+    if (M_CheckParm("-svga"))
+    {
+        if (I_InitSVGA())
+        {
+            // Override default update function
+            I_FinishUpdate = I_UpdateSVGAScreen;
+            return;
+        }
+    }
+#endif
+    // Fallback to existing X11 initialization...
     char*		displayname;
     char*		d;
     int			n;
