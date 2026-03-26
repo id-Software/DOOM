@@ -16,6 +16,9 @@
 
 #define   DOOMCOM_ID          0x12345678l
 
+// Define InterruptHandler at the top of the file
+typedef void (*InterruptHandler)(void);
+
 typedef struct
 {
      long id;
@@ -49,10 +52,10 @@ typedef struct
 
 
 extern    doomcom_t doomcom;
-extern    void interrupt (*olddoomvect) (void);
+extern    InterruptHandler olddoomvect;
 extern    int            vectorishooked;
 
 int CheckParm (char *check);
 void LaunchDOOM (void);
-void interrupt NetISR (void);
+void NetISR (void);
 

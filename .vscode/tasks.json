@@ -1,0 +1,86 @@
+{
+	"version": "2.0.0",
+	"tasks": [
+		{
+			"label": "DOOM: Install deps",
+			"type": "shell",
+			"command": "npm install",
+			"options": {
+				"cwd": "${workspaceFolder}/web-doom"
+			},
+			"group": "build",
+			"presentation": {
+				"reveal": "always",
+				"panel": "dedicated"
+			}
+		},
+		{
+			"label": "DOOM: Build WASM",
+			"type": "shell",
+			"command": "powershell -ExecutionPolicy Bypass -File \"${workspaceFolder}/linuxdoom-1.10/build_em.ps1\"",
+			"options": {
+				"cwd": "${workspaceFolder}/linuxdoom-1.10"
+			},
+			"group": "build",
+			"presentation": {
+				"reveal": "always",
+				"panel": "dedicated"
+			}
+		},
+		{
+			"label": "DOOM: Start web server",
+			"type": "shell",
+			"command": "npm run dev",
+			"options": {
+				"cwd": "${workspaceFolder}/web-doom"
+			},
+			"isBackground": true,
+			"group": "build",
+			"presentation": {
+				"reveal": "always",
+				"panel": "dedicated"
+			},
+			"problemMatcher": [
+				{
+					"pattern": [
+						{
+							"regexp": ".",
+							"file": 1,
+							"location": 2,
+							"message": 3
+						}
+					],
+					"background": {
+						"activeOnStart": true,
+						"beginsPattern": "starting|compiling",
+						"endsPattern": "localhost"
+					}
+				}
+			]
+		},
+		{
+			"label": "DOOM-npm-install",
+			"type": "shell",
+			"command": "npm install",
+			"group": "build"
+		},
+		{
+			"label": "DOOM-setup",
+			"type": "shell",
+			"command": "c:/python314/python.exe run_setup.py",
+			"group": "build"
+		},
+		{
+			"label": "npm-install-doom",
+			"type": "shell",
+			"command": "npm install 2>&1 | Tee-Object -FilePath ../npm-install.log; Write-Host 'DONE'",
+			"group": "build"
+		},
+		{
+			"label": "doom-npm",
+			"type": "shell",
+			"command": "powershell -ExecutionPolicy Bypass -Command \"cd web-doom; npm install; echo NPMOK | Out-File ../npm-done.txt\"",
+			"group": "build"
+		}
+	]
+}

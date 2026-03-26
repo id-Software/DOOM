@@ -27,18 +27,22 @@
 
 #ifndef __BYTEBOOL__
 #define __BYTEBOOL__
-// Fixed to use builtin bool type with C++.
+// Use the most appropriate boolean type depending on compiler/environment.
 #ifdef __cplusplus
 typedef bool boolean;
+#elif defined(true)
+// true/false are already defined as macros (Emscripten, C99 stdbool, etc.)
+typedef int boolean;
 #else
-typedef enum {false, true} boolean;
+// Plain C89: define the enum ourselves.
+typedef enum { false = 0, true = 1 } boolean;
 #endif
 typedef unsigned char byte;
 #endif
 
 
 // Predefined with some OS.
-#ifdef LINUX
+#if 0 // was: #ifdef LINUX - not needed as we define these below
 #include <values.h>
 #else
 #define MAXCHAR		((char)0x7f)

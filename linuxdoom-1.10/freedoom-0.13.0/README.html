@@ -1,0 +1,623 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+    <meta name="generator" content="AsciiDoc 9.1.0" />
+    <title>Freedoom</title>
+    <style type="text/css">
+      body {
+        margin: 0;
+        padding: 16px;
+      }
+
+      #header,
+      #main,
+      #footer {
+        margin-bottom: 32px;
+      }
+
+      #header {
+        height: 160px;
+      }
+
+      #header h1,
+      h2 {
+        margin: 0;
+      }
+
+      #navigation {
+        position: absolute;
+        top: 208px;
+        left: 8px;
+        width: 14em;
+      }
+
+      .nav ul {
+        margin-top: 0;
+      }
+
+      #main {
+        margin-left: 200px;
+        clear: both;
+        padding: 1em;
+      }
+
+      #footer {
+        clear: both;
+        padding-left: 1em;
+        margin-left: 200px;
+      }
+
+      .monospaced {
+        font-family: "monospace";
+      }
+
+      /* stop header elements from pushing divs apart */
+      p,
+      h1,
+      h2 {
+        margin: 0;
+        padding-top: 0;
+      }
+      h3,
+      h4,
+      h5,
+      h6 {
+        margin: 0;
+        padding-top: 0.5em;
+        padding-bottom: 0.5em;
+      }
+      p {
+        padding-top: 0.5em;
+        padding-bottom: 0.5em;
+      }
+
+      /* some basics: a colour and font settings */
+      body {
+        background-color: #c6dcd1;
+        font-family: sans-serif;
+        font-size: small;
+      }
+      a {
+        color: #226;
+        text-decoration: none;
+        background: #efe;
+      }
+      a:active {
+        color: #000;
+      }
+      a:hover {
+        text-decoration: underline;
+      }
+      a:visited {
+        font-style: italic;
+      }
+      #navigation a {
+        background: none;
+      }
+
+      /* the header of the page will occupy the top 96 pixels and all of the
+       * width of the page. The site-title will be an image replacement and
+       * occupy virtually all of the space.
+       *
+       * The body has a gradient background which starts immediately below
+       * the header and tiles left-to-right
+       */
+      #header {
+        background: #fff;
+        margin: -16px;
+        margin-bottom: 0;
+        height: 92px;
+      }
+      #header #site {
+        padding-top: 16px;
+        width: 351px;
+        height: 80px;
+        text-align: right;
+        color: #fff;
+        font-size: 0pt;
+        background: url(data:image/webp;base64,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)
+          no-repeat 0% 50%;
+        width: 100%;
+      }
+      #header #forkme {
+        position: absolute;
+        margin: 0;
+        top: 0;
+        right: 0;
+        border: 0;
+      }
+      body {
+        background-image: url(data:image/webp;base64,UklGRnwAAABXRUJQVlA4TG8AAAAvP8APAJmM6H9sQiCQ4lAGeED6H6c41LSR5OgWzuF5/oQuTfmpIBCEkP8bXXBBQFD4P1qhyG3bJnu1Nyd/WLPpsV84KYWTaXyjwDcixyf4P3rjfyTj2/t/fNxZzb832k8Ev7vRP+753R38uH/Vn20A);
+        background-repeat: repeat-x;
+        background-position: 0px 92px;
+      }
+
+      /* the page title from the header will be moved down to form a 'tab'
+       * on top of the body area. Similarly, the h3 at the top of the
+       * contents div will be a tab.
+       */
+
+      /* positioning */
+      #navigation {
+        top: 128px;
+      }
+      #header #page {
+        position: absolute;
+        top: 128px;
+        left: 200px;
+        margin-left: 16px;
+      }
+      /* style */
+      #header #page,
+      .nav h3 {
+        color: #fff;
+        background: #87ad9a; /*#00a;*/
+        border: 2px solid #497d63; /* #000;*/
+        border-bottom: none;
+        height: 24px;
+
+        font-weight: bold;
+        font-size: 11pt;
+        vertical-align: middle;
+        text-align: center;
+        padding-left: 1em;
+        padding-right: 1em;
+      }
+      .nav h3 {
+        width: 50%;
+        padding-top: 0;
+        padding-bottom: 0;
+      }
+
+      /* now need to push the main portion of the page down to fit below the
+       * tab title
+       */
+
+      #main {
+        margin-top: 62px;
+        /* http://tantek.com/CSS/Examples/boxmodelhack.html */
+        voice-family: '"}"';
+        voice-family: inherit;
+        margin-top: 60px;
+      }
+      html > body #main {
+        margin-top: 62px;
+      }
+
+      .nav ul {
+        margin-left: 0;
+        padding-left: 0.5em;
+        padding-top: 0.5em;
+        padding-bottom: 0.5em;
+      }
+      .nav ul,
+      #main,
+      #footer,
+      .nav p {
+        background: #fff;
+        border: 2px solid #497d63;
+      }
+
+      .nav ul {
+        list-style: none;
+      }
+      .nav ul ul {
+        list-style: disc;
+      }
+      .nav ul ul {
+        border: none;
+        padding-top: 0;
+        margin-left: 2em;
+        padding-left: 0;
+      }
+
+      table {
+        width: 100%;
+      }
+      table,
+      th,
+      td,
+      tr {
+        margin: 0;
+        border-spacing: 0;
+      }
+      th {
+        text-align: center;
+        background: #87ad9a;
+        color: #fff;
+      }
+      td,
+      th {
+        border: solid 1px #497d63;
+      }
+      table {
+        border: solid 2px #497d63;
+      }
+      img {
+        margin: 1em;
+      }
+      a img {
+        border: 0;
+      }
+    </style>
+  </head>
+  <body class="article">
+    <div id="header">
+      <h1 id="site">Freedoom</h1>
+      <h2 id="page">Freedoom</h2>
+    </div>
+    <div id="navigation">
+      <div id="contents" class="nav">
+        <h3>Links</h3>
+        <ul>
+          <li><a href="https://freedoom.github.io/">Freedoom Home Page</a></li>
+          <li>
+            <a href="https://github.com/freedoom/freedoom">
+              Freedoom Source Repository</a>
+          </li>
+          <li>
+            <a href="https://www.doomworld.com/forum/17-freedoom/">
+              Freedoom Forum</a>
+          </li>
+          <li><a href="https://discord.gg/9DA3fut">Discord Server</a></li>
+        </ul>
+      </div>
+    </div>
+    <div id="main">
+<div id="preamble">
+<div class="sectionbody">
+<div class="paragraph"><p>The Freedoom project aims to create a complete, free content first
+person shooter game, but <em>Freedoom</em> by itself is just the raw material
+for a game.  It must be paired with a compatible <em>Doom</em> engine to be
+played.</p></div>
+<div class="paragraph"><p>There is a massive <a href="https://doomwiki.org/wiki/Idgames_archive">back
+catalog</a>, spanning over two decades, containing thousands of <em>Doom</em>
+levels and other modifications (“mods”) made by fans of the game.
+<em>Freedoom</em> aims to be compatible with these and allows most to be
+played without the need to use non-free software.</p></div>
+<div class="paragraph"><p><em>Freedoom</em> is actually three games in one, consisting of two
+single-player oriented campaigns and one set of levels designed
+exclusively for multiplayer deathmatch:</p></div>
+<div class="hdlist"><table>
+<tr>
+<td class="hdlist1">
+<strong>Freedoom: Phase 1</strong>
+<br>
+</td>
+<td class="hdlist2">
+<p style="margin-top: 0;">
+Four episodes, nine levels each, totalling 36
+levels.  This game aims for compatibility with <em>The Ultimate Doom</em>
+mods, also known as plain <em>Doom</em> or <em>Doom 1</em>.
+</p>
+</td>
+</tr>
+<tr>
+<td class="hdlist1">
+<strong>Freedoom: Phase 2</strong>
+<br>
+</td>
+<td class="hdlist2">
+<p style="margin-top: 0;">
+32 levels in one long episode, featuring extra
+monsters and a double-barrelled shotgun.  This project aims for
+compatibility with <em>Doom II</em> mods.
+</p>
+</td>
+</tr>
+<tr>
+<td class="hdlist1">
+<strong>FreeDM</strong>
+<br>
+</td>
+<td class="hdlist2">
+<p style="margin-top: 0;">
+A 32-level game designed for competitive deathmatch play.
+</p>
+</td>
+</tr>
+</table></div>
+<div class="paragraph"><p>The engine uses a single file, such as <span class="monospaced">freedoom2.wad</span>, that contains
+all the game data such as graphics, sound effects, music, and so on.
+This file is often called an “IWAD” by those in the <em>Doom</em> and
+<em>Freedoom</em> communities.  While the <em>Doom</em> engine source code is free,
+you would normally still need one of the proprietary data files from
+<a href="https://www.idsoftware.com/">id Software</a> to play <em>Doom</em>.  <em>Freedoom</em>
+aims to create a free alternative: combined with the GPL-licensed
+<em>Doom</em> source code, this results in a completely free game.</p></div>
+<div class="paragraph"><p>For more information, see <a href="https://freedoom.github.io/">https://freedoom.github.io/</a>.</p></div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="_how_to_play">How to play</h2>
+<div class="sectionbody">
+<div class="paragraph"><p>Since <em>Freedoom</em> is only the game data, you will still need to
+download an engine separately.  These are also often termed “source
+ports” by the community.  There are an overwhelming number of choices
+available, a lengthy list of which is available on the
+<a href="https://doomwiki.org/wiki/Source_port">Doom Wiki</a>.</p></div>
+<div class="paragraph"><p>One particularly recommended by the <em>Freedoom</em> project is
+<a href="https://zdoom.org/">GZDoom</a>.  This engine offers good support for
+single-player, multi-player, and the majority of mods created for both
+<em>Doom</em> and <em>Freedoom</em>.</p></div>
+<div class="paragraph"><p>On Windows, you should place <em>Freedoom</em>’s data files (those ending
+with <span class="monospaced">.wad</span>) alongside the engine (eg, <span class="monospaced">odamex.exe</span>).  On Unix-like
+systems, these data files should go in either <span class="monospaced">/usr/share/games/doom</span>
+or your home directory.  If <em>Freedoom</em> comes packaged as part of your
+operating system distribution, it should already be installed into the
+proper location.</p></div>
+<div class="paragraph"><p>Hopefully, your engine of choice should already be capable of running
+<em>Freedoom</em> without extra configuration.  This may not be the case,
+however, if the engine does not recognize any of the filenames for
+<em>Freedoom</em>, and might require manual intervention to make it so.  One
+of the following options should solve it:</p></div>
+<div class="ulist"><ul>
+<li>
+<p>
+Use the <span class="monospaced">-iwad</span> command line parameter.  For example, to play
+    Phase 2, you can enter <span class="monospaced">-iwad freedoom2.wad</span> either at a command
+    line, or adding it to an application shortcut.
+</p>
+</li>
+<li>
+<p>
+Use the <span class="monospaced">DOOMWADPATH</span> environment variable.  Many engines support
+    this variable to add directories and/or files to their search
+    path.  The exact syntax matches your operating system’s normal
+    <span class="monospaced">PATH</span> environment variable.
+</p>
+</li>
+<li>
+<p>
+Rename the game files.  This may be a bit crude, but you can
+    rename the files to match those of <em>Doom</em>’s.  This is often the
+    easiest quick-fix, although it is normally desirable to use one of
+    the above methods if possible.
+</p>
+<div class="ulist"><ul>
+<li>
+<p>
+<span class="monospaced">freedoom1.wad</span> can be renamed to <span class="monospaced">doom.wad</span>
+</p>
+</li>
+<li>
+<p>
+<span class="monospaced">freedoom2.wad</span> can be renamed to <span class="monospaced">doom2.wad</span>
+</p>
+</li>
+<li>
+<p>
+<span class="monospaced">freedm.wad</span> can be renamed to <span class="monospaced">doom2.wad</span>
+</p>
+</li>
+</ul></div>
+</li>
+</ul></div>
+<div class="paragraph"><p>Additionally, for Unix-like operating systems, such as GNU/Linux or a
+BSD variant, <em>Freedoom</em> may be packaged and installed with programs
+named <span class="monospaced">freedoom1</span>, <span class="monospaced">freedoom2</span>, and <span class="monospaced">freedm</span> that automatically run an
+engine for proper play.  Desktop files may also be installed so that
+you can start the game using a graphical interface and avoid the
+command line altogether.</p></div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="_what_free_means">What “free” means</h2>
+<div class="sectionbody">
+<div class="paragraph"><p>When we speak of free content or software, we refer to the movement in
+which your freedoms to use, copy, modify, and study a work is not
+infringed.  For example, you may freely use <em>Freedoom</em> for any purpose
+you see fit, you may redistribute it to anyone without needing to ask
+for permission, you may modify it (provided you keep the license
+intact, see <span class="monospaced">COPYING</span>), and you may study it&#8212;for example, to see how
+an “IWAD” is built.  To facilitate this, you can get the full source
+code for <em>Freedoom</em>, in this case, in the form of a DeuTex tree.</p></div>
+<div class="paragraph"><p>You may read more about free software at the <a href="https://www.gnu.org/">GNU</a>
+and <a href="https://www.fsf.org/">Free Software Foundation</a> websites.</p></div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="_contributing_to_freedoom">Contributing to Freedoom</h2>
+<div class="sectionbody">
+<div class="paragraph"><p>Contributions to <em>Freedoom</em> are always welcome, however there are a
+few guidelines that should be followed:</p></div>
+<div class="sect2">
+<h3 id="_intellectual_property">Intellectual property</h3>
+<div class="paragraph"><p>We know people hate legalese, but this is important.  This applies to
+<strong>everything</strong> which is submitted.</p></div>
+<div class="paragraph"><p>You must be careful when basing on existing graphics or sounds.  Most
+<em>Doom</em> projects are lax on reusing intellectual property&#8212;there are
+many mods which contain modified <em>Doom</em> sprites, for example.
+However, due to the nature of this project, we do not have the same
+liberty to rip as we please.</p></div>
+<div class="paragraph"><p>The general rules go as follows:</p></div>
+<div class="ulist"><ul>
+<li>
+<p>
+You must have permission for everything you submit.  If you make
+    your own resources, do not base on resources from <em>Doom</em> or any
+    other restricted work.  If you take work from other places, please
+    make sure that the work is freely-licensed or that you obtain
+    permission to include it in the <em>Freedoom</em> project.  They may not
+    place additional restrictions compared to the normal <em>Freedoom</em>
+    license.
+</p>
+</li>
+<li>
+<p>
+Do not try to emulate <em>Doom</em> resources exactly.  Where possible,
+    put effort to make new versions look visibly different from
+    <em>Doom</em>.  This is a tough call, because our compatibility with
+    <em>Doom</em> mods limits how far we can deviate, but it is feasible.
+</p>
+</li>
+<li>
+<p>
+Be especially careful of “free textures” (or “free sounds” or
+    “free graphics”) sites.  Although these would appear at first to
+    be okay to use, many are free for “non-commercial use only.”
+    One of the things we want to be able to do is put this in
+    GNU/Linux distributions (which can be sold or developed
+    commercially).
+</p>
+</li>
+</ul></div>
+</div>
+<div class="sect2">
+<h3 id="_levels">Levels</h3>
+<div class="paragraph"><p>All levels for <em>Freedoom</em> must be vanilla-compatible, requiring an
+expanded-limits or limit-removing engine is not permissible.  This
+means you may not exceed the limits of the original <em>Doom</em> engine, and
+do not depend on additional mapping features.  Levels should be in
+<em>Doom</em>’s original format, not in “Hexen”-format.</p></div>
+<div class="paragraph"><p>It is sensible to also heed the following guidelines:</p></div>
+<div class="ulist"><ul>
+<li>
+<p>
+Make sure that skill levels are implemented, and that all
+    multiplayer start points, both cooperative and deathmatch, are
+    present.
+</p>
+</li>
+<li>
+<p>
+Try to make levels appropriately difficult for their position
+    within the progression of the game.  Also bear in mind that not
+    all players may be as skilled a player as you.
+</p>
+</li>
+<li>
+<p>
+Do not use tricks that exploit <em>Doom</em>’s software renderer; some
+    engines, especially those that use hardware accelerated rendering,
+    may not render it properly.  Examples of tricks to avoid include
+    those used to simulate 3D bridges and “deep water” effects.
+</p>
+</li>
+<li>
+<p>
+While unrestricted by limits, do not make excessively complicated
+    scenes.  It is desirable that <em>Freedoom</em> levels should be playable
+    on low-powered hardware, such as phones and old computers.
+</p>
+</li>
+<li>
+<p>
+Test your levels in <a href="https://www.chocolate-doom.org/">Chocolate
+    Doom</a> to make sure that vanilla compatibility is maintained.  This
+    is an engine with strict adherence to vanilla Doom limits and
+    bugs, and working in it assures that levels can be played with any
+    <em>Doom</em> engine.
+</p>
+</li>
+<li>
+<p>
+Use a Doom editor to check for errors. In
+    <a href="http://eureka-editor.sourceforge.net/">Eureka</a> it&#8217;s possible to
+    check for errors with the Check / All menu, or by pressing <span class="monospaced">F9</span>.
+</p>
+</li>
+<li>
+<p>
+If possible run <span class="monospaced">make test</span> and fix any errors found. Note that
+    some of the errors can be fixed by <span class="monospaced">make fix</span>.
+</p>
+</li>
+</ul></div>
+</div>
+<div class="sect2">
+<h3 id="_graphics">Graphics</h3>
+<div class="paragraph"><p>Graphics should generally have the same color and size as the original
+<em>Doom</em> graphics, as to remain compatible with mods.  Otherwise, levels
+may end up looking like a nightmare in design.  They may be
+thematically different as long as it doesn’t clash.</p></div>
+<div class="paragraph"><p><em>Doom</em> uses a fictional corporation abbreviated as “UAC:” this is
+trademarked by id Software and cannot be used in <em>Freedoom</em>.  Instead,
+use the initials “AGM” for <em>Freedoom</em>.</p></div>
+</div>
+<div class="sect2">
+<h3 id="_documentation">Documentation</h3>
+<div class="paragraph"><p><em>Freedoom</em> always needs help with documentation, so please send your
+patches, but keep in mind:</p></div>
+<div class="ulist"><ul>
+<li>
+<p>
+We use <a href="http://asciidoc.org/">AsciiDoc</a> for writing the
+    documentation.  AsciiDoc is a simple plaintext-based format which
+    is simple to read and write in its source form, and can generate
+    nice HTML documents out of them.
+</p>
+</li>
+<li>
+<p>
+Headers are formated in a wiki-style format, this makes it easier
+    for Vim (perhaps other editors, too) to automatically re-format
+    text.
+</p>
+</li>
+<li>
+<p>
+Text is kept at 72 characters wide.  In Vim, you can set the
+    editor to automatically insert line breaks as you’re typing by
+    performing <span class="monospaced">set textwidth=72</span>.  Special exceptions to the width
+    rule might be allowed when necessary (for example, inserting long
+    URLs).
+</p>
+</li>
+</ul></div>
+</div>
+<div class="sect2">
+<h3 id="_submitting_your_work">Submitting your work</h3>
+<div class="paragraph"><p>The most common, and a fairly simple method, to submit your work is by
+posting it on the
+<a href="https://www.doomworld.com/forum/17-freedoom/">Freedoom forum</a> on
+Doomworld Forums.  This allows a great number of people to review the
+contribution and provide feedback, although the registration process
+is known to be cumbersome.</p></div>
+<div class="paragraph"><p>An alternative to using the forum, is to post your submission on the
+<a href="https://github.com/freedoom/freedoom/issues">issue tracker</a>, which may
+also be peer-reviewed and provide a feedback cycle.</p></div>
+<div class="paragraph"><p>Unfortunately, the Freedoom project cannot provide hosting space in
+the form of a web page nor FTP, however there are many free file hosts
+to use when you need a location to upload files.  Sites and services
+such as <a href="https://www.dropbox.com/">Dropbox</a> and
+<a href="https://mega.co.nz/">Mega</a>, as well as others, are common and should be
+simple to use.</p></div>
+<div class="sect3">
+<h4 id="_crediting_information">Crediting information</h4>
+<div class="paragraph"><p><em>Freedoom</em> is made up of submissions from many people all over the
+globe.  All of them, and you, deserve credit!  Please do not forget to
+provide your name and email when submitting resources.</p></div>
+</div>
+<div class="sect3">
+<h4 id="_using_git">Using Git</h4>
+<div class="paragraph"><p>You can also commit on a clone of the <em>Freedoom</em> repository, although
+this is a technical task and it is okay to let other <em>Freedoom</em>
+maintainers to do it instead: that is our normal mode of operation.
+However, pull requests are much appreciated and you may submit them in
+any manner you wish, with GitHub’s direct pull requests being the
+simplest, but by far not the only means.</p></div>
+<div class="paragraph"><p>Freedoom uses the commit message style commonly seen in distributed
+version control systems, adopted by projects such as Linux and Git.
+For an explanation of this style, see
+<a href="https://chris.beams.io/posts/git-commit/">How to Write a Git Commit
+Message</a>.</p></div>
+<div class="paragraph"><p>If you create a git commit for someone else it is helpful to set the
+author of the commit so that they get credit. Ask them what name/alias
+and email they would like to use. For example:</p></div>
+<div class="listingblock">
+<div class="content"><!-- Generator: GNU source-highlight
+by Lorenzo Bettini
+http://www.lorenzobettini.it
+http://www.gnu.org/software/src-highlite -->
+<pre><tt>git commit --author <span style="color: #FF0000">"Bob Smith &lt;bob@example.com&gt;"</span> <span style="color: #990000">...</span></tt></pre></div></div>
+<div class="paragraph"><p>If they prefer not to give an email then the email can be omitted, so
+just "Bob Smith" in the above example.</p></div>
+</div>
+</div>
+</div>
+</div>
+</div>
+</body>
+</html>

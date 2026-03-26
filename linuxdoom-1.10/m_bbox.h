@@ -23,8 +23,7 @@
 #ifndef __M_BBOX__
 #define __M_BBOX__
 
-#include <values.h>
-
+#include "doomtype.h"  // provides MAXINT/MININT on non-Linux
 #include "m_fixed.h"
 
 

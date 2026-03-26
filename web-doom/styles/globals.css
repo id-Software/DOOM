@@ -1,0 +1,21 @@
+/* Global reset */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+html, body {
+  background: #0a0a0a;
+  color: #eee;
+  font-family: 'Courier New', Courier, monospace;
+  min-height: 100vh;
+}
+
+kbd {
+  background: #1e1e1e;
+  border: 1px solid #444;
+  border-bottom-width: 2px;
+  border-radius: 3px;
+  padding: 1px 6px;
+  font-family: inherit;
+  font-size: 0.75em;
+  color: #ddd;
+  white-space: nowrap;
+}

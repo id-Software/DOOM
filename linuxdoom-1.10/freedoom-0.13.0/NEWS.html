@@ -1,0 +1,1005 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+    <meta name="generator" content="AsciiDoc 9.1.0" />
+    <title>Freedoom project news</title>
+    <style type="text/css">
+      body {
+        margin: 0;
+        padding: 16px;
+      }
+
+      #header,
+      #main,
+      #footer {
+        margin-bottom: 32px;
+      }
+
+      #header {
+        height: 160px;
+      }
+
+      #header h1,
+      h2 {
+        margin: 0;
+      }
+
+      #navigation {
+        position: absolute;
+        top: 208px;
+        left: 8px;
+        width: 14em;
+      }
+
+      .nav ul {
+        margin-top: 0;
+      }
+
+      #main {
+        margin-left: 200px;
+        clear: both;
+        padding: 1em;
+      }
+
+      #footer {
+        clear: both;
+        padding-left: 1em;
+        margin-left: 200px;
+      }
+
+      .monospaced {
+        font-family: "monospace";
+      }
+
+      /* stop header elements from pushing divs apart */
+      p,
+      h1,
+      h2 {
+        margin: 0;
+        padding-top: 0;
+      }
+      h3,
+      h4,
+      h5,
+      h6 {
+        margin: 0;
+        padding-top: 0.5em;
+        padding-bottom: 0.5em;
+      }
+      p {
+        padding-top: 0.5em;
+        padding-bottom: 0.5em;
+      }
+
+      /* some basics: a colour and font settings */
+      body {
+        background-color: #c6dcd1;
+        font-family: sans-serif;
+        font-size: small;
+      }
+      a {
+        color: #226;
+        text-decoration: none;
+        background: #efe;
+      }
+      a:active {
+        color: #000;
+      }
+      a:hover {
+        text-decoration: underline;
+      }
+      a:visited {
+        font-style: italic;
+      }
+      #navigation a {
+        background: none;
+      }
+
+      /* the header of the page will occupy the top 96 pixels and all of the
+       * width of the page. The site-title will be an image replacement and
+       * occupy virtually all of the space.
+       *
+       * The body has a gradient background which starts immediately below
+       * the header and tiles left-to-right
+       */
+      #header {
+        background: #fff;
+        margin: -16px;
+        margin-bottom: 0;
+        height: 92px;
+      }
+      #header #site {
+        padding-top: 16px;
+        width: 351px;
+        height: 80px;
+        text-align: right;
+        color: #fff;
+        font-size: 0pt;
+        background: url(data:image/webp;base64,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)
+          no-repeat 0% 50%;
+        width: 100%;
+      }
+      #header #forkme {
+        position: absolute;
+        margin: 0;
+        top: 0;
+        right: 0;
+        border: 0;
+      }
+      body {
+        background-image: url(data:image/webp;base64,UklGRnwAAABXRUJQVlA4TG8AAAAvP8APAJmM6H9sQiCQ4lAGeED6H6c41LSR5OgWzuF5/oQuTfmpIBCEkP8bXXBBQFD4P1qhyG3bJnu1Nyd/WLPpsV84KYWTaXyjwDcixyf4P3rjfyTj2/t/fNxZzb832k8Ev7vRP+753R38uH/Vn20A);
+        background-repeat: repeat-x;
+        background-position: 0px 92px;
+      }
+
+      /* the page title from the header will be moved down to form a 'tab'
+       * on top of the body area. Similarly, the h3 at the top of the
+       * contents div will be a tab.
+       */
+
+      /* positioning */
+      #navigation {
+        top: 128px;
+      }
+      #header #page {
+        position: absolute;
+        top: 128px;
+        left: 200px;
+        margin-left: 16px;
+      }
+      /* style */
+      #header #page,
+      .nav h3 {
+        color: #fff;
+        background: #87ad9a; /*#00a;*/
+        border: 2px solid #497d63; /* #000;*/
+        border-bottom: none;
+        height: 24px;
+
+        font-weight: bold;
+        font-size: 11pt;
+        vertical-align: middle;
+        text-align: center;
+        padding-left: 1em;
+        padding-right: 1em;
+      }
+      .nav h3 {
+        width: 50%;
+        padding-top: 0;
+        padding-bottom: 0;
+      }
+
+      /* now need to push the main portion of the page down to fit below the
+       * tab title
+       */
+
+      #main {
+        margin-top: 62px;
+        /* http://tantek.com/CSS/Examples/boxmodelhack.html */
+        voice-family: '"}"';
+        voice-family: inherit;
+        margin-top: 60px;
+      }
+      html > body #main {
+        margin-top: 62px;
+      }
+
+      .nav ul {
+        margin-left: 0;
+        padding-left: 0.5em;
+        padding-top: 0.5em;
+        padding-bottom: 0.5em;
+      }
+      .nav ul,
+      #main,
+      #footer,
+      .nav p {
+        background: #fff;
+        border: 2px solid #497d63;
+      }
+
+      .nav ul {
+        list-style: none;
+      }
+      .nav ul ul {
+        list-style: disc;
+      }
+      .nav ul ul {
+        border: none;
+        padding-top: 0;
+        margin-left: 2em;
+        padding-left: 0;
+      }
+
+      table {
+        width: 100%;
+      }
+      table,
+      th,
+      td,
+      tr {
+        margin: 0;
+        border-spacing: 0;
+      }
+      th {
+        text-align: center;
+        background: #87ad9a;
+        color: #fff;
+      }
+      td,
+      th {
+        border: solid 1px #497d63;
+      }
+      table {
+        border: solid 2px #497d63;
+      }
+      img {
+        margin: 1em;
+      }
+      a img {
+        border: 0;
+      }
+    </style>
+  </head>
+  <body class="article">
+    <div id="header">
+      <h1 id="site">Freedoom</h1>
+      <h2 id="page">Freedoom project news</h2>
+    </div>
+    <div id="navigation">
+      <div id="contents" class="nav">
+        <h3>Links</h3>
+        <ul>
+          <li><a href="https://freedoom.github.io/">Freedoom Home Page</a></li>
+          <li>
+            <a href="https://github.com/freedoom/freedoom">
+              Freedoom Source Repository</a>
+          </li>
+          <li>
+            <a href="https://www.doomworld.com/forum/17-freedoom/">
+              Freedoom Forum</a>
+          </li>
+          <li><a href="https://discord.gg/9DA3fut">Discord Server</a></li>
+        </ul>
+      </div>
+    </div>
+    <div id="main">
+<div class="sect1">
+<h2 id="_0_13_0_2024_01_29">0.13.0 (2024-01-29)</h2>
+<div class="sectionbody">
+<div class="sect2">
+<h3 id="_general">General</h3>
+<div class="ulist"><ul>
+<li>
+<p>
+Improved vanilla compatibility.
+</p>
+<div class="ulist"><ul>
+<li>
+<p>
+Boom features removed.
+</p>
+</li>
+<li>
+<p>
+Hall of mirrors greatly reduced.
+</p>
+</li>
+<li>
+<p>
+Visplane overflows fixed.
+</p>
+</li>
+<li>
+<p>
+Savegame buffer overflow errors remain.
+</p>
+</li>
+</ul></div>
+</li>
+</ul></div>
+</div>
+<div class="sect2">
+<h3 id="_levels">Levels</h3>
+<div class="ulist"><ul>
+<li>
+<p>
+Relevant Eureka warnings fixed.
+</p>
+</li>
+<li>
+<p>
+New levels E1M9, E2M2, E2M3, E2M4, E2M7, E2M8, E3M5, MAP07, MAP21 and MAP27.
+</p>
+</li>
+<li>
+<p>
+Various level renames.
+</p>
+</li>
+<li>
+<p>
+Numerous vanilla fixes and aesthetic modernizations.
+</p>
+</li>
+<li>
+<p>
+Fixed and standardized secret exits.
+</p>
+</li>
+</ul></div>
+</div>
+<div class="sect2">
+<h3 id="_manual">Manual</h3>
+<div class="ulist"><ul>
+<li>
+<p>
+French and Spanish translations.
+</p>
+</li>
+<li>
+<p>
+Sections added to highlight project mandate and additional accessibility options.
+</p>
+</li>
+</ul></div>
+</div>
+<div class="sect2">
+<h3 id="_misc">Misc</h3>
+<div class="ulist"><ul>
+<li>
+<p>
+Adds automatic labeling to pull requests.
+</p>
+</li>
+</ul></div>
+</div>
+<div class="sect2">
+<h3 id="_monsters">Monsters</h3>
+<div class="ulist"><ul>
+<li>
+<p>
+New minigunner.
+</p>
+</li>
+<li>
+<p>
+The hatchling, which replaces the deadflare.
+</p>
+</li>
+<li>
+<p>
+The matribite, which replaces the summoner.
+</p>
+</li>
+</ul></div>
+</div>
+<div class="sect2">
+<h3 id="_music">Music</h3>
+<div class="ulist"><ul>
+<li>
+<p>
+Lots of new music including most of FreeDM music.
+</p>
+</li>
+</ul></div>
+</div>
+<div class="sect2">
+<h3 id="_sounds">Sounds</h3>
+<div class="ulist"><ul>
+<li>
+<p>
+New boss brain sounds.
+</p>
+</li>
+</ul></div>
+</div>
+<div class="sect2">
+<h3 id="_visuals">Visuals</h3>
+<div class="ulist"><ul>
+<li>
+<p>
+Colorblind-friendly keys and key indicators.
+</p>
+</li>
+<li>
+<p>
+Various revisions to sprites and textures.
+</p>
+</li>
+<li>
+<p>
+Improved kerning for menu text.
+</p>
+</li>
+</ul></div>
+</div>
+<div class="sect2">
+<h3 id="_weapons">Weapons</h3>
+<div class="ulist"><ul>
+<li>
+<p>
+Improved weapon sprites generally.
+</p>
+</li>
+<li>
+<p>
+SSG replacement restored to updated take on older version.
+</p>
+</li>
+<li>
+<p>
+Revised polaric energy weapon.
+</p>
+</li>
+<li>
+<p>
+Double-barreled shotgun flash timing bug fixed in built-in DeHackEd.
+</p>
+</li>
+</ul></div>
+</div>
+<div class="sect2">
+<h3 id="_textures">Textures</h3>
+<div class="ulist"><ul>
+<li>
+<p>
+Esa Repo (Espi)'s old STAR* textures are now included under ESPI*.
+</p>
+</li>
+<li>
+<p>
+A STARBR1 texture is now included as a counterpart to STARBR2.
+</p>
+</li>
+<li>
+<p>
+Numerous additional grey and METAL2-based textures also available.
+</p>
+</li>
+<li>
+<p>
+Boss brain wall found to have Hexen resources and was re-done.
+</p>
+</li>
+<li>
+<p>
+Wolfenstein replacements completely redone, designed to work as
+    seamlessly with other textures as possible. A few are also added.
+</p>
+</li>
+</ul></div>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="_0_12_1_2019_10_22">0.12.1 (2019-10-22)</h2>
+<div class="sectionbody">
+<div class="sect2">
+<h3 id="_general_2">General</h3>
+<div class="ulist"><ul>
+<li>
+<p>
+The HTML documentation (eg, <span class="monospaced">NEWS</span> and <span class="monospaced">README</span> files) are
+    generated with a style based on <em>Freedoom</em>’s own website, rather
+    than the default AsciiDoc styling.
+</p>
+</li>
+<li>
+<p>
+<em>Phase 2</em>’s internal DEMO1 has been replaced, thanks to some odd
+    vanilla quirks that could cause it to desync in some (but not all)
+    conditions.
+</p>
+</li>
+</ul></div>
+</div>
+<div class="sect2">
+<h3 id="_levels_2">Levels</h3>
+<div class="ulist"><ul>
+<li>
+<p>
+The sailor monster type is formally banished from <em>Freedoom</em>’s own
+    levels, and remaining uses of it were removed.
+</p>
+</li>
+</ul></div>
+</div>
+<div class="sect2">
+<h3 id="_manual_2">Manual</h3>
+<div class="ulist"><ul>
+<li>
+<p>
+Incongruities between the actual game and manual have been fixed.
+</p>
+</li>
+</ul></div>
+</div>
+<div class="sect2">
+<h3 id="_build_system">Build system</h3>
+<div class="ulist"><ul>
+<li>
+<p>
+The <span class="monospaced">make install</span> targets have been consolidated to behave more
+    similarly to how the pre-built zip distributions are: a split
+    between <em>FreeDM</em> and <em>Phase 1+2</em>, rather than installing each of
+    the tree IWADs independently (and thus getting their own
+    <span class="monospaced">/usr/share/doc</span> directories, for instance).
+</p>
+</li>
+</ul></div>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="_0_12_0_2019_10_10">0.12.0 (2019-10-10)</h2>
+<div class="sectionbody">
+<div class="sect2">
+<h3 id="_general_3">General</h3>
+<div class="ulist"><ul>
+<li>
+<p>
+We now have a manual rendered to beautiful PDF format.  Thanks to
+    Simon Howard, the project’s founder.
+</p>
+</li>
+<li>
+<p>
+A strong focus on vanilla compatibility has been sought for this
+    release.  Most, if not all, levels should work now.
+</p>
+</li>
+<li>
+<p>
+<em>Final Doom</em> compatibility de-emphasized.  Where it creates
+    conflicts with <em>Doom II</em> mods or texture definitions, we prefer
+    the <em>Doom II</em> side of things.  <em>Final Doom</em>-specific maps and mods
+    may never look completely right in <em>Freedoom</em>, as a result.
+</p>
+</li>
+</ul></div>
+</div>
+<div class="sect2">
+<h3 id="_levels_3">Levels</h3>
+<div class="ulist"><ul>
+<li>
+<p>
+<em>FreeDM</em> has seen a major overhaul, with most maps being modified,
+    with new additions and removals of the weaker levels.  It now
+    benefits from the use of Aquatex and Egyptian textures in some of
+    its levels, giving a more vibrant feel than before.
+</p>
+</li>
+<li>
+<p>
+<em>Phase 1</em> gets a lot of mapping love in this round, fleshing out
+    the levels and tweaking difficulty levels so easy, normal, and
+    hard are all accounted for.  There is a new C3M5 by Mortrixs.
+</p>
+</li>
+<li>
+<p>
+<em>Phase 2</em> MAP01 saw an overhaul, simplifying its design in
+    significant ways to improve the flow around the level.
+</p>
+</li>
+<li>
+<p>
+Two maps in <em>Phase 2</em> were replaced due to being recreations of
+    <em>Doom II</em> maps.  Jayexetee and GooseJelly get credits for the new
+    ones, in MAP06 and MAP26.
+</p>
+</li>
+<li>
+<p>
+Maps in <em>Phase 2</em> in general have had some slight re-arrangement
+    based on difficulty levels and themes.  A new MAP06 by Jayexetee
+    is included, the old one taking the MAP18 slot.
+</p>
+</li>
+<li>
+<p>
+All levels are now guaranteed to have co-op and deathmatch starts.
+</p>
+</li>
+</ul></div>
+</div>
+<div class="sect2">
+<h3 id="_graphics">Graphics</h3>
+<div class="ulist"><ul>
+<li>
+<p>
+New power-up (stealth, overdrive, and ultra-overdrive) sprites.
+</p>
+</li>
+<li>
+<p>
+New necromancer (arch-vile) sprites by Urric.
+</p>
+</li>
+<li>
+<p>
+Some weapon and ammo sprites have been tweaked and improved.
+</p>
+</li>
+<li>
+<p>
+Completed and enhanced set of <em>Evilution</em> and <em>Plutonia</em> textures.
+</p>
+</li>
+<li>
+<p>
+New skull-switches by MissLav.
+</p>
+</li>
+<li>
+<p>
+New SKY4 based on an astronomy photograph.
+</p>
+</li>
+<li>
+<p>
+Tweaked player sprites and HUD face by Ferk.
+</p>
+</li>
+</ul></div>
+</div>
+<div class="sect2">
+<h3 id="_music_2">Music</h3>
+<div class="ulist"><ul>
+<li>
+<p>
+New tracks in C1M2, C2M3, C2M8, MAP03, MAP12, MAP22, MAP25, MAP26,
+    MAP27, DM03, DM06, DM09, DM17, DM24, DM31, and DM32.
+</p>
+</li>
+<li>
+<p>
+All files in-tree have been renamed from *.mus to *.mid.  The file
+    format must always be MIDI.  This makes it easy on music composers
+    to actually work with the files.
+</p>
+</li>
+</ul></div>
+</div>
+<div class="sect2">
+<h3 id="_unix_script_and_metadata">Unix script and metadata</h3>
+<div class="ulist"><ul>
+<li>
+<p>
+Metainfo (formerly appdata) and desktop files have been brought up
+    to the latest standard specifications and recommendations, using
+    reverse-DNS for the project identifier, and a self-evaluated
+    content rating.
+</p>
+</li>
+<li>
+<p>
+The launch shell-script changed the <span class="monospaced">PORT</span> environment variable to
+    <span class="monospaced">DOOMPORT</span> to avoid conflicts with the genericly-named <span class="monospaced">PORT</span>.  It
+    also builds a sensible default <span class="monospaced">DOOMWADPATH</span> environment variable
+    to assist ports that do not have a hard-coded fallback.
+</p>
+</li>
+<li>
+<p>
+The script no longer tries to look for <span class="monospaced">boom</span>, <span class="monospaced">zdoom</span>, nor
+    <span class="monospaced">prboom</span> by default, as these are ports no longer maintained.
+</p>
+</li>
+</ul></div>
+</div>
+<div class="sect2">
+<h3 id="_build_system_2">Build system</h3>
+<div class="ulist"><ul>
+<li>
+<p>
+Freedoom’s build system now has a hard dependency on Python 3, in
+    anticipation of Python 2’s end-of-life.
+</p>
+</li>
+<li>
+<p>
+We have moved from ImageMagick to Pillow, a Python library for
+    graphics manipulation.  It provides faster build times as well as
+    API stability.
+</p>
+</li>
+<li>
+<p>
+GIF files have been replaced with PNG files.  True PNG file format
+    transparency is used instead of a cyan background.
+</p>
+</li>
+<li>
+<p>
+<span class="monospaced">ASCIIDOC</span> and <span class="monospaced">ASCIIDOC_MAN</span> variables have been added to the
+    Makefile to control the AsciiDoc implementation used to generate
+    HTML and man page files.
+</p>
+</li>
+</ul></div>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="_0_11_3_2017_07_18">0.11.3 (2017-07-18)</h2>
+<div class="sectionbody">
+<div class="ulist"><ul>
+<li>
+<p>
+Builds with DeuTex 5.0 and newer.
+</p>
+</li>
+</ul></div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="_0_11_2_2017_03_15">0.11.2 (2017-03-15)</h2>
+<div class="sectionbody">
+<div class="ulist"><ul>
+<li>
+<p>
+Missing multiplayer starts have been added to several levels.
+</p>
+</li>
+<li>
+<p>
+A few mapping errors were repaired by changing sector heights.
+    Speedrunners can better appreciate smooth flow through the levels.
+</p>
+</li>
+<li>
+<p>
+Easy and normal difficulty levels have been tweaked.
+</p>
+</li>
+<li>
+<p>
+Par times for <em>Phase 1</em> have been added.
+</p>
+</li>
+<li>
+<p>
+Cleaned up the title screen using the <em>Freedoom</em> font for “Phase
+    1” and “Phase 2” on-screen.
+</p>
+</li>
+</ul></div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="_0_11_1_2017_02_22">0.11.1 (2017-02-22)</h2>
+<div class="sectionbody">
+<div class="ulist"><ul>
+<li>
+<p>
+1% armor bonus picks are recolored from red to green.  They were
+    too easily confused for health pickups.
+</p>
+</li>
+<li>
+<p>
+New <em>TNT: Evilution</em> compatible textures.
+</p>
+</li>
+<li>
+<p>
+New pain bringer and pain lord sprites, replacing old concept
+    art-derived ones.
+</p>
+</li>
+<li>
+<p>
+A few mapping errors are fixed, including misaligned textures,
+    leftover Boom specials, and it should no longer be possible to get
+    stuck between a rock and a tree in <em>Phase 1</em> C1M1.
+</p>
+</li>
+<li>
+<p>
+Brand-new <em>Phase 1</em> C3M1, replacing the old <em>Doom</em>-inspired level.
+</p>
+</li>
+<li>
+<p>
+Widescreen statusbar for ZDoom removed.  This created
+    incompatibility with some mods.
+</p>
+</li>
+</ul></div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="_0_11_2017_02_16">0.11 (2017-02-16)</h2>
+<div class="sectionbody">
+<div class="ulist"><ul>
+<li>
+<p>
+<em>Freedoom</em> is now a limit-removing game rather than using Boom
+    specials.
+</p>
+</li>
+<li>
+<p>
+Lots of new music.
+</p>
+</li>
+<li>
+<p>
+New levels, including a new C1M1 for <em>Phase 1</em>.
+</p>
+</li>
+<li>
+<p>
+Aquatex: over 200 new textures for mappers to use.
+</p>
+</li>
+<li>
+<p>
+New intermission screens.
+</p>
+</li>
+<li>
+<p>
+Some new weapon sprites: new pistol and new pickups.
+</p>
+</li>
+<li>
+<p>
+New medkit and armor pickup sprites.
+</p>
+</li>
+<li>
+<p>
+New project logo
+</p>
+</li>
+</ul></div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="_0_10_1_2015_12_23">0.10.1 (2015-12-23)</h2>
+<div class="sectionbody">
+<div class="ulist"><ul>
+<li>
+<p>
+Repairs an incompatibility in <em>Phase 1</em> C3M7 with Boom 2.02.
+</p>
+</li>
+<li>
+<p>
+Fully-completed sprite set for the flame bringer.
+</p>
+</li>
+</ul></div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="_0_10_2015_12_16">0.10 (2015-12-16)</h2>
+<div class="sectionbody">
+<div class="ulist"><ul>
+<li>
+<p>
+Brand new status bar.
+</p>
+</li>
+<li>
+<p>
+New sprites for the serpent and orb monsters.
+</p>
+</li>
+<li>
+<p>
+New HUD graphics for the single- and double-barreled shotguns,
+    missile launcher, and SKAG-1337.
+</p>
+</li>
+<li>
+<p>
+New pain sounds for many monsters and the player.
+</p>
+</li>
+<li>
+<p>
+New maps in <em>Phase 1</em> and <em>Phase 2</em>.
+</p>
+</li>
+</ul></div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="_0_9_2014_10_14">0.9 (2014-10-14)</h2>
+<div class="sectionbody">
+<div class="ulist"><ul>
+<li>
+<p>
+New file names that no longer conflict with <em>Doom</em>’s
+</p>
+<div class="ulist"><ul>
+<li>
+<p>
+<span class="monospaced">freedoom1.wad</span> is <em>Freedoom: Phase 1</em>&#8201;&#8212;&#8201;compatible with <em>The
+     Ultimate Doom</em>.
+</p>
+</li>
+<li>
+<p>
+<span class="monospaced">freedoom2.wad</span> is <em>Freedoom: Phase 2</em>&#8201;&#8212;&#8201;compatible with <em>Doom
+     II</em> and <em>Final Doom</em>.
+</p>
+</li>
+</ul></div>
+</li>
+<li>
+<p>
+<em>FreeDM</em> and <em>Phase 1</em> have grown out of the shadows of the
+    project and have seen rapid advances, largely led by Xindage, our
+    prominent Brazilian contributor.
+</p>
+</li>
+<li>
+<p>
+New text font from Mechadon to replace the old one in all menus,
+    in-game text, and status-bar HUD.
+</p>
+</li>
+<li>
+<p>
+New zombie, shotgun zombie, and assault tripod sprites by a
+    skilled pixel artist, raymoohawk.
+</p>
+</li>
+<li>
+<p>
+New sounds for the dark soldier by jewellds.
+</p>
+</li>
+<li>
+<p>
+More complete support for <em>Final Doom</em> mods, adding many more
+    textures missing to support mods for both <em>TNT: Evilution</em> and
+    <em>The Plutonia Experiment</em>, thanks to fraggle and AXDOOMER.
+</p>
+</li>
+</ul></div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="_0_8_2014_01_01">0.8 (2014-01-01)</h2>
+<div class="sectionbody">
+<div class="ulist"><ul>
+<li>
+<p>
+<em>Ultimate Freedoom</em>’s episode 4 is now the Cacoward-winning <em>Double Impact</em>.
+</p>
+</li>
+<li>
+<p>
+Many maps have been updated
+</p>
+</li>
+<li>
+<p>
+Improved sprites and sounds
+</p>
+</li>
+<li>
+<p>
+<em>FreeDM</em> is now vanilla-compatible and has quite a few new maps.
+</p>
+</li>
+<li>
+<p>
+A BEX file is included in the IWADs, which allows compatible
+    source ports to replace many strings in the game, such as level
+    names, weapon pickups, and intermission text.
+</p>
+</li>
+</ul></div>
+</div>
+</div>
+</div>
+</body>
+</html>

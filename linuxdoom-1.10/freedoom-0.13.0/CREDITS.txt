@@ -1,0 +1,1030 @@
+﻿[2023-10-07: This credits file contains entries some of which are now decades old. If you have contributed to Freedoom and want to update anything on here, please post an issue or reach out to any active maintainer!]
+
+[See the CREDITS-MUSIC file for specific track authors and titles.]
+
+N: Colin Phipps
+S: cph
+E: cph@cph.demon.co.uk
+W: http://www.cph.demon.co.uk/
+D: binary lumps (playpal, colormap etc)
+
+N: Julian Aubourg
+S: Julian
+E: julian@doomworld.com
+D: sprites, stories, textures
+
+S: Captain Mellow
+E: captainmellow@yahoo.com
+D: textures, music
+
+N: Nick Baker
+S: NightMare
+E: nick@frad.org
+D: textures
+
+S: Tarin
+E: tarin@paci-fist.net
+D: textures, sprites, website design, levels
+
+N: Andrew Stine
+S: Linguica
+E: linguica@doomworld.com
+D: textures
+
+N: Emmanuel Rousseau
+S: GodCells
+E: Emmanuel_Rousseau@uqac.ca
+D: levels, sprites
+
+N: Andrew Bassett
+S: andrewb
+E: orangejuices@icqmail.com
+D: music
+
+S: ravage
+E: dragon_69283@yahoo.com
+D: Sprites
+
+S: archvile46
+E: pudge@att.net
+D: levels
+
+S: tony
+E: awalker@air-internet.com
+D: textures
+
+S: spaceforce
+E: spaceforce@snohost.com
+D: levels
+
+S: CheapAlert
+S: gargoylol
+S: leileilol
+E: cheapalert@gmail.com
+D: graphics, sounds, flats, sprites
+
+N: Michael T. Cole
+S: ShadowRunner
+E: Clansr03@yahoo.com
+D: levels
+
+N: Kurt Kesler
+E: kesler@fidnet.com
+D: sprites
+
+S: Isle
+E: isle_bot@hotmail.com
+D: textures
+
+N: Ola Bjorling
+S: Citrus
+E: ukiro@ukiro.com
+D: textures
+
+S: ZarcyB
+E: korgon_iii@hotmail.com
+D: textures
+
+S: diluted
+E: shaggs2dope_00@hotmail.com
+D: textures
+
+S: Espi
+E: esa.repo@phnet.fi
+D: (a lot of) textures
+
+N: Ralph Vickers
+S: Ralphis
+E: ralphis@slipgate.org
+D: music
+
+S: Sir Fragsalot
+E: bssrpantella@hotmail.com
+D: stories, sprites
+
+N: Jeremy Stepp
+E: jeremystepp@hotmail.com
+D: textures
+
+N: Nicholai Main
+S: Oblivion
+E: uzi666@juno.com
+D: levels, fog colormap
+
+S: KMan
+E: kman@valveworld.com
+D: textures, sprites
+
+S: mystic
+E: murray6@blueyonder.co.uk
+D: levels
+
+N: Jon Rimmer
+S: Amtiskaw
+S: Jon_R
+E: jonr@frad.org
+W: http://destruct.alkali.org/
+D: textures
+
+N: Vincent Fong
+S: Vicious
+E: vincentfong@freecall-uk.co.uk
+D: musics
+
+N: Toby Collins Jr.
+S: tobester
+E: tobester666@yahoo.com
+D: music
+
+N: Andrew Francis
+S: locust
+E: locust@iinet.net.au
+D: textures
+
+S: AirRaid
+E: airraid666@yahoo.com
+D: sprites, levels, textures
+
+S: Jayextee
+E: Jxt@Misery.co.uk
+D: graphics, levels
+
+S: Enjay
+E: Enjay001@hotmail.com
+D: sounds
+
+N: Jonathan Dowland
+E: jon+Chiew6ye@alcopop.org
+W: http://jmtd.net/
+D: Former admin, website, FTP host and nightlies; textures; scripts; levels; hires zealotism; sounds
+
+S: Malice Rancor
+E: malicerancor@hotmail.com
+D: sprites
+
+N: Dale Sells
+S: mmnpsrsoskl
+E: mmnpsrsoskl@hotmail.com
+D: textures, graphics
+
+S: Meat_Head
+E: Forbidden_Planet@prodigy.net
+D: textures
+
+S: kaiser
+E: kaiser@newdoom.com
+D: levels
+
+S: Slayer226
+E: slayer226@hotmail.com
+D: textures
+
+S: Ebola
+E: ebola_kaell@home.se
+D: textures, sprites
+
+S: Zeurkous
+E: de_zeurkous@zonnet.nl
+D: sprites, textures
+
+N: Fredrik Johansson
+E: fredrik.johansson@gmail.com
+W: http://fredrikj.net/
+D: textures, sprites
+
+S: Lazer
+E: dafshin@mediaone.net
+D: textures, levels
+
+N: Steve Dudzik
+S: Lut
+E: toruonda@home.com
+D: sprites, levels
+
+N: Joseph Chang
+E: jchang@optusnet.com.au
+D: sprites
+
+S: Csabo
+E: wadedit@marchmail.com
+D: music
+
+S: Draconio
+E: draconio2001@yahoo.com
+D: sounds
+
+N: Dave Kiddell
+S: Mewse
+E: umkiddel@cc.umanitoba.ca
+W: http://mewse.alkali.org/
+D: graphics, Mewse!
+
+S: Deathmaster213
+E: deathmaster213@hotmail.com
+D: art/textures
+
+S: Hyena
+E: trwhite@fgbc.org
+D: sounds, musics, sprites, levels
+
+S: Nrkn
+E: nrkn@ihug.co.nz
+D: textures
+
+N: Tyler Pantella
+S: Pickle Hammer
+E: pickle_hammer@hotmail.com
+D: musics
+
+N: Alberto Bonis
+S: Saint of Killers
+E: alberto.bonis@libero.it
+D: sprites/art
+
+S: GeekMarine
+E: cooljohn@birdmail.com
+D: sprites, sounds
+
+N: Tom Robinson
+E: tom@alkali.org
+W: http://www.junked.org/
+D: A chunk of perl code
+
+N: Patrick "Amarande" Kalinauskas
+S: Amarande
+E: amarande@gmail.com
+D: levels
+
+N: Sean Gauthier
+S: Cacodemon Leader
+E: gauthier.home@sympatico.ca
+D: levels
+
+N: Luke Cama
+S: Spike
+E: spikeycool@hotmail.com
+D: sounds
+
+S: Shaviro
+E: maonth@nautrup.com
+D: textures
+
+S: Nightfang
+E: nightfang@truelights.com
+D: sprites
+
+S: MDenham
+E: tathetriam@aol.com
+D: levels
+
+S: SpinSpyder
+E: blcrowley@hotmail.com
+D: sprites
+
+N: Jeremy Elder
+S: SgtCrispy
+E: sha_nigtha@yahoo.com
+D: sounds, levels
+
+S: Submerge
+E: submerge_527@hotmail.com
+D: sounds, sprites
+
+S: Adamizer
+E: adamizer9000@yahoo.com
+D: aprites
+
+N: Andrew Apted
+E: ajapted@netspace.net.au
+D: graphics, levels, patches, sprites
+
+S: Zigmund
+E: z_ozwell@hotmail.com
+D: levels
+
+S: kinkyfriend
+N: Patrick Westermark
+E: kinkyfriend85@hotmail.com
+D: graphics
+
+S: Railgunner
+E: pcclassix@the-any-key.com
+D: sprites, levels
+
+S: bastetfurry
+E: bastetfurry@nachtkatzen.de
+D: levels
+
+S: Lurker
+E: ssjtrunks37@hotmail.com
+D: levels, sprites, sounds
+
+S: DarkStalker
+E: darkstalker81@hotmail.com
+D: textures
+
+S: Scuba Steve
+E: ray_stantz@hotmail.com
+D: sprites, graphics
+
+N: Kim Bach
+S: Torn
+E: Tornthedark@hotmail.com
+D: levels
+
+N: Mike Watson
+S: Cyb
+E: cyb@frad.org
+W: http://cyb.alkali.org/
+D: levels, sprites, lumps
+
+N: Wouter van Oortmerssen
+S: Aardappel
+E: aardappel@planetquake.com
+D: conceptual work and realisation
+
+N: Alex Mao
+S: Arioch
+E: arioch@despayre.org
+D: long term server hosting
+
+N: Bill Koch
+S: Bloodshedder
+E: bloodshedder@doomcenter.com
+D: sounds
+
+N: Corwin Brence
+S: WildWeasel
+E: wildweasel_lemon@hotmail.com
+D: sounds
+
+S: WildMan
+N: Rick Clark
+E: rickclark58@yahoo.com
+D: levels
+
+S: sargebaldy
+N: Owen Lloyd
+E: lloydo@onid.orst.edu
+D: levels
+
+N: David Aramant
+E: david_a00@excite.com
+D: sprites
+
+S: Silverwyvern
+E: cindymcc@nbnet.nb.ca
+D: graphics (skies)
+
+S: mouse
+S: lilwhitemouse
+E: lilwhitemo@midmaine.com
+D: sprites
+
+N: Simon Howard
+S: fraggle
+E: fraggle@soulsphere.org
+W: https://soulsphere.org
+D: project admin, scripting, build system, textures, sprites, graphics, lumps, manual, patches
+
+N: Joe Dowland
+E: jon+joefreedoom@alcopop.org
+D: sounds
+
+N: Jim McDougald
+S: rellik
+E: rellik_jmd@yahoo.com
+D: FreeDM levels, graphics
+
+N: Jason Root
+S: hellbent
+E: chesterules@yahoo.com
+D: FreeDM levels
+
+N: David Lawrence Ramsey
+S: dolorous
+E: pooka109@cox.net
+D: sounds
+
+S: Catoptromancy
+E: catoptromancy@yahoo.com
+D: levels, playtesting, bugfixes, textures
+
+S: muffins.exe
+D: sounds
+
+S: RjY
+E: rjy@users.sourceforge.net
+W: http://rjy.org.uk/
+D: levels
+
+N: Claude A Freeman
+S: CSonicGo
+D: sounds
+
+N: Eric Baker
+E: eabaker@san.rr.com
+S: The Green Herring
+D: levels
+
+E: hawkwinds_messages@hotmail.com
+S: Hawkwind
+D: levels
+
+S: acc
+D: levels
+
+S: Siggi
+D: levels
+
+N: Miguel Suarez Gomez
+E: thewadsfactorystaff@hotmail.com
+S: Zok
+D: levels
+
+E: ghostlydeath@gmail.com
+S: GhostlyDeath
+D: musics, PC speaker sounds
+
+N: Mark McGill-Smith
+E: isbetterthanyou@hotmail.com
+S: TheMisterCat
+D: musics
+
+N: Matthew Cibulas
+E: rottking@sbcglobal.net
+S: RottKing
+D: sounds
+
+N: Colin Kelly
+E: bankthemighty@gmail.com
+S: bank
+D: sounds
+
+N: Delano Cuzzucoli
+E: delano501@gmail.com
+S: Delano
+D: sprites
+
+N: Svante Ekholm
+E: svante.ekholm@gmail.com
+S: xerent
+D: levels
+
+N: Benjamin Debski
+E: benjamin.debski@gmail.com
+S: dabski
+D: levels
+
+N: G. Wessner
+E: masterstilgar@yahoo.com
+S: Stilgar
+D: sounds
+
+S: Jute
+E: jutemail@gmail.com
+D: music
+
+N: Wesley D. Johnson
+E: johnson2412@usgo.net
+D: levels
+
+N: Ulises Lozano
+S: Urric Hammersong
+E: calators@hotmail.com
+D: sprites
+
+N: Andrew Rehberger
+E: malinku@live.com
+S: Malinku
+D: levels
+
+S: Archfile
+D: levels
+
+S: Blastfrog
+E: soliver486@gmail.com
+D: graphics, sprites, sounds
+
+N: Brett Harrell
+S: Mechadon
+E: mekaddonn@gmail.com
+D: levels
+
+S: nivha
+D: levels
+
+S: hex11
+E: hex11@mail.com
+D: levels
+
+N: Luiz Henrique Gasparin Jerônimo
+S: Xindage
+E: xindage@gmail.com
+D: levels, textures
+
+S: Mithran Denizen
+E: jlebl755@mtroyal.ca
+D: sprites
+
+S: Z86
+D: sprites
+
+N: Matt Cadirao
+S: horncomposer
+D: genmidi instruments
+
+S: BaronOfStuff
+W: https://www.youtube.com/user/BaronOfStuff
+D: sprites
+
+N: Josef Šustek
+S: Paar
+E: sustek.josef@gmail.com
+D: levels
+
+N: Dean Joseph
+S: deathz0r
+E: deathz0r@unidoom.org
+D: levels
+
+N: Alexandre-Xavier Labonté-Lamoureux
+S: AXDOOMER
+E: alexandrexavier@live.ca
+D: patches, levels, graphics, sprites
+
+N: Daniel Jewell
+S: Jewellds
+E: jewellds@gmail.com
+D: levels
+
+N: Adrian Cabrera
+E: cancer_kaoru@live.com
+S: raymoohawk
+W: http://raymoohawk.deviantart.com/
+D: sprites
+
+S: agaures
+E: zalsorarakia@gmail.com
+D: sprites
+
+N: Mikael Haladyn
+E: mikaelhhome@yahoo.dk
+S: nub_hat
+D: levels, musics
+
+S: CaptainW
+E: avortement.rate@gmail.com
+D: graphics
+
+N: Ilja Sara
+E: ilja.sara@kahvipannu.com
+D: levels
+
+N: Mike Swanson
+S: chungy
+E: mikeonthecomputer@gmail.com
+D: project admin, build system, repo maintenance
+
+N: Cray Elliott
+S: mp2e
+E: MP2E@archlinux.us
+D: lumps (demos, playtesting)
+
+S: voltcom9
+E: Earthbound.Glenn@gmail.com
+D: level/episode names
+
+S: jmickle
+E: jaymickle@gmail.com
+D: music
+
+S: doomkid
+E: thedevilzworker@hotmail.com
+D: freedm playtesting and demo participation
+
+S: mogul
+N: Jeremy Emerson
+D: music
+
+S: sergeant_mark_iv
+N: Marcos Abenante
+E: marcos.mk3@outlook.com
+D: sprites
+
+S: bloax
+D: sprites
+
+S: undead003
+E: undead0003@gmail.com
+D: sounds
+
+S: angry_saint
+E: mechanicalambassador@gmail.com
+D: levels
+
+S: noose
+E: noozearts@gmail.com
+D: sprites
+
+S: mazmon
+N: Maz Hades
+E: mazhades@yahoo.com
+D: sprites
+
+S: jaws_in_space
+N: Micah Petersen
+E: jawsinspace@gmail.com
+D: levels
+
+S: eriance
+N: Eric Ou
+E: eriance@gmail.com
+W: http://amuscaria.deviantart.com/
+D: sprites
+
+S: zrrion
+N: Roth Smith
+E: zrrion@gmail.com
+W: http://zrrion.deviantart.com/
+D: sprites
+
+S: kracov
+N: Kracov Bolkonski
+E: kracov.wolf@gmail.com
+W: http://kracov.org/
+D: graphics
+
+S: robotdog1
+D: sprites, patches
+
+E: mobiusx49@gmail.com
+S: cwolfru
+D: levels
+
+S: Jimmy
+N: James Paddock
+E: jamespaddock@hotmail.com
+D: levels
+
+N: Michael Jurich
+E: midwestgenius@gmail.com
+D: levels
+
+S: LuckyPunk
+E: luckypunk322@gmail.com
+D: sprites
+
+S: Blueworrior
+N: Lola Harvey
+E: BlueWorrior@hotmail.co.uk
+D: musics
+
+S: sajbear
+N: Kristian Nilsen
+E: sajber@sajber.info
+W: http://sajber.info
+D: level
+
+S: Voros
+N: Ayub Ahmed
+E: ayubahmed2240@gmail.com
+D: textures, lumps
+
+S: Hexereticdoom
+N: Angel C.F.
+E: hexereticdoom@gmail.com
+W: http://www.moddb.com/members/hexereticdoom
+D: sprites
+
+S: SeventhSentinel
+N: James Hall
+W: http://seventhsentinel.net23.net
+D: sounds
+
+S: Viscra Maelstrom
+E: doomhunter_175@hotmail.com
+D: musics
+
+S: bytebeats
+E: bytebytebeats@gmail.com
+D: musics
+
+S: KevinHEZ
+N: Kevin Martins
+E: kevinmss14@gmail.com
+D: musics
+
+S: agenten
+E: wagnerc27@gmail.com
+W: https://twitch.tv/gajmegenten/profile
+D: textures
+
+S: pan-te
+D: levels
+
+S: YukiHerz
+N: Gabriel Antonio
+E: gabriel.reinoso.1996@gmail.com
+D: levels
+
+S: JudgeDeadd
+E: korodzik@lavabit.com
+D: level names
+
+S: DragonMorpheus
+D: level names
+
+S: cr0wb4r
+D: level names
+
+N: Edgar Muniz Berlinck
+E: edgar.vv@gmail.com
+D: Appstream XML files
+
+S: Gentlepoke
+E: doom@gpoke.com
+W: http://gpoke.com/
+D: level names
+
+S: Heng
+E: heng@deepthought.earth
+D: sprites
+
+S: uhbooh
+E: Uhbooh2@hotmail.com
+D: textures
+
+S: Litrivin
+D: textures
+
+S: jupiter_ex
+N: Matias M. Roldan
+E: ttrgrmmtn@yahoo.com.ar
+D: musics, sounds
+
+N: Fernando Carmona Varo
+S: ferk
+E: ferkiwi@gmail.com
+D: graphics (titlepic)
+
+N: Kevin Caccamo
+S: Talon1024
+E: kevin@ciinet.org
+D: textures, flats, sounds
+
+S: BobFromReboot
+N: Bradley Lavigne
+E: bradleylavigne@gmail.com
+D: musics
+
+S: Elon_Satoshi
+E: elonsatoshi@riseup.net
+D: sounds
+
+S: Eradrop
+E: samurai00020@walla.com
+D: patches
+
+S: Hambourgeois
+D: flats, textures
+
+S: Jared Deberjerak
+D: textures
+
+S: Mortrixs
+D: E3M5
+
+S: GooseJelly
+N: Nathaniel Patasky
+E: n.patasky@gmail.com
+D: buildcfg.txt, CREDITS, levels
+
+S: Craneo
+E: memod_99@hotmail.com
+D: sprites (technospider reshade, minigunner, combat slug flash), textures
+
+S: continuum.mid
+S: northivanastan
+N: Ivan Stanton
+E: northivanastan@gmail.com
+D: musics
+
+S: MothraMaster
+D: sprites: Zombieman/Shotgunners boots update
+
+S: Korp
+E: korpkat@gmail.com
+D: Sprites, Textures, Musics, buildcfg.txt, patches, sounds
+
+S: ajanddino
+N: Anthony Pierce
+E: ajanddino@gmail.com
+D: musics
+
+S: /dev/urandom
+E: dev.urandom@posteo.org
+D: graphics, patches, sprites
+
+S: AerialB
+D: COPYING.adoc
+
+S: basedSkeleton
+D: sprites
+
+S: boogiebogus
+D: buildcfg.txt, sprites
+
+S: Chexter
+D: patches
+
+S: ConsumingCritic
+D: levels
+
+S: Eonfge
+E: contact@kevindegeling.nl
+D: dist
+
+N: Erick Tenorio
+S: guynamederick
+E: guynamederick@gmail.com
+D: graphics, levels, lumps, sounds, sprites
+
+N: Fabian Greffrath
+E: fabian@greffrath.com
+D: buildcfg.txt, graphics, levels, lumps
+
+S: Rei
+N: Reinaldo
+E: crumbscrunchydelights@gmail.com
+D: buildcfg.txt, lumps, manual, sounds, sprites, flats
+
+N: Hugo Locurcio
+E: hugo.locurcio@hugo.pro
+D: buildcfg.txt, dist, manual
+
+N: Jason Yundt
+E: swagfortress@gmail.com
+D: levels
+
+S: kitchen-ace
+E: 68k@quikphix.org
+D: levels, patches
+
+S: m
+E: verdantdregs@shaw.ca
+D: levels, sounds, sprites, textures, manual
+
+S: mkrupczak3
+E: matthew@krupczak.org
+D: manual
+
+S: Mortrixs19
+D: levels
+
+N: Nicholas Zatkovich
+S: NickZ
+E: nzatkovich@gmail.com
+D: buildcfg.txt, COMPILING.adoc, CREDITS, .gitattributes, .github, .gitignore, graphics, levels, lumps, patches, scripts, sprites
+
+S: ObsidainPlague
+D: musics
+
+N: Perry Fraser
+S: perry
+E: me@pprogs.blog
+D: levels
+
+N: Ada Mackiewicz
+S: Shinosarna
+E: nobody.shinobi@gmail.com
+D: buildcfg.txt, levels, sprites
+
+N: Steven Elliott
+E: selliott512@gmail.com
+D: buildcfg.txt, BUILD-SYSTEM.adoc, levels, Makefile, README.adoc, scripts, sprites
+
+N: Tyler True
+D: Makefile
+
+S: BeachThunder
+D: levels
+
+N: Clayton Sobrino
+E: ClaytonSobrino@yahoo.com
+D: patches
+
+N: Colton G. Rushton
+E: colton51919@gmail.com
+D: lumps
+
+S: drbugbait
+E: arlesschill@hotmail.com
+D: lumps
+
+S: igdegoo
+D: COPYING.adoc, lumps, musics
+
+S: inkoalawetrust
+D: levels
+
+S: MissLav
+D: patches
+
+S: unfa
+E: unfa00@gmail.com
+D: sounds
+
+N: William Breathitt Gray
+E: vilhelm.gray@gmail.com
+D: dist
+
+S: DOGB01
+D: levels
+
+S: arborix
+D: sprites
+
+S: Inuk
+E: inuquire@gmail.com
+D: levels
+
+S: GojiBerry
+E: gojidoesit@proton.me
+D: sounds, musics, textures
+
+N: Jaden LeMieux
+S: iRedMC
+E: jadenquinn8@hotmail.com
+W: http://iredmc.us.to/
+D: levels, musics
+
+N: Cass Python
+S: Owly
+E: owlgal69@protonmail.com
+W: https://owly.fans
+D: Freedoom website
+
+S: Matzu
+D: musics
+
+S: ZeMystic
+D: musics
+
+S: R0rque
+D: musics
+
+S: rostuhan
+E: rostuhan123@gmail.com
+D: musics
+
+S: SuperDave938
+D: textures
+
+S: Cascade
+D: sprites
+
+S: Berubaretto
+D: levels
+
+N: Enzo Carozza
+S: uni
+E: dudetank4@gmail.com
+D: CREDITS-MUSIC
+
+S: MoonDeLaAxel
+D: sounds, musics, textures
+
+S: klickach
+D: textures
+
+S: Magnolia
+D: sprites
+
+S: Anonymoister
+D: sprites
+
+N(A): Josephus Astartes
+S: DH4050
+D: musics
+
+S: Scragadelic
+D: musics
+
+S: Woolie Wool
+D: musics
+
+S: wastedjamacan
+D: musics
+
+S: SUNPYG Senpai
+D: levels: e2m3, e3m5
+
+S: Ospaggi
+D: musics
+
+S: Stratos
+D: musics
+
+S: Hayden49
+D: levels: e2m2

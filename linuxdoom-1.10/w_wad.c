@@ -34,7 +34,9 @@ rcsid[] = "$Id: w_wad.c,v 1.5 1997/02/03 16:47:57 b1 Exp $";
 #include <malloc.h>
 #include <fcntl.h>
 #include <sys/stat.h>
-#include <alloca.h>
+#ifndef _WIN32
+#include <alloca.h>  // On Windows, alloca comes from <malloc.h> above
+#endif
 #define O_BINARY		0
 #endif
 
@@ -64,13 +66,22 @@ int			numlumps;
 void**			lumpcache;
 
 
+#ifdef _WIN32
+#define strcmpi	_stricmp   // MinGW: use _stricmp instead of strcasecmp
+#else
 #define strcmpi	strcasecmp
+#endif
 
+#if !defined(_WIN32) && !defined(__EMSCRIPTEN__)
+// MinGW provides strupr and filelength in string.h / io.h.
+// Emscripten provides its own strupr in compat/string.h.
 void strupr (char* s)
 {
     while (*s) { *s = toupper(*s); s++; }
 }
+#endif
 
+#if !defined(_WIN32)
 int filelength (int handle) 
 { 
     struct stat	fileinfo;
@@ -80,6 +91,7 @@ int filelength (int handle)
 
     return fileinfo.st_size;
 }
+#endif
 
 
 void

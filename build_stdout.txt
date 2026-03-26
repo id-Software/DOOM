@@ -1,0 +1,13 @@
+emcc : C:\Users\Surya VM\emsdk\upstream\emscripten\emcc.ps1
+WAD  : freedoom1.wad
+Out  : C:/projects/DOOM/web-doom/public
+Files: 62 .c files
+
+=== Compiling DOOM -> WebAssembly (this may take 1-3 min) ===
+
+BUILD SUCCEEDED
+  C:/projects/DOOM/web-doom/public/doom.js
+  C:\projects\DOOM\web-doom\public\doom.wasm
+  C:\projects\DOOM\web-doom\public\doom.data
+
+Start the game: cd ..\web-doom ; npm install ; npm run dev

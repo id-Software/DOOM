@@ -1,0 +1,201 @@
+/* Doom.module.css */
+
+.main {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  min-height: 100vh;
+  background: radial-gradient(ellipse at top, #1a0000 0%, #0a0a0a 70%);
+  padding: 2rem 1rem;
+  gap: 1.5rem;
+}
+
+/* ── Header ─────────────────────────────────────────── */
+.header {
+  text-align: center;
+  user-select: none;
+}
+
+.title {
+  font-size: clamp(3rem, 10vw, 6rem);
+  font-weight: 900;
+  letter-spacing: 0.15em;
+  line-height: 1;
+  text-transform: uppercase;
+}
+
+.titleD  { color: #ff2200; }
+.titleO  { color: #ff4400; }
+.titleO2 { color: #ff6600; }
+.titleM  { color: #ff2200; }
+
+.title span {
+  display: inline-block;
+  text-shadow:
+    0 0 10px currentColor,
+    0 0 30px currentColor,
+    0 0 60px currentColor;
+  animation: flicker 4s infinite alternate;
+}
+
+@keyframes flicker {
+  0%  { opacity: 1; }
+  92% { opacity: 1; }
+  93% { opacity: 0.7; }
+  94% { opacity: 1; }
+  97% { opacity: 0.85; }
+  100% { opacity: 1; }
+}
+
+.subtitle {
+  color: #888;
+  font-size: 0.85rem;
+  letter-spacing: 0.25em;
+  text-transform: uppercase;
+  margin-top: 0.4rem;
+}
+
+/* ── Canvas wrapper ──────────────────────────────────── */
+.canvasWrapper {
+  position: relative;
+  width: 640px;
+  max-width: 100%;
+  aspect-ratio: 16 / 10;
+  background: #000;
+  border: 2px solid #ff2200;
+  box-shadow:
+    0 0 20px #ff220055,
+    0 0 60px #ff220022,
+    inset 0 0 20px #00000088;
+  border-radius: 2px;
+}
+
+.canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+  image-rendering: pixelated;
+  image-rendering: crisp-edges;
+  opacity: 0;
+  transition: opacity 0.5s ease;
+}
+
+.canvasVisible {
+  opacity: 1;
+}
+
+/* ── Overlay (loading / error) ───────────────────────── */
+.overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1rem;
+  background: rgba(0, 0, 0, 0.92);
+  z-index: 10;
+  padding: 2rem;
+}
+
+.overlayError {
+  background: rgba(20, 0, 0, 0.96);
+}
+
+.loadingText {
+  font-size: 1.1rem;
+  color: #ff6600;
+  letter-spacing: 0.1em;
+  animation: pulse 1.5s infinite;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0.4; }
+}
+
+.progressBarOuter {
+  width: 80%;
+  height: 8px;
+  background: #1a0000;
+  border: 1px solid #ff2200;
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.progressBarInner {
+  height: 100%;
+  background: linear-gradient(90deg, #ff2200, #ff6600);
+  transition: width 0.3s ease;
+  box-shadow: 0 0 8px #ff2200;
+}
+
+.progressLabel {
+  color: #888;
+  font-size: 0.8rem;
+}
+
+/* Error overlay */
+.errorIcon  { font-size: 3rem; }
+.errorTitle { color: #ff2200; font-size: 1.2rem; font-weight: bold; letter-spacing: 0.15em; }
+.errorMsg   { color: #cc6666; font-size: 0.8rem; text-align: center; max-width: 480px; line-height: 1.5; }
+.errorHint  { color: #888; font-size: 0.75rem; text-align: center; line-height: 1.8; }
+.errorHint code {
+  display: block;
+  background: #1a0000;
+  border: 1px solid #440000;
+  padding: 0.4rem 0.8rem;
+  border-radius: 3px;
+  margin-top: 0.4rem;
+  color: #ff9966;
+}
+
+/* ── Controls section ────────────────────────────────── */
+.controls {
+  width: 640px;
+  max-width: 100%;
+  background: #0d0d0d;
+  border: 1px solid #2a0000;
+  border-radius: 4px;
+  padding: 1.2rem 1.5rem;
+}
+
+.controls h2 {
+  color: #ff4400;
+  font-size: 0.8rem;
+  letter-spacing: 0.25em;
+  text-transform: uppercase;
+  margin-bottom: 0.8rem;
+  border-bottom: 1px solid #2a0000;
+  padding-bottom: 0.4rem;
+}
+
+.controlsGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 0.5rem 1rem;
+  font-size: 0.8rem;
+  color: #aaa;
+}
+
+.controlsGrid div {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+/* kbd styles are global — defined in globals.css */
+
+.mouseNote {
+  margin-top: 0.8rem;
+  font-size: 0.72rem;
+  color: #555;
+}
+
+/* ── Footer ──────────────────────────────────────────── */
+.footer {
+  color: #333;
+  font-size: 0.7rem;
+  text-align: center;
+  padding-bottom: 1rem;
+}
