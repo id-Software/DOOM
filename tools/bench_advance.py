@@ -157,7 +157,7 @@ def cpu_busy_fraction(window):
 
 STRAY_COMM = re.compile(
     r"^(cargo|rustc|cc1|cc1plus|gcc|g\+\+|cc|clang|lld|ld|valgrind|callgrind|memcheck|nextest|"
-    r"cargo-nextest|cargo-fuzz|rust-analyzer|rustup|make|ninja|player_|doom|sccache)"
+    r"cargo-nextest|cargo-fuzz|rustup|make|ninja|player_|doom|sccache)"
 )
 STRAY_ARGS = re.compile(r"cargo-fuzz|libfuzzer|fuzz_|tools/reference/|cargo (build|test|nextest|fuzz|clippy)")
 
