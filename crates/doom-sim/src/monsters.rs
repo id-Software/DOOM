@@ -577,16 +577,7 @@ impl Simulation {
         Ok(a)
     }
     pub(crate) fn preflight_monster_callback(&self, id: ActorId) -> Result<(), SimError> {
-        self.monster_callback_checks(id, true)
-    }
-    /// The callback checks in their fixed order. `global` runs the two whole-state
-    /// passes (`preflight_map_demons`, `preflight_perception_roster`) at their usual
-    /// positions; only `preflight_monster_owner` passes `false`, because it ran both
-    /// on the same `&self` and they returned `Ok` before its loop (M4p note §3 O1).
-    fn monster_callback_checks(&self, id: ActorId, global: bool) -> Result<(), SimError> {
-        if global {
-            self.preflight_map_demons()?;
-        }
+        self.preflight_map_demons()?;
         if !self.monster_is_owner(id) {
             return Err(MonsterError::Ownership.into());
         }
@@ -594,9 +585,13 @@ impl Simulation {
         if self.profile.uses_demon_lifecycle() && a.life.unwrap().health <= 0 {
             return Err(MonsterError::Ownership.into());
         }
-        if global {
-            self.preflight_perception_roster()?;
-        }
+        self.preflight_perception_roster()?;
+        self.monster_callback_references(&a)
+    }
+    /// The callback's last step: the owner's target and every sound target, in
+    /// order. `preflight_monster_owner` calls it alone, because every earlier step
+    /// of the callback already returned `Ok` on the same `&self` (M4p note §3 O1, O4).
+    fn monster_callback_references(&self, a: &Actor) -> Result<(), SimError> {
         for t in a
             .life
             .unwrap()
@@ -735,12 +730,27 @@ impl Simulation {
             if self.actors.is_pending(id) != Some(false) {
                 continue;
             }
-            let a = self.monster_actor(id, 978)?;
+            // Under `uses_demon_map`, `preflight_map_demons` above ran
+            // `monster_actor(id, 1008)` on every non-pending actor of this `&self` and
+            // returned `Ok`; `monster_actor(id, 978)` can then differ only in its one
+            // margin-dependent check, kept here (M4p note §3 O4).
+            let a = if self.profile.uses_demon_map() {
+                let a = *self.actor(id).ok_or(PerceptionError::Reference)?;
+                if self.monster_is_owner_type(a.life.unwrap().actor_type)
+                    && !self.position_admitted(a.position(), 978)
+                {
+                    return Err(MonsterError::Arithmetic.into());
+                }
+                a
+            } else {
+                self.monster_actor(id, 978)?
+            };
             let l = a.life.unwrap();
             if self.monster_is_owner(id) && !(self.profile.uses_demon_lifecycle() && l.health <= 0)
             {
-                // Both whole-state passes already returned `Ok` above on this `&self`.
-                self.monster_callback_checks(id, false)?;
+                // The callback's whole-state passes, owner test, `monster_actor(id,
+                // 1008)` (implied by the 978 result) and health test all hold here.
+                self.monster_callback_references(&a)?;
                 if l.tics == 1
                     && l.state.is_some_and(|s| {
                         if self.profile.uses_demon() {

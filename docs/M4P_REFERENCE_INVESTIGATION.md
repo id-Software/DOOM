@@ -395,6 +395,55 @@ keeps exactly `if owner_type && !position_admitted(pos, 978) { Err(MonsterError:
 the actor value. Without `uses_demon_map` the full call stays. Risk: low; it needs a unit test that fails if
 the residual check is removed.
 
+*O4 as implemented (2026-11-14 PST), covering both repeats.* In `preflight_monster_owner`, under
+`uses_demon_map()` the per-actor `monster_actor(id, 978)` is replaced by its one margin-dependent check
+(owner type and `!position_admitted(pos, 978)` gives `MonsterError::Arithmetic`) on the actor value
+`*self.actor(id)`; without `uses_demon_map()` the full call stays. For a live owner the loop then calls
+`monster_callback_references(&a)`, which is only the callback's last step (the `monster_reference` of the
+owner's target and of every sound target, in the same order); the owner test, `monster_actor(id, 1008)` and
+the health test of the callback are skipped. `preflight_monster_callback` is again the master body, with that
+last step moved into the helper unchanged; the O1 split `monster_callback_checks(id, global)` is gone, since
+the owner loop now skips everything the callback did before the references. The proof:
+
+1. *Pure on `&self`.* `monster_actor`, `monster_is_owner(_type)`, `position_admitted` (`player_map_scale.rs:922`,
+   834–843) and everything they reach take `&self` and draw no RNG; the interior mutability is as in O1 item 1
+   (the `OnceLock` and `AdmittedTypes` memos only store values a repeat would compute again).
+2. *Nothing mutates in between.* As for O1: `preflight_monster_owner` takes `&self`, and every call in it and in
+   `preflight_map_demons` takes `&self`.
+3. *The skipped work cannot fail, and the residue reports the same error.*
+   - *The owner-loop `monster_actor(id, 978)` under `uses_demon_map()`.* `preflight_map_demons` is the first call of
+     `preflight_monster_owner` and returned `Ok`; under this flag it does not return early, and its loop calls
+     `monster_actor(id, 1008)` for every actor of the same `actors.order()` with the same
+     `is_pending(id) != Some(false)` filter, before any `continue`, so each of those calls returned `Ok`. The two
+     calls differ only in `margin`, and `margin` is read in exactly one place: `position_admitted(a.position(),
+     margin)` in the owner-type branch, after the flag checks. Every check before it is margin-independent and
+     passed in the 1008 call; every check after it (`lifecycle_owner`, `monster_state_role`) is
+     margin-independent and passed too. So `monster_actor(id, 978)` returns `Err(MonsterError::Arithmetic)` when
+     the actor is an owner type and `position_admitted(pos, 978)` is false, and otherwise `Ok(*self.actor(id))`.
+     The residue computes exactly that, at the same position in the loop (before the owner test and the
+     non-owner 994 test), so the refusal, its reason and its tic are unchanged. The `actor(id)` lookup cannot
+     miss (the 1008 call found the actor); its error value is the one `perception_actor_ref` would give.
+   - *The callback's `monster_actor(id, 1008)`.* It follows the owner-loop 978 result (full or residue) for the
+     same id, which was `Ok`. `position_admitted` is monotone in `margin`: with a room it ignores the margin, and
+     otherwise `sight::within(v, m)` is `|v| <= m · 65536` (`sight.rs:163–165`), so 978 passing implies 1008
+     passing; all other checks are margin-independent. So the 1008 call returns `Ok` with the same value
+     `*self.actor(id)`, which is the `a` the loop passes to the helper.
+   - *The callback's owner test and health test.* They are the loop's branch condition, the identical calls
+     `self.monster_is_owner(id)` and `self.profile.uses_demon_lifecycle() && l.health <= 0` on the same `l`, which
+     held, so neither can return its `MonsterError::Ownership`.
+   - The callback's two whole-state passes were already skipped by O1.
+   Skipping calls that return `Ok` leaves the remaining checks (the references, then the loop's own tests) in the
+   same relative order.
+4. *Other callers keep the full checks.* `monster_actor` keeps its body; every other caller passes through it
+   unchanged, and without `uses_demon_map()` the owner loop still calls it in full. The 14 callers of
+   `preflight_monster_callback` listed under O1 reach the master body. Load-bearing checks for the P8 tests:
+   (a) the residue `position_admitted(pos, 978)`: under a `uses_demon_map` policy with no room (the
+   `DemonMapSpawn` profile), an owner-type Demon at a coordinate between 978 and 1008 units must still refuse
+   with `MonsterError::Arithmetic` on the same tic, and removing the residue must make the test fail (the 1008
+   check in `preflight_map_demons` lets it through); (b) the remaining references: an owner whose target (or a
+   sector's sound target) fails `monster_reference` must still refuse with the same error on the same tic, and
+   removing the helper call must make the test fail.
+
 **O5. Reuse the event buffers.** Shared by every checked-demon wire. Gain 37–235 kIr per tic. Take
 `plan.events` from a spare `Vec` with retained capacity, as the code already does for `spare_sound_targets`,
 `spare_specials` and `spare_writes` (`demon_expanded_map.rs:443–495`, `crates/doom-sim/src/lib.rs:587–605`). At
