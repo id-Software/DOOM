@@ -313,6 +313,35 @@ under `uses_demon_map` the loop at `demon_map_spawn.rs:97` already ran `monster_
 Item-specific guards: corpse_continuation (one Demon), the canonical-demon and demon-map goldens, and M4b
 MTELE1/TFRAG1 (synthetic, with Demons). Risk: low.
 
+*O1 as implemented (2026-11-14 PST), narrower than above.* The owner loop calls
+`monster_callback_checks(id, false)`, which runs the callback's checks in the same order but skips only
+`preflight_map_demons` and `preflight_perception_roster`. The owner test, `monster_actor(id, 1008)` and the
+health test stay; the `monster_actor` part is left to O4. `preflight_monster_callback` is now
+`monster_callback_checks(id, true)`, byte for byte the old body. The proof:
+
+1. *Pure on `&self`.* Both functions, and everything they reach (`validate_perception_reference`,
+   `preflight_original_roster`, `preflight_world_pickups`, `monster_actor`, the type and item validators),
+   take `&self` and draw no RNG. The only interior mutability in `doom-sim` is: the `OnceLock` definition memos
+   (`original_registry.rs`, `e1m1_rules.rs:228`, `world_pickups.rs:505`, `barrels.rs:141`), which hold a pure
+   function of a type ordinal; the `AdmittedTypes` memo (`demon_lifecycle.rs:5–24`, written at 160 only after a
+   type passed), which can only turn a repeat into the `Ok` it would have returned; the level-run maxima
+   (`level_stats.rs:22`), which a repeat cannot change; `SightControl`, a local of the action paths that the
+   preflights never receive; and test-only thread-locals reached from `&mut` paths or test helpers
+   (`planes.rs:199, 212`, `use_lines.rs:268`, `player_pistol.rs:769`, `spawning.rs:706`, `snapshot.rs:733`,
+   `mover_rules.rs:600`, read-only).
+2. *Nothing mutates in between.* `preflight_monster_owner` takes `&self`. Its loop body calls only `&self`
+   functions, so the state seen by the calls at its top equals the state each skipped repeat would see.
+3. *No refusal can change.* The skipped calls are identical, deterministic calls on the same state whose
+   first instance returned `Ok`, so each repeat would return `Ok`. Skipping an `Ok` call leaves the other
+   checks in the same relative order, so the first error, its reason and its tic are unchanged. The only
+   residue of a repeat is an `AdmittedTypes` or `OnceLock` write of a value already stored.
+4. *Other callers keep the full checks.* `grep -rn preflight_monster_callback crates/` lists 14 calls outside
+   the owner loop (master lines: `monsters.rs` 758, 808, 822, 851, 888; `pursuit.rs:423`; `perception.rs` 462, 880;
+   `chaingunner.rs:183`; `shotgunner.rs` 276, 405; `demon.rs` 257, 314, 359) and all still reach
+   `monster_callback_checks(id, true)`. The five callers of `preflight_monster_owner` (`monsters.rs:714`,
+   `demon_expanded_map.rs:616`, `demon_lifecycle.rs:292`, `shotgunner.rs:270`, `demon.rs:295`) get the
+   change.
+
 **O2. Validate each distinct sound target once per pass.** Shared. Gain 0–420 kIr per tic. In
 `preflight_map_demons` (85–87), skip a target equal to the last target validated `Ok`. In the owner callback,
 skip the sound targets for every owner after the first in the same pass, and skip repeats within the first

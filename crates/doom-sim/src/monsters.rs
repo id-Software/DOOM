@@ -577,7 +577,16 @@ impl Simulation {
         Ok(a)
     }
     pub(crate) fn preflight_monster_callback(&self, id: ActorId) -> Result<(), SimError> {
-        self.preflight_map_demons()?;
+        self.monster_callback_checks(id, true)
+    }
+    /// The callback checks in their fixed order. `global` runs the two whole-state
+    /// passes (`preflight_map_demons`, `preflight_perception_roster`) at their usual
+    /// positions; only `preflight_monster_owner` passes `false`, because it ran both
+    /// on the same `&self` and they returned `Ok` before its loop (M4p note §3 O1).
+    fn monster_callback_checks(&self, id: ActorId, global: bool) -> Result<(), SimError> {
+        if global {
+            self.preflight_map_demons()?;
+        }
         if !self.monster_is_owner(id) {
             return Err(MonsterError::Ownership.into());
         }
@@ -585,7 +594,9 @@ impl Simulation {
         if self.profile.uses_demon_lifecycle() && a.life.unwrap().health <= 0 {
             return Err(MonsterError::Ownership.into());
         }
-        self.preflight_perception_roster()?;
+        if global {
+            self.preflight_perception_roster()?;
+        }
         for t in a
             .life
             .unwrap()
@@ -728,7 +739,8 @@ impl Simulation {
             let l = a.life.unwrap();
             if self.monster_is_owner(id) && !(self.profile.uses_demon_lifecycle() && l.health <= 0)
             {
-                self.preflight_monster_callback(id)?;
+                // Both whole-state passes already returned `Ok` above on this `&self`.
+                self.monster_callback_checks(id, false)?;
                 if l.tics == 1
                     && l.state.is_some_and(|s| {
                         if self.profile.uses_demon() {
