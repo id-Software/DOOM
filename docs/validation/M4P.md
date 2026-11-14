@@ -7,6 +7,8 @@ to GitHub.
 
 **Scope of the record.** Phase 2 step 1 (2026-11-14, America/Los_Angeles): the committed benchmark harness and
 the master baseline, in [Baseline (master)](#baseline-master). Step 2 (O1), in [O1 (owner callback)](#o1-owner-callback).
+Step 3 (O3, O4) and the first group check, in [O3 (pickup revalidation)](#o3-pickup-revalidation),
+[O4 (owner-loop monster_actor)](#o4-owner-loop-monster_actor) and [Group check 1](#group-check-1).
 Later steps append their own sections.
 
 ## Baseline (master)
@@ -129,3 +131,105 @@ checks ran with `python3`, as `python` does not exist on this host), including `
 `check_player_episode1.py --require` and `check_player_episode1v2.py --require`; and
 `check_player_level_advance.py`. Not run for O1: the genuine-engine runs and their projections, fuzz builds and the
 sanitizer campaign (due at step 11, or after step 3 for the genuine-engine checks).
+
+## O3 (pickup revalidation)
+
+Code commit `69c1a3a`, recorded on 2026-11-14 (America/Los_Angeles) with the same host, toolchain (rustc 1.85.0),
+valgrind and ext4 paths as the baseline; `/mnt/c` had 61 GiB free after the gates.
+
+**CI-set instruction counts.** `python3 -I tools/bench_advance.py ir --check`: all nine outcomes (admitted tics,
+refusal tic, final stripped SHA-256) equal the baseline's; `threshold 3.0%: ok`. The baseline was not lowered.
+malloc, realloc and memcpy call counts equal the O1 counts on all nine workloads.
+
+| Workload | Advance Ir excl. libc, after O1 | After O3 | Change vs O1 | Change vs baseline |
+|---|--:|--:|--:|--:|
+| `SYNCHAOS_wire22` | 2,417,221,845 | 2,237,634,810 | −7.43% | −7.43% |
+| `SCALE2_episode1v2` | 607,264,606 | 572,762,739 | −5.68% | −5.68% |
+| `MTELE1_wire24` | 6,338,588 | 6,336,384 | −0.03% | −34.39% |
+| `TFRAG1_wire24` | 10,822,358 | 10,808,097 | −0.13% | −11.17% |
+| `BVB1_wire24` | 19,876,640 | 19,846,714 | −0.15% | −0.15% |
+| `M4a_dense64_lift` | 2,458,894,726 | 2,355,200,198 | −4.22% | −4.22% |
+| `M4a_dense64_fight` | 1,894,182,959 | 1,738,739,771 | −8.21% | −8.21% |
+| `M4a_gallery_patrol` | 254,615,183 | 254,208,344 | −0.16% | −0.16% |
+| `M4a_corpse_continuation` | 4,497,073 | 4,495,473 | −0.04% | −17.70% |
+
+**Gates run for O3.** Build, both format checks, Clippy with warnings denied, `cargo test --workspace` (1,383
+passed, 4 ignored), the release tests (1,350 passed, 2 ignored), `cargo +1.85.0 test --workspace` (1,383 passed,
+4 ignored), warnings-denied rustdoc; `run_reference.py --suite --jobs 2` (65 commands passed); the same 95 Python
+commands of the CI `stable` job as for O1 (all passed, run with `python3`), including `check_player_level.py`,
+`check_player_episode1.py --require`, `check_player_episode1v2.py --require` and the mechanism goldens; and
+`check_player_level_advance.py` (36 final states and boundaries passed).
+
+## O4 (owner-loop monster_actor)
+
+Code commit `c439d91`, recorded on 2026-11-14 (America/Los_Angeles), same host, toolchain, valgrind and ext4 paths;
+`/mnt/c` had 60 GiB free after the gates.
+
+**CI-set instruction counts.** `python3 -I tools/bench_advance.py ir --check`: all nine outcomes equal the
+baseline's; `threshold 3.0%: ok`. The baseline was not lowered. The cumulative change (O1, O3 and O4) against the
+baseline is in the last column.
+
+| Workload | After O3 | After O4 | Change vs O3 | Change vs O1 | Change vs baseline | malloc calls, baseline | After O4 | memcpy calls, after O3 | After O4 |
+|---|--:|--:|--:|--:|--:|--:|--:|--:|--:|
+| `SYNCHAOS_wire22` | 2,237,634,810 | 1,906,381,824 | −14.80% | −21.13% | −21.13% | 537,034 | 402,007 | 3,726,424 | 3,256,284 |
+| `SCALE2_episode1v2` | 572,762,739 | 503,782,893 | −12.04% | −17.04% | −17.04% | 121,778 | 97,738 | 787,156 | 689,795 |
+| `MTELE1_wire24` | 6,336,384 | 5,383,366 | −15.04% | −15.07% | −44.26% | 3,883 | 3,883 | 13,767 | 12,337 |
+| `TFRAG1_wire24` | 10,808,097 | 9,278,761 | −14.15% | −14.26% | −23.74% | 5,560 | 5,560 | 23,671 | 21,128 |
+| `BVB1_wire24` | 19,846,714 | 18,187,449 | −8.36% | −8.50% | −8.50% | 9,716 | 9,716 | 45,342 | 42,459 |
+| `M4a_dense64_lift` | 2,355,200,198 | 2,154,296,070 | −8.53% | −12.39% | −12.39% | 634,539 | 557,707 | 2,525,763 | 2,235,242 |
+| `M4a_dense64_fight` | 1,738,739,771 | 1,474,105,514 | −15.22% | −22.18% | −22.18% | 779,089 | 681,862 | 2,973,051 | 2,595,639 |
+| `M4a_gallery_patrol` | 254,208,344 | 218,704,391 | −13.97% | −14.10% | −14.10% | 357,331 | 321,321 | 422,489 | 376,271 |
+| `M4a_corpse_continuation` | 4,495,473 | 3,922,512 | −12.75% | −12.78% | −28.19% | 4,933 | 4,933 | 12,668 | 11,468 |
+
+realloc calls are unchanged except `SCALE2_episode1v2` (32,962 to 28,154). O4 is larger than the §3 projection
+on the workloads without a Demon: under `uses_demon_map` the skipped `monster_actor` ran for every actor, not only
+for owners, and its type and state-role validation allocates.
+
+**Gates run for O4.** The same list as for O3, all passed with the same counts: build, both format checks, Clippy,
+`cargo test --workspace` (1,383 passed, 4 ignored), release tests (1,350 passed, 2 ignored), `cargo +1.85.0 test
+--workspace` (1,383 passed, 4 ignored), rustdoc; `run_reference.py --suite --jobs 2` (65 passed); the 95 CI
+`stable` Python commands; `check_player_level_advance.py` (36 passed).
+
+## Group check 1
+
+After O1, O3 and O4 (head `c439d91`), on 2026-11-14 between 15:14 and 15:20 PST (America/Los_Angeles).
+
+**Real-map digests and indicative timing (one repetition, not performance evidence of the milestone).**
+`python3 -I tools/bench_advance.py timing --reps 1` with the rustc 1.85.0 release build in
+`~/scratch/m4p/target-185` and the scratch IWAD copy (both ext4), with no local build, test, fuzz or Valgrind
+process running; the 1-minute load average was 2.65 at the start. All 61 runs ended in the recorded final stripped
+SHA-256 and admitted-tic count (0 mismatches; 158,966 admitted tics). Single-run medians:
+
+| Map | Advance-only us/tic, baseline (5 reps) | After O1 (1 rep) | After O4 (1 rep) |
+|---|--:|--:|--:|
+| E1M1 | 63.5 | 64.0 | 55.2 |
+| E1M2 | 145.1 | 147.2 | 127.0 |
+| E1M3 | 351.7 | 246.5 | 213.3 |
+| E1M4 | 256.7 | 150.5 | 140.7 |
+| E1M5 | 484.5 | 206.0 | 185.6 |
+| E1M6 | 830.1 | 299.7 | 260.0 |
+| E1M7 | 361.8 | 228.0 | 205.3 |
+| E1M8 | 344.1 | 100.5 | 91.3 |
+| E1M9 | 667.6 | 230.9 | 216.2 |
+| DEMO1 | 703.2 | 252.7 | 230.9 |
+
+**Synthetic genuine-engine checks.** The CI `stable` job's commands, run one at a time (one C job at a time), with
+dumps under `~/scratch/m4p/ci-g1` (ext4); the address variants run with `ASAN_OPTIONS=detect_leaks=0` set by the
+runners (leak detection disabled). All passed:
+
+- `m3h9c_reference.py --check --keep-dumps`: 6 scripts, strict, overflow-checked and address-checked dumps
+  identical for all 6, results file matched; `m3h9c_snapshot_goldens.py --dumps … --check` (11 files);
+  `check_player_level.py` on the six Rust runs (all checks passed).
+- `m4a_reference.py --check --keep-dumps --selftest 300`: 30 scripts, variants identical for all 30, results file
+  matched, selftest passed; `m4a_snapshot_goldens.py --check` (19 files); `check_player_episode1.py --example-args
+  "--policy episode1" --require` (all checks passed); `m4b_m4a_goldens.py --check` (30 scripts, 15,116 snapshots
+  projected).
+- `m4b_reference.py --check --keep-dumps --selftest 30`: 18 scripts, variants identical for all 18, the `SPECH9`
+  overrun probe reported `p_map.c:242` after tic 74 as required, results file matched, selftest passed;
+  `m4b_snapshot_goldens.py --check --selftest` (20 files, 8 selftest checks).
+- `m4b_reference.py --set 2 --check --keep-dumps`: 4 scripts, variants identical, results file matched;
+  `m4b_snapshot_goldens.py --set 2 --check` (5 files).
+- `check_player_episode1v2.py --require`: 52 of 52 scripts matched (20,205 tics), 0 pending.
+
+No digest or byte differed, so no optimisation of the group was reverted. Not run for the group: the opt-in
+`strict32` variants, fuzz builds and the sanitizer campaign (due at step 11).
