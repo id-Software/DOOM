@@ -13,6 +13,7 @@
 //! state, and the DSIM39 reader derives the same values from `map.things`
 //! (`Episode1Bounds::from_thing_records`).
 use crate::identity::OriginalActorType;
+use crate::lifecycle::Skill;
 use doom_map::{Map, Thing};
 
 /// DoomEd numbers of the monsters an Episode 1 map may place: the former human,
@@ -37,8 +38,30 @@ pub(crate) const EPISODE1_BARREL: i16 = 2035;
 /// DoomEd numbers of the static things beyond E1M1's seven decorations: the candle
 /// (`MT_MISC49`, 34) and the firestick (`MT_MISC43`, 46).
 pub(crate) const EPISODE1_EXTRA_STATICS: [i16; 2] = [34, 46];
+/// DoomEd number of the teleport landing (info.c `MT_TELEPORTMAN`, wire 24).
+pub(crate) const LANDING: i16 = 14;
+/// DoomEd number of the Baron of Hell (info.c `MT_BRUISER`), a monster of wire 24
+/// alone; `P_KillMobj` drops nothing for it (p_inter.c:737–754).
+pub(crate) const BARON: i16 = 3003;
 /// `BONUSADD` (p_inter.c): the `bonuscount` one pickup adds.
 const BONUS_ADD: usize = 6;
+/// The THING option bit of the medium skill (`MTF_NORMAL`, doomdef.h:140–145):
+/// the bit every policy before wire 24 counts with.
+const MEDIUM_BIT: u16 = 2;
+
+/// The THING option bit `P_SpawnMapThing` requires at `skill` in single player
+/// (p_mobj.c:743–751): 1 for baby and easy, `1<<(gameskill−1)` = 2 for medium,
+/// 4 for hard and nightmare (`MTF_EASY`, `MTF_NORMAL`, `MTF_HARD`,
+/// doomdef.h:140–145). The spawner applies the same mapping
+/// (`Simulation::spawn_map_things`). Wire 24 admits medium and hard (M4b
+/// decision I4); every older policy is medium only and counts with bit 2.
+pub(crate) const fn skill_bit(skill: Skill) -> u16 {
+    match skill {
+        Skill::Baby | Skill::Easy => 1,
+        Skill::Medium => 2,
+        Skill::Hard | Skill::Nightmare => 4,
+    }
+}
 
 /// The per-map bounds of the Episode 1 policy, counted from a THINGS lump with
 /// the single-player, medium-skill `P_SpawnMapThing` filter.
@@ -65,6 +88,44 @@ impl Episode1Bounds {
     pub fn from_map(map: &Map) -> Self {
         Self::from_things(map.things().iter().map(|t: &Thing| (t.kind, t.options)))
     }
+    /// The bounds of wire 24 at `skill` (M4b steps 5 and 6): those of
+    /// [`Self::from_map`], counted with the option bit of `skill`
+    /// (`skill_bit`: 2 for medium, 4 for hard; p_mobj.c:743–751) instead of the
+    /// fixed medium bit, and with the Baron of Hell (doomednum 3003) counted in
+    /// `K` as a monster that drops nothing. Wire 23 refuses doomednum 3003 at
+    /// spawn and any skill but medium at load, and keeps [`Self::from_map`], so
+    /// its bounds and the DSIM39 reader's are unchanged.
+    pub fn from_map_v2(map: &Map, skill: Skill) -> Self {
+        Self::from_things_v2(
+            map.things().iter().map(|t: &Thing| (t.kind, t.options)),
+            skill_bit(skill),
+        )
+    }
+    /// [`Self::from_thing_records`] for the DSIM40 reader: the wire-24 count of
+    /// [`Self::from_map_v2`] at `skill`.
+    pub fn from_thing_records_v2(records: &[u8], skill: Skill) -> Option<Self> {
+        if records.len() % 10 != 0 {
+            return None;
+        }
+        Some(Self::from_things_v2(
+            records.chunks_exact(10).map(|r| {
+                (
+                    i16::from_le_bytes([r[6], r[7]]),
+                    u16::from_le_bytes([r[8], r[9]]),
+                )
+            }),
+            skill_bit(skill),
+        ))
+    }
+    fn from_things_v2(things: impl IntoIterator<Item = (i16, u16)>, bit: u16) -> Self {
+        let things: Vec<(i16, u16)> = things.into_iter().collect();
+        let mut b = Self::from_things_with(things.iter().copied(), bit);
+        b.monsters += things
+            .iter()
+            .filter(|&&(kind, options)| kind == BARON && options & 16 == 0 && options & bit != 0)
+            .count();
+        b
+    }
     /// Count the bounds of a raw THINGS lump in the DSIM `map.things` layout (ten
     /// bytes per record: x, y, angle, type and options as little-endian `i16`);
     /// `None` when the length is not a whole number of records.
@@ -79,10 +140,45 @@ impl Episode1Bounds {
             )
         })))
     }
+    /// The teleport landings (doomednum 14) a map spawns under wire 24 at
+    /// `skill`, counted with the same single-player filter and skill bit as
+    /// [`Self::from_map_v2`] (M4b steps 4 and 6). Wire 23 refuses doomednum 14 at
+    /// spawn and never counts it, so the bounds of the struct stay those of wire
+    /// 23.
+    pub fn landings(map: &Map, skill: Skill) -> usize {
+        let bit = skill_bit(skill);
+        map.things()
+            .iter()
+            .filter(|t| t.kind == LANDING && t.options & 16 == 0 && t.options & bit != 0)
+            .count()
+    }
+    /// The transient allowance of wire 24 (M4b step 4): the actor slots left for
+    /// actors no THING places (teleport fogs, puffs, blood, missiles) when the player,
+    /// every placed monster, its drop, every pickup, barrel, decoration and landing
+    /// are all live at once: `slots − (1 + K + R + P + B + D + L)`. `None` when the
+    /// placed things alone exceed `slots`. Wire 24 refuses at load a map whose
+    /// allowance is below 2, the two fogs of one teleport; beyond that the
+    /// store-full witness refuses the tic whose spawns find no slot.
+    pub const fn transient_allowance(&self, landings: usize, slots: usize) -> Option<usize> {
+        let placed = 1
+            + self.monsters
+            + self.droppers
+            + self.pickups
+            + self.barrels
+            + self.statics
+            + landings;
+        slots.checked_sub(placed)
+    }
     fn from_things(things: impl IntoIterator<Item = (i16, u16)>) -> Self {
+        Self::from_things_with(things, MEDIUM_BIT)
+    }
+    fn from_things_with(things: impl IntoIterator<Item = (i16, u16)>, bit: u16) -> Self {
         let mut b = Self::default();
         for (kind, options) in things {
-            if (1..=4).contains(&kind) || kind == 11 || options & 16 != 0 || options & 2 == 0 {
+            // The first two clauses only skip early: kinds 1–4 and 11 are in no
+            // counted category below (`tests::starts_are_in_no_counted_category`), so
+            // the filter counts the same without them (p_mobj.c:718–737).
+            if (1..=4).contains(&kind) || kind == 11 || options & 16 != 0 || options & bit == 0 {
                 continue;
             }
             if EPISODE1_MONSTERS.contains(&kind) {
@@ -264,4 +360,32 @@ pub(crate) fn validate_powers(p: &crate::PlayerPowers) -> Result<(), crate::SimE
         return Err(crate::PlayerBodyError::Invariant.into());
     }
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// Pins why the first two clauses of the single-player filter in
+    /// `from_things_with` (`(1..=4).contains(&kind) || kind == 11`) never change a
+    /// count: the deathmatch start 11 and the player starts 1–4 are
+    /// `P_SpawnMapThing`'s own early-return cases (p_mobj.c:718–737), not spawned
+    /// things, and they are in no category the loop counts after the filter, so
+    /// skipping them early and falling through to the empty `else` count the same.
+    /// This is also the equivalence proof of the mutant `||` → `&&` at that filter
+    /// (Mutants run 43543402068).
+    #[test]
+    fn starts_are_in_no_counted_category() {
+        for kind in [1_i16, 2, 3, 4, 11] {
+            assert!(!EPISODE1_MONSTERS.contains(&kind), "{kind}");
+            assert!(!EPISODE1_PICKUPS.contains(&kind), "{kind}");
+            assert_ne!(kind, EPISODE1_BARREL);
+            assert!(!is_static(kind), "{kind}");
+            // Hence a lump of nothing but starts counts as an empty map.
+            assert_eq!(
+                Episode1Bounds::from_things_with([(kind, 7)], 2),
+                Episode1Bounds::default()
+            );
+        }
+    }
 }

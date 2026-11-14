@@ -1,0 +1,5 @@
+# output: M5IDLE3.lmp
+# M4b E1M5 idle at hard skill: 2,100 tics of zero ticcmds, skill 3 (the THING filter of option bit 4).
+map E1M5
+skill 3
+idle 2100

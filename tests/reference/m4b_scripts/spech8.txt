@@ -1,0 +1,8 @@
+# output: SPECH8.lmp
+# SPECH8 on tests/reference/m4b_wads/spech8.wad (M4b). Authored closed loop against the strict genuine runner.
+# Walks east through a cluster whose player-sized box holds eight special lines: allowed (no overrun in any
+# variant).
+# format: tools/reference/m4b_scripts.py (tools/e1m1_scripts.py plus "skill N"); turn byte t = t*1.40625 degrees counter-clockwise; buttons 1 ATTACK
+map E1M1
+cmd 68 25 0 0 0
+idle 30

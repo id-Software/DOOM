@@ -1,0 +1,249 @@
+{
+ "schema": "DOOM-M4B-SYNTHETIC-RESULTS-v1",
+ "manifest_sha256": "71dd6ff94fa45531b193a5b5d9f4b8412969053ce143302a5146aeb2145f8576",
+ "runner_contract_sha256": "8f2ea3817f1823dcf832dfb5b90803a42ef12182b58d893560b1070ffbdbd034",
+ "variants": [
+  "strict",
+  "overflow",
+  "address"
+ ],
+ "variants_identical": true,
+ "asan_options": "detect_leaks=0 (leak detection disabled)",
+ "scripts": {
+  "TELE2X": {
+   "wad": "TELE2X",
+   "lmp_sha256": "a597822bd7b06e4baec859ab626245b556e9a48db50f84e0f514e32b23c1a623",
+   "tics": 65,
+   "end": "marker",
+   "end_tic": 65,
+   "prndindex_after_load": 5,
+   "prndindex_end": 9,
+   "thinkers_at_load": 4,
+   "mobjs_at_load": 4,
+   "unknown_messages": 0,
+   "snapshots": 66,
+   "dumps_sha256": "6ef17b01a9a2522d5cf747fa8b804b7c360eda0a73b8eb3e005e66e996df1254",
+   "must_show": {
+    "two teleports in one tic (four fogs)": 36
+   },
+   "facts": {
+    "teleports": [
+     {
+      "tic": 36,
+      "x": 1152.0,
+      "y": 640.0,
+      "angle": 90.0,
+      "reactiontime": 18,
+      "momx": 0,
+      "momy": 0,
+      "draws": 4,
+      "fogs": [
+       [
+        7.3582,
+        0.4342
+       ],
+       [
+        1211.9997,
+        0.0076
+       ],
+       [
+        1207.0,
+        0.0078
+       ],
+       [
+        1151.9924,
+        659.9997
+       ]
+      ]
+     }
+    ],
+    "momentum_before": [
+     27.1875,
+     0.0141
+    ],
+    "split_threshold_exceeded_before": true,
+    "fogs_in_tic": 4,
+    "draws_in_tic": 4,
+    "position_after": [
+     1152.0,
+     640.0
+    ]
+   }
+  },
+  "SAWBITE": {
+   "wad": "SAWBITE",
+   "lmp_sha256": "671d9b88ab0e86aeaf9e58baea7b4e6a098d29134260fcc6daeaf17b0760047c",
+   "tics": 116,
+   "end": "marker",
+   "end_tic": 116,
+   "prndindex_after_load": 8,
+   "prndindex_end": 180,
+   "thinkers_at_load": 5,
+   "mobjs_at_load": 5,
+   "unknown_messages": 0,
+   "snapshots": 117,
+   "dumps_sha256": "cef27e453e2eb1df2026a6ea0206d9b2f32331ef4f4cde9926b4e301d946c1e3",
+   "must_show": {
+    "an A_Saw hit sets MF_JUSTATTACKED on the player": 45,
+    "a Demon bite on the body A_Saw flagged in the same tic": 73
+   },
+   "facts": {
+    "saw_hit_tics": [
+     45,
+     49,
+     53,
+     57,
+     61,
+     65,
+     69,
+     73,
+     77,
+     81,
+     85,
+     89,
+     93,
+     97
+    ],
+    "bites": [
+     {
+      "tic": 73,
+      "health_lost": 20,
+      "justattacked": true,
+      "attacker": "MT_SERGEANT",
+      "health_after": 80
+     },
+     {
+      "tic": 97,
+      "health_lost": 4,
+      "justattacked": true,
+      "attacker": "MT_SERGEANT",
+      "health_after": 76
+     }
+    ]
+   }
+  },
+  "BTUNNEL": {
+   "wad": "BTUNNEL",
+   "lmp_sha256": "0499f1e97dabd268b6f7090f06c83933a759767c4c86a8b68c4e08453e889c79",
+   "tics": 190,
+   "end": "marker",
+   "end_tic": 190,
+   "prndindex_after_load": 3,
+   "prndindex_end": 148,
+   "thinkers_at_load": 2,
+   "mobjs_at_load": 2,
+   "unknown_messages": 0,
+   "snapshots": 191,
+   "dumps_sha256": "29ff6354084bb7056c01853a53e30f0276015085201614b431278c04d7a9d1b8",
+   "must_show": {
+    "a Baron fireball is spawned, aimed due north at the standing player": 140,
+    "a flying Baron fireball wholly north of the 1-unit slab (y - 6 >= 369): it stepped past the inner one-sided wall": 162,
+    "a Baron fireball explodes on the north wall beyond the slab": 170,
+    "no Baron fireball outside the vertex rectangle (the outer-wall tunnel Rust refuses)": null,
+    "no Baron fireball explodes against the slab": null
+   },
+   "facts": {
+    "fireballs": [
+     {
+      "spawn_tic": 140,
+      "baron_x": 32.0,
+      "mom": [
+       375,
+       983025,
+       0
+      ],
+      "tunnel_tics": [
+       161,
+       162
+      ],
+      "slab_overlap_tics": [],
+      "explodes": {
+       "tic": 170,
+       "x": 32.1745,
+       "y": 481.493
+      },
+      "outside_rectangle_tics": []
+     }
+    ],
+    "player_hit_tics": []
+   }
+  },
+  "TELEZ": {
+   "wad": "TELEZ",
+   "lmp_sha256": "1ebddfce103b663f2f0073eefaf2cea3f7be37c1dece0f71c466d9b50986a307",
+   "tics": 80,
+   "end": "marker",
+   "end_tic": 80,
+   "prndindex_after_load": 4,
+   "prndindex_end": 55,
+   "thinkers_at_load": 3,
+   "mobjs_at_load": 3,
+   "unknown_messages": 0,
+   "snapshots": 81,
+   "dumps_sha256": "4a300dfc9dc572b465980c65827f2ee9da38a73500d65b561f2f77aa004379fc",
+   "must_show": {
+    "the Demon teleports: it stands on the landing": 10,
+    "the first teleport fog, at the pre-move z of the Demon (0, below the 24-unit step it moved onto)": 10,
+    "no teleport fog at the source above z = 0 (Rust before the fix put it at the step floor, 24)": null
+   },
+   "facts": {
+    "teleport_tic": 10,
+    "demon_before": {
+     "x": -8.0,
+     "z": 0.0,
+     "floorz": 0.0
+    },
+    "demon_after": [
+     {
+      "x": 1152.0,
+      "z": 0.0,
+      "floorz": 0.0
+     }
+    ],
+    "fogs": [
+     {
+      "x": 2.0,
+      "y": 0.0,
+      "z": 0.0,
+      "tics": 5
+     },
+     {
+      "x": 1171.9997,
+      "y": 0.0076,
+      "z": 0.0,
+      "tics": 5
+     }
+    ]
+   }
+  }
+ },
+ "timing": {
+  "note": "us/tic of G_Ticker per variant from the runner summary and the wall time of this run; measured on a machine that was not idle (informational, not compared by --check)",
+  "wall_seconds": {
+   "build": 38.9,
+   "runs": 12.4
+  },
+  "us_per_tic": {
+   "TELE2X": {
+    "strict": 22.7,
+    "overflow": 9.4,
+    "address": 26.9
+   },
+   "SAWBITE": {
+    "strict": 16.6,
+    "overflow": 17.7,
+    "address": 45.8
+   },
+   "BTUNNEL": {
+    "strict": 13.4,
+    "overflow": 10.8,
+    "address": 25.9
+   },
+   "TELEZ": {
+    "strict": 16.9,
+    "overflow": 8.8,
+    "address": 22.8
+   }
+  }
+ }
+}

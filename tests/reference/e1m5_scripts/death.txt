@@ -1,0 +1,29 @@
+# output: M5DIE.lmp
+# M5DIE: E1M5 death. The player walks to the nearest monsters without firing
+# and stands among them until it dies, idles 40 tics dead, then presses USE once: the run ends end=reborn (the next
+# G_Ticker would reload the level).
+# Authored iteratively against the genuine strict build (turns, durations and buttons only).
+map E1M5
+idle 1
+cmd 1 40 0 -5 0
+cmd 26 40 0 0 0
+cmd 1 40 0 1 0
+cmd 14 40 0 0 0
+cmd 1 40 0 -1 0
+cmd 10 40 0 0 0
+cmd 1 40 0 1 0
+cmd 1 40 0 126 0
+cmd 1 40 0 1 0
+idle 104
+cmd 1 40 0 26 0
+cmd 1 40 0 1 0
+cmd 1 40 0 -1 0
+cmd 1 40 0 1 0
+cmd 1 40 0 0 0
+cmd 1 40 0 -1 0
+cmd 2 40 0 0 0
+idle 96
+cmd 1 40 0 -66 0
+cmd 7 40 0 0 0
+idle 59
+cmd 1 0 0 0 2

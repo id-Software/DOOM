@@ -172,7 +172,60 @@ pub(crate) fn run(actors: &mut ThinkerStore<Actor>, input: Inputs<'_>) {
                             .position(|binding| *binding == Some(id))
                             .map(|slot| commands[slot])
                     };
-                    let motion = if source_player
+                    let motion = if world.teleport && actor.momentum() != [Fixed::ZERO; 2] {
+                        // Wire 24 (M4b step 4): every `P_XYMovement` runs its crossings
+                        // inside the move, teleports included (decision I7).
+                        let mover = if source_player {
+                            teleport::Mover::Player
+                        } else if boundary.is_some()
+                            && actor.life.is_some_and(|l| {
+                                player
+                                    .as_ref()
+                                    .is_some_and(|p| barrels::is_barrel(p.policy, l.actor_type))
+                            })
+                        {
+                            teleport::Mover::Barrel
+                        } else {
+                            teleport::Mover::Other
+                        };
+                        let Some(registry) = registry.as_deref() else {
+                            refuse(
+                                perception_inputs,
+                                &mut refused,
+                                ActorError::InvalidType.into(),
+                            );
+                            return;
+                        };
+                        match movement::move_xy_contacts(
+                            world,
+                            id,
+                            &mut actor,
+                            spatial,
+                            teleport::Motion {
+                                mover,
+                                access: context,
+                                player: player.as_deref_mut(),
+                                statistics: statistics.as_mut(),
+                                perception: perception_inputs,
+                                registry,
+                                world,
+                                sectors,
+                                options,
+                                rng: &mut *rng,
+                                bindings: &mut *live_bindings,
+                                specials: specials.as_deref_mut(),
+                                boundary,
+                            },
+                            command,
+                            sectors,
+                        ) {
+                            Ok(events) => events,
+                            Err(error) => {
+                                refuse(perception_inputs, &mut refused, error);
+                                return;
+                            }
+                        }
+                    } else if source_player
                         && player
                             .as_ref()
                             .is_some_and(|p| p.policy.has_world_pickups())
@@ -294,6 +347,16 @@ pub(crate) fn run(actors: &mut ThinkerStore<Actor>, input: Inputs<'_>) {
                                     }
                                 });
                                 if let Err(error) = result {
+                                    refuse(perception_inputs, &mut refused, error);
+                                    return;
+                                }
+                                continue;
+                            }
+                            movement::MotionEvent::Outer(event) => event,
+                            movement::MotionEvent::Stage { line, after } => {
+                                if let Err(error) =
+                                    writes.write_line_special(committed_lines, line, after)
+                                {
                                     refuse(perception_inputs, &mut refused, error);
                                     return;
                                 }

@@ -566,6 +566,40 @@ pub enum MoverEvent {
         /// The mover.
         mover: crate::SectorThinkerId,
     },
+    /// Sub-tag 15 (DSIM40, wire 24): `EV_Teleport` returned 1, after the records
+    /// of what the teleport caused (the stomp's combat records, then the two fog
+    /// spawns with their sounds) and before the crossing's sub-tag 3 record.
+    Teleported {
+        /// The teleported thing.
+        actor: ActorId,
+        /// The line.
+        line: u16,
+        /// The landing (`MT_TELEPORTMAN`) it moved to.
+        landing: ActorId,
+        /// Its x, y and z before the teleport (16.16).
+        old: [Fixed; 3],
+    },
+    /// Sub-tag 16 (DSIM40, wire 24): `EV_Teleport` returned 0, before the
+    /// crossing's sub-tag 3 record.
+    TeleportNotTaken {
+        /// The crossing thing.
+        actor: ActorId,
+        /// The line.
+        line: u16,
+        /// 0 crossed from the back side, 1 no landing in any sector with the
+        /// line's tag, 2 `P_TeleportMove` refused (a non-player met a shootable
+        /// thing).
+        reason: u8,
+    },
+    /// Sub-tag 17 (DSIM40, wire 24): `A_BossDeath` ran, on the Baron's entry into
+    /// `S_BOSS_DIE7`; for outcome 3 after the floor call's sub-tag 5 and 6 records.
+    BossDeath {
+        /// The Baron.
+        actor: ActorId,
+        /// 0 `level.map` is not 8, 1 no live player, 2 another Baron alive, 3 the
+        /// tag-666 floor call was made.
+        outcome: u8,
+    },
     /// Sub-tag 12: a sound request with a sector or button origin.
     SectorSound {
         /// The origin kind.

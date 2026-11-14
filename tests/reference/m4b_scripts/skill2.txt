@@ -1,0 +1,9 @@
+# output: SKILL2.lmp
+# SKILL2 on tests/reference/m4b_wads/skill.wad (M4b). Authored closed loop against the strict genuine runner.
+# Skill 2 (medium): walks across the 97 line whose only landing is hard-only, so nothing happens; the spawned
+# things are the option-2 and all-skill ones.
+# format: tools/reference/m4b_scripts.py (tools/e1m1_scripts.py plus "skill N"); turn byte t = t*1.40625 degrees counter-clockwise; buttons 1 ATTACK
+map E1M1
+skill 2
+cmd 60 25 0 0 0
+idle 30

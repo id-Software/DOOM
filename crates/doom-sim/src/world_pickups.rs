@@ -1234,6 +1234,7 @@ impl Simulation {
                         != counted_map_things(
                             self.world.map().things(),
                             self.world.episode1.is_some(),
+                            self.thing_skill_bit(),
                         ))
             {
                 return Err(PlayerBodyError::Invariant.into());
@@ -1342,18 +1343,44 @@ pub(crate) const COUNTED_KILL_DOOMED_IMPS: [i16; 5] = [3001, 3002, 3004, 9, 65];
 /// preflight and DSIM readers) counts through this one definition. Actor
 /// admission itself stays in the existing batch validator.
 pub(crate) fn counted_things(things: impl IntoIterator<Item = (i16, u16)>, kinds: &[i16]) -> usize {
+    counted_things_with_bit(things, kinds, 2)
+}
+/// [`counted_things`] with the skill bit `bit` in place of the medium bit
+/// (p_mobj.c:743–751): wire 24 and the DSIM40 reader pass the bit of the run's
+/// skill (M4b decision I4, [`crate::episode1::skill_bit`]); every older caller
+/// keeps 2 through [`counted_things`].
+pub(crate) fn counted_things_with_bit(
+    things: impl IntoIterator<Item = (i16, u16)>,
+    kinds: &[i16],
+    bit: u16,
+) -> usize {
     things
         .into_iter()
-        .filter(|(kind, options)| kinds.contains(kind) && options & 16 == 0 && options & 2 != 0)
+        .filter(|(kind, options)| kinds.contains(kind) && options & 16 == 0 && options & bit != 0)
         .count()
 }
-pub(crate) fn counted_map_things(things: &[doom_map::Thing], episode1: bool) -> usize {
-    counted_things(
+/// The placed counted items of `things`, with the skill bit `bit` (2 for every
+/// policy before wire 24).
+pub(crate) fn counted_map_things(things: &[doom_map::Thing], episode1: bool, bit: u16) -> usize {
+    counted_things_with_bit(
         things.iter().map(|t| (t.kind, t.options)),
         if episode1 {
             &COUNTED_ITEM_DOOMED_EPISODE1
         } else {
             &COUNTED_ITEM_DOOMED
         },
+        bit,
     )
+}
+impl Simulation {
+    /// The THING option bit the item total's cross-check counts with: the bit of
+    /// the run's skill under wire 24 (M4b decision I4), the medium bit (2) for
+    /// every older policy, which admits only the default options.
+    fn thing_skill_bit(&self) -> u16 {
+        if self.player_policy().has_hard_skill() {
+            crate::episode1::skill_bit(self.actor_options.skill)
+        } else {
+            2
+        }
+    }
 }

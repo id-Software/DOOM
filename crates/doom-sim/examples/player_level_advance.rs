@@ -6,14 +6,15 @@
 //! parsing, admission and spawning are outside the interval. Clock overhead is
 //! reported, not subtracted. This is a developer measurement, not a time gate.
 use doom_sim::{
-    MapContextOptions, PlayerSlot, Simulation, Snapshot, TicCommand, WeaponInventory,
-    demo::{parse_demo, parse_demo_episode1},
+    MapContextOptions, PlayerSlot, Simulation, Skill, Snapshot, TicCommand, WeaponInventory,
+    demo::{parse_demo, parse_demo_episode1, parse_demo_episode1_v2},
 };
 use std::{error::Error, fs, hint::black_box, path::PathBuf, time::Instant};
 
 type HostResult<T> = Result<T, Box<dyn Error>>;
 const USAGE: &str = "player_level_advance --wad PATH --map E1Mn --demo PATH \
-    [--policy level|episode1] (wire 22 default, wire 23 episode1); no captures";
+    [--policy level|episode1|episode1v2] (wire 22 default, wire 23 episode1, wire 24 \
+    episode1v2: skill 2 or 3 from the demo header); no captures";
 
 #[derive(Default)]
 struct Args {
@@ -21,6 +22,7 @@ struct Args {
     demo: Option<PathBuf>,
     map: String,
     episode1: bool,
+    v2: bool,
 }
 
 fn args() -> HostResult<Option<Args>> {
@@ -35,9 +37,10 @@ fn args() -> HostResult<Option<Args>> {
             "--demo" => args.demo = Some(input.next().ok_or(USAGE)?.into()),
             "--map" => args.map = input.next().ok_or(USAGE)?,
             "--policy" => {
-                args.episode1 = match input.next().as_deref() {
-                    Some("episode1") => true,
-                    Some("level") => false,
+                (args.episode1, args.v2) = match input.next().as_deref() {
+                    Some("episode1") => (true, false),
+                    Some("episode1v2") => (true, true),
+                    Some("level") => (false, false),
                     _ => return Err(USAGE.into()),
                 };
             }
@@ -72,11 +75,22 @@ fn main() -> HostResult<()> {
         return Ok(());
     };
     let demo_bytes = fs::read(args.demo.ok_or(USAGE)?)?;
-    let demo = if args.episode1 {
-        let number = match args.map.as_bytes() {
-            [b'E', b'1', b'M', number @ b'1'..=b'9'] => number - b'0',
-            _ => return Err("episode1 needs E1M1..E1M9".into()),
+    let number = match args.map.as_bytes() {
+        [b'E', b'1', b'M', number @ b'1'..=b'9'] => number - b'0',
+        _ if args.episode1 => return Err("episode1 needs E1M1..E1M9".into()),
+        _ => 0,
+    };
+    let mut skill = Skill::Medium;
+    let demo = if args.v2 {
+        let (header, demo) = parse_demo_episode1_v2(&demo_bytes, number)?;
+        // The reader admits skill bytes 2 and 3 only (M4b decision I4).
+        skill = match header.skill {
+            2 => Skill::Medium,
+            3 => Skill::Hard,
+            other => return Err(format!("episode1v2: skill {other} is not admitted").into()),
         };
+        demo
+    } else if args.episode1 {
         parse_demo_episode1(&demo_bytes, number)?.1
     } else {
         parse_demo(&demo_bytes)?
@@ -84,7 +98,14 @@ fn main() -> HostResult<()> {
     let bytes = fs::read(args.wad.ok_or(USAGE)?)?;
     let wad = doom_wad::Wad::parse(&bytes, doom_wad::Limits::default())?;
     let map = doom_map::Map::from_wad(&wad, &args.map, doom_map::MapLimits::default())?;
-    let mut simulation = if args.episode1 {
+    let mut simulation = if args.v2 {
+        Simulation::original_player_episode1_v2_map(
+            map,
+            number,
+            skill,
+            MapContextOptions::default(),
+        )?
+    } else if args.episode1 {
         Simulation::original_player_episode1_map(map, MapContextOptions::default())?
     } else {
         Simulation::original_player_level_map(map, MapContextOptions::default())?

@@ -195,13 +195,24 @@ pub(crate) fn move_actor<A: ActorAccess>(h: &mut LifeHost<'_, A>, id: ActorId) -
         a.floor = attempt.floor;
         a.ceiling = attempt.ceiling;
         a.location = Some(attempt.location);
-        a.z = a.floor;
-        a.life.as_mut().unwrap().flags &= !2097152;
         h.spatial.link(id);
     }
     h.events.push(Event::SectorMovement { actor: id, attempt });
     if allowed && !hit.is_empty() {
         cross_lines(h, id, &hit, actor.position(), target);
+    }
+    if allowed {
+        // p_enemy.c:319–328, after P_TryMove has returned, so after its crossing
+        // loop (p_map.c:500–514): `MF_INFLOAT` cleared and `z = floorz` (no admitted
+        // floater). `EV_Teleport` inside that loop reads the pre-move z for fog 1
+        // (p_telept.c:100–111; M4b step 14, review finding F1), and a teleport has set
+        // `floorz` to the landing's (p_map.c:169). Nothing before wire 24 reads the
+        // crosser's z or flags in the loop: a mover `Starter` holds no actor store and
+        // `teleport::cross` refuses before reading the actor unless the world teleports,
+        // so every older policy ends with the same record as before this order.
+        let a = h.access.get_mut(id).unwrap();
+        a.z = a.floor;
+        a.life.as_mut().unwrap().flags &= !2097152;
     }
     // p_enemy.c:310–324 (no admitted floater): a failed move with special lines in
     // spechit resets movedir and uses each of them, in reverse, from side 0.
@@ -268,6 +279,18 @@ fn cross_lines<A: ActorAccess>(
     new: [Fixed; 2],
 ) {
     for crossing in line_triggers::crossings(h.world, h.sectors, hit, old, new, &[]) {
+        // Wire 24: `EV_Teleport` inside the loop (p_map.c:511); once it reached
+        // `P_TeleportMove`, `numspechit` is 0 and the loop ends (p_map.c:152).
+        if crossing.special == teleport::LINE_TELEPORT {
+            match teleport::cross(h, id, line_triggers::Crosser::Monster, crossing) {
+                Ok(true) => return,
+                Ok(false) => continue,
+                Err(error) => {
+                    h.fail_sight(error);
+                    return;
+                }
+            }
+        }
         let Some(store) = h.access.movers() else {
             h.fail_sight(StoreError::UnsupportedThinker.into());
             return;

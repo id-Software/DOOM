@@ -1,0 +1,10 @@
+# output: BTUNNEL.lmp
+# BTUNNEL on tests/reference/m4b_wads/btunnel.wad (M4b, second set; step 9). Authored closed loop against the strict
+# genuine runner. The player stands still due north of the caged Baron until its first fireball is spawned (dump tic
+# 140, aimed straight north), then strafes west out of its path; the fireball steps wholly past the 1-unit inner void
+# slab in one 15-unit step and explodes on the north wall.
+# format: tools/reference/m4b_scripts.py (tools/e1m1_scripts.py plus "skill N"); turn byte t = t*1.40625 degrees counter-clockwise; buttons 1 ATTACK
+map E1M1
+idle 141   # commands 0..140: the first fireball is spawned in tic 140
+cmd 6 0 40 0 0   # strafe right (west, facing south) out of its path
+idle 43   # the fireball tunnels through the slab and explodes on the north wall

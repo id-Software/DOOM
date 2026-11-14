@@ -1768,7 +1768,7 @@ of `tests/reference/e1m{2,3,4,6,7}_scripts/` (and E1M1's); they hold no IWAD dat
 
 ```sh
 # the genuine engine on the real maps: strict, overflow-checked and address-checked builds (plus -m32 with --strict32)
-DOOM_IWAD_DIR=/path tools/local/episode1_reference.py [--work DIR] [--map E1Mn]... [--script NAME]... [--strict32] [--jobs 1|2] [--keep-dumps]
+DOOM_IWAD_DIR=/path tools/local/episode1_reference.py [--work DIR] [--map E1Mn]... [--script NAME]... [--strict32] [--jobs 1|2] [--keep-dumps] [--lmp PATH]...
 
 # the Rust side, one demo of one map (wire 23), then the per-tic comparison
 DOOM_IWAD_DIR=/path cargo run -p doom-sim --release --example player_level_run -- --wad "$DOOM_IWAD_DIR/DOOM.WAD" --map E1M2 --demo tests/reference/e1m2_scripts/M2IDLE.lmp --out RUST_DIR --captures --policy episode1
@@ -1810,6 +1810,131 @@ release build of `player_level_run` followed by
 OS). All are skipped for documentation-only pushes. Local only: the opt-in `strict32` variant,
 which needs a 32-bit toolchain. Observations of the matched runs belong to the M4a evidence
 record, not to this page.
+## M4b synthetic mechanism WADs
+
+The M4b [reference investigation](M4B_REFERENCE_INVESTIGATION.md) adds small synthetic
+WADs (listed in `tests/reference/m4b_manifest.json` and `m4b_manifest2.json`) for teleportation, telefrags, monster and sliding teleports, the Baron of Hell,
+`A_BossDeath` (one WAD in the E1M8 slot), the special-line (`spechit`) limit and the skill-3
+THING filter, with their scripts run through the genuine engine. Everything here is synthetic and
+runs on a clean checkout; the observations are recorded in
+[the M4b evidence record](validation/M4B.md#synthetic-mechanism-wads-ci-evidence). The Rust side
+is wire 24 (`--policy episode1v2`): it runs the 30 M4a scripts against their DSIM40 projection
+now, and every M4b script (plan steps 4-6 admitted them all; the `PENDING` table of
+`check_player_episode1v2.py` is empty).
+
+```sh
+# generators and invariants (no compiler; every OS in CI)
+python3 tools/reference/m4b_build.py --check               # M4b runner contract: the M4a driver plus the telefrag adapter (p_inter.c:817, sanitizer builds only)
+python3 tools/reference/m4b_wad.py [--out-dir DIR] [--check]  # every WAD of both manifests, in tests/reference/m4b_wads/; --check compares bytes and both manifests' fields, then runs the verifier
+python3 tools/reference/m4b_check_wad.py --check           # independent verifier of every WAD of both manifests (teleport search order, special-line box, skill counts)
+python3 tools/reference/m4b_scripts.py --check             # tests/reference/m4b_scripts (.txt -> .lmp; adds the "skill N" directive)
+python3 tools/reference/test_level_snapshot_m4b.py          # DSIM40 tables against info.h/info.c, dump columns against m4a_driver.c, header rules
+
+# genuine runner execution (C; Linux only in CI); ASAN_OPTIONS=detect_leaks=0 is set for the address variant (leak detection disabled)
+python3 tools/reference/m4b_reference.py [--work DIR] [--check] [--keep-dumps] [--cc CC] [--only WAD] [--selftest TIC] [--update-events]
+python3 tools/reference/m4b_reference.py --work DIR --strict32   # local opt-in: also the -m32 genuine-text build, dumps must be identical; writes nothing
+python3 tools/reference/m4b_build.py --variant strict|overflow|address|all|strict32 [--out DIR]
+
+# the independent DSIM40 projection (profile episode1v2) and its goldens, from the strict dumps
+python3 tools/reference/m4b_reference.py --work /mnt/d/scratch/m4b/ref --check --keep-dumps
+python3 tools/reference/m4b_snapshot_goldens.py --dumps /mnt/d/scratch/m4b/ref/runs --check [--selftest]
+python3 tools/reference/m4b_snapshot_goldens.py [--work DIR] --check   # runs m4b_reference.py itself, deletes the dumps afterwards
+
+# the second M4b set (step 5: TELE2X, two teleports in one tic; step 7: SAWBITE, a bite on an A_Saw-flagged body; step 9: BTUNNEL, a Baron fireball through an inner wall; step 14: TELEZ, a walking monster's teleport fog z), the same tools with --set 2
+python3 tools/reference/m4b_reference.py --set 2 --work /mnt/d/scratch/m4b/ref2 --check --keep-dumps
+python3 tools/reference/m4b_snapshot_goldens.py --set 2 --dumps /mnt/d/scratch/m4b/ref2/runs --check
+python3 tools/reference/level_snapshot_m4b.py DUMP_DIR --wad WAD --demo LMP [--out DIR] [--compare39]
+```
+
+What each asserts:
+
+- `m4b_reference.py --check` builds the strict, overflow-checked and address-checked runners,
+  requires byte-identical dump sets for every script, the manifest's ending and `must_show`
+  tics (a `null` tic means the event must never happen), and the committed
+  `tests/reference/m4b_synthetic_results.json` (counts, digests, event tics and the per-script
+  observed facts; the `timing` block is not compared). For `SPECH9` it also runs the overrun
+  probe: the longer `SPECH8` demo on the nine-line WAD in the address variant must stop with
+  the sanitizer report at `p_map.c:242` after dumping tic 74. `--selftest TIC` plants an extra
+  `P_Random` draw and a changed command at tic TIC of `TELE1` and requires each to be first
+  reported at that tic.
+- `--set 2` selects the second M4b set: `tests/reference/m4b_manifest2.json`,
+  `m4b_synthetic_results2.json`, `m4b_synthetic_goldens2.json` and the `m4b2_episode1v2_*.bin`
+  fixtures. It exists so that every file of the first set stays byte-identical when scripts are
+  added; it has no self-test script of its own (the first set's self-tests cover the tools).
+- `m4b_snapshot_goldens.py --check` requires each strict dump set to equal the
+  `dumps_sha256` of `m4b_synthetic_results.json`, projects every script to DSIM40 with the
+  skill and map number of its demo header, checks each fixture's claim on its dump, and
+  compares `tests/reference/m4b_synthetic_goldens.json` and the 19
+  `tests/reference/m4b_episode1v2_*.bin` fixtures byte for byte. `--selftest` adds eight
+  checks: a changed field (`reactiontime` at the `TELE1` teleport) moves the first differing
+  digest to exactly that tic; an unknown row kind, an extra column, a landing out of `S_NULL`,
+  a Baron in a raise state and a skill that differs from the dump are refused; another map
+  number changes every digest; and every snapshot of every script projects to DSIM39 bytes
+  except `profile`, `context.schema`, `actors.options` and `level.map`.
+  `level_snapshot_m4b.py --compare39` runs that last check on any dump directory (for example
+  the M4a runs, locally). `test_level_snapshot_m4b.py` needs no dumps.
+
+The Rust side (wire 24, DSIM40):
+
+```sh
+# DSIM40 goldens of the 30 M4a scripts, from the genuine M4a dumps (C; Linux only in CI)
+python3 tools/reference/m4a_reference.py --check --keep-dumps --work /mnt/d/scratch/m4b/m4a
+python3 tools/reference/m4b_m4a_goldens.py --dumps /mnt/d/scratch/m4b/m4a/runs --check [--compare39]
+
+# the Rust example under wire 24 against both goldens sets (every OS in CI)
+cargo build -p doom-sim --release --locked --example player_level_run
+python3 tools/reference/check_player_episode1v2.py --binary target/release/examples/player_level_run --out DIR --require
+python3 tools/reference/check_player_episode1v2.py --rust-root DIR [--require]   # captures already made
+
+# wire-24 soak (Rust-only, in the workspace tests) and fuzz target (M4b step 9 and 12)
+cargo test -p doom-sim --release --locked --test episode1v2_soak
+python3 tools/seed_player_episode1_v2_fuzz.py /tmp/doom-episode1v2-seeds      # seed corpus, max_len 2404
+cd fuzz && cargo +nightly fuzz run player_episode1_v2 /tmp/doom-episode1v2-corpus --sanitizer address -- -runs=0 -max_len=2404 -timeout=180 -rss_limit_mb=2048   # replay; add -max_total_time=1800 -seed=N for a coverage-guided run
+
+# one run against its dumps, field by field (any dump directory; DSIM40)
+python3 tools/reference/level_compare_m4b.py DUMP_DIR RUST_DIR --wad WAD --demo LMP [--values] [--json OUT]
+```
+
+- `m4b_m4a_goldens.py --check` requires each strict M4a dump set to equal the frozen
+  `dumps_sha256` of `m4a_synthetic_results.json`, projects every M4a script to DSIM40 with the
+  skill and map of its header and compares `tests/reference/m4b_m4a_goldens.json` byte for
+  byte. `--compare39` also requires every snapshot's DSIM40 projection to equal its DSIM39
+  projection outside the four DSIM40 fields.
+- `check_player_episode1v2.py` runs every script of the M4a manifest and both M4b manifests with
+  `--policy episode1v2`, except the scripts its `PENDING` table names with the step that
+  admits them (empty since step 6), and compares each tic's stripped digest with the goldens. M4a scripts keep their
+  M4a manifest expectations; an M4b `tbd` must match, and `SPECH9` must then refuse its declared
+  tic with `SpecialCross`: since `SPECH9.lmp` ends just before that tic, the tool runs it on its
+  manifest `overrun_probe` demo (`SPECH8.lmp`, whose commands begin with SPECH9's). With
+  `--require` a missing wire 24 or a non-pending script without captures fails. It prints each
+  pending script and the step it waits for.
+- `cargo test -p doom-sim --test episode1v2_mechanism_goldens` (part of the workspace tests)
+  replays the admitted M4b scripts through the public API against the same goldens, decodes
+  every capture with the DSIM40 reader and compares each committed fixture byte for byte (with
+  the capture's event lists emptied, the fixtures' form).
+
+Real maps, local only (M4b step 4; never in CI): the local Episode 1 runner takes uncommitted
+demos with `--lmp`, E1M5, E1M8 and E1M9 included (those use the M4b runner). For example, an
+idle demo written into scratch, the genuine run and the comparison:
+
+```sh
+target/release/examples/player_level_run --write-idle 2100 --demo /mnt/d/scratch/m4b/M5IDLE.lmp --policy episode1v2 --map E1M5
+DOOM_IWAD_DIR=/mnt/d/DoomIWADs python3 tools/local/episode1_reference.py --work /mnt/d/scratch/m4b/real --lmp /mnt/d/scratch/m4b/M5IDLE.lmp --keep-dumps
+target/release/examples/player_level_run --wad /mnt/d/DoomIWADs/DOOM.WAD --map E1M5 --demo /mnt/d/scratch/m4b/M5IDLE.lmp --out /mnt/d/scratch/m4b/rust --captures --policy episode1v2
+python3 tools/reference/level_compare_m4b.py /mnt/d/scratch/m4b/real/runs/strict_E1M5_M5IDLE /mnt/d/scratch/m4b/rust --wad /mnt/d/DoomIWADs/DOOM.WAD --demo /mnt/d/scratch/m4b/M5IDLE.lmp --json OUT
+```
+
+A demo's base name becomes a WAD lump name in the genuine runner, so it must have at most eight
+characters. Delete the dumps once the counts and digests are recorded.
+
+Skill 3 (step 6): `--write-idle` writes a skill-2 header, so for a hard-skill run patch the demo's
+skill byte (byte 1 of the 13-byte header; 2 becomes 3) in scratch before both runs; the genuine
+engine and wire 24 both read the skill from that header. The commands are otherwise those above
+(for example `M5IDL3.lmp` in place of `M5IDLE.lmp`), and the dumps and the demo are deleted after
+the digests are recorded.
+- `level_compare_m4b.py` is `level_compare.py`'s method over the DSIM40 projection. It is a new
+  tool, because `level_compare.py` is frozen and has no DSIM40 profile.
+
 ## Mutation testing
 
 M4a used cargo-mutants 27.1.0 with cargo-nextest 0.9.151. These are separate
@@ -1895,6 +2020,23 @@ cargo mutants -p doom-sim --test-tool nextest --jobs 2 \
   --timeout 300 --build-timeout 900 \
   --output "$M4A_MUTANTS_SCRATCH/refusals" "${RUN2_ARGS[@]}"
 ```
+
+### CI mutation workflow (M4b)
+
+The [`Mutants` workflow](../.github/workflows/mutants.yml) runs cargo-mutants
+27.1.0 with cargo-nextest 0.9.151 (the M4a versions, installed pinned) over the
+diff of `crates/` against `master`, `-p doom-sim --test-tool nextest --in-diff`,
+in 8 matrix shards (`--shard k/8`). It is informational and not a required
+check. Start it by adding the `run-mutants` label to the pull request (the
+trigger that works before merge; a push does not re-run it, so remove and
+re-add the label for a new head), or with `workflow_dispatch` from the Actions
+tab once the file is on `master`. Each shard uploads `outcomes.json` and the
+`missed`, `caught`, `timeout` and `unviable` lists as artifacts
+`mutants-shard-k`; the `Mutants summary` job prints combined counts and the
+missed and timed-out lists in the run's step summary. A shard fails only for a
+usage error or a failing baseline; missed mutants and timeouts are findings,
+triaged as above (the local procedure and the M4a rules for timeouts and
+equivalent mutants apply unchanged).
 
 ## Whole-level simulation-only timing
 

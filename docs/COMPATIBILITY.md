@@ -2393,6 +2393,14 @@ overflow occurs on any matched run.
 - **Skills other than medium**, multiplayer, and the intermission or any level transition:
   a level exit ends the run (`LevelExited` on the next tic), and the dead player's `BT_USE`
   reborn tic is refused (`PlayerReborn`).
+- **Known gap: a Demon or Spectre bite on a body `A_Saw` flagged.** When a chainsaw hit sets
+  `MF_JUSTATTACKED` on the player's body (p_pspr.c:542) and a Demon or Spectre bites in the same
+  tic, the genuine engine runs the bite as on any live body, but wire 23 refuses the tic with
+  `PlayerBody(Invariant)`. It is an explicit refusal, never a silent difference. Found in M4b on
+  E1M5 (see [the evidence record](validation/M4B.md#the-m5walk3-divergence-and-its-fix)); it is fixed
+  under wire 24 only and stays unpatched in wire 23 by rule, because historical profiles keep
+  their behaviour. Wire 23 is the only older wire that admits the chainsaw, so no earlier wire
+  can reach it.
 - **Commands:** `BT_SPECIAL` and button bit 0x40 are refused (`UnsupportedButtons`).
   `forward` and `side` are admitted in -127..127 (-128 is the demo end marker and is refused) and
   weapon indices 0-7 follow vanilla's rules; the chainsaw lunge rewrite runs with a forward value of
@@ -2427,3 +2435,173 @@ that are admitted only if every script authored for them matches. The sources of
 the commands are [TESTING](TESTING.md#m4a-synthetic-mechanism-wads-and-the-episode-1-comparison)
 and for the observations [validation/M4A.md](validation/M4A.md); Rust-only tests are in
 `crates/doom-sim/src/player_episode1_*_tests.rs` and `crates/doom-sim/tests/episode1_synthetic.rs`.
+
+## Original Episode 1, part 2: teleporters, the Baron of Hell, `A_BossDeath` and hard skill (wire 24)
+
+**Status: in progress (M4b, plan steps 1-14 done, step 15, the full gates, next; see the
+[note](M4B_REFERENCE_INVESTIGATION.md#6-plan-size-estimate-and-cap) and [ROADMAP](ROADMAP.md)).** Wire 24 is wire 23 plus teleportation, the Baron of Hell, `A_BossDeath`
+and hard skill (skills 2 and 3, decision I4). Skills 1, 4 and 5 are refused at load, as listed below.
+
+`OriginalExecutionProfile::PlayerMonstersEpisode1V2` (wire 24, DSIM40, context
+`PLAYER-MONSTERS-EPISODE1-2-v1`) is a separate optional superset of `PlayerMonstersEpisode1V1`
+(wire 23), decision [I2](M4B_REFERENCE_INVESTIGATION.md#5-owner-decisions-i1i13-with-recommendations).
+Select it with `Simulation::original_player_episode1_v2_map(map, map_number, skill, context)`
+(`crates/doom-sim/src/player_monsters.rs`). `map_number` is the Episode 1 slot, 1-9; the
+simulation holds it for the run, and DSIM40 records it as `level.map`. `skill` (medium or hard) becomes
+`actors.options`. Then call `spawn_map_things`, `initialize_player_weapons` and
+`spawn_level_specials` once each before the first tic, as for wire 23. The canonical layout is
+the [STATE_FORMAT DSIM40 section](STATE_FORMAT.md#dsim-v40--episode-1-part-2-teleporters-the-baron-of-hell-a_bossdeath-and-hard-skill),
+read by `Diagnostic::decode_episode1_v2`. Wires 1-23, their goldens and DSIM20-39 are unchanged.
+
+**Admitted now.** Everything wire 23 admits, with wire 23's bounds, load rules, runtime witnesses
+and comparison contract (the section above). Under the same inputs, a wire-24 capture is the
+wire-23 capture with `profile` 24, the new context and `level.map` added. The demo reader
+`parse_demo_episode1_v2(bytes, map)` reads a version-110 header with skill 2 or 3, episode 1 and
+maps 1-9. The runner `player_level_run --policy episode1v2` takes the map from `--map` and the
+skill from the header. Plus teleportation (plan step 4; decisions I3, I7 and I8):
+
+- **Line special 97** (WR teleport, p_spec.c:904–907) for the player and for every non-missile
+  thing that crosses it: walking monsters (`P_Move`) and anything sliding with momentum
+  (monsters, corpses, barrels). `EV_Teleport` (p_telept.c:47–131) runs as in C: the back side
+  does nothing; the landing is the first `MT_TELEPORTMAN` in thinker order inside the
+  lowest-numbered sector with the line's tag (no tag-0 guard); `P_TeleportMove` takes the
+  centre sector's floor and ceiling with no line pass; the thing gets `z = floorz`, the landing's
+  angle and zero momentum; two `MT_TFOG` are spawned (old position, then 20 units along the
+  landing's angle by the fine-sine table, which is not exactly 20); a player gets
+  `reactiontime` 18, which skips the next 18 `P_MovePlayer` calls.
+- **Inside the move.** The teleport runs in `P_TryMove`'s crossing loop. Once `P_TeleportMove` was
+  reached (success or failure) the loop ends; the second half of a split move and the rest of a
+  slide carry on from the landing, so a thing can teleport twice in one tic. Under wire 24 every
+  crossing of `P_XYMovement` runs inside the move at its place in the loop (wire 23 keeps running
+  them after the move); the events and the shared thinker order come out as C orders them.
+- **The landing** (doomednum 14): spawned by `spawn_map_things` like any THING (one `lastlook`
+  draw, no tics draw), in state 0 (`S_NULL`, tics −1) forever, in `spatial.link_order` but in
+  no sector list and no block cell.
+- **Stomping** (`PIT_StompThing`, p_map.c:81–108; decision I8). A player telefrags every
+  shootable thing whose box overlaps the landing (no z test) with `P_DamageMobj(thing, player,
+  player, 10000)`. A non-player's teleport fails if any shootable thing overlaps (maps 1–9),
+  which changes nothing and spawns no fog. The telefrag's thrust is the wrapped 32-bit value
+  of `damage*(FRACUNIT>>3)*100/mass` that the genuine strict builds compute (−397,934,592/mass;
+  decision I3); no knockback when the player's ready weapon is the chainsaw. Damage above 1,000
+  stays refused everywhere else and on every older wire. A second player-1 start (a voodoo
+  doll) is refused at spawn, as under wire 22 and 23, so a victim is never a player.
+
+Plus the Baron of Hell and `A_BossDeath` (plan step 5; decision I9):
+
+- **The Baron** (doomednum 3003, `MT_BRUISER`) with its whole normal state closure
+  (`S_BOSS_STND` … `S_BOSS_DIE7`; the raise states stay metadata) and the shared look, chase,
+  face, pain, scream and fall actions. `A_Chase` takes its melee branch without a `movecount`
+  test and without setting `MF_JUSTATTACKED`, its missile branch only at `movecount` 0 and with
+  the flag (p_enemy.c:725–749). **`A_BruisAttack`** (p_enemy.c:979–996) does not face the target;
+  in melee range it claws (`sfx_claw`, one draw, `(P_Random()%8+1)*10` damage with inflictor and
+  source the Baron), otherwise it fires an `MT_BRUISERSHOT` through the same `P_SpawnMissile` as
+  the Imp (one launcher parametrised by type; the Imp's path is unchanged). The fireball is speed
+  15, damage `((P_Random()%8)+1)*8`, no splash; it never splits a step. A contact during the
+  spawn half step draws the damage, runs `P_DamageMobj` and then explodes (with its draw). A
+  Baron fireball explodes on another Baron without damage (the species rule); it hurts every
+  other shootable thing, which may then fight back (infighting), and the shadow fuzz applies at
+  an `MF_SHADOW` target in both `A_FaceTarget` and `P_SpawnMissile` (left draw first, as observed
+  in the genuine engine). Death: `S_BOSS_DIE1` with its tics draw, `A_Scream`, `A_Fall`, no drop.
+- **`A_BossDeath`** runs on entry into `S_BOSS_DIE7` and makes the source's checks in order: the
+  map number must be 8, the player's health above 0, and no other Baron in the thinker list may
+  have health above 0. Then `EV_DoFloor(lowerFloorToLowest)` on every sector tagged 666, in index
+  order; a sector that already has a mover is skipped; each new floor is appended to the thinker
+  order and moves in the same tic. The call names no line (the source passes a local line whose
+  only field is the tag). On every other map, or when a check fails, nothing happens; it never
+  exits the level. E1M8 ends through sector special 11, as wire 23 already models: the exit tic
+  completes and every later tic is refused with `LevelExited`. The ±1,024 sector-height witness
+  covers the boss floor (it is an ordinary floor step); it cannot fire there, because the floor
+  only moves down to a current neighbour height.
+- **Per-map bounds.** Wire 24 counts doomednum 3003 in `K` (placed monsters) as a monster that
+  drops nothing; everything derived from `K` follows (the roster, the sight allowances, the
+  transient allowance). Wire 23's bounds and the DSIM39 reader's count are unchanged.
+
+**Witnesses of the teleport (each refuses the tic; the checked transaction keeps the whole
+canonical state, as for every wire-23 mid-tic refusal):**
+
+- the ninth `spechit` entry of any position check (`MapScaleError::SpecialCross`, inherited
+  from wire 23; it covers every `P_TryMove`, `P_Move`, `P_ThingHeightClip` and missile move);
+- a full actor store when the drops of a telefrag and the two fogs need their slots
+  (`StoreError::Capacity`), checked after the landing search and the damage plans and before the
+  teleport's first mutation. The load rule behind it: wire 24 counts the landings `L` with the
+  same THING filter as the per-map bounds and refuses at load (`StoreError::Capacity`) a map whose
+  **transient allowance** `1024 − (1 + K + R + P + B + D + L)` is below 2, so that one teleport's
+  fogs fit when every placed thing and every drop is live (`Episode1Bounds::transient_allowance`);
+  wire 23's bounds are unchanged;
+- the 129th intercept of a trace (inherited);
+- the landing search is bounded by construction (one pass over the actor order, then at most
+  sectors × landings) and runs before any mutation; it refuses nothing;
+- **the Baron fireball wall tunnel** (below), refused on the tic after the ball leaves the map.
+
+#### The Baron fireball wall tunnel (wire 24)
+
+A Baron fireball (`MT_BRUISERSHOT`, speed 15, radius 6; info.c:1524-1548) moves up to 15 units in one
+step and is never split. `P_CheckPosition` tests only the box at the destination (p_map.c:191-195,
+374-442), so a step can carry the ball wholly past a one-sided wall thinner than the step. The step bound
+of the M3h5 position proof (2r - 2 = 10 units for radius 6) does not hold for this ball: 15 is more than 10,
+and the earlier wording that assumed it was corrected in the
+[note](M4B_REFERENCE_INVESTIGATION.md#3-c-facts-the-baron-a_bossdeath-hard-skill-and-demo-version)
+(finding 29). The genuine engine keeps such a ball flying in the void.
+
+Under wire 24 Rust admits the tunnelling tic. If the ball has left the map's vertex rectangle, the next
+tic is refused with `SimError::Monster(MonsterError::Arithmetic)` by the position check on the spawned
+actor (`demon_map_spawn.rs:155-157`) and the whole canonical state is kept, like every other refused tic.
+While the ball stays inside the vertex rectangle, Rust applies the same destination-box checks and the same
+BSP location as the genuine engine, so it matches or another witness refuses; BTUNNEL (a ball past an inner
+one-sided wall) is the observed instance, and a ball that passes an inner wall may still leave the rectangle
+later and be refused. This is a declared witness, not a difference from the
+original: for this case Rust either matches the genuine engine or refuses the tic (owner ruling,
+2026-11-13). Wire 23 cannot reach it, since every wire-23 missile meets the step bound. It is reachable on
+E1M8 in principle; none of the 61 real-map runs hit it. The soak and fuzz target accept exactly this
+refusal and no other `Monster(Arithmetic)`. Evidence:
+[the evidence record](validation/M4B.md#the-baron-fireball-wall-tunnel).
+
+**Refused now, each explicitly at load:**
+
+- every skill but medium (2) and hard (3), and any other non-default option (such as
+  `no_monsters`): `SimError::PlayerBody(PlayerBodyError::Unsupported)` from the constructor; the
+  runner reports such a demo header before any tic. Wires 23 and below still refuse hard skill
+  (`has_hard_skill()` is wire 24 only);
+- a map number outside 1-9: the same error;
+- line specials 39, 125 and 126 (the other teleports): `PursuitError::Specials`, as under every
+  wire (decision I1);
+- the DSIM40 reader refuses `actors.options[0]` other than 2 or 3 with `Identity`; DSIM36-39 admit 2
+  only.
+
+The Baron's fireball launch, its claw and `A_BossDeath`'s floor use the witnesses above (the
+store-full witness before a spawn, the height witness on every floor step); `A_BossDeath`'s
+thinker walk is one read per actor and runs before any mutation.
+
+**Hard skill (plan step 6).** In single player nothing but `P_SpawnMapThing`'s option bit differs
+between skills 2 and 3: bit 2 for medium, bit 4 for hard (p_mobj.c:743-751). Wire 24 therefore
+counts the per-map bounds (`K`, the landings, the transient allowance) and the item and kill
+totals with the bit of the run's skill (`Episode1Bounds::from_map_v2`, `landings`,
+`world_pickups::counted_things_with_bit`); wires 23 and below keep bit 2. The demo reader already
+read skill 3, and the runners now run a skill-3 demo.
+
+So E1M5, E1M8 and E1M9 now load and run under wire 24 on skills 2 and 3. The evidence for skill 3 is
+the SKILL3 synthetic script ([evidence record](validation/M4B.md#rust-replay-hard-skill)) and the
+scripted real-map runs of plan step 7.
+
+**A bite on a body `A_Saw` flagged (plan step 7).** `A_Saw` sets `MF_JUSTATTACKED` on the player's
+body on a hit (p_pspr.c:542), and `P_PlayerThink` runs before the thinkers (p_tick.c:150-152), so a
+Demon or Spectre can bite a body that carries that flag in the same tic. Nothing on the bite path
+reads it. Wire 24 admits the bite on such a body (`has_bite_on_lunging_body()`), and any other
+unadmitted body flag still refuses under wire 24. Wire 23 still refuses the bite with
+`PlayerBody(Invariant)`: a known wire-23 gap, left unpatched by rule because historical profiles
+keep their behaviour (listed under wire 23's [explicitly not admitted](#explicitly-not-admitted)).
+Wires below 23 do not admit the chainsaw, so they cannot reach it. The case found a real divergence on E1M5 (skill 3 walk), reproduced by the synthetic scene
+SAWBITE; see [the evidence record](validation/M4B.md#the-m5walk3-divergence-and-its-fix). The bite that
+kills the body while the flag is set was reasoned from the source and has not been observed.
+
+**Real-map evidence (plan step 7, local-only).** Rust under wire 24 matched the genuine engine tic for
+tic on 61 scripted runs over E1M1 to E1M9 on skills 2 and 3, and on `DEMO1` run by linuxdoom-1.10
+(a match with that engine, not with the DOS 1.9 executable that recorded the demo); other inputs are
+not claimed ([evidence record](validation/M4B.md#real-maps-and-demo1)).
+The observations (the 30 M4a synthetic scripts and the M4b synthetic scripts compared with the
+genuine engine under wire 24, and the local real-map runs) are in
+[the evidence record](validation/M4B.md); the commands are in
+[TESTING](TESTING.md#m4b-synthetic-mechanism-wads). Rust-only tests are in
+`crates/doom-sim/src/player_episode1_v2_tests.rs`, `crates/doom-sim/src/teleport_tests.rs` and
+`crates/doom-sim/src/baron_tests.rs` and `crates/doom-sim/src/hard_skill_tests.rs`; `crates/doom-sim/tests/episode1v2_mechanism_goldens.rs` replays the admitted M4b scripts against
+the goldens and fixtures in `cargo test`.

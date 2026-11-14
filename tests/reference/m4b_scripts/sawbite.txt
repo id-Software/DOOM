@@ -1,0 +1,10 @@
+# output: SAWBITE.lmp
+# SAWBITE on tests/reference/m4b_wads/sawbite.wad (M4b, second set; step 7). Authored closed loop against the strict
+# genuine runner. The player waits until the pistol is up, steps west over the chainsaw and blue armor (the pickup
+# tic sets the chainsaw's A_Saw phase) and holds ATTACK: A_Saw hits the west Demon every four tics, setting
+# MF_JUSTATTACKED (p_pspr.c:542), and the east Demon's A_SargAttack bites the player in two of those tics.
+# format: tools/reference/m4b_scripts.py (tools/e1m1_scripts.py plus "skill N"); turn byte t = t*1.40625 degrees counter-clockwise; buttons 1 ATTACK
+map E1M1
+idle 14   # the pistol finishes its raise
+cmd 2 25 0 0 0   # west over the chainsaw and blue armor
+cmd 100 0 0 0 1   # saw the west Demon; the east Demon bites

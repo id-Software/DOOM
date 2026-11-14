@@ -1019,10 +1019,13 @@ pub(crate) fn validate_registry(r: &ActorRegistry, source: &ActorRegistry) -> Re
         {
             return Err(PerceptionError::Definition.into());
         }
-        for j in 0..23 {
-            if ![0, 1, 3, 4, 5, 17, 21].contains(&j)
-                && t.properties[j] != source.types()[0].properties[j]
-            {
+        for (j, (value, base)) in t
+            .properties
+            .iter()
+            .zip(source.types()[0].properties.iter())
+            .enumerate()
+        {
+            if ![0, 1, 3, 4, 5, 17, 21].contains(&j) && value != base {
                 return Err(PerceptionError::Definition.into());
             }
         }

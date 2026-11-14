@@ -1,0 +1,200 @@
+{
+ "schema": "DOOM-M4B-MANIFEST-v1",
+ "wads": [
+  {
+   "name": "TELE2X",
+   "file": "tests/reference/m4b_wads/tele2x.wad",
+   "slot": "E1M1",
+   "episode": 1,
+   "map": 1,
+   "sha256": "dee6c2b603a3848246df79f9f1119350fc5c5212d4d5b50230a15d44c1d3e8d3",
+   "bytes": 47929,
+   "sectors": 5,
+   "lines": 18,
+   "things": {
+    "2": {
+     "1": 1,
+     "14": 2,
+     "2014": 1
+    },
+    "3": {
+     "1": 1,
+     "14": 2,
+     "2014": 1
+    }
+   },
+   "scripts": [
+    {
+     "lump": "TELE2X",
+     "source": "tests/reference/m4b_scripts/tele2x.txt",
+     "lmp": "tests/reference/m4b_scripts/TELE2X.lmp",
+     "c_end": "marker",
+     "end_tic": 65,
+     "rust": "tbd",
+     "must_show": [
+      {
+       "what": "two teleports in one tic (four fogs)",
+       "event": "first M type=MT_TFOG",
+       "tic": 36
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "name": "SAWBITE",
+   "file": "tests/reference/m4b_wads/sawbite.wad",
+   "slot": "E1M1",
+   "episode": 1,
+   "map": 1,
+   "sha256": "f883d0ba649e3139fe77b9e8bff09f267e1d6c17b18de5598807ec6f04235561",
+   "bytes": 46354,
+   "sectors": 1,
+   "lines": 12,
+   "things": {
+    "2": {
+     "1": 1,
+     "2005": 1,
+     "2019": 1,
+     "3002": 2
+    },
+    "3": {
+     "1": 1,
+     "2005": 1,
+     "2019": 1,
+     "3002": 2
+    }
+   },
+   "scripts": [
+    {
+     "lump": "SAWBITE",
+     "source": "tests/reference/m4b_scripts/sawbite.txt",
+     "lmp": "tests/reference/m4b_scripts/SAWBITE.lmp",
+     "c_end": "marker",
+     "end_tic": 116,
+     "rust": "tbd",
+     "must_show": [
+      {
+       "what": "an A_Saw hit sets MF_JUSTATTACKED on the player",
+       "event": "first M type=MT_PLAYER flags&128",
+       "tic": 45
+      },
+      {
+       "what": "a Demon bite on the body A_Saw flagged in the same tic",
+       "event": "bite flags&128",
+       "tic": 73
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "name": "BTUNNEL",
+   "file": "tests/reference/m4b_wads/btunnel.wad",
+   "slot": "E1M1",
+   "episode": 1,
+   "map": 1,
+   "sha256": "5d7d1706c41a0b17dce4f99a2db81bc2753c5dcb2c5fd1b74b91ee6c4da3aab1",
+   "bytes": 47481,
+   "sectors": 3,
+   "lines": 16,
+   "things": {
+    "2": {
+     "1": 1,
+     "3003": 1
+    },
+    "3": {
+     "1": 1,
+     "3003": 1
+    }
+   },
+   "scripts": [
+    {
+     "lump": "BTUNNEL",
+     "source": "tests/reference/m4b_scripts/btunnel.txt",
+     "lmp": "tests/reference/m4b_scripts/BTUNNEL.lmp",
+     "c_end": "marker",
+     "end_tic": 190,
+     "rust": "tbd",
+     "must_show": [
+      {
+       "what": "a Baron fireball is spawned, aimed due north at the standing player",
+       "event": "first M type=MT_BRUISERSHOT",
+       "tic": 140
+      },
+      {
+       "what": "a flying Baron fireball wholly north of the 1-unit slab (y - 6 >= 369): it stepped past the inner one-sided wall",
+       "event": "first M type=MT_BRUISERSHOT flags&65536 y>=375u",
+       "tic": 162
+      },
+      {
+       "what": "a Baron fireball explodes on the north wall beyond the slab",
+       "event": "first M type=MT_BRUISERSHOT state=S_BRBALLX1 y>=480u",
+       "tic": 170
+      },
+      {
+       "what": "no Baron fireball outside the vertex rectangle (the outer-wall tunnel Rust refuses)",
+       "event": "first M type=MT_BRUISERSHOT y>=496u",
+       "tic": null
+      },
+      {
+       "what": "no Baron fireball explodes against the slab",
+       "event": "first M type=MT_BRUISERSHOT state=S_BRBALLX1 y>=340u y<=400u",
+       "tic": null
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "name": "TELEZ",
+   "file": "tests/reference/m4b_wads/telez.wad",
+   "slot": "E1M1",
+   "episode": 1,
+   "map": 1,
+   "sha256": "6fbdaf62e910dc4d45c22dec8c80cb33998c27139962d76973d174e032db93a6",
+   "bytes": 46913,
+   "sectors": 4,
+   "lines": 14,
+   "things": {
+    "2": {
+     "1": 1,
+     "14": 1,
+     "3002": 1
+    },
+    "3": {
+     "1": 1,
+     "14": 1,
+     "3002": 1
+    }
+   },
+   "scripts": [
+    {
+     "lump": "TELEZ",
+     "source": "tests/reference/m4b_scripts/telez.txt",
+     "lmp": "tests/reference/m4b_scripts/TELEZ.lmp",
+     "c_end": "marker",
+     "end_tic": 80,
+     "rust": "tbd",
+     "must_show": [
+      {
+       "what": "the Demon teleports: it stands on the landing",
+       "event": "first M type=MT_SERGEANT x=1152u",
+       "tic": 10
+      },
+      {
+       "what": "the first teleport fog, at the pre-move z of the Demon (0, below the 24-unit step it moved onto)",
+       "event": "first M type=MT_TFOG x<=64u z=0u",
+       "tic": 10
+      },
+      {
+       "what": "no teleport fog at the source above z = 0 (Rust before the fix put it at the step floor, 24)",
+       "event": "first M type=MT_TFOG x<=64u z>=1u",
+       "tic": null
+      }
+     ]
+    }
+   ]
+  }
+ ]
+}

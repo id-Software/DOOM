@@ -1,0 +1,15 @@
+# output: TSLIDE.lmp
+# TSLIDE on tests/reference/m4b_wads/telemove.wad (M4b). Authored closed loop against the strict genuine runner.
+# Walks north-east against the north wall below the split threshold; the blocked move slides (P_SlideMove), its
+# move up to the wall crosses the tag-2 97 line, and the zero-length try at the landing picks up the health
+# bonus in the same tic.
+# format: tools/reference/m4b_scripts.py (tools/e1m1_scripts.py plus "skill N"); turn byte t = t*1.40625 degrees counter-clockwise; buttons 1 ATTACK
+map E1M1
+cmd 1 0 0 64 0
+cmd 20 25 0 0 0
+idle 20
+cmd 1 0 0 192 0
+cmd 62 50 0 0 0
+cmd 1 0 0 32 0
+cmd 40 25 0 0 0
+idle 25

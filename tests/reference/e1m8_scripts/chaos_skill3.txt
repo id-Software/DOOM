@@ -1,0 +1,5 @@
+# output: M8CHAOS3.lmp
+# M8CHAOS3: E1M8 chaos at hard skill, the same seed 20261113 and stream as M8CHAOS, skill 3.
+map E1M8
+skill 3
+seed 20261113 chaos 5000

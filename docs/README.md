@@ -159,3 +159,6 @@ original evidence and former guide contents with exact-byte copies and digests.
   (the Episode 1 census, the original C facts for every mechanism E1M2–E1M9 add, the command
   domain, the original demos, the synthetic-WAD CI path, decisions H1–H12 and the part 1 /
   M4b / M4c order of work; Phase 2 in progress).
+- [M4b the rest of Episode 1 (teleporters, the Baron, A_BossDeath, hard skill, DEMO1) investigation](M4B_REFERENCE_INVESTIGATION.md)
+  (the E1M5/E1M8/E1M9 census on skills 2 and 3, the original C facts, the wire 23 Rust inventory, decisions
+  I1–I13 and the plan; Phase 1 done, decisions pending the owner).

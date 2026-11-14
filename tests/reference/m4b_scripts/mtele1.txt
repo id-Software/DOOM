@@ -1,0 +1,7 @@
+# output: MTELE1.lmp
+# MTELE1 on tests/reference/m4b_wads/montele.wad (M4b). Authored closed loop against the strict genuine runner.
+# Idle player between two awake Demons: the west one walks across its 97 line and teleports to a free landing;
+# the east one crosses its 97 line but the barrel on its landing blocks the teleport.
+# format: tools/reference/m4b_scripts.py (tools/e1m1_scripts.py plus "skill N"); turn byte t = t*1.40625 degrees counter-clockwise; buttons 1 ATTACK
+map E1M1
+idle 160

@@ -512,6 +512,18 @@ pub(crate) enum MotionEvent {
     /// `spechit` entry: the caller refuses the tic (`MapScaleError::SpecialCross`).
     /// No attempt follows it in the same motion.
     SpecialCross,
+    /// Under the teleport policy (wire 24), an event of a crossing that already ran
+    /// inside the move ([`MotionAccess::cross`]), in its place in the motion.
+    Outer(crate::Event),
+    /// Under the teleport policy, a crossing inside the move changed the line's
+    /// runtime special to `after` (a W1 clear): the caller stages it after the
+    /// motion. Later attempts of the motion already read it through `cleared`.
+    Stage {
+        /// The line.
+        line: u16,
+        /// Its special after the crossing.
+        after: i16,
+    },
 }
 pub(crate) trait MotionAccess {
     type Error;
@@ -538,6 +550,36 @@ pub(crate) trait MotionAccess {
     /// ([`crate::barrels::BarrelMotion`]). No-op elsewhere.
     fn after_move(&mut self, _actor: &Actor) -> Result<(), Self::Error> {
         Ok(())
+    }
+    /// Whether the crossings of an accepted attempt run inside the move, in
+    /// `P_TryMove`'s loop (p_map.c:500–514), through [`Self::cross`]: under the
+    /// teleport policy (wire 24), where `EV_Teleport` moves the thing mid-motion. Every
+    /// other access returns the crossings as [`MotionEvent::Cross`] for the caller to
+    /// run after the motion, as before.
+    fn crosses_in_move(&self) -> bool {
+        false
+    }
+    /// `P_CrossSpecialLine` for one crossing of the loop, inside the move, with
+    /// `actor` the mover's current record (updated in place by a teleport). The
+    /// crossing's events are appended to `events` as [`MotionEvent::Outer`] (and a
+    /// changed special as [`MotionEvent::Stage`]). Returns whether the loop ends
+    /// (`P_TeleportMove` was reached, p_map.c:152). Called only when
+    /// [`Self::crosses_in_move`] is true.
+    #[expect(
+        clippy::too_many_arguments,
+        reason = "the move's state, borrowed apart"
+    )]
+    fn cross(
+        &mut self,
+        _id: ActorId,
+        _actor: &mut Actor,
+        _crosser: crate::line_triggers::Crosser,
+        _crossing: crate::line_triggers::Crossing,
+        _sectors: crate::staging::Sectors<'_>,
+        _spatial: &mut SpatialIndex,
+        _events: &mut Vec<MotionEvent>,
+    ) -> Result<bool, Self::Error> {
+        unreachable!("no crossing inside the move without the teleport policy")
     }
     /// The slide trace's intercept witness: `Some(MAX_INTERCEPTS)` under the
     /// real-map policy, `None` (unbounded, the historical behavior) elsewhere.
@@ -644,11 +686,29 @@ impl<F: MotionAccess> Mover<'_, F> {
                     &self.cleared,
                 )
                 .collect::<Vec<_>>();
+                let inside = self.access.crosses_in_move();
                 for crossing in found {
                     if crate::line_triggers::clears(crosser, crossing.special) {
                         self.cleared.push(crossing.line);
                     }
-                    self.events.push(MotionEvent::Cross(crossing));
+                    if !inside {
+                        self.events.push(MotionEvent::Cross(crossing));
+                        continue;
+                    }
+                    // Wire 24: the crossing runs now. A side computed before an
+                    // earlier crossing of this loop stays exact: only a teleport
+                    // moves the thing, and it ends the loop.
+                    if self.access.cross(
+                        self.id,
+                        self.actor,
+                        crosser,
+                        crossing,
+                        sectors,
+                        self.spatial,
+                        &mut self.events,
+                    )? {
+                        break;
+                    }
                 }
             }
             if allowed {
@@ -754,6 +814,10 @@ impl<F: MotionAccess> Mover<'_, F> {
                 return Ok(());
             }
             self.events.push(MotionEvent::Slide(i as u16));
+            // p_map.c:776–777 read `mo->momx/momy` after the move up to the wall,
+            // which a teleport inside it zeroed (wire 24); no other attempt changes
+            // the momentum, so `mom` is that value for every older policy.
+            let mom = self.actor.spec.momentum;
             let motion = project(
                 &self.world.lines[i],
                 self.actor.spec.position,

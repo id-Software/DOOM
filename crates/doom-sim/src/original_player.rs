@@ -707,6 +707,20 @@ fn preflight_impulse(
         .and_then(|n| n.checked_mul(THRUST_MASS_SCALE))
         .and_then(|n| n.checked_div(mass))
         .ok_or(CombatError::Metadata)?;
+    preflight_thrust(room, target, origin, thrust)
+}
+/// The momentum half of the impulse proof for an already computed `thrust`: the
+/// angle from `origin` to `target`, the `FixedMul` components added to the
+/// target's momentum, checked, and the result inside the travel bounds. The
+/// telefrag of wire 24 calls it with its wrapped thrust
+/// (`combat::telefrag_thrust`); every other caller goes through
+/// [`preflight_impulse`].
+pub(crate) fn preflight_thrust(
+    room: Option<crate::player_map_scale::RoomBounds>,
+    target: &Actor,
+    origin: &Actor,
+    thrust: i32,
+) -> Result<(), SimError> {
     let mut delta = [Fixed::ZERO; 2];
     for (axis, d) in delta.iter_mut().enumerate() {
         *d = Fixed::from_bits(

@@ -1,0 +1,8 @@
+# output: SPECH9.lmp
+# SPECH9 on tests/reference/m4b_wads/spech9.wad (M4b). Authored closed loop against the strict genuine runner.
+# The same walk into the cluster with a ninth special line; the demo ends just before the tic in which the
+# genuine engine appends a ninth spechit entry (m4b_reference.py proves that tic with an address-variant probe).
+# format: tools/reference/m4b_scripts.py (tools/e1m1_scripts.py plus "skill N"); turn byte t = t*1.40625 degrees counter-clockwise; buttons 1 ATTACK
+map E1M1
+cmd 68 25 0 0 0
+idle 7

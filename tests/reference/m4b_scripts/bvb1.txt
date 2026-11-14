@@ -1,0 +1,12 @@
+# output: BVB1.lmp
+# BVB1 on tests/reference/m4b_wads/bvb.wad (M4b). Authored closed loop against the strict genuine runner.
+# A short strafe sets the timing so that a Baron fireball wounds the barrel (8 or 16 damage, target = that
+# Baron) and the next one kills it; the splash wounds the sleeping Baron, which targets the first Baron;
+# fireballs between the two burst without damage and their claws do damage.
+# format: tools/reference/m4b_scripts.py (tools/e1m1_scripts.py plus "skill N"); turn byte t = t*1.40625 degrees counter-clockwise; buttons 1 ATTACK
+map E1M1
+cmd 40 25 0 0 0
+cmd 25 0 30 0 0
+idle 45
+cmd 25 0 -30 0 0
+idle 600

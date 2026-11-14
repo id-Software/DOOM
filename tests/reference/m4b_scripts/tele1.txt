@@ -1,0 +1,14 @@
+# output: TELE1.lmp
+# TELE1 on tests/reference/m4b_wads/tele.wad (M4b). Authored closed loop against the strict genuine runner.
+# Walks west across the 97 line from its back side (no teleport), turns round and crosses it from the front: two
+# fogs, landing angle 90, momentum zeroed, an 18-tic freeze during which the forward and turn commands do
+# nothing, then the health bonus on the landing is picked up.
+# format: tools/reference/m4b_scripts.py (tools/e1m1_scripts.py plus "skill N"); turn byte t = t*1.40625 degrees counter-clockwise; buttons 1 ATTACK
+map E1M1
+idle 2
+cmd 40 25 0 0 0
+idle 20
+cmd 1 0 0 128 0
+cmd 40 25 0 0 0
+cmd 25 25 0 8 0
+idle 45

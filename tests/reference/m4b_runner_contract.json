@@ -1,0 +1,1352 @@
+{
+ "schema": "DOOM-M4B-RUNNER-v1",
+ "revision": "a77dfb96cb91780ca334d0d4cfd86957558007e0",
+ "purpose": "Headless whole-file build of the genuine gameplay code driven through the vanilla -playdemo path; run locally on a real IWAD and in CI on a synthetic WAD. Expected observations come from the genuine code, never from Rust output.",
+ "whole_files": [
+  "g_game.c",
+  "p_ceilng.c",
+  "p_doors.c",
+  "p_enemy.c",
+  "p_floor.c",
+  "p_inter.c",
+  "p_lights.c",
+  "p_map.c",
+  "p_maputl.c",
+  "p_mobj.c",
+  "p_plats.c",
+  "p_pspr.c",
+  "p_setup.c",
+  "p_sight.c",
+  "p_spec.c",
+  "p_switch.c",
+  "p_telept.c",
+  "p_tick.c",
+  "p_user.c",
+  "m_random.c",
+  "m_fixed.c",
+  "m_bbox.c",
+  "m_argv.c",
+  "tables.c",
+  "info.c",
+  "d_items.c",
+  "sounds.c",
+  "dstrings.c",
+  "doomstat.c",
+  "doomdef.c",
+  "w_wad.c",
+  "z_zone.c",
+  "r_sky.c",
+  "r_data.c"
+ ],
+ "excluded": {
+  "p_saveg_c": "aborting stubs for its eight P_(Un)Archive* functions and save_p",
+  "r_main_c": "declared extract only (r_main_extract)"
+ },
+ "source_sha256": {
+  "d_items.c": "76531d5366de1157cf3d8510ef749617cfc46b6e721845bda4324cd697028fe6",
+  "doomdef.c": "ec38f30185ae4cd79e3ccfc1a1f22489afdadb5cf5aad2e1b2c46133613c2807",
+  "doomstat.c": "12d068a8e82d2fa07baf608d8463d9a27dc0b609503d9ef76794de3c5edbf8d4",
+  "dstrings.c": "41cff21632b61f06ce84e0148341925f195acae0ceaa729a34beddfc3e918187",
+  "g_game.c": "bc8e2e0d76a70f8120174946641a82c46f0116a624f51c011b292e2ffcb78a29",
+  "info.c": "e09631527669ee528bdae20a47be79e1cb33972b39964c33ac4814e1701a0949",
+  "m_argv.c": "f303d6d574b8d3aea6116d426db2e6b00de94b90c405c7b98ac4bb8dc3521dac",
+  "m_bbox.c": "98f3aea4f43d4d75fe452a25a65678fbd8368cfef3928b869767996e2165f42c",
+  "m_fixed.c": "a4472841bc8890c5d5a41b325ecf56d10d7026a7489967aa29100b5dee759fea",
+  "m_random.c": "8d89f5cfcbbd0170e46b55538c4c272b3cf5b5d7dce91023b8aa8d9b922b21ee",
+  "p_ceilng.c": "0b4de846cef16d92f95275e70e568ffabef6d6ee1a2b60609604dce42f011907",
+  "p_doors.c": "2e44a6051f27206971c7bf9629431db201e1dc3441d974119ec9d88655e5ec12",
+  "p_enemy.c": "bfe1e3c039443d787e4a0dcb485720c9707f3381b69b00ad35f3e52796bfeec0",
+  "p_floor.c": "c22ad7b7112d28c8b8c54a26ff611b98664a6d7a40d8d300680e6ca465468d47",
+  "p_inter.c": "72e9bbabe560ef548c2f2522494786347d5c831b0e1f0ecb5cb29d8d8e682356",
+  "p_lights.c": "0ade56b8514b3e11fd13af2be7a787531e4ffb6b84c49e489d678d42b5abfdca",
+  "p_map.c": "752c7873c81fe6b10b77a08b7ef5716fe49c3103f6caa02097ed299e6e04736c",
+  "p_maputl.c": "4d93e06d11160fb935e94750babbdcc9a4469d96f593764872db87cefd37c0a1",
+  "p_mobj.c": "21a39bdbd746d6fba38660500203216052f0723b8e0ab033ce2a650ada2b403f",
+  "p_plats.c": "15f27dd1282ef9730ffce010b1fcaec1283a9cd37e143b863576a690aba514f6",
+  "p_pspr.c": "b47100f9c2c2c4f7913831c170bff55161af2d5d01f5467dbbc6be081c4f1af1",
+  "p_setup.c": "cc56c3ef5eb73aaec4db8be855fd3c192af19bf8f775478d002e9b2e9225872d",
+  "p_sight.c": "81014a71e4155db6da0af21e6ecf14687daf18075fb75322b63bdc254ce11120",
+  "p_spec.c": "1eed828498af033bd2322402a727e5b66913f5814e4d3fb002712fbcc8825cb1",
+  "p_switch.c": "ac7effb3c4cfce1ecd8f7d25c93690c9b74cda99c639a47f76c4151a73010358",
+  "p_telept.c": "b717afb76c138954ca4aef44de3c3c081f91039cb485385afe2fd334fe4802c6",
+  "p_tick.c": "21a638b7b1ae4fcb6b6892a731cd27d20f44e2df12dd3325c8215ca4c9aee22f",
+  "p_user.c": "ecb5bab44ab9326c9c0d14bd607bc49c669bf048eecda27f7dc4634023a6c4a4",
+  "r_data.c": "0d0e83faec506d6bbf8d0a7aa5256b8e660f6deebc48c87d2c77bdb6ace4bf8d",
+  "r_main.c": "2aae43cf807929a8758f71ed0205fc08017556541ba8df2ea9167c003d0dec5a",
+  "r_sky.c": "6bfc7d79c51943afc1acc774e7c50295d0640838f5e28ec8b6d5bff561ddc7b8",
+  "sounds.c": "d489534e93fdb20cad1757f6625913bddf10646ab3b21badbeafdc6cecc027d2",
+  "tables.c": "db8759f4311654c63785dcffb8f73a00a61cfe2713e4284c238dea420b6e5f89",
+  "w_wad.c": "a193860a2a1f671a680999aaa93ca294f90c9b1d6b5ba33152c0aa92000074a9",
+  "z_zone.c": "80174204a0a2c96e89ceb059e0922238046106be4fd5116f1c0a6a530df9010b"
+ },
+ "header_sha256": {
+  "am_map.h": "75c3671cbc7f003e16cc50abe98fe824e595f1c3bf66c2c722e8597a015e40ed",
+  "d_englsh.h": "b018968e3aef65e0009d6ec676d40c8731b33e2882758640d3028c530c87a789",
+  "d_event.h": "24ba8629e157f4f76c4da0821a9f1bf71c34c2aec5cbc1ee4ec5898751225d22",
+  "d_french.h": "018e635134bb064b6c559407221629bc27bc400769d9074dc742510ac7d88086",
+  "d_items.h": "322a73acb345703c9f00ae7528900daa3a49bd27c670d5acee4196c1ded74bda",
+  "d_main.h": "adb0988d417528bdb689f5249cc650360f5a81936c797346d8390b80af0c4ca9",
+  "d_net.h": "54d77e10fe98e7ad640c711e7146f1440e4bd3f73e46d27905f9c19b8117ac3d",
+  "d_player.h": "9c9a342ab7c3661ab02d32890bd0d74ede94a0745ae0d622de83a9ae11046ffb",
+  "d_textur.h": "fac8baf1195a1a1a00f872271c7e159ad8b66a3632385128403ed99f99cf5ba1",
+  "d_think.h": "a8d3d4943495c729cd33b67eff1b56d801f1cf8cd0db74fb5d63b613c4eabddc",
+  "d_ticcmd.h": "2f70caa7c187365850e467254d8b0a31c07ea304d59339c68fde63d05274d146",
+  "doomdata.h": "f0504fd3926491ee56c61c8e9c732f0bf7e74306cba482eb267beda5022accca",
+  "doomdef.h": "643daca966fb762fa86f39ce9a1779355117578527bf2e295163647f9ad0d74e",
+  "doomstat.h": "c8b9eb311ec529a371c1c49dbd9a571ee07976dfd1bdc83d26b77ff6ba163355",
+  "doomtype.h": "e2b8da9ed44c6686a282af8e14a53b605ecc781d05ccd78579fcf57c720297e6",
+  "dstrings.h": "de1d24709df885ac93ddc5c1b86dbc2e0baad1027dde01ea09076d9e28778bc0",
+  "f_finale.h": "ee5cb17f104a894de9fed452dfad04df3e070a7bc70e65d9d336421f7dee9359",
+  "f_wipe.h": "fff2fb466d978eb4d482464899302830a377e305b0d31c9524072ec569cfaff0",
+  "g_game.h": "ab47e29d7506cda9a702073c451d6e533204e49a064a0ccc6e98ae4c5e9faa60",
+  "hu_lib.h": "611143caa98ef13992845fde571be9a9c3d944fa850ee2f2d8b0406aae9ed02e",
+  "hu_stuff.h": "09a1c0ef0434b0b46e9ea3b43232898b7b939b07bf18f302458227948d98579c",
+  "i_net.h": "0c32e01a687cda4e8db3f87ec38db53b7c4c9826e69a128f6dc7a2121a622f5a",
+  "i_sound.h": "7a4171979ac20b40c02969be19d404cbc77e4493aa69bb22c0eeaf1f9b8c519b",
+  "i_system.h": "426ccb2f2b29facaa80e0a43165bb62395ceda6dbb8ed27d0a3cfc99a91a6abc",
+  "i_video.h": "d9af47ac4d55f1acb0dd1060b663b8d2c085688a39807b101a9ff082800b4e42",
+  "info.h": "3e68ee6cc13323e69cbcf208e9a0af7b13867bead49e66d765abefa5d914b0dd",
+  "m_argv.h": "388205a8bda230f472caafac172a42621c72693f018e66c7c71389e4ea24c7b4",
+  "m_bbox.h": "fc041f774ff1f7b2b05d5bd8dd35a9496cf4dd4ca2a0a2df2420ac6f827b0b5d",
+  "m_cheat.h": "92f43c6df575a07bc394981f1beb1b901889f84bce67b557b8274f0379f0ae88",
+  "m_fixed.h": "67aa3925a905d448fb947fb7358093a39367f534c3e26e3f8b06228f553227ef",
+  "m_menu.h": "ccfc1f2abe50cbb78e83d2ec35eb3812003945f2d668e69551b5b2d56bfc4dfa",
+  "m_misc.h": "5cf237e545bd93d01a59f3696afa02073beedf8131ea23f30924fd5cc3891c7b",
+  "m_random.h": "31ec17387c9b7148f8e9762b71cccebaa199bffece76e1103bdb64f0ae615caa",
+  "m_swap.h": "04e76b9143f1d78a8f5cbb11b8d5022b2d5b0f18f644615384fa793f741ffd19",
+  "p_inter.h": "348edaf0dbbac0b455e54823d3e8bdab72ac210bf22cd17cffc519596661fa2a",
+  "p_local.h": "8d71f591ed5f26580042d991558c89d674b683f9cd1c2801ac7714de04b0185f",
+  "p_mobj.h": "85be6ea83fc4b5f95df666c68c8999f7fe5745a5f503d3a441afd66b5f7e5db0",
+  "p_pspr.h": "21b95a0eb8b901287be5077b780b809e5e4e296393cb63c8e02970646a8f8e67",
+  "p_saveg.h": "31457a112b24c4bd91df919c9e2c81add41019194492d320f81f2d837ed00bac",
+  "p_setup.h": "ffffe92a94edde836ca5d2d5db311d003ce03e1dcfe542d948ee8094f1637be0",
+  "p_spec.h": "95d93e2e3b803126b0ecf6ea42de41d2bce7b2d09ea701e03992f0cc6dae22a3",
+  "p_tick.h": "a0512fd19e760d5d43e477bfe4fabf686542bc21bc27daa87108cb703fc562a7",
+  "r_bsp.h": "08ca429757b65ac35798cf9f47ef9dea072e27a5b856fdf300c9fc2fcba5fac6",
+  "r_data.h": "4dbb1515b2e1be1e2496018365ebd37507f001ae449a181a54a894a70141ed1b",
+  "r_defs.h": "d8856503bea02282f5f338f3533885e87c6c430ce4f11511d6a04b5fc040db31",
+  "r_draw.h": "4ab1c0bbf7dba3712db71ba0ba7901184b2a35a8b6132db40bd0f6c87b74ccfe",
+  "r_local.h": "b92f15cbc8620b38de46512166244ba9f357de4fc8ef32be2f35088bc1cfd443",
+  "r_main.h": "9576bf120653af7127dcfd754f50e294b76be38bacb3b43f8686111a2dcd501b",
+  "r_plane.h": "abc99d0fc7845c8e9e73057b14a886b138046d5e432303c87fa5c34879f5903e",
+  "r_segs.h": "9343a51c57d93f13098118cfbc23377487b4063ec0dbf447c6aee8a7d0fd68ce",
+  "r_sky.h": "2c4a650afa36997ccb8ff97b7e1a5a0b25c1090a17c9e39b3d66e1d53ea9391e",
+  "r_state.h": "35a0d8f2e6a8f88ff100625708e54a6f04d22506319bef1c08033293e3ca22bd",
+  "r_things.h": "7e7a985f29f971e7e5c14c93c79f8d3462f4a42f5544d4c298a90df00561cf50",
+  "s_sound.h": "d747126bc8105ef540dee2f6f7e9f17db047dabb2c03a740ddc1bb9f98746b83",
+  "sounds.h": "fa5a6c19c689eeb6e4a2df08b1d4efe5c445b3d0cb4081dc3a7d28fdadfd39f8",
+  "st_lib.h": "8ae86cf219785672579e6dd75ce3a5abae2e9991c44af647d59f6bec384307c2",
+  "st_stuff.h": "0e2aad8828e13314e754c370da0c8cb61f08006c349fb1587ad28ea789ba4d85",
+  "tables.h": "54e366ed33a0bd65e5cad6c5b6f7df77573909e5974b8af296fdb1503c77fcf2",
+  "v_video.h": "728500c3b693d1baff1a43c5df6d0c6d55d1ec343247becd7db33c1be747635b",
+  "w_wad.h": "1c5f7a0f6ba41f1f6ce22440fb020596d0ea7b16742f9f2a044e9bc7d66e8abb",
+  "wi_stuff.h": "57ab19c222d6e54158b3fff8ea6ea23d23e7646925aab830b06cf8cfc1e84f5e",
+  "z_zone.h": "46498575b14b5f5538d0d93f3d7c8325941b76f0e36b435bb895ecaac6f54cca"
+ },
+ "adapted_sha256": {
+  "strict": {
+   "g_game.c": "bc8e2e0d76a70f8120174946641a82c46f0116a624f51c011b292e2ffcb78a29",
+   "p_ceilng.c": "0b4de846cef16d92f95275e70e568ffabef6d6ee1a2b60609604dce42f011907",
+   "p_doors.c": "2e44a6051f27206971c7bf9629431db201e1dc3441d974119ec9d88655e5ec12",
+   "p_enemy.c": "bfe1e3c039443d787e4a0dcb485720c9707f3381b69b00ad35f3e52796bfeec0",
+   "p_floor.c": "c22ad7b7112d28c8b8c54a26ff611b98664a6d7a40d8d300680e6ca465468d47",
+   "p_inter.c": "72e9bbabe560ef548c2f2522494786347d5c831b0e1f0ecb5cb29d8d8e682356",
+   "p_lights.c": "0ade56b8514b3e11fd13af2be7a787531e4ffb6b84c49e489d678d42b5abfdca",
+   "p_map.c": "752c7873c81fe6b10b77a08b7ef5716fe49c3103f6caa02097ed299e6e04736c",
+   "p_maputl.c": "4d93e06d11160fb935e94750babbdcc9a4469d96f593764872db87cefd37c0a1",
+   "p_mobj.c": "21a39bdbd746d6fba38660500203216052f0723b8e0ab033ce2a650ada2b403f",
+   "p_plats.c": "15f27dd1282ef9730ffce010b1fcaec1283a9cd37e143b863576a690aba514f6",
+   "p_pspr.c": "b47100f9c2c2c4f7913831c170bff55161af2d5d01f5467dbbc6be081c4f1af1",
+   "p_setup.c": "e2d3bfbec1d0424f15e153a2efffb88a36eb490d5e7db676b67c62efc9d47819",
+   "p_sight.c": "81014a71e4155db6da0af21e6ecf14687daf18075fb75322b63bdc254ce11120",
+   "p_spec.c": "1eed828498af033bd2322402a727e5b66913f5814e4d3fb002712fbcc8825cb1",
+   "p_switch.c": "ac7effb3c4cfce1ecd8f7d25c93690c9b74cda99c639a47f76c4151a73010358",
+   "p_telept.c": "b717afb76c138954ca4aef44de3c3c081f91039cb485385afe2fd334fe4802c6",
+   "p_tick.c": "21a638b7b1ae4fcb6b6892a731cd27d20f44e2df12dd3325c8215ca4c9aee22f",
+   "p_user.c": "ecb5bab44ab9326c9c0d14bd607bc49c669bf048eecda27f7dc4634023a6c4a4",
+   "m_random.c": "8d89f5cfcbbd0170e46b55538c4c272b3cf5b5d7dce91023b8aa8d9b922b21ee",
+   "m_fixed.c": "a4472841bc8890c5d5a41b325ecf56d10d7026a7489967aa29100b5dee759fea",
+   "m_bbox.c": "98f3aea4f43d4d75fe452a25a65678fbd8368cfef3928b869767996e2165f42c",
+   "m_argv.c": "f303d6d574b8d3aea6116d426db2e6b00de94b90c405c7b98ac4bb8dc3521dac",
+   "tables.c": "db8759f4311654c63785dcffb8f73a00a61cfe2713e4284c238dea420b6e5f89",
+   "info.c": "e09631527669ee528bdae20a47be79e1cb33972b39964c33ac4814e1701a0949",
+   "d_items.c": "76531d5366de1157cf3d8510ef749617cfc46b6e721845bda4324cd697028fe6",
+   "sounds.c": "d489534e93fdb20cad1757f6625913bddf10646ab3b21badbeafdc6cecc027d2",
+   "dstrings.c": "41cff21632b61f06ce84e0148341925f195acae0ceaa729a34beddfc3e918187",
+   "doomstat.c": "12d068a8e82d2fa07baf608d8463d9a27dc0b609503d9ef76794de3c5edbf8d4",
+   "doomdef.c": "ec38f30185ae4cd79e3ccfc1a1f22489afdadb5cf5aad2e1b2c46133613c2807",
+   "w_wad.c": "a193860a2a1f671a680999aaa93ca294f90c9b1d6b5ba33152c0aa92000074a9",
+   "z_zone.c": "20a1304e28da07c73d72ad4aabdf6096b03138ac7ebb19ebdb36ad474addd5c4",
+   "r_sky.c": "6bfc7d79c51943afc1acc774e7c50295d0640838f5e28ec8b6d5bff561ddc7b8",
+   "r_data.c": "34d704ad38474ac35e4dfb3853f1ef3cc901d2e8b009f7358a8b44bfcacfcf16"
+  },
+  "sanitizer": {
+   "g_game.c": "bc8e2e0d76a70f8120174946641a82c46f0116a624f51c011b292e2ffcb78a29",
+   "p_ceilng.c": "0b4de846cef16d92f95275e70e568ffabef6d6ee1a2b60609604dce42f011907",
+   "p_doors.c": "2e44a6051f27206971c7bf9629431db201e1dc3441d974119ec9d88655e5ec12",
+   "p_enemy.c": "cd5c8bf35e2cdb4a9034dd2c553cd45dfd03c26c7c04ac24b5dfebb11c277f2e",
+   "p_floor.c": "c22ad7b7112d28c8b8c54a26ff611b98664a6d7a40d8d300680e6ca465468d47",
+   "p_inter.c": "f23e22f442ddbfe1410ae2bb451d966f537bce017b27c2f17fc95aeda582f5ac",
+   "p_lights.c": "0ade56b8514b3e11fd13af2be7a787531e4ffb6b84c49e489d678d42b5abfdca",
+   "p_map.c": "57d8187d555dc10fc9caff71d401426f90464d608f39eda8cb1128ff0db6fad4",
+   "p_maputl.c": "4d93e06d11160fb935e94750babbdcc9a4469d96f593764872db87cefd37c0a1",
+   "p_mobj.c": "3e68b832d73f147b4340a1816644dc3cc8a8167a8326651e7ee8dfe7e9c542ae",
+   "p_plats.c": "15f27dd1282ef9730ffce010b1fcaec1283a9cd37e143b863576a690aba514f6",
+   "p_pspr.c": "b47100f9c2c2c4f7913831c170bff55161af2d5d01f5467dbbc6be081c4f1af1",
+   "p_setup.c": "e2d3bfbec1d0424f15e153a2efffb88a36eb490d5e7db676b67c62efc9d47819",
+   "p_sight.c": "81014a71e4155db6da0af21e6ecf14687daf18075fb75322b63bdc254ce11120",
+   "p_spec.c": "1eed828498af033bd2322402a727e5b66913f5814e4d3fb002712fbcc8825cb1",
+   "p_switch.c": "ac7effb3c4cfce1ecd8f7d25c93690c9b74cda99c639a47f76c4151a73010358",
+   "p_telept.c": "b717afb76c138954ca4aef44de3c3c081f91039cb485385afe2fd334fe4802c6",
+   "p_tick.c": "21a638b7b1ae4fcb6b6892a731cd27d20f44e2df12dd3325c8215ca4c9aee22f",
+   "p_user.c": "ecb5bab44ab9326c9c0d14bd607bc49c669bf048eecda27f7dc4634023a6c4a4",
+   "m_random.c": "8d89f5cfcbbd0170e46b55538c4c272b3cf5b5d7dce91023b8aa8d9b922b21ee",
+   "m_fixed.c": "a4472841bc8890c5d5a41b325ecf56d10d7026a7489967aa29100b5dee759fea",
+   "m_bbox.c": "98f3aea4f43d4d75fe452a25a65678fbd8368cfef3928b869767996e2165f42c",
+   "m_argv.c": "f303d6d574b8d3aea6116d426db2e6b00de94b90c405c7b98ac4bb8dc3521dac",
+   "tables.c": "db8759f4311654c63785dcffb8f73a00a61cfe2713e4284c238dea420b6e5f89",
+   "info.c": "e09631527669ee528bdae20a47be79e1cb33972b39964c33ac4814e1701a0949",
+   "d_items.c": "76531d5366de1157cf3d8510ef749617cfc46b6e721845bda4324cd697028fe6",
+   "sounds.c": "d489534e93fdb20cad1757f6625913bddf10646ab3b21badbeafdc6cecc027d2",
+   "dstrings.c": "41cff21632b61f06ce84e0148341925f195acae0ceaa729a34beddfc3e918187",
+   "doomstat.c": "12d068a8e82d2fa07baf608d8463d9a27dc0b609503d9ef76794de3c5edbf8d4",
+   "doomdef.c": "ec38f30185ae4cd79e3ccfc1a1f22489afdadb5cf5aad2e1b2c46133613c2807",
+   "w_wad.c": "a193860a2a1f671a680999aaa93ca294f90c9b1d6b5ba33152c0aa92000074a9",
+   "z_zone.c": "20a1304e28da07c73d72ad4aabdf6096b03138ac7ebb19ebdb36ad474addd5c4",
+   "r_sky.c": "6bfc7d79c51943afc1acc774e7c50295d0640838f5e28ec8b6d5bff561ddc7b8",
+   "r_data.c": "34d704ad38474ac35e4dfb3853f1ef3cc901d2e8b009f7358a8b44bfcacfcf16"
+  }
+ },
+ "flags": {
+  "strict": [
+   "-std=gnu89",
+   "-O0",
+   "-fwrapv",
+   "-fno-strict-aliasing",
+   "-ffp-contract=off",
+   "-fexcess-precision=standard",
+   "-fsigned-char",
+   "-DNORMALUNIX",
+   "-DLINUX"
+  ],
+  "overflow": [
+   "-std=gnu89",
+   "-O0",
+   "-fno-strict-aliasing",
+   "-ffp-contract=off",
+   "-fexcess-precision=standard",
+   "-fsigned-char",
+   "-DNORMALUNIX",
+   "-DLINUX",
+   "-fno-wrapv",
+   "-fsanitize=signed-integer-overflow,integer-divide-by-zero,float-cast-overflow",
+   "-fno-sanitize-recover=all"
+  ],
+  "address": [
+   "-std=gnu89",
+   "-O0",
+   "-fno-strict-aliasing",
+   "-ffp-contract=off",
+   "-fexcess-precision=standard",
+   "-fsigned-char",
+   "-DNORMALUNIX",
+   "-DLINUX",
+   "-fno-wrapv",
+   "-fsanitize=address,undefined",
+   "-fno-sanitize-recover=all",
+   "-fno-sanitize=alignment"
+  ]
+ },
+ "variant_notes": {
+  "overflow": "run as is",
+  "address": "run with ASAN_OPTIONS=detect_leaks=0 (leak detection disabled; not LeakSanitizer coverage); -fno-sanitize=alignment because z_zone.c rounds block sizes to 4 (z_zone.c:195) while the LP64 memblock_t needs 8-byte alignment"
+ },
+ "file_flags": {
+  "r_data.c": [
+   "-include",
+   "stdint.h"
+  ],
+  "z_zone.c": [
+   "-include",
+   "stdint.h"
+  ]
+ },
+ "link_flags": [
+  "-Wl,--wrap=P_AddThinker,--wrap=Z_Free,--wrap=P_SetThingPosition,--wrap=P_InitThinkers,--wrap=Z_Malloc,--wrap=P_RemoveThinker"
+ ],
+ "wrapped": [
+  "P_AddThinker",
+  "Z_Free",
+  "P_SetThingPosition",
+  "P_InitThinkers",
+  "Z_Malloc",
+  "P_RemoveThinker"
+ ],
+ "abi_adapters": [
+  {
+   "file": "p_setup.c",
+   "line": 536,
+   "original": "    linebuffer = Z_Malloc (total*4, PU_LEVEL, 0);",
+   "adapted": "    linebuffer = Z_Malloc (total*sizeof(*linebuffer), PU_LEVEL, 0);",
+   "original_sha256": "07db6bee537a92c4e63b7771a3f233660dc929b69d00d8b3fc51e525b1578411",
+   "adapted_sha256": "8eee315ba4b6ed456d218f79d3b984bcc0f6598f207a9752d1ff20278e9da35c",
+   "builds": [
+    "strict",
+    "overflow",
+    "address"
+   ],
+   "reason": "P_GroupLines: linebuffer holds total line_t pointers (8 bytes each on LP64); total*4 overruns the zone block and Z_CheckHeap (g_game.c:488) calls I_Error."
+  },
+  {
+   "file": "r_data.c",
+   "line": 90,
+   "original": "    void\t\t**columndirectory;\t// OBSOLETE",
+   "adapted": "    int\t\tcolumndirectory;\t// OBSOLETE",
+   "original_sha256": "916c8d740b84c9d508b7cb0754f9bd8a24729b27276eed66dfbacc9dfc0315a9",
+   "adapted_sha256": "d4bdc26f8374bb7c55629c59c21c08420a1c1a9d8d403e1d8599e2fb6b5276fc",
+   "builds": [
+    "strict",
+    "overflow",
+    "address"
+   ],
+   "reason": "On-disk maptexture_t: a 4-byte field as on the 32-bit original, so patchcount is at byte 20 and patches at 22 (the driver checks the generated layout probe before running)."
+  },
+  {
+   "file": "r_data.c",
+   "line": 482,
+   "original": "    textures = Z_Malloc (numtextures*4, PU_STATIC, 0);",
+   "adapted": "    textures = Z_Malloc (numtextures*sizeof(void*), PU_STATIC, 0);",
+   "original_sha256": "07ab91a26a985f922858d2d5a026d21e81b0ee3aa373519bf56e7b97d3dec1b7",
+   "adapted_sha256": "50fe03259aa0cc0882d1a35dd0a091b428a546e281de50c87c2f44cc26a74c45",
+   "builds": [
+    "strict",
+    "overflow",
+    "address"
+   ],
+   "reason": "R_InitTextures: textures is a pointer array (texture_t**)."
+  },
+  {
+   "file": "r_data.c",
+   "line": 483,
+   "original": "    texturecolumnlump = Z_Malloc (numtextures*4, PU_STATIC, 0);",
+   "adapted": "    texturecolumnlump = Z_Malloc (numtextures*sizeof(void*), PU_STATIC, 0);",
+   "original_sha256": "6abe02e05a1f7b64fb6ee9492d67a2e805daa1f6c032156471a24969cb5d256e",
+   "adapted_sha256": "eee418c32528a99899b2a16f5d3d657f76ac2592a518052af4bf60faac8ae1e5",
+   "builds": [
+    "strict",
+    "overflow",
+    "address"
+   ],
+   "reason": "R_InitTextures: a pointer array (short**)."
+  },
+  {
+   "file": "r_data.c",
+   "line": 484,
+   "original": "    texturecolumnofs = Z_Malloc (numtextures*4, PU_STATIC, 0);",
+   "adapted": "    texturecolumnofs = Z_Malloc (numtextures*sizeof(void*), PU_STATIC, 0);",
+   "original_sha256": "fcbbada1be630e105a392ed72e460e88a46deba18ad738c293fc7d17a8841d2c",
+   "adapted_sha256": "a97ab06b6c2f2b0c8cbccedb5e7f99416786015d5217170340c50f3d4374a66e",
+   "builds": [
+    "strict",
+    "overflow",
+    "address"
+   ],
+   "reason": "R_InitTextures: a pointer array (unsigned short**)."
+  },
+  {
+   "file": "r_data.c",
+   "line": 485,
+   "original": "    texturecomposite = Z_Malloc (numtextures*4, PU_STATIC, 0);",
+   "adapted": "    texturecomposite = Z_Malloc (numtextures*sizeof(void*), PU_STATIC, 0);",
+   "original_sha256": "5e25b496dadb1750ee643e44212a373a25a8400dde1e0436542c515ea4830ff8",
+   "adapted_sha256": "d56792019c13cf1d4fd23044476d45bd5e0522e16fc5b26ce1d566d786efbf5d",
+   "builds": [
+    "strict",
+    "overflow",
+    "address"
+   ],
+   "reason": "R_InitTextures: a pointer array (byte**)."
+  },
+  {
+   "file": "r_data.c",
+   "line": 642,
+   "original": "    colormaps = (byte *)( ((int)colormaps + 255)&~0xff); ",
+   "adapted": "    colormaps = (byte *)( ((intptr_t)colormaps + 255)&~0xff); ",
+   "original_sha256": "fbb9ebe020977ed307843c131523d999cc0b736e653a84887e421f84deb43836",
+   "adapted_sha256": "e55a85a3f38e0e6d35628b156b4ffdd2f0ba9f4bf4a17589474f49c609e7ceda",
+   "builds": [
+    "strict",
+    "overflow",
+    "address"
+   ],
+   "reason": "R_InitColormaps truncates a pointer to int; the runner does not call it, the file is adapted so it compiles LP64-clean (stdint.h comes from -include on the command line)."
+  },
+  {
+   "file": "z_zone.c",
+   "line": 440,
+   "original": "    if (tag >= PU_PURGELEVEL && (unsigned)block->user < 0x100)",
+   "adapted": "    if (tag >= PU_PURGELEVEL && (uintptr_t)block->user < 0x100)",
+   "original_sha256": "49f144bd6387e859167fc9e58d67f78c0489d27e1808c38d162e4988c9ea6ed4",
+   "adapted_sha256": "bd7b6a7db69bca6029398b98ba22cfcbbe8cd871d44e5451442244b17d8e0470",
+   "builds": [
+    "strict",
+    "overflow",
+    "address"
+   ],
+   "reason": "Z_ChangeTag: the owner test truncates the 64-bit user pointer to 32 bits, so a valid owner whose address has small low 32 bits (observed under ASan on the CI runner: W_CacheLumpNum re-caching the one patch lump) raises \"an owner is required for purgable blocks\"; the 32-bit original compares the whole pointer, which uintptr_t does on LP64 (stdint.h comes from -include on the command line)."
+  }
+ ],
+ "sanitizer_adapters": [
+  {
+   "file": "p_mobj.c",
+   "line": 671,
+   "original": "    mobj->angle\t= ANG45 * (mthing->angle/45);",
+   "adapted": "    mobj->angle\t= (angle_t)((unsigned)ANG45 * (unsigned)(mthing->angle/45));",
+   "original_sha256": "d8a45cd48d80ec7d94ed4409f46b72f12544fb4fa8d9a43d196fe71daeb48a2b",
+   "adapted_sha256": "08ee9670c36c9afa031e07fbeaf62cf9275448d444d7dc758c084747d6aeea56",
+   "builds": [
+    "overflow",
+    "address"
+   ],
+   "reason": "P_SpawnPlayer: ANG45 * q overflows int for quotients outside -4..3; the original targets wrap it modulo 2^32, which the unsigned product computes (same statement form as p_mobj.c:794)."
+  },
+  {
+   "file": "p_mobj.c",
+   "line": 794,
+   "original": "    mobj->angle = ANG45 * (mthing->angle/45);",
+   "adapted": "    mobj->angle = (angle_t)((unsigned)ANG45 * (unsigned)(mthing->angle/45));",
+   "original_sha256": "2d43d3c0a40b97292fc8f25e1d3eaf84969d48dc2a4eb41b9df42622bfb42392",
+   "adapted_sha256": "1b022be5b552d904f59819c8bbd02e1278a13ad60db05c41e8bfa27b15e53b36",
+   "builds": [
+    "overflow",
+    "address"
+   ],
+   "reason": "P_SpawnMapThing: the declared M3h9b adapter (tools/reference/m3h9b_reference.py SANITIZER_ADAPTERS[0])."
+  },
+  {
+   "file": "p_map.c",
+   "line": 1221,
+   "original": "    dist = (damage+MAXRADIUS)<<FRACBITS;",
+   "adapted": "    dist = (fixed_t)(((unsigned)damage + (unsigned)MAXRADIUS) << FRACBITS);",
+   "original_sha256": "915cd13b8889aca248e062619a9cc4568f88de148a57667c491af442cfd9a7b9",
+   "adapted_sha256": "c0e7538cdbd5f3f471b8ea7dd44e654c83b17b73ec37caea6671502dd9fbb763",
+   "builds": [
+    "overflow",
+    "address"
+   ],
+   "reason": "P_RadiusAttack: the declared M3h9b adapter (tools/reference/m3h9b_reference.py SANITIZER_ADAPTERS[1])."
+  },
+  {
+   "file": "p_enemy.c",
+   "line": 816,
+   "original": "    angle += (P_Random()-P_Random())<<20;",
+   "adapted": "    angle = (int)((unsigned)angle + (unsigned)((P_Random()-P_Random())<<20));",
+   "original_sha256": "82e04e42d2fe00c939f65f7d83344162c878587e062ab721a467f5ec0ca03ba0",
+   "adapted_sha256": "d277d2fdc751d9671cff8d03531660675e680a9e7a58f9a203894bf41b50ae71",
+   "builds": [
+    "overflow",
+    "address"
+   ],
+   "reason": "A_PosAttack: `int angle` holds the actor angle (angle_t converted to int) and the spread is added in int, which overflows for angles near the int limits; the original targets wrap it modulo 2^32, as the unsigned sum does (the P_Random subexpression is unchanged). Needed: the overflow build reports this statement on the synthetic chaos script."
+  },
+  {
+   "file": "p_enemy.c",
+   "line": 839,
+   "original": "\tangle = bangle + ((P_Random()-P_Random())<<20);",
+   "adapted": "\tangle = (int)((unsigned)bangle + (unsigned)((P_Random()-P_Random())<<20));",
+   "original_sha256": "2a40e1551686a71ade610df4c0a3fbd24e7b38cdaebc78ff7d9674a4162f3a3a",
+   "adapted_sha256": "d86e3643930981744cc77dee43970d61d0388a87d5d30c6d68298a505e0e32f0",
+   "builds": [
+    "overflow",
+    "address"
+   ],
+   "reason": "A_SPosAttack: the same int sum as p_enemy.c:816; declared for robustness."
+  },
+  {
+   "file": "p_enemy.c",
+   "line": 860,
+   "original": "    angle = bangle + ((P_Random()-P_Random())<<20);",
+   "adapted": "    angle = (int)((unsigned)bangle + (unsigned)((P_Random()-P_Random())<<20));",
+   "original_sha256": "3aeb02c39ac203f9b5e6d9429a9af6a4476bb7a1ddb182602da59783d5324cb7",
+   "adapted_sha256": "183315d780b44963f6a0b68687130a9fe025598223cef49ee820de8b89a2b1f9",
+   "builds": [
+    "overflow",
+    "address"
+   ],
+   "reason": "A_CPosAttack: the same int sum as p_enemy.c:816; declared for robustness."
+  },
+  {
+   "file": "p_inter.c",
+   "line": 817,
+   "original": "\tthrust = damage*(FRACUNIT>>3)*100/target->info->mass;",
+   "adapted": "\tthrust = (int)((unsigned)damage*(FRACUNIT>>3)*100u)/target->info->mass;",
+   "original_sha256": "e512528e822560de2e565e6a7722417dc72db39af58beb51fab7041cb82eb348",
+   "adapted_sha256": "99135d31f78a9a909d62226dc8f26de9174718302a02fe9420d32a497a6726fa",
+   "builds": [
+    "overflow",
+    "address"
+   ],
+   "reason": "P_DamageMobj: a telefrag (PIT_StompThing, p_map.c:105) passes damage 10000, so the int product damage*(FRACUNIT>>3)*100 overflows (it does for any damage >= 2622). The genuine strict (-fwrapv) and strict32 builds wrap it modulo 2^32 to -397,934,592 before the signed division; the unsigned product computes the same wrapped value without undefined behaviour and the (int) conversion is modulo on GCC; the division stays signed (decision I3, docs/M4B_REFERENCE_INVESTIGATION.md section 2 T8.10)."
+  }
+ ],
+ "r_main_extract": {
+  "file": "r_main.c",
+  "file_sha256": "2aae43cf807929a8758f71ed0205fc08017556541ba8df2ea9167c003d0dec5a",
+  "includes": {
+   "lines": "31-41",
+   "sha256": "e43206910e934fdf774a1c31fca1a04c9ecb9b136568eccfc75166fa6bf3e746"
+  },
+  "globals": {
+   "lines": "52-129",
+   "sha256": "4ab80324ee8ee4d4a20b488212607664d06b0955154ceb07bcf68b381b821689"
+  },
+  "functions": [
+   {
+    "name": "R_PointOnSide",
+    "lines": "161-211",
+    "sha256": "6f1bb67d924478c35dadf38a077806f2f6aae317755ff2cdfc7e03cd912f2bc8"
+   },
+   {
+    "name": "R_PointOnSegSide",
+    "lines": "214-274",
+    "sha256": "a374e9745c85a1e52e001172d377d186b2e7efe05d2b123780b6f3dd6abd6337"
+   },
+   {
+    "name": "R_PointToAngle",
+    "lines": "291-374",
+    "sha256": "bfbf8cbf952634ec34d4fe192837979453a70eb22f3de9d5bd58fed24c7f6685"
+   },
+   {
+    "name": "R_PointToAngle2",
+    "lines": "377-388",
+    "sha256": "e9a71fd43347e1f3c7ef7f30f42ca42d059548f0d832d4cb412e80078eae5e82"
+   },
+   {
+    "name": "R_PointToDist",
+    "lines": "391-418",
+    "sha256": "edad0b73bc8ac22a02d31c8e3784b3c4ae69f3c410204adac36d08c97630bca7"
+   },
+   {
+    "name": "R_PointInSubsector",
+    "lines": "800-823",
+    "sha256": "bc7857186119d033939202c79653c05dd9b06694b97b5bae9a63de683515b246"
+   }
+  ]
+ },
+ "stubs": [
+  {
+   "symbol": "I_Error",
+   "kind": "function",
+   "classification": "io",
+   "vanilla": "i_system.c:162-183",
+   "reason": "prints the message, shuts down and exits; the stub prints it and aborts."
+  },
+  {
+   "symbol": "I_Quit",
+   "kind": "function",
+   "classification": "writes",
+   "vanilla": "i_system.c:116-124",
+   "reason": "exit(0) after shutdowns, reached from G_CheckDemoStatus at the demo marker (g_game.c:1660-1661); vanilla never returns, so the stub sets stub_quit_flag and longjmps to the driver and no later statement of G_CheckDemoStatus or G_Ticker runs."
+  },
+  {
+   "symbol": "I_GetTime",
+   "kind": "function",
+   "classification": "writes",
+   "vanilla": "i_system.c:88-100",
+   "reason": "wall-clock tic counter; the result is stored in starttime (g_game.c:486) and read only by the timingdemo branch (g_game.c:1653-1655), never by p_*.c; the stub is a deterministic counter."
+  },
+  {
+   "symbol": "I_Tactile",
+   "kind": "function",
+   "classification": "io",
+   "vanilla": "i_system.c:55-62",
+   "reason": "the vanilla body is empty."
+  },
+  {
+   "symbol": "I_ZoneBase",
+   "kind": "function",
+   "classification": "io",
+   "vanilla": "i_system.c:76-80",
+   "reason": "*size = mb_used MiB and malloc; the zone size affects addresses only."
+  },
+  {
+   "symbol": "I_BaseTiccmd",
+   "kind": "function",
+   "classification": "io",
+   "vanilla": "i_system.c:65-68",
+   "reason": "zeroed static ticcmd, used only by G_BuildTiccmd (not called)."
+  },
+  {
+   "symbol": "S_Start",
+   "kind": "function",
+   "classification": "reads",
+   "vanilla": "s_sound.c:202-248",
+   "reason": "stops channels and changes music from gamemode/gameepisode/gamemap."
+  },
+  {
+   "symbol": "S_StartSound",
+   "kind": "function",
+   "classification": "reads",
+   "vanilla": "s_sound.c:398-466",
+   "reason": "reads the origin and the listener; M_Random pitch draws only."
+  },
+  {
+   "symbol": "S_StopSound",
+   "kind": "function",
+   "classification": "reads",
+   "vanilla": "s_sound.c:471-484",
+   "reason": "stops the channel playing origin."
+  },
+  {
+   "symbol": "S_PauseSound",
+   "kind": "function",
+   "classification": "io",
+   "vanilla": "s_sound.c:497-504",
+   "reason": "music pause."
+  },
+  {
+   "symbol": "S_ResumeSound",
+   "kind": "function",
+   "classification": "io",
+   "vanilla": "s_sound.c:506-513",
+   "reason": "music resume."
+  },
+  {
+   "symbol": "HU_Start",
+   "kind": "function",
+   "classification": "reads",
+   "vanilla": "hu_stuff.c:419-484",
+   "reason": "widget setup from players[consoleplayer]."
+  },
+  {
+   "symbol": "HU_Ticker",
+   "kind": "function",
+   "classification": "writes",
+   "vanilla": "hu_stuff.c:505-578",
+   "reason": "with the default show_messages 1 vanilla clears players[consoleplayer].message once displayed (hu_stuff.c:519-527); the stub records the pointer in stub_hu_message for the dump and clears it the same way. message is never read by p_*.c or g_game.c; the chat (netgame) and widget parts are not reproduced."
+  },
+  {
+   "symbol": "HU_Responder",
+   "kind": "function",
+   "classification": "io",
+   "vanilla": "hu_stuff.c:617",
+   "reason": "event responder; the runner has no events."
+  },
+  {
+   "symbol": "HU_dequeueChatChar",
+   "kind": "function",
+   "classification": "io",
+   "vanilla": "hu_stuff.c:600-615",
+   "reason": "chat queue, read only by G_BuildTiccmd."
+  },
+  {
+   "symbol": "player_names",
+   "kind": "variable",
+   "classification": "var",
+   "vanilla": "hu_stuff.c:79-85 (the same HUSTR_PLR* strings)",
+   "reason": "read only on the turbo-message path (g_game.c:677)."
+  },
+  {
+   "symbol": "ST_Start",
+   "kind": "function",
+   "classification": "reads",
+   "vanilla": "st_stuff.c:1444-1454",
+   "reason": "status bar init from plyr."
+  },
+  {
+   "symbol": "ST_Ticker",
+   "kind": "function",
+   "classification": "reads",
+   "vanilla": "st_stuff.c:988-996",
+   "reason": "st_randomnumber = M_Random () and widgets from plyr."
+  },
+  {
+   "symbol": "ST_Responder",
+   "kind": "function",
+   "classification": "io",
+   "vanilla": "st_stuff.c:518",
+   "reason": "event responder (cheats only through events; none)."
+  },
+  {
+   "symbol": "AM_Stop",
+   "kind": "function",
+   "classification": "writes",
+   "vanilla": "am_map.c:560-568",
+   "reason": "automapactive = false, as vanilla; only called when the automap is active, which it never is headless."
+  },
+  {
+   "symbol": "AM_Ticker",
+   "kind": "function",
+   "classification": "io",
+   "vanilla": "am_map.c:805-827",
+   "reason": "returns at once when !automapactive."
+  },
+  {
+   "symbol": "AM_Responder",
+   "kind": "function",
+   "classification": "io",
+   "vanilla": "am_map.c:614",
+   "reason": "event responder."
+  },
+  {
+   "symbol": "automapactive",
+   "kind": "variable",
+   "classification": "var",
+   "vanilla": "am_map.c:221",
+   "reason": "false."
+  },
+  {
+   "symbol": "WI_Start",
+   "kind": "function",
+   "classification": "writes",
+   "vanilla": "wi_stuff.c:1838-1850",
+   "reason": "edits wminfo after a level exit (wi_stuff.c:1824-1835); post-exit only, aborts."
+  },
+  {
+   "symbol": "WI_Ticker",
+   "kind": "function",
+   "classification": "writes",
+   "vanilla": "wi_stuff.c:1503-1536",
+   "reason": "intermission (G_WorldDone); post-exit only, aborts."
+  },
+  {
+   "symbol": "F_StartFinale",
+   "kind": "function",
+   "classification": "writes",
+   "vanilla": "f_finale.c:96-191",
+   "reason": "writes gameaction and gamestate; E1M8 victory only, aborts."
+  },
+  {
+   "symbol": "F_Ticker",
+   "kind": "function",
+   "classification": "io",
+   "vanilla": "f_finale.c:207",
+   "reason": "GS_FINALE only, aborts."
+  },
+  {
+   "symbol": "F_Responder",
+   "kind": "function",
+   "classification": "io",
+   "vanilla": "f_finale.c:195",
+   "reason": "event responder."
+  },
+  {
+   "symbol": "D_AdvanceDemo",
+   "kind": "function",
+   "classification": "writes",
+   "vanilla": "d_main.c:444-447",
+   "reason": "advancedemo = true; unreachable with singledemo (I_Quit comes first, g_game.c:1660), aborts."
+  },
+  {
+   "symbol": "D_PageTicker",
+   "kind": "function",
+   "classification": "io",
+   "vanilla": "d_main.c:423-427",
+   "reason": "GS_DEMOSCREEN only, aborts."
+  },
+  {
+   "symbol": "nomonsters",
+   "kind": "variable",
+   "classification": "var",
+   "vanilla": "d_main.c:96",
+   "reason": "written from the demo header (g_game.c:1602)."
+  },
+  {
+   "symbol": "respawnparm",
+   "kind": "variable",
+   "classification": "var",
+   "vanilla": "d_main.c:97",
+   "reason": "written from the demo header (g_game.c:1600)."
+  },
+  {
+   "symbol": "fastparm",
+   "kind": "variable",
+   "classification": "var",
+   "vanilla": "d_main.c:98",
+   "reason": "written from the demo header (g_game.c:1601)."
+  },
+  {
+   "symbol": "singletics",
+   "kind": "variable",
+   "classification": "var",
+   "vanilla": "d_main.c:102",
+   "reason": "false."
+  },
+  {
+   "symbol": "wipegamestate",
+   "kind": "variable",
+   "classification": "var",
+   "vanilla": "d_main.c:188",
+   "reason": "GS_DEMOSCREEN (written by g_game.c:472-473)."
+  },
+  {
+   "symbol": "netcmds",
+   "kind": "variable",
+   "classification": "var",
+   "vanilla": "d_net.c:62",
+   "reason": "zero; single-player playback overwrites the four ticcmd fields from the demo (g_game.c:664-667)."
+  },
+  {
+   "symbol": "maketic",
+   "kind": "variable",
+   "classification": "var",
+   "vanilla": "d_net.c:71",
+   "reason": "zero."
+  },
+  {
+   "symbol": "ticdup",
+   "kind": "variable",
+   "classification": "var",
+   "vanilla": "d_net.c:74",
+   "reason": "1 as D_CheckNetGame sets it (d_net.c:567-592); divisor at g_game.c:656."
+  },
+  {
+   "symbol": "M_StartControlPanel",
+   "kind": "function",
+   "classification": "io",
+   "vanilla": "m_menu.c:1723",
+   "reason": "opens the menu (events only)."
+  },
+  {
+   "symbol": "menuactive",
+   "kind": "variable",
+   "classification": "var",
+   "vanilla": "m_menu.c:126",
+   "reason": "false (P_Ticker's pause test, p_tick.c:139-145)."
+  },
+  {
+   "symbol": "mouseSensitivity",
+   "kind": "variable",
+   "classification": "var",
+   "vanilla": "m_menu.c:76",
+   "reason": "read only by G_BuildTiccmd."
+  },
+  {
+   "symbol": "M_ReadFile",
+   "kind": "function",
+   "classification": "io",
+   "vanilla": "m_misc.c:140-163",
+   "reason": "load-game path, aborts."
+  },
+  {
+   "symbol": "M_WriteFile",
+   "kind": "function",
+   "classification": "io",
+   "vanilla": "m_misc.c:113-133",
+   "reason": "save-game and demo-recording paths, aborts."
+  },
+  {
+   "symbol": "M_ScreenShot",
+   "kind": "function",
+   "classification": "io",
+   "vanilla": "m_misc.c:503",
+   "reason": "ga_screenshot only, aborts."
+  },
+  {
+   "symbol": "P_ArchivePlayers",
+   "kind": "function",
+   "classification": "io",
+   "vanilla": "p_saveg.c:47",
+   "reason": "save game only (p_saveg.c is excluded), aborts."
+  },
+  {
+   "symbol": "P_ArchiveWorld",
+   "kind": "function",
+   "classification": "io",
+   "vanilla": "p_saveg.c:114",
+   "reason": "save game only, aborts."
+  },
+  {
+   "symbol": "P_ArchiveThinkers",
+   "kind": "function",
+   "classification": "io",
+   "vanilla": "p_saveg.c:232",
+   "reason": "save game only, aborts."
+  },
+  {
+   "symbol": "P_ArchiveSpecials",
+   "kind": "function",
+   "classification": "io",
+   "vanilla": "p_saveg.c:355",
+   "reason": "save game only, aborts."
+  },
+  {
+   "symbol": "P_UnArchivePlayers",
+   "kind": "function",
+   "classification": "io",
+   "vanilla": "p_saveg.c:79",
+   "reason": "load game only, aborts."
+  },
+  {
+   "symbol": "P_UnArchiveWorld",
+   "kind": "function",
+   "classification": "io",
+   "vanilla": "p_saveg.c:167",
+   "reason": "load game only, aborts."
+  },
+  {
+   "symbol": "P_UnArchiveThinkers",
+   "kind": "function",
+   "classification": "io",
+   "vanilla": "p_saveg.c:266",
+   "reason": "load game only, aborts."
+  },
+  {
+   "symbol": "P_UnArchiveSpecials",
+   "kind": "function",
+   "classification": "io",
+   "vanilla": "p_saveg.c:475",
+   "reason": "load game only, aborts."
+  },
+  {
+   "symbol": "save_p",
+   "kind": "variable",
+   "classification": "var",
+   "vanilla": "p_saveg.c:35",
+   "reason": "unused on this path."
+  },
+  {
+   "symbol": "R_ExecuteSetViewSize",
+   "kind": "function",
+   "classification": "io",
+   "vanilla": "r_main.c:671",
+   "reason": "view-size change (menu and load paths)."
+  },
+  {
+   "symbol": "setsizeneeded",
+   "kind": "variable",
+   "classification": "var",
+   "vanilla": "r_main.c:652",
+   "reason": "unused on this path."
+  },
+  {
+   "symbol": "R_FillBackScreen",
+   "kind": "function",
+   "classification": "io",
+   "vanilla": "r_draw.c:731",
+   "reason": "border drawing."
+  },
+  {
+   "symbol": "R_InitSprites",
+   "kind": "function",
+   "classification": "io",
+   "vanilla": "r_things.c:299",
+   "reason": "builds sprites[] for the renderer (P_Init calls it; the runner does not)."
+  },
+  {
+   "symbol": "sprites",
+   "kind": "variable",
+   "classification": "var",
+   "vanilla": "r_things.c:91",
+   "reason": "read only by R_PrecacheLevel, which is not called with precache false (g_game.c:1614) and returns at once in demo playback (r_data.c:758-759)."
+  },
+  {
+   "symbol": "numsprites",
+   "kind": "variable",
+   "classification": "var",
+   "vanilla": "r_things.c:92",
+   "reason": "as sprites."
+  },
+  {
+   "symbol": "screens",
+   "kind": "variable",
+   "classification": "var",
+   "vanilla": "v_video.c:44",
+   "reason": "unused on this path."
+  }
+ ],
+ "stub_counts": {
+  "functions": 43,
+  "variables": 17,
+  "io": 29,
+  "reads": 6,
+  "writes": 8,
+  "var": 17
+ },
+ "runner_sha256": {
+  "tools/reference/m4a_driver.c": "c7842bfb6790ad507ceab4ab4ff664721ef81728ccc859d9b7056742eb46cef0",
+  "tools/reference/m3h9c_stubs.c": "c8c2b5bdbdfb37c67ae7f47be3e3c66bccb89ff57e94ad2ec260cfaf1e4cdb29"
+ },
+ "driver_behaviour": [
+  "Sequence: Z_Init; W_InitMultipleFiles over --wad files added as D_AddFile does (IWAD, then the .lmp named by its base name); gamemode = registered (d_main.c:697-701); R_InitTextures; R_InitFlats; P_InitSwitchList; P_InitPicAnims; D_CheckNetGame single-player values; singledemo = true; G_DeferedPlayDemo; G_DoPlayDemo; dump \"load\"; then { G_Ticker; gametic++; dump } per tic.",
+  "The demo header selects skill, episode and map (g_game.c:1596-1598); the driver has no map argument.",
+  "I_Quit (vanilla exit(0), i_system.c:116-124) sets a flag and longjmps to the driver, so no statement after the call in G_CheckDemoStatus or G_Ticker runs, as with exit.",
+  "After each dumped tic the driver stops if gameaction is ga_completed, ga_victory or ga_worlddone (end=exit, set during P_Ticker by G_ExitLevel/G_SecretExitLevel, g_game.c:1002-1018): G_Ticker handles gameaction before reading the next ticcmd (g_game.c:617-652, 656-669), so the next call would run G_DoCompleted and enter the intermission (g_game.c:1133-1140), which the runner does not model; a demo that reaches its marker ends end=marker. WI_Start still aborts as a safety net.",
+  "After each dumped tic the driver also stops if a player in the game is PST_REBORN (end=reborn; P_DeathThink on BT_USE, p_user.c:227-228): the next G_Ticker would run its reborn loop (g_game.c:612-614), G_DoReborn would set ga_loadlevel (g_game.c:924-931) and the level would reload (g_game.c:621-623), outside the admitted domain (decision G11).",
+  "After every tic the driver calls the genuine Z_CheckHeap (z_zone.c:399-420), a read-only walk of the zone; vanilla calls it only in G_DoLoadLevel (g_game.c:488).",
+  "Linker-level observers (-Wl,--wrap): P_AddThinker gives each thinker a serial (T rows), P_SetThingPosition gives the thing a link serial (the global link order is the ascending current link serial), Z_Free of a known thinker records it as freed since the previous dump (K rows, in free order) and, for a removed mobj, a copy of the mobj taken before the genuine free (RM rows); P_InitThinkers (after Z_FreeTags at level setup) drops every entry (K rows with seq -1). K rows also carry adds, the P_AddThinker count at the free; a pending mobj (R row) is followed by an RR row with its M columns. Each of these wrappers only records and then calls the genuine function.",
+  "ZeroFill: the Z_Malloc wrapper zero-fills every block after the genuine allocation. Only values the original leaves undefined change: plat_t.count (EV_DoPlat, p_plats.c:173; read only in waiting after being set, p_plats.c:75, 84, 113, 120) and floormove_t.newspecial (EV_DoFloor, p_floor.c:282; set and read only for lowerAndChange and donutRaise, p_floor.c:231, 242, 422, 433, p_spec.c:1203) made the strict and address dumps differ. lowerAndChange without a neighbour at the destination height reads newspecial and texture uninitialised in vanilla (p_floor.c:242-243); the fill makes them 0 there.",
+  "HU_Ticker records players[consoleplayer].message for the dump and clears it as vanilla does with the default show_messages 1; P rows report it as 0 (NULL), the 1-based index of the d_englsh.h GOTARMOR..GOTSHOTGUN2 pickup string (1..37), 38..40 for the locked-door strings PD_BLUEK, PD_YELLOWK, PD_REDK (d_englsh.h:128-130, assigned at p_doors.c:378, 392, 405; added for M4a), 41 for G_Ticker's turbo message (sprintf (\"%s is turbo!\", player_names[0]) as g_game.c:675-678 builds it, assigned when forwardmove > TURBOTHRESHOLD on every 128th gametic; added for M4a step 8), or -1 (any other).",
+  "--selftest-extra-draw TIC calls the public P_Random () once before G_Ticker of tic TIC (test only).",
+  "The zone is 6 MiB (vanilla mb_used, i_system.c:51) unless --zone-mb is given.",
+  "H rows end with secretexit (added for M4a): g_game.c's boolean secretexit (g_game.c:999), set by G_SecretExitLevel (g_game.c:1009-1018) and cleared by G_ExitLevel (g_game.c:1002-1006). New columns are appended at the end of their rows so every earlier column keeps its position.",
+  "R rows carry fn and sector (added for M4a): a -Wl,--wrap=P_RemoveThinker observer records, before the genuine P_RemoveThinker (p_tick.c:80-84) overwrites the function pointer, the kind of a removed non-mobj thinker (1 T_VerticalDoor, 2 T_PlatRaise, 3 T_MoveFloor, 4 T_MoveCeiling, 0 other) and its sector index, so a mover created and removed within one tic keeps its sector for the encoder; -1 when unknown.",
+  "M4b runner (tools/reference/m4b_build.py): the M4a driver text unchanged (no new dump column); one more declared sanitizer adapter, p_inter.c:817 (the telefrag thrust product in unsigned arithmetic), applied to the overflow and address builds only; strict and strict32 compile the genuine text."
+ ],
+ "dump_row_kinds": {
+  "H": [
+   "tic",
+   "leveltime",
+   "gametic",
+   "prndindex",
+   "rndindex",
+   "totalkills",
+   "totalitems",
+   "totalsecret",
+   "gameaction",
+   "gamestate",
+   "numthinkers",
+   "numlinespecials",
+   "gameskill",
+   "secretexit"
+  ],
+  "M": [
+   "tic",
+   "idx",
+   "type",
+   "x",
+   "y",
+   "z",
+   "momx",
+   "momy",
+   "momz",
+   "health",
+   "state",
+   "tics",
+   "flags",
+   "height",
+   "radius",
+   "reactiontime",
+   "threshold",
+   "target",
+   "lastlook",
+   "floorz",
+   "ceilingz",
+   "subsector",
+   "angle",
+   "sprite",
+   "frame",
+   "movedir",
+   "movecount",
+   "tracer",
+   "sp_x",
+   "sp_y",
+   "sp_angle",
+   "sp_type",
+   "sp_options",
+   "player",
+   "bx",
+   "by",
+   "bpos",
+   "sector",
+   "spos"
+  ],
+  "R": [
+   "tic",
+   "idx",
+   "fn",
+   "sector"
+  ],
+  "RR": [
+   "tic",
+   "idx",
+   "type",
+   "x",
+   "y",
+   "z",
+   "momx",
+   "momy",
+   "momz",
+   "health",
+   "state",
+   "tics",
+   "flags",
+   "height",
+   "radius",
+   "reactiontime",
+   "threshold",
+   "target",
+   "lastlook",
+   "floorz",
+   "ceilingz",
+   "subsector",
+   "angle",
+   "sprite",
+   "frame",
+   "movedir",
+   "movecount",
+   "tracer",
+   "sp_x",
+   "sp_y",
+   "sp_angle",
+   "sp_type",
+   "sp_options",
+   "player",
+   "bx",
+   "by",
+   "bpos",
+   "sector",
+   "spos"
+  ],
+  "DR": [
+   "tic",
+   "idx",
+   "type",
+   "sector",
+   "topheight",
+   "speed",
+   "direction",
+   "topwait",
+   "topcountdown"
+  ],
+  "PL": [
+   "tic",
+   "idx",
+   "running",
+   "sector",
+   "speed",
+   "low",
+   "high",
+   "wait",
+   "count",
+   "status",
+   "oldstatus",
+   "crush",
+   "tag",
+   "type"
+  ],
+  "FL": [
+   "tic",
+   "idx",
+   "type",
+   "crush",
+   "sector",
+   "direction",
+   "newspecial",
+   "texture",
+   "floordestheight",
+   "speed"
+  ],
+  "CE": [
+   "tic",
+   "idx",
+   "running",
+   "type",
+   "sector",
+   "bottomheight",
+   "topheight",
+   "speed",
+   "crush",
+   "direction",
+   "tag",
+   "olddirection"
+  ],
+  "LF": [
+   "tic",
+   "idx",
+   "sector",
+   "count",
+   "maxlight",
+   "minlight"
+  ],
+  "LL": [
+   "tic",
+   "idx",
+   "sector",
+   "count",
+   "maxlight",
+   "minlight",
+   "maxtime",
+   "mintime"
+  ],
+  "LS": [
+   "tic",
+   "idx",
+   "sector",
+   "count",
+   "minlight",
+   "maxlight",
+   "darktime",
+   "brighttime"
+  ],
+  "LG": [
+   "tic",
+   "idx",
+   "sector",
+   "minlight",
+   "maxlight",
+   "direction"
+  ],
+  "X": [
+   "tic",
+   "idx"
+  ],
+  "T": [
+   "tic",
+   "idx",
+   "serial",
+   "linkserial"
+  ],
+  "K": [
+   "tic",
+   "serial",
+   "seq",
+   "adds"
+  ],
+  "RM": [
+   "tic",
+   "serial",
+   "type",
+   "x",
+   "y",
+   "z",
+   "momx",
+   "momy",
+   "momz",
+   "health",
+   "state",
+   "tics",
+   "flags",
+   "height",
+   "radius",
+   "reactiontime",
+   "threshold",
+   "target",
+   "lastlook",
+   "floorz",
+   "ceilingz",
+   "subsector",
+   "angle",
+   "sprite",
+   "frame",
+   "movedir",
+   "movecount",
+   "tracer",
+   "sp_x",
+   "sp_y",
+   "sp_angle",
+   "sp_type",
+   "sp_options",
+   "player",
+   "bx",
+   "by",
+   "bpos",
+   "sector",
+   "spos"
+  ],
+  "S": [
+   "tic",
+   "idx",
+   "floorheight",
+   "ceilingheight",
+   "floorpic",
+   "ceilingpic",
+   "lightlevel",
+   "special",
+   "tag",
+   "soundtraversed",
+   "soundtarget",
+   "specialdata",
+   "linecount"
+  ],
+  "L": [
+   "tic",
+   "idx",
+   "special",
+   "tag",
+   "flags",
+   "s0top",
+   "s0mid",
+   "s0bottom",
+   "s0textureoffset",
+   "s0rowoffset",
+   "s1top",
+   "s1mid",
+   "s1bottom"
+  ],
+  "B": [
+   "tic",
+   "idx",
+   "line",
+   "where",
+   "btexture",
+   "btimer"
+  ],
+  "P": [
+   "tic",
+   "idx",
+   "ingame",
+   "mo",
+   "playerstate",
+   "cmd_forward",
+   "cmd_side",
+   "cmd_turn",
+   "cmd_buttons",
+   "viewheight",
+   "deltaviewheight",
+   "bob",
+   "health",
+   "armorpoints",
+   "armortype",
+   "pw0",
+   "pw1",
+   "pw2",
+   "pw3",
+   "pw4",
+   "pw5",
+   "card0",
+   "card1",
+   "card2",
+   "card3",
+   "card4",
+   "card5",
+   "backpack",
+   "frag0",
+   "frag1",
+   "frag2",
+   "frag3",
+   "readyweapon",
+   "pendingweapon",
+   "wo0",
+   "wo1",
+   "wo2",
+   "wo3",
+   "wo4",
+   "wo5",
+   "wo6",
+   "wo7",
+   "wo8",
+   "ammo0",
+   "ammo1",
+   "ammo2",
+   "ammo3",
+   "maxammo0",
+   "maxammo1",
+   "maxammo2",
+   "maxammo3",
+   "attackdown",
+   "usedown",
+   "cheats",
+   "refire",
+   "killcount",
+   "itemcount",
+   "secretcount",
+   "damagecount",
+   "bonuscount",
+   "attacker",
+   "extralight",
+   "fixedcolormap",
+   "colormap",
+   "ps0state",
+   "ps0tics",
+   "ps0sx",
+   "ps0sy",
+   "ps1state",
+   "ps1tics",
+   "ps1sx",
+   "ps1sy",
+   "didsecret",
+   "message"
+  ]
+ }
+}

@@ -1,0 +1,15 @@
+# output: BOSS1.lmp
+# BOSS1 on tests/reference/m4b_wads/boss8.wad (M4b). Authored closed loop against the strict genuine runner.
+# E1M8 slot: telefrags the first Baron, waits past its DIE7 (the other Baron lives: nothing), telefrags the
+# second (its DIE7 lowers the tag-666 step to 0), teleports to the step, walks over it into the sector-11 room
+# and stands until the exit.
+# format: tools/reference/m4b_scripts.py (tools/e1m1_scripts.py plus "skill N"); turn byte t = t*1.40625 degrees counter-clockwise; buttons 1 ATTACK
+map E1M8
+cmd 60 25 0 0 0
+idle 60
+cmd 60 25 0 0 0
+idle 30
+cmd 60 25 0 0 0
+idle 60
+cmd 70 25 0 0 0
+idle 200

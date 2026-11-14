@@ -23,6 +23,9 @@ pub(crate) struct ExpandedSelection {
     /// The per-map bounds of the Episode 1 policy (a superset of the E1M1 policy:
     /// `e1m1` is set too); `None` under every other policy.
     pub episode1: Option<crate::episode1::Episode1Bounds>,
+    /// Line special 97 and the landing (wire 24, a superset of the Episode 1
+    /// policy: `episode1` is set too); false under every other policy.
+    pub teleport: bool,
 }
 impl Simulation {
     /// Profile 20: larger static maps with the exact map-context Demon registry.
@@ -50,6 +53,7 @@ impl Simulation {
                 movers: false,
                 e1m1: false,
                 episode1: None,
+                teleport: false,
             },
         )
     }
@@ -70,6 +74,7 @@ impl Simulation {
             movers,
             e1m1,
             episode1,
+            teleport,
         } = selection;
         if context.respawn_monsters {
             return Err(MapSpawnError::Respawn.into());
@@ -85,7 +90,9 @@ impl Simulation {
         if !real_map && map.things().len() > MAX_DEMON_MAP_THINGS {
             return Err(MapSpawnError::WorkLimit.into());
         }
-        let movers = if episode1.is_some() {
+        let movers = if episode1.is_some() && teleport {
+            Some(mover_rules::validate_episode1_teleport(&map)?)
+        } else if episode1.is_some() {
             Some(mover_rules::validate_episode1(&map)?)
         } else if e1m1 {
             Some(mover_rules::validate_e1m1(&map)?)
@@ -157,6 +164,7 @@ impl Simulation {
                     .and_then(|w| w.checked_mul(bounds.explosion_sight_queries()))
                     .ok_or(GeometryError::WorkLimit)?;
                 sim.world.episode1 = Some(bounds);
+                sim.world.teleport = teleport;
                 sim.world.sight_query_limit = sight_queries;
                 sim.world.checked_arithmetic = true;
             }

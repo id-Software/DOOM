@@ -337,6 +337,35 @@ fn event_bytes(event: &Event) -> Vec<u8> {
                     b.push(11);
                     b.extend(sector_thinker_id(mover));
                 }
+                crate::MoverEvent::Teleported {
+                    actor,
+                    line,
+                    landing,
+                    old,
+                } => {
+                    b.push(15);
+                    b.extend(id(actor));
+                    b.extend(line.to_le_bytes());
+                    b.extend(id(landing));
+                    for v in old {
+                        b.extend(v.bits().to_le_bytes());
+                    }
+                }
+                crate::MoverEvent::TeleportNotTaken {
+                    actor,
+                    line,
+                    reason,
+                } => {
+                    b.push(16);
+                    b.extend(id(actor));
+                    b.extend(line.to_le_bytes());
+                    b.push(reason);
+                }
+                crate::MoverEvent::BossDeath { actor, outcome } => {
+                    b.push(17);
+                    b.extend(id(actor));
+                    b.push(outcome);
+                }
                 crate::MoverEvent::SectorSound {
                     origin,
                     index,
@@ -729,7 +758,9 @@ pub(crate) fn capture(sim: &Simulation) -> Snapshot {
         crate::Profile::OriginalDemon => {
             // The Episode 1 policy is a level superset, the level policy a barrels
             // superset, and the barrels policy an E1M1 superset: test them first.
-            if sim.player_policy().has_episode1() {
+            if sim.player_policy().has_episode1_v2() {
+                40
+            } else if sim.player_policy().has_episode1() {
                 39
             } else if sim.player_policy().has_level() {
                 38
@@ -773,7 +804,7 @@ pub(crate) fn capture(sim: &Simulation) -> Snapshot {
     // Versions18/19 explicitly compose the untyped static-sector field layout.
     let layout = if matches!(version, 18 | 19) {
         3
-    } else if matches!(version, 20..=39) {
+    } else if matches!(version, 20..=40) {
         17
     } else {
         version
@@ -781,14 +812,14 @@ pub(crate) fn capture(sim: &Simulation) -> Snapshot {
     field(
         &mut fields,
         "profile",
-        (if matches!(version, 21..=39) {
+        (if matches!(version, 21..=40) {
             sim.player_policy().wire_id()
         } else {
             version
         })
         .to_le_bytes(),
     );
-    if matches!(version, 21..=39) {
+    if matches!(version, 21..=40) {
         field(
             &mut fields,
             "registry.schema",
@@ -826,15 +857,19 @@ pub(crate) fn capture(sim: &Simulation) -> Snapshot {
             ),
         ] {
             field(&mut fields, name, value.to_le_bytes());
-            if matches!(version, 35..=39) && name == "level.single_player_kill_count" {
+            if matches!(version, 35..=40) && name == "level.single_player_kill_count" {
                 field(&mut fields, "level.exit", [u8::from(sim.level_exit)]);
-                if version == 39 {
+                if matches!(version, 39 | 40) {
                     // DSIM39: the exit was `G_SecretExitLevel` (special 51).
                     field(
                         &mut fields,
                         "level.secret_exit",
                         [u8::from(sim.level_secret_exit)],
                     );
+                }
+                if version == 40 {
+                    // DSIM40: the map number of the Episode 1 slot (`gamemap`).
+                    field(&mut fields, "level.map", [sim.level_map.unwrap_or(0)]);
                 }
             }
         }
@@ -858,7 +893,7 @@ pub(crate) fn capture(sim: &Simulation) -> Snapshot {
     );
     let order = sim.actors.order().flat_map(id).collect::<Vec<_>>();
     field(&mut fields, "thinker.order", order);
-    if matches!(version, 34..=39) {
+    if matches!(version, 34..=40) {
         // DSIM34: the one P_RunThinkers list, kind-tagged (0 actor, 1 sector).
         let mut shared = Vec::new();
         for entry in sim.actors.shared_order() {
@@ -996,7 +1031,7 @@ pub(crate) fn capture(sim: &Simulation) -> Snapshot {
             }
         }
     }
-    if matches!(version, 34..=39) {
+    if matches!(version, 34..=40) {
         sector_thinker_fields(&mut fields, sim, version);
     }
     if layout >= 2 {
@@ -1064,7 +1099,7 @@ pub(crate) fn capture(sim: &Simulation) -> Snapshot {
                     optional_id(sim.sound_targets[i]),
                 );
             }
-            if matches!(version, 34..=39) {
+            if matches!(version, 34..=40) {
                 let s = sim.specials.as_ref().expect("specials policy").sectors[i];
                 field(
                     &mut fields,
@@ -1076,14 +1111,14 @@ pub(crate) fn capture(sim: &Simulation) -> Snapshot {
                     format!("sector.{i}.special"),
                     s.special.to_le_bytes(),
                 );
-                if version == 39 {
+                if matches!(version, 39 | 40) {
                     // DSIM39: the floor flat as its normalized name (decision D2).
                     field(&mut fields, format!("sector.{i}.floorpic"), sim.floorpic(i));
                 }
             }
         }
     }
-    if matches!(version, 35..=39) {
+    if matches!(version, 35..=40) {
         line_and_button_fields(&mut fields, sim);
     }
     for i in 0..4 {
@@ -1106,7 +1141,7 @@ pub(crate) fn capture(sim: &Simulation) -> Snapshot {
         );
         field(&mut fields, format!("player.{i}.buttons"), [c.buttons]);
     }
-    if matches!(layout, 8..=17) && !matches!(version, 22..=39) {
+    if matches!(layout, 8..=17) && !matches!(version, 22..=40) {
         for (i, p) in sim.perception_players.iter().enumerate() {
             field(
                 &mut fields,
@@ -1165,7 +1200,7 @@ pub(crate) fn capture(sim: &Simulation) -> Snapshot {
                 .and_then(|p| p.weapon.and_then(|w| w.pistol())),
         );
     }
-    if matches!(version, 24..=39) {
+    if matches!(version, 24..=40) {
         pack_fields(
             &mut fields,
             sim.original_player
@@ -1173,7 +1208,7 @@ pub(crate) fn capture(sim: &Simulation) -> Snapshot {
             version,
         );
     }
-    if matches!(version, 25..=39) {
+    if matches!(version, 25..=40) {
         let state = sim.original_player.and_then(|p| p.pickups);
         field(
             &mut fields,
@@ -1198,7 +1233,7 @@ pub(crate) fn capture(sim: &Simulation) -> Snapshot {
             );
         }
     }
-    if matches!(version, 26..=39) {
+    if matches!(version, 26..=40) {
         if let Some(armor) = sim.original_player.and_then(|p| p.armor) {
             field(
                 &mut fields,
@@ -1212,7 +1247,7 @@ pub(crate) fn capture(sim: &Simulation) -> Snapshot {
             );
         }
     }
-    if matches!(version, 34..=39) {
+    if matches!(version, 34..=40) {
         field(
             &mut fields,
             "original_player.0.secret_count",
@@ -1221,14 +1256,14 @@ pub(crate) fn capture(sim: &Simulation) -> Snapshot {
                 .to_le_bytes(),
         );
     }
-    if matches!(version, 35..=39) {
+    if matches!(version, 35..=40) {
         field(
             &mut fields,
             "original_player.0.use_down",
             [u8::from(sim.original_player.is_some_and(|p| p.use_down))],
         );
     }
-    if version == 39 {
+    if matches!(version, 39 | 40) {
         episode1_player_fields(&mut fields, sim);
     }
     if layout == 6 {
@@ -1406,7 +1441,7 @@ fn mover_fields(
     for (name, value) in values {
         field(fields, format!("{prefix}.{name}"), value.to_le_bytes());
     }
-    if version == 39 {
+    if matches!(version, 39 | 40) {
         match mover {
             T::Plat(p) => field(fields, format!("{prefix}.type"), [p.plat_type()]),
             T::Floor(f) => {
@@ -1873,7 +1908,7 @@ fn pack_fields(
     field(fields, format!("{prefix}.owned"), p.owned.to_le_bytes());
     field(fields, format!("{prefix}.bullets"), p.bullets.to_le_bytes());
     field(fields, format!("{prefix}.shells"), p.shells.to_le_bytes());
-    if version == 39 {
+    if matches!(version, 39 | 40) {
         field(fields, format!("{prefix}.cells"), p.cells.to_le_bytes());
         field(fields, format!("{prefix}.rockets"), p.rockets.to_le_bytes());
         for (i, max) in p.max_ammo().into_iter().enumerate() {

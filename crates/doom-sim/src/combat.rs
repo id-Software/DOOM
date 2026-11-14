@@ -210,6 +210,11 @@ pub(crate) struct DamagePlan {
     /// the chainsaw (811), whatever the inflictor (a rocket still in flight
     /// included).
     thrust: bool,
+    /// A telefrag of wire 24 (`PIT_StompThing`'s `P_DamageMobj(thing, tmthing,
+    /// tmthing, 10000)`, p_map.c:105; decision I3): the thrust is the wrapped
+    /// 32-bit value of `damage*(FRACUNIT>>3)*100/mass` (p_inter.c:817). False for
+    /// every other damage, whose thrust never overflows (amount ≤ 1,000).
+    telefrag: bool,
 }
 #[derive(Clone, Debug)]
 pub(crate) struct PreparedAttack {
@@ -264,6 +269,7 @@ impl DamagePlan {
             credit: false,
             amount,
             thrust: true,
+            telefrag: false,
         })
     }
     pub(crate) fn spawn_count(self) -> usize {
@@ -562,6 +568,107 @@ impl DamagePlan {
         self.thrust = thrust;
         self
     }
+    /// The telefrag of wire 24 (decisions I3 and I8): `PIT_StompThing`'s
+    /// `P_DamageMobj (thing, tmthing, tmthing, 10000)` (p_map.c:105), planned like
+    /// [`Self::current_original`] for a monster or barrel victim, except that the
+    /// amount is exactly [`crate::teleport::TELEFRAG_DAMAGE`] and the thrust is the
+    /// wrapped 32-bit value the genuine strict builds compute
+    /// ([`telefrag_thrust`]). Only the player stomps on maps 1–9 (p_map.c:102) and
+    /// the level spawns no second player-linked body, so the victim is never the
+    /// player. Every other damage keeps the 1,000 bound under every policy.
+    pub(crate) fn telefrag<A: ActorAccess>(
+        host: &LifeHost<'_, A>,
+        request: DamageRequest,
+    ) -> Result<Self, SimError> {
+        let player = host.player.as_deref().ok_or(PlayerBodyError::Profile)?;
+        let policy = player.policy;
+        if !policy.has_teleport()
+            || request.amount != crate::teleport::TELEFRAG_DAMAGE
+            || request.inflictor.is_none()
+            || request.inflictor != request.source
+            || request.source != player.mo
+            || player.mo == Some(request.target)
+        {
+            return Err(CombatError::Damage.into());
+        }
+        let victim = *host
+            .access
+            .get(request.target)
+            .ok_or(CombatError::Reference)?;
+        let life = victim.life().ok_or(CombatError::Metadata)?;
+        let origin = *host
+            .access
+            .get(request.inflictor.ok_or(CombatError::Reference)?)
+            .ok_or(CombatError::Reference)?;
+        let barrel = crate::barrels::is_barrel(policy, life.actor_type);
+        if !barrel && !crate::original_registry::is_policy_monster(policy, life.actor_type) {
+            return Err(MonsterError::Target.into());
+        }
+        // p_inter.c:806–811: no thrust when the source's player has the chainsaw
+        // ready (pendingweapon does not matter).
+        let thrust = !player
+            .weapon
+            .and_then(crate::player_weapons::PlayerWeaponRuntime::pack)
+            .is_some_and(|w| w.ready == Weapon::Chainsaw);
+        let mass = host
+            .registry
+            .actor_type(life.actor_type)
+            .ok_or(CombatError::Metadata)?
+            .mass();
+        if life.health > 0 && life.flags & MF_SHOOTABLE != 0 && thrust {
+            original_player::preflight_thrust(
+                player.room,
+                &victim,
+                &origin,
+                telefrag_thrust(request.amount, mass)?,
+            )?;
+        }
+        let mut plan = Self::start(victim, request, None, policy)?;
+        plan.telefrag = true;
+        if plan.ignored {
+            return Ok(plan);
+        }
+        if plan.killed && life.flags & MF_COUNTKILL != 0 {
+            host.statistics
+                .as_deref()
+                .ok_or(MapSpawnError::Ownership)?
+                .single_player_kill_count
+                .checked_add(1)
+                .ok_or(MapSpawnError::StatisticsOverflow)?;
+            plan.credit = true;
+        }
+        plan.finish_with(
+            victim,
+            host.registry,
+            |state| {
+                crate::original_registry::state_role_for(policy, life.actor_type, state)
+                    .map_err(|_| MonsterError::Definition)?;
+                if barrel {
+                    host.registry.validate_state_barrel(state)?;
+                } else {
+                    host.registry.validate_state_original_monsters(state)?;
+                }
+                Ok(())
+            },
+            true,
+        )
+        .map(|plan| plan.with_thrust(thrust))
+    }
+}
+/// The telefrag thrust of wire 24 (decision I3): `damage*(FRACUNIT>>3)*100/mass`
+/// (p_inter.c:817) is `int` arithmetic, and for damage 10,000 the product
+/// 8,192,000,000 exceeds `INT_MAX`. The genuine `strict` (`-fwrapv`) and `strict32`
+/// builds wrap it to −397,934,592 before the signed division, which truncates
+/// toward zero: −3,979,345 for mass 100, −994,836 for 400, −397,934 for 1,000 (M4b
+/// note §2 T8.5, observed in TFRAG1). Only the stomp's 10,000 is computed this way.
+pub(crate) fn telefrag_thrust(amount: i32, mass: i32) -> Result<i32, SimError> {
+    if amount != crate::teleport::TELEFRAG_DAMAGE || mass <= 0 {
+        return Err(CombatError::Damage.into());
+    }
+    let product = (amount as u32)
+        .wrapping_mul(THRUST_FRACTION as u32)
+        .wrapping_mul(THRUST_MASS_SCALE as u32) as i32;
+    Ok(product / mass)
 }
 impl PreparedAttack {
     pub(crate) fn current(
@@ -983,7 +1090,11 @@ impl<A: ActorAccess> LifeHost<'_, A> {
                 old.position()[1] - origin.position()[1],
             ];
             let mut angle = movement::point_angle(delta);
-            let mut thrust = request.amount * THRUST_FRACTION * THRUST_MASS_SCALE / info.mass();
+            let mut thrust = if plan.telefrag {
+                telefrag_thrust(request.amount, info.mass()).expect("planned telefrag thrust")
+            } else {
+                request.amount * THRUST_FRACTION * THRUST_MASS_SCALE / info.mass()
+            };
             if request.amount < 40
                 && request.amount > life.health
                 && old.z() - origin.z() > Fixed::from_map_units(64)

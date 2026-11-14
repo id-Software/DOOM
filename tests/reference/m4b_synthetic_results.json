@@ -1,0 +1,1030 @@
+{
+ "schema": "DOOM-M4B-SYNTHETIC-RESULTS-v1",
+ "manifest_sha256": "9670812cf54ad8a2b1a078ba13961dd750b81e536fccc3b4ed268202e95836c8",
+ "runner_contract_sha256": "8f2ea3817f1823dcf832dfb5b90803a42ef12182b58d893560b1070ffbdbd034",
+ "variants": [
+  "strict",
+  "overflow",
+  "address"
+ ],
+ "variants_identical": true,
+ "asan_options": "detect_leaks=0 (leak detection disabled)",
+ "scripts": {
+  "TELE1": {
+   "wad": "TELE",
+   "lmp_sha256": "68fb62ef514948c3efa96d3368173e79434c2ab5548348715cb335f548b8da88",
+   "tics": 173,
+   "end": "marker",
+   "end_tic": 173,
+   "prndindex_after_load": 7,
+   "prndindex_end": 9,
+   "thinkers_at_load": 6,
+   "mobjs_at_load": 6,
+   "unknown_messages": 0,
+   "snapshots": 174,
+   "dumps_sha256": "1ae152919051c9f3905d18b273cc19860ecebbc81574dadcf6aab2e9795fc4c8",
+   "must_show": {
+    "back-side crossing (player west of the line, no fog)": 34,
+    "teleported: landing, angle 90, reactiontime 18, momentum 0": 88,
+    "fog 1 at the crossing point": 88,
+    "fog 2 offset from the landing": 88,
+    "freeze over: the player moves again": 107,
+    "health bonus on the landing picked up": 107,
+    "both fogs removed": 159
+   },
+   "facts": {
+    "back_side_crossing_tic": 34,
+    "fogs_before_teleport": 0,
+    "teleports": [
+     {
+      "tic": 88,
+      "x": 1152.0,
+      "y": 0.0,
+      "angle": 90.0,
+      "reactiontime": 18,
+      "momx": 0,
+      "momy": 0,
+      "draws": 2,
+      "fogs": [
+       [
+        1.7719,
+        -0.083
+       ],
+       [
+        1151.9924,
+        19.9997
+       ]
+      ]
+     }
+    ],
+    "frozen_tics": 18,
+    "forward_commands_during_freeze": 18,
+    "first_move_after_freeze": 107,
+    "health_bonus_tic": 107,
+    "fogs_gone_tic": 159
+   }
+  },
+  "TELE2": {
+   "wad": "TELE",
+   "lmp_sha256": "eca90774303e5f62d2001d3a90a2a6ff3203fc107db2bef265fc870c1526c9fc",
+   "tics": 61,
+   "end": "marker",
+   "end_tic": 61,
+   "prndindex_after_load": 7,
+   "prndindex_end": 9,
+   "thinkers_at_load": 6,
+   "mobjs_at_load": 6,
+   "unknown_messages": 0,
+   "snapshots": 62,
+   "dumps_sha256": "7fcf1d2529590e5bc03993409e55b854de5840e794a881fdaa3c277afabb580f",
+   "must_show": {
+    "lands on the first T2B landing (angle 0)": 25,
+    "never on the second T2B landing": null,
+    "never on the T2C landing": null
+   },
+   "facts": {
+    "teleports": [
+     {
+      "tic": 25,
+      "x": 1600.0,
+      "y": 640.0,
+      "angle": 0.0,
+      "reactiontime": 18,
+      "momx": 0,
+      "momy": 0,
+      "draws": 2,
+      "fogs": [
+       [
+        191.9462,
+        134.6493
+       ],
+       [
+        1619.9997,
+        640.0076
+       ]
+      ]
+     }
+    ]
+   }
+  },
+  "TSPLIT": {
+   "wad": "TELEMOVE",
+   "lmp_sha256": "a597822bd7b06e4baec859ab626245b556e9a48db50f84e0f514e32b23c1a623",
+   "tics": 65,
+   "end": "marker",
+   "end_tic": 65,
+   "prndindex_after_load": 7,
+   "prndindex_end": 9,
+   "thinkers_at_load": 5,
+   "mobjs_at_load": 5,
+   "unknown_messages": 0,
+   "snapshots": 66,
+   "dumps_sha256": "48c483d71f011d4c0d96afcc43736e62c059194d8e2cea2c8ab58832403646b1",
+   "must_show": {
+    "teleported in the first half: landing x plus the second half, momentum 0": 36,
+    "health bonus picked up by the second half": 36
+   },
+   "facts": {
+    "teleports": [
+     {
+      "tic": 36,
+      "x": 1167.0,
+      "y": -255.9922,
+      "angle": 90.0,
+      "reactiontime": 18,
+      "momx": 0,
+      "momy": 0,
+      "draws": 2,
+      "fogs": [
+       [
+        7.3582,
+        -63.5658
+       ],
+       [
+        1151.9924,
+        -236.0003
+       ]
+      ]
+     }
+    ],
+    "momentum_before": [
+     27.1875,
+     0.0141
+    ],
+    "split_threshold_exceeded_before": true,
+    "health_bonus_tic": 36
+   }
+  },
+  "TSLIDE": {
+   "wad": "TELEMOVE",
+   "lmp_sha256": "b1e84eecd03c83fec6bf1be2ff1504f0160d5ebdd84726c0e2ce321a54601653",
+   "tics": 170,
+   "end": "marker",
+   "end_tic": 170,
+   "prndindex_after_load": 7,
+   "prndindex_end": 9,
+   "thinkers_at_load": 5,
+   "mobjs_at_load": 5,
+   "unknown_messages": 0,
+   "snapshots": 171,
+   "dumps_sha256": "b852dcf1c12cf97bff6b63148053eb39627bcbcec2fb3d050a0055989c92e8d8",
+   "must_show": {
+    "teleported from inside the slide": 110,
+    "health bonus picked up by the zero-length try at the landing": 110
+   },
+   "facts": {
+    "teleports": [
+     {
+      "tic": 110,
+      "x": 1152.0,
+      "y": 256.0,
+      "angle": 0.0,
+      "reactiontime": 18,
+      "momx": 0,
+      "momy": 0,
+      "draws": 2,
+      "fogs": [
+       [
+        6.1499,
+        111.9211
+       ],
+       [
+        1171.9997,
+        256.0076
+       ]
+      ]
+     }
+    ],
+    "momentum_before": [
+     10.4233,
+     2.0807
+    ],
+    "split_threshold_exceeded_before": false,
+    "health_bonus_tic": 110
+   }
+  },
+  "TFRAG1": {
+   "wad": "TFRAG",
+   "lmp_sha256": "9f76009795e409987e122af10e6018269d151e79ad6b2b1acb3530851606b650",
+   "tics": 282,
+   "end": "marker",
+   "end_tic": 282,
+   "prndindex_after_load": 10,
+   "prndindex_end": 20,
+   "thinkers_at_load": 7,
+   "mobjs_at_load": 7,
+   "unknown_messages": 0,
+   "snapshots": 283,
+   "dumps_sha256": "67344dc0c43925b78e31fb344c3abee2dd1caa113a05b4af187dca0c299b8433",
+   "must_show": {
+    "zombieman telefragged (gibbed)": 63,
+    "clip dropped": 63,
+    "Demon telefragged": 139,
+    "Baron telefragged": 223,
+    "Baron reaches DIE7 on E1M1": 271
+   },
+   "facts": {
+    "telefrags": [
+     {
+      "victim": "MT_POSSESSED",
+      "mass": 100,
+      "tic": 63,
+      "health": -9980,
+      "state": 194,
+      "draws": 4,
+      "momx": -3979285,
+      "momy": -1518,
+      "momentum_units": 60.719,
+      "wrapped_thrust": -3979345,
+      "magnitude_matches": true,
+      "toward_pre_teleport_position": true,
+      "momentum_next_tic": [
+       0,
+       0
+      ]
+     },
+     {
+      "victim": "MT_SERGEANT",
+      "mass": 400,
+      "tic": 139,
+      "health": -9850,
+      "state": 490,
+      "draws": 3,
+      "momx": -994821,
+      "momy": -380,
+      "momentum_units": 15.18,
+      "wrapped_thrust": -994836,
+      "magnitude_matches": true,
+      "toward_pre_teleport_position": true,
+      "momentum_next_tic": [
+       0,
+       0
+      ]
+     },
+     {
+      "victim": "MT_BRUISER",
+      "mass": 1000,
+      "tic": 223,
+      "health": -9000,
+      "state": 542,
+      "draws": 3,
+      "momx": -397928,
+      "momy": -152,
+      "momentum_units": 6.072,
+      "wrapped_thrust": -397934,
+      "magnitude_matches": true,
+      "toward_pre_teleport_position": true,
+      "momentum_next_tic": [
+       0,
+       0
+      ]
+     }
+    ],
+    "teleports": [
+     63,
+     139,
+     223
+    ]
+   }
+  },
+  "MTELE1": {
+   "wad": "MONTELE",
+   "lmp_sha256": "eb51557d4699b030bef3520e5b54015527ca476ac8499b46d643a19d517813d5",
+   "tics": 160,
+   "end": "marker",
+   "end_tic": 160,
+   "prndindex_after_load": 9,
+   "prndindex_end": 226,
+   "thinkers_at_load": 6,
+   "mobjs_at_load": 6,
+   "unknown_messages": 0,
+   "snapshots": 161,
+   "dumps_sha256": "bc2ed43802618e8bc736d5ead3d200d795ee3316e7894af75791c68be6d6262b",
+   "must_show": {
+    "west Demon teleported to the free landing": 86,
+    "east Demon crosses its line without teleporting": 117,
+    "east Demon never reaches the blocked landing": null,
+    "one fog pair only": null
+   },
+   "facts": {
+    "west_demon_teleport_tic": 86,
+    "east_demon_crossing_tic": 117,
+    "fog_spawn_tics": [
+     86
+    ],
+    "east_demon_after_crossing": [
+     [
+      247.1716,
+      -7.1716
+     ]
+    ],
+    "barrel_on_tag2_landing": [
+     [
+      1408.0,
+      384.0,
+      20
+     ]
+    ]
+   }
+  },
+  "SLIDEB": {
+   "wad": "SLIDEB",
+   "lmp_sha256": "fd1f41575744a68e9e23f5f2425b6349481e3d58c7ad3a9dd3a7634704d1cce2",
+   "tics": 100,
+   "end": "marker",
+   "end_tic": 100,
+   "prndindex_after_load": 6,
+   "prndindex_end": 23,
+   "thinkers_at_load": 4,
+   "mobjs_at_load": 4,
+   "unknown_messages": 0,
+   "snapshots": 101,
+   "dumps_sha256": "085662cd083bc3c117cfdbc654c033466fec1cecff701fffddf0512f9c71a002",
+   "must_show": {
+    "west barrel explodes": 32,
+    "east barrel wounded by the splash": 44,
+    "east barrel teleported alive": 49
+   },
+   "facts": {
+    "west_barrel_dies": 32,
+    "east_barrel_hit": 44,
+    "east_barrel_health": 6,
+    "east_barrel_momx": 103934,
+    "east_barrel_target": 0,
+    "east_barrel_teleport_tic": 49,
+    "alive_on_landing": true,
+    "draws_at_teleport": 2
+   }
+  },
+  "SLIDEC": {
+   "wad": "SLIDEC",
+   "lmp_sha256": "8229344209d7687e0679b4ceb3c3a422c808a08e4187b0648b991569c9eee161",
+   "tics": 123,
+   "end": "marker",
+   "end_tic": 123,
+   "prndindex_after_load": 5,
+   "prndindex_end": 60,
+   "thinkers_at_load": 4,
+   "mobjs_at_load": 4,
+   "unknown_messages": 0,
+   "snapshots": 124,
+   "dumps_sha256": "7d3a2e575efaa38c9cd503d81b572f4820bbc21cd785cb0b65a44d44a83f4864",
+   "must_show": {
+    "zombieman killed by one shotgun blast": 66,
+    "corpse teleported": 73
+   },
+   "facts": {
+    "killed_tic": 66,
+    "killed_asleep": true,
+    "momx_at_death": 222716,
+    "state_at_death": 189,
+    "corpse_teleport_tic": 73,
+    "corpse_flags_at_teleport": 5244000
+   }
+  },
+  "BARON1": {
+   "wad": "BARON",
+   "lmp_sha256": "32bbbd4f8f9c6fa1a0e11327a019f54b26f935e25afa206a8fb85b0dc152e4a9",
+   "tics": 753,
+   "end": "marker",
+   "end_tic": 753,
+   "prndindex_after_load": 11,
+   "prndindex_end": 41,
+   "thinkers_at_load": 8,
+   "mobjs_at_load": 8,
+   "unknown_messages": 0,
+   "snapshots": 754,
+   "dumps_sha256": "63f1d4ac5ce9a66f54c81f39b7faeb697435a574af011afa270e30372e64a4e6",
+   "must_show": {
+    "first fireball hits the player (armor and health drop)": 119,
+    "a fireball explodes on the west wall": 380,
+    "Baron pain": 552,
+    "Baron dies": 688,
+    "Baron reaches DIE7": 736
+   },
+   "facts": {
+    "attacks": [
+     {
+      "tic": 64,
+      "baron": 384,
+      "kind": "ball",
+      "target": 0
+     },
+     {
+      "tic": 313,
+      "baron": 384,
+      "kind": "ball",
+      "target": 0
+     },
+     {
+      "tic": 379,
+      "baron": 384,
+      "kind": "ball",
+      "target": 0
+     },
+     {
+      "tic": 436,
+      "baron": 384,
+      "kind": "ball",
+      "target": 0
+     },
+     {
+      "tic": 505,
+      "baron": 384,
+      "kind": "claw",
+      "target": 0
+     }
+    ],
+    "player_hit_tics": [
+     119,
+     414,
+     458,
+     505
+    ],
+    "ball_explodes_on_west_wall": 380,
+    "pain_entries": [
+     552,
+     573,
+     593,
+     650,
+     669
+    ],
+    "death_tic": 688,
+    "die7_tic": 736,
+    "die1_tics": 8
+   }
+  },
+  "BINF1": {
+   "wad": "INFIGHT",
+   "lmp_sha256": "8b5caa33468932ab2df8154d79ea3d3bbfc161e21d85c39ab3a9538658e69ef2",
+   "tics": 300,
+   "end": "marker",
+   "end_tic": 300,
+   "prndindex_after_load": 9,
+   "prndindex_end": 218,
+   "thinkers_at_load": 5,
+   "mobjs_at_load": 5,
+   "unknown_messages": 0,
+   "snapshots": 301,
+   "dumps_sha256": "c2773dfc8651f4951f75bc6767ee952ca47838c57ff0ae137456b6268fa1e86c",
+   "must_show": {
+    "Baron fireball hits the Spectre": 81,
+    "Spectre bites the Baron": 197,
+    "Spectre dies": 246
+   },
+   "facts": {
+    "fireball_hits_spectre": 81,
+    "spectre_target_is_baron": true,
+    "baron_hurt_by_spectre": 197,
+    "baron_targets_spectre": 197,
+    "attacks": [
+     {
+      "tic": 78,
+      "baron": 512,
+      "kind": "ball",
+      "target": 0
+     },
+     {
+      "tic": 216,
+      "baron": 512,
+      "kind": "claw",
+      "target": 4
+     },
+     {
+      "tic": 246,
+      "baron": 512,
+      "kind": "claw",
+      "target": 4
+     }
+    ],
+    "spectre_dies": 246,
+    "shadow_fuzz": [
+     {
+      "tic": 200,
+      "state": 537,
+      "order": "left-to-right"
+     },
+     {
+      "tic": 208,
+      "state": 538,
+      "order": "left-to-right"
+     },
+     {
+      "tic": 230,
+      "state": 537,
+      "order": "left-to-right"
+     },
+     {
+      "tic": 238,
+      "state": 538,
+      "order": "left-to-right"
+     }
+    ],
+    "shadow_fuzz_orders": [
+     "left-to-right"
+    ]
+   }
+  },
+  "BVB1": {
+   "wad": "BVB",
+   "lmp_sha256": "0e508112e94e6306965b537c42d6ac5657086b1ce6b4b380a0746cb25d5dd1d4",
+   "tics": 735,
+   "end": "marker",
+   "end_tic": 735,
+   "prndindex_after_load": 11,
+   "prndindex_end": 175,
+   "thinkers_at_load": 6,
+   "mobjs_at_load": 6,
+   "unknown_messages": 0,
+   "snapshots": 736,
+   "dumps_sha256": "ac76b0a5cf0c2fc6d54496d9f52cb7a7271d236a99b3bcce9bdf7128666b82ba",
+   "must_show": {
+    "barrel wounded by the ledge Baron": 227,
+    "barrel explodes": 264,
+    "sleeping Baron wounded by the splash": 278,
+    "ledge Baron wounded by the other": 605
+   },
+   "facts": {
+    "barrel_wounded": 227,
+    "barrel_health": 4,
+    "barrel_target_is_A": true,
+    "barrel_dies": 264,
+    "B_hurt": 278,
+    "B_health": 962,
+    "B_targets_A": 278,
+    "fireballs_bursting_on_the_other_baron": [
+     {
+      "tic": 322,
+      "owner": "B",
+      "victim_health_before": 1000,
+      "victim_health_after": 1000
+     },
+     {
+      "tic": 445,
+      "owner": "A",
+      "victim_health_before": 962,
+      "victim_health_after": 962
+     },
+     {
+      "tic": 459,
+      "owner": "B",
+      "victim_health_before": 1000,
+      "victim_health_after": 1000
+     }
+    ],
+    "A_damaged_tics": [
+     605,
+     629,
+     698
+    ],
+    "attacks": [
+     {
+      "tic": 198,
+      "baron": 480,
+      "kind": "ball",
+      "target": 0
+     },
+     {
+      "tic": 234,
+      "baron": 480,
+      "kind": "ball",
+      "target": 0
+     },
+     {
+      "tic": 293,
+      "baron": 0,
+      "kind": "ball",
+      "target": 1
+     },
+     {
+      "tic": 435,
+      "baron": 480,
+      "kind": "ball",
+      "target": 0
+     },
+     {
+      "tic": 449,
+      "baron": 0,
+      "kind": "ball",
+      "target": 1
+     },
+     {
+      "tic": 521,
+      "baron": 0,
+      "kind": "ball",
+      "target": 1
+     },
+     {
+      "tic": 546,
+      "baron": 480,
+      "kind": "ball",
+      "target": 0
+     },
+     {
+      "tic": 575,
+      "baron": 0,
+      "kind": "ball",
+      "target": 1
+     },
+     {
+      "tic": 605,
+      "baron": 0,
+      "kind": "claw",
+      "target": 1
+     },
+     {
+      "tic": 621,
+      "baron": 480,
+      "kind": "claw",
+      "target": 2
+     },
+     {
+      "tic": 629,
+      "baron": 0,
+      "kind": "claw",
+      "target": 1
+     },
+     {
+      "tic": 649,
+      "baron": 480,
+      "kind": "ball",
+      "target": 2
+     },
+     {
+      "tic": 668,
+      "baron": 0,
+      "kind": "ball",
+      "target": 1
+     },
+     {
+      "tic": 697,
+      "baron": 480,
+      "kind": "claw",
+      "target": 2
+     },
+     {
+      "tic": 698,
+      "baron": 0,
+      "kind": "claw",
+      "target": 1
+     },
+     {
+      "tic": 724,
+      "baron": 480,
+      "kind": "ball",
+      "target": 2
+     },
+     {
+      "tic": 725,
+      "baron": 0,
+      "kind": "ball",
+      "target": 1
+     }
+    ]
+   }
+  },
+  "BOSS1": {
+   "wad": "BOSS8",
+   "lmp_sha256": "2e795f1e00a9b286e64407a207eefac0dc72f9192b897829771853b1a01dd2fc",
+   "tics": 545,
+   "end": "exit",
+   "end_tic": 544,
+   "prndindex_after_load": 8,
+   "prndindex_end": 21,
+   "thinkers_at_load": 6,
+   "mobjs_at_load": 6,
+   "unknown_messages": 0,
+   "snapshots": 546,
+   "dumps_sha256": "cc062e87945515bbfb5de75e2966c1b6abeffe7def704c484367552f65c5bcb3",
+   "must_show": {
+    "first Baron reaches DIE7 (the other alive)": 112,
+    "second Baron reaches DIE7": 223,
+    "tag-666 floor lowering (lowerFloorToLowest)": 223,
+    "step down at 0": 286,
+    "exit through sector 11": 544
+   },
+   "facts": {
+    "kill_tics": [
+     64,
+     175
+    ],
+    "die7_tics": [
+     112,
+     223
+    ],
+    "step_height_at_first_die7": 64,
+    "lower_floor_first_tic": 223,
+    "raise_floor_first_tic": null,
+    "step_at_zero": 286,
+    "step_height_end": 0,
+    "end_gameaction": 6,
+    "player_health_end": 1
+   }
+  },
+  "BOSS2": {
+   "wad": "BOSS8",
+   "lmp_sha256": "726e7e88e2323a3e29c69044c5ab20753a19fc15d48a374d1fc68320ac142bf3",
+   "tics": 364,
+   "end": "marker",
+   "end_tic": 364,
+   "prndindex_after_load": 8,
+   "prndindex_end": 14,
+   "thinkers_at_load": 6,
+   "mobjs_at_load": 6,
+   "unknown_messages": 0,
+   "snapshots": 365,
+   "dumps_sha256": "646cde6992be2ca10cb56c71ab7242b880f4c7d98b00ef0ed283cc3e6dedd979",
+   "must_show": {
+    "step raising (W1 raiseFloor, the sector busy)": 215,
+    "second Baron reaches DIE7": 223,
+    "never a lowerFloorToLowest": null,
+    "step closed at 128": 278
+   },
+   "facts": {
+    "kill_tics": [
+     64,
+     175
+    ],
+    "die7_tics": [
+     112,
+     223
+    ],
+    "step_height_at_first_die7": 64,
+    "lower_floor_first_tic": null,
+    "raise_floor_first_tic": 215,
+    "step_at_zero": null,
+    "step_height_end": 128,
+    "end_gameaction": 0,
+    "player_health_end": 100
+   }
+  },
+  "BOSSM1": {
+   "wad": "BOSSM1",
+   "lmp_sha256": "7d51d19d4304f7c96a67526b08b991b039411e248276e461cadc8cc74b88ecd1",
+   "tics": 600,
+   "end": "marker",
+   "end_tic": 600,
+   "prndindex_after_load": 8,
+   "prndindex_end": 16,
+   "thinkers_at_load": 6,
+   "mobjs_at_load": 6,
+   "unknown_messages": 0,
+   "snapshots": 601,
+   "dumps_sha256": "82f19f9347947a38a2d178444124c47a6c972cceb99ffb90ec0144c28802c026",
+   "must_show": {
+    "second Baron reaches DIE7 on E1M1": 223,
+    "no floor mover ever": null
+   },
+   "facts": {
+    "kill_tics": [
+     64,
+     175
+    ],
+    "die7_tics": [
+     112,
+     223
+    ],
+    "step_height_at_first_die7": 64,
+    "lower_floor_first_tic": null,
+    "raise_floor_first_tic": null,
+    "step_at_zero": null,
+    "step_height_end": 64,
+    "end_gameaction": 0,
+    "player_health_end": 100
+   }
+  },
+  "SPECH8": {
+   "wad": "SPECH8",
+   "lmp_sha256": "9a262ff7d632f841ddd1e2d3c19ed0e7124ed65e436cbc4cd4d988a86d19ec4c",
+   "tics": 98,
+   "end": "marker",
+   "end_tic": 98,
+   "prndindex_after_load": 3,
+   "prndindex_end": 3,
+   "thinkers_at_load": 2,
+   "mobjs_at_load": 2,
+   "unknown_messages": 0,
+   "snapshots": 99,
+   "dumps_sha256": "f2d5e65ad2280220273cd6cbaf8bb066e8afed1809da80e71b46c6400f19d969",
+   "must_show": {
+    "player box inside the cluster (eight special lines)": 75
+   },
+   "facts": {
+    "final_player_x": 114.4512,
+    "final_player_y": 8.1999
+   }
+  },
+  "SPECH9": {
+   "wad": "SPECH9",
+   "lmp_sha256": "fe29fac23acfbc574d92a8b9179afb80bc8f2f87569f5cacd0ff2064c5c879c9",
+   "tics": 75,
+   "end": "marker",
+   "end_tic": 75,
+   "prndindex_after_load": 3,
+   "prndindex_end": 3,
+   "thinkers_at_load": 2,
+   "mobjs_at_load": 2,
+   "unknown_messages": 0,
+   "snapshots": 76,
+   "dumps_sha256": "d67a43bedea460de334ea63b602e2ca5261fa13d7cbb330f274be06642945a7e",
+   "must_show": {
+    "player box at the cluster edge": 71
+   },
+   "facts": {
+    "final_player_x": 78.2596,
+    "final_player_y": 8.1884
+   },
+   "overrun_probe": {
+    "exit_nonzero": true,
+    "last_dump": "tic_00074.txt",
+    "report": [
+     "p_map.c:242:9: runtime error: index 8 out of bounds for type 'line_t *[8]'"
+    ]
+   }
+  },
+  "SKILL2": {
+   "wad": "SKILL",
+   "lmp_sha256": "6bd2caac2b6e80bce346ac9508242c545205fb6423add9365407a1e3ce3950f9",
+   "tics": 90,
+   "end": "marker",
+   "end_tic": 90,
+   "prndindex_after_load": 7,
+   "prndindex_end": 7,
+   "thinkers_at_load": 5,
+   "mobjs_at_load": 5,
+   "unknown_messages": 0,
+   "snapshots": 91,
+   "dumps_sha256": "5b2c483462ed804bb05683881da020ad77f409ebcfc226d6deaa632bfe0062c1",
+   "must_show": {
+    "skill 2 in the header row": -1,
+    "no teleport (the only landing is hard-only)": null
+   },
+   "facts": {
+    "gameskill": 2,
+    "totalkills": 2,
+    "totalitems": 0,
+    "mobj_types_at_load": {
+     "0": 1,
+     "63": 1,
+     "54": 1,
+     "1": 1,
+     "12": 1
+    },
+    "teleports": []
+   }
+  },
+  "SKILL3": {
+   "wad": "SKILL",
+   "lmp_sha256": "fca5133374d183623ef1431071d5274ab2ff447a89d0018cab5b71c567848fe3",
+   "tics": 90,
+   "end": "marker",
+   "end_tic": 90,
+   "prndindex_after_load": 10,
+   "prndindex_end": 12,
+   "thinkers_at_load": 7,
+   "mobjs_at_load": 7,
+   "unknown_messages": 0,
+   "snapshots": 91,
+   "dumps_sha256": "fbfeb1111defd4a390d38a8b665e8265d388df41c545d210218329866b959c46",
+   "must_show": {
+    "skill 3 in the header row": -1,
+    "teleported to the hard-only landing": 64
+   },
+   "facts": {
+    "gameskill": 3,
+    "totalkills": 3,
+    "totalitems": 0,
+    "mobj_types_at_load": {
+     "0": 1,
+     "41": 1,
+     "53": 1,
+     "54": 1,
+     "11": 1,
+     "15": 1,
+     "12": 1
+    },
+    "teleports": [
+     {
+      "tic": 64,
+      "x": 1152.0,
+      "y": 0.0,
+      "angle": 0.0,
+      "reactiontime": 18,
+      "momx": 0,
+      "momy": 0,
+      "draws": 2,
+      "fogs": [
+       [
+        2.8792,
+        0.1618
+       ],
+       [
+        1171.9997,
+        0.0076
+       ]
+      ]
+     }
+    ]
+   }
+  }
+ },
+ "timing": {
+  "note": "us/tic of G_Ticker per variant from the runner summary and the wall time of this run; measured on a machine that was not idle (informational, not compared by --check)",
+  "wall_seconds": {
+   "build": 34.4,
+   "runs": 122.2
+  },
+  "us_per_tic": {
+   "TELE1": {
+    "strict": 12.4,
+    "overflow": 7.0,
+    "address": 19.6
+   },
+   "TELE2": {
+    "strict": 16.5,
+    "overflow": 6.0,
+    "address": 15.5
+   },
+   "TSPLIT": {
+    "strict": 20.8,
+    "overflow": 6.7,
+    "address": 17.9
+   },
+   "TSLIDE": {
+    "strict": 12.5,
+    "overflow": 6.9,
+    "address": 19.8
+   },
+   "TFRAG1": {
+    "strict": 11.3,
+    "overflow": 6.7,
+    "address": 20.2
+   },
+   "MTELE1": {
+    "strict": 11.6,
+    "overflow": 9.1,
+    "address": 22.4
+   },
+   "SLIDEB": {
+    "strict": 14.4,
+    "overflow": 5.8,
+    "address": 25.6
+   },
+   "SLIDEC": {
+    "strict": 11.6,
+    "overflow": 5.7,
+    "address": 19.2
+   },
+   "BARON1": {
+    "strict": 8.9,
+    "overflow": 7.4,
+    "address": 21.2
+   },
+   "BINF1": {
+    "strict": 8.0,
+    "overflow": 5.5,
+    "address": 20.4
+   },
+   "BVB1": {
+    "strict": 8.8,
+    "overflow": 8.2,
+    "address": 23.5
+   },
+   "BOSS1": {
+    "strict": 8.7,
+    "overflow": 6.5,
+    "address": 18.2
+   },
+   "BOSS2": {
+    "strict": 9.3,
+    "overflow": 5.8,
+    "address": 19.5
+   },
+   "BOSSM1": {
+    "strict": 7.2,
+    "overflow": 6.2,
+    "address": 16.9
+   },
+   "SPECH8": {
+    "strict": 15.3,
+    "overflow": 7.3,
+    "address": 18.5
+   },
+   "SPECH9": {
+    "strict": 16.0,
+    "overflow": 7.3,
+    "address": 18.4
+   },
+   "SKILL2": {
+    "strict": 17.2,
+    "overflow": 8.0,
+    "address": 19.6
+   },
+   "SKILL3": {
+    "strict": 14.0,
+    "overflow": 7.1,
+    "address": 17.7
+   }
+  }
+ }
+}

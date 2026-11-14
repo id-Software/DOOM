@@ -1,0 +1,10 @@
+# output: SLIDEC.lmp
+# SLIDEC on tests/reference/m4b_wads/slidec.wad (M4b). Authored closed loop against the strict genuine runner.
+# Takes the shotgun and kills the sleeping zombieman with one blast before it wakes; its corpse slides east
+# across the 97 line and teleports.
+# format: tools/reference/m4b_scripts.py (tools/e1m1_scripts.py plus "skill N"); turn byte t = t*1.40625 degrees counter-clockwise; buttons 1 ATTACK
+map E1M1
+cmd 3 25 0 0 0
+idle 60
+cmd 10 0 0 0 1
+idle 50

@@ -1,0 +1,7 @@
+# output: TELEZ.lmp
+# TELEZ on tests/reference/m4b_wads/telez.wad (M4b, second set; step 14, review finding F1). The player stands still
+# due east of the Demon, whose spawn box straddles the 97 line; the Demon wakes, and its first P_Move steps 24 up
+# across the line and teleports. Fog 1 stands at the Demon's pre-move z (0), not at the step's floor (24).
+# format: tools/reference/m4b_scripts.py (tools/e1m1_scripts.py plus "skill N"); turn byte t = t*1.40625 degrees counter-clockwise; buttons 1 ATTACK
+map E1M1
+idle 80   # the Demon wakes, crosses the line and teleports; the fogs play out

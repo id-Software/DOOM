@@ -1,0 +1,4 @@
+# output: M8IDLE.lmp
+# M4b E1M8 idle: 2,100 tics of zero ticcmds (60 seconds of game time), skill 2.
+map E1M8
+idle 2100

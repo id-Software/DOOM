@@ -332,6 +332,9 @@ impl Surrounding<'_> {
     }
 }
 
+/// The sector tag `A_BossDeath` hands `EV_DoFloor` on E1M8 (p_enemy.c:1731).
+pub(crate) const BOSS_TAG: i16 = 666;
+
 /// What an `EV_*` starter needs: the map, the current sector heights, the store and
 /// the event stream; under the Episode 1 policy also the staged runtime sector
 /// lights, specials and floor flats (written by 20, 22 and 35 and read by the
@@ -688,6 +691,32 @@ impl<M: MoverAccess + ?Sized> Starter<'_, M> {
             }
         }
         let targets: Vec<u16> = self.tagged(line)?.collect();
+        self.do_floor_in(targets, line, kind)
+    }
+    /// `A_BossDeath`'s `junk.tag = 666; EV_DoFloor (&junk, lowerFloorToLowest)`
+    /// (p_enemy.c:1729–1733) under wire 24 (M4b step 5): `junk` is an
+    /// uninitialised local `line_t` whose only field set is the tag, and
+    /// `EV_DoFloor` reads nothing else of it for this floor type
+    /// (`P_FindSectorFromLineTag`, p_spec.c:434–445; p_floor.c:299–305). So the
+    /// sectors are those tagged 666, in index order, and no line field is read;
+    /// the call record names line 65535 (no line). Sectors already holding a
+    /// mover are skipped (p_floor.c:277–278); each new floor is appended to the
+    /// shared order and so first moves in this tic. Refused outside wire 24.
+    pub(crate) fn boss_floor(&mut self) -> Result<bool, SimError> {
+        if self.world.map_number.is_none() {
+            return Err(crate::PursuitError::Specials.into());
+        }
+        let targets: Vec<u16> = mover_rules::tagged(self.world.map(), BOSS_TAG)
+            .map(|i| i as u16)
+            .collect();
+        self.do_floor_in(targets, u16::MAX, FloorKind::LowerFloorToLowest)
+    }
+    fn do_floor_in(
+        &mut self,
+        targets: Vec<u16>,
+        line: u16,
+        kind: FloorKind,
+    ) -> Result<bool, SimError> {
         let mut created = Vec::new();
         for sector in targets {
             if self.busy(sector) {

@@ -1832,7 +1832,7 @@ Risks and follow-ups from the two inventories (the hazards table in
 - **Not covered by Phase 1:** the real-map divergences (found in Phase 2), the performance record (measured alone on the idle machine in Phase 2,
   H12), and the continuous-episode and finale behavior (a later direction).
 
-**Status / next step (2026-11-10 PST).** Closing sequence: (1) model routing: done; **(2) independent review: done**, findings, fixes and dispositions in the [evidence record](validation/M4A.md#independent-review-2026-11-10) (one major simulation finding fixed, ten "equivalent" mutants reclassified as caught, one visit-bound mutant left unresolved, two items flagged for the owner); (3) roadmap performance entry: done; **(4) full gates from clean: done** on `e260d00`, every step passed ([record](validation/M4A.md#final-gates-from-clean); `/mnt/c` fell to 16 GB free during the run, below the 20 GB floor); (5) PR text written; **next: exact-head CI, then mark [PR #57](https://github.com/Copgunn/DOOM/pull/57) ready for owner review**; no merge. Exact CI and history stay in GitHub.
+**Status (2026-11-10 PST).** M4a is complete and merged into master as [PR #57](https://github.com/Copgunn/DOOM/pull/57) on 2026-11-10. The closing review, gates and dispositions are in the [evidence record](validation/M4A.md); exact CI and history stay in GitHub. Work continues in M4b.
 
 **Historical preparation commands (superseded by the completed 2026-11-09 campaign).**
 These describe the earlier unexecuted preparation, not remaining work; the completed

@@ -1,0 +1,27 @@
+# output: M5DIE3.lmp
+# M5DIE3: E1M5 death at hard skill (skill 3). The player walks to the nearest monsters without firing
+# and stands among them until it dies, idles 40 tics dead, then presses USE once: the run ends end=reborn (the next
+# G_Ticker would reload the level).
+# Authored iteratively against the genuine strict build (turns, durations and buttons only).
+map E1M5
+skill 3
+idle 1
+cmd 1 40 0 -5 0
+cmd 26 40 0 0 0
+cmd 1 40 0 1 0
+cmd 14 40 0 0 0
+cmd 1 40 0 -1 0
+cmd 10 40 0 0 0
+cmd 1 40 0 1 0
+cmd 1 40 0 126 0
+cmd 1 40 0 1 0
+idle 56
+cmd 1 40 0 27 0
+cmd 7 40 0 0 0
+idle 160
+cmd 1 40 0 55 0
+cmd 2 40 0 0 0
+cmd 1 40 0 -1 0
+cmd 4 40 0 0 0
+idle 141
+cmd 1 0 0 0 2

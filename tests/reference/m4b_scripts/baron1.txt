@@ -1,0 +1,54 @@
+# output: BARON1.lmp
+# BARON1 on tests/reference/m4b_wads/baron.wad (M4b). Authored closed loop against the strict genuine runner.
+# Picks up the launcher, rockets, blue armor and soulsphere; a Baron fireball hits the player, a strafe makes
+# the next one miss and hit the west wall, a walk up to the Baron draws a claw, then rockets from range cause
+# pain states and kill it.
+# format: tools/reference/m4b_scripts.py (tools/e1m1_scripts.py plus "skill N"); turn byte t = t*1.40625 degrees counter-clockwise; buttons 1 ATTACK
+map E1M1
+cmd 42 25 0 0 0   # walk east over the launcher, rockets, armor, soulsphere
+idle 296   # the first fireball hits the player
+cmd 8 0 40 0 0   # strafe south: the second fireball misses and hits the west wall
+idle 80   # the third fireball hits the player
+cmd 1 0 0 4 0
+cmd 5 30 0 0 0
+cmd 1 0 0 0 0
+cmd 5 30 0 0 0
+cmd 1 0 0 0 0
+cmd 5 30 0 0 0
+cmd 1 0 0 0 0
+cmd 5 30 0 0 0
+cmd 1 0 0 -1 0
+cmd 5 30 0 0 0
+cmd 1 0 0 -1 0
+cmd 5 30 0 0 0
+cmd 1 0 0 -2 0
+cmd 5 30 0 0 0
+cmd 1 0 0 0 0
+cmd 5 30 0 0 0
+cmd 1 0 0 0 0
+cmd 5 30 0 0 0
+cmd 1 0 0 0 0
+cmd 5 30 0 0 0
+cmd 1 0 0 1 0
+cmd 5 30 0 0 0
+idle 14   # the claw lands (melee branch)
+cmd 18 -40 0 0 0   # back away west
+cmd 1 0 0 0 0
+cmd 8 -40 0 0 0
+cmd 1 0 0 0 1   # aim at the Baron and fire
+idle 19
+cmd 1 0 0 0 1   # aim at the Baron and fire
+idle 19
+cmd 1 0 0 0 1   # aim at the Baron and fire
+idle 19
+cmd 1 0 0 -3 1   # aim at the Baron and fire
+idle 19
+cmd 1 0 0 3 1   # aim at the Baron and fire
+idle 19
+cmd 1 0 0 7 1   # aim at the Baron and fire
+idle 19
+cmd 1 0 0 4 1   # aim at the Baron and fire
+idle 19
+cmd 1 0 0 -5 1   # aim at the Baron and fire
+idle 19
+idle 60   # death sequence

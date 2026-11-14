@@ -1,0 +1,4 @@
+# output: M9CHAOS.lmp
+# M9CHAOS: E1M9 chaos, seed 20261114 (20261105 + 9), 5000 tics of the fixed-seed generator, skill 2.
+map E1M9
+seed 20261114 chaos 5000

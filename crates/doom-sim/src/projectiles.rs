@@ -552,16 +552,36 @@ pub(crate) fn launch_fireball<A: lifecycle::ActorAccess>(
     source: ActorId,
     dest: ActorId,
 ) -> Result<(), SimError> {
+    launch_missile(h, source, dest, FIREBALL)
+}
+/// `P_SpawnMissile (source, dest, ty)` (p_mobj.c:889–927) for a monster's
+/// missile type: the Imp's `MT_TROOPSHOT` ([`launch_fireball`]) or, under wire 24,
+/// the Baron's `MT_BRUISERSHOT` (`A_BruisAttack`, p_enemy.c:995). The algorithm
+/// reads only the type's info record (speed, seesound, spawn state), so the two
+/// differ only in those values (M4b note §3 fact 7). The live bound counts the
+/// launched type; under wire 23 and 24 it is the store itself (decision D10).
+pub(crate) fn launch_missile<A: lifecycle::ActorAccess>(
+    h: &mut LifeHost<'_, A>,
+    source: ActorId,
+    dest: ActorId,
+    ty: ActorTypeId,
+) -> Result<(), SimError> {
+    if ty != FIREBALL
+        && !(original_registry::is_bruiser_shot(ty)
+            && h.player.as_deref().is_some_and(|p| p.policy.has_baron()))
+    {
+        return Err(ProjectileError::UnsupportedType.into());
+    }
     let bound = h.player.as_deref().map_or(MAX_LIVE_PROJECTILES, |p| {
         crate::player_map_scale::live_projectile_bound(p.policy)
     });
-    if h.access.live_of_type(FIREBALL) >= bound {
+    if h.access.live_of_type(ty) >= bound {
         return Err(ProjectileError::WorkLimit.into());
     }
     h.access.reserve(1)?;
     let from = *h.access.get(source).ok_or(ProjectileError::Reference)?;
     let to = *h.access.get(dest).ok_or(ProjectileError::Reference)?;
-    let speed = Fixed::from_bits(h.definition(FIREBALL).speed());
+    let speed = Fixed::from_bits(h.definition(ty).speed());
     let (angle, momz, shadow) = actor_aim(&from, &to, speed);
     // Rust-only launch witness: 64 in the flat policies, the derived 1,024 under
     // heights, where the chord to a target up to 968 units away in z is legal.
@@ -575,12 +595,12 @@ pub(crate) fn launch_fireball<A: lifecycle::ActorAccess>(
     h.emit(Event::Projectile(ProjectileEvent::Launch(
         ProjectileRequest {
             source,
-            actor_type: FIREBALL,
+            actor_type: ty,
             aim: ProjectileAim::Actor(dest),
         },
     )));
     let id = h.spawn(
-        FIREBALL,
+        ty,
         from.position(),
         SpawnHeight::Absolute(from.z + Fixed::from_map_units(MISSILE_SPAWN_HEIGHT)),
     );
@@ -756,10 +776,13 @@ impl Simulation {
             if ![15, 17, 136].contains(&i) {
                 return Err(ProjectileError::Definition.into());
             }
-            for j in 0..23 {
-                if ![0, 2, 5, 8, 16, 17, 18, 21].contains(&j)
-                    && t.properties[j] != source.types()[0].properties[j]
-                {
+            for (j, (value, base)) in t
+                .properties
+                .iter()
+                .zip(source.types()[0].properties.iter())
+                .enumerate()
+            {
+                if ![0, 2, 5, 8, 16, 17, 18, 21].contains(&j) && value != base {
                     return Err(ProjectileError::Definition.into());
                 }
             }
@@ -1040,7 +1063,9 @@ impl Simulation {
                                     Event::ActorMovement { actor: id, attempt }
                                 }
                                 movement::MotionEvent::Cross(_)
-                                | movement::MotionEvent::SpecialCross => unreachable!(
+                                | movement::MotionEvent::SpecialCross
+                                | movement::MotionEvent::Outer(_)
+                                | movement::MotionEvent::Stage { .. } => unreachable!(
                                     "the historical projectile policy has no line specials"
                                 ),
                             });

@@ -371,3 +371,10 @@ path = "fuzz_targets/player_episode1.rs"
 test = false
 doc = false
 bench = false
+
+[[bin]]
+name = "player_episode1_v2"
+path = "fuzz_targets/player_episode1_v2.rs"
+test = false
+doc = false
+bench = false

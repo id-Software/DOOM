@@ -1,4 +1,4 @@
-# Canonical diagnostic state format: DSIM versions 1–39
+# Canonical diagnostic state format: DSIM versions 1–40
 
 This is a diagnostic/replay comparison format for explicit simulation profiles,
 not a DOOM savegame or network/demo format. A field schema change requires an
@@ -30,7 +30,7 @@ capture and encoding retain every historical byte and interpretation, including
 v20/v21. No format version or field changes accompany this API split. See the
 [stepping contract](COMPATIBILITY.md#stepping-and-diagnostics).
 
-Header: ASCII `DSIM`, u32 schema version (`1` for M2, `2` for M3a, `3` for M3b, `4` for M3c, `5` for M3d1, `6` for M3d2, `7` for M3d2b, `8` for M3d3a, `9` for M3d3b, `10` for M3d3c, `11` for M3d3d, `12` for M3d3e, `13` for M3d3f, `14` for M3d3g, `15` for M3d3h, `16` for M3d3i, `17` for M3d3j, `18` for M3f1, `19` for M3f2, `20` for M3f3, `21` for the original-ID profile; `22` to `36` are the policy
+Header: ASCII `DSIM`, u32 schema version (`1` for M2, `2` for M3a, `3` for M3b, `4` for M3c, `5` for M3d1, `6` for M3d2, `7` for M3d2b, `8` for M3d3a, `9` for M3d3b, `10` for M3d3c, `11` for M3d3d, `12` for M3d3e, `13` for M3d3f, `14` for M3d3g, `15` for M3d3h, `16` for M3d3i, `17` for M3d3j, `18` for M3f1, `19` for M3f2, `20` for M3f3, `21` for the original-ID profile; `22` to `40` are the policy
 sections below, each naming the policy and context its version selects),
 u64 field count. Each ordered field is
 u32 path-byte length, UTF-8 path bytes, u64 value-byte length, then value bytes.
@@ -2170,3 +2170,225 @@ both sides; the events remain canonical in the Rust capture.
 The v39 reader applies every DSIM38 check (with `store.max_slots` 1024 in place of 384) and
 the domains above. Reader limitations as for v38: it does not re-run the load rules or
 replay the engine, so it cannot check a floor's destination or a power's history.
+
+## DSIM v40 — Episode 1, part 2: teleporters, the Baron of Hell, `A_BossDeath` and hard skill
+
+`PlayerMonstersEpisode1V2` captures are version 40. Version 40 selects policy 24
+(`PlayerMonstersEpisode1V2`, wire 24; [M4b decision I2](M4B_REFERENCE_INVESTIGATION.md#5-owner-decisions-i1i13-with-recommendations)),
+the unchanged original registry schema, layout selector 17 (as versions 20–39) and context
+`PLAYER-MONSTERS-EPISODE1-2-v1`. The context carries no skill word because the skill is a field.
+**Frozen-reader rule:** every earlier version-specific reader, the v39 reader included, keeps
+its historical contract and rejects 40; the v40 reader reads 40 only. V20–39 bytes, encoders,
+fixtures and policy/context meanings are unchanged.
+
+The Rust writer is checked against the independent Python projection of the genuine engine's
+per-tic dump (`tools/reference/level_snapshot_m4b.py`, profile `episode1v2`) and its committed
+goldens (`tools/reference/m4b_snapshot_goldens.py`; commands in
+[TESTING](TESTING.md#m4b-synthetic-mechanism-wads)). The text below is the contract between
+the two. Expected bytes come from the C dumps through that projection, never from Rust.
+
+### Layout: DSIM39 plus one field
+
+V40 is the DSIM39 layout and event vocabulary with the following differences, and no others.
+Every DSIM39 field keeps its path, width, position, source and meaning.
+
+| Position | Field | Value encoding | Why |
+| --- | --- | --- | --- |
+| header | version word | u32 `40` | selects the policy |
+| `profile` (same place) | same field | u32 `24` | wire 24 |
+| `context.schema` (same place) | same field | the 29 bytes `PLAYER-MONSTERS-EPISODE1-2-v1` | names the policy, with no skill word |
+| `actors.options` (same place) | same 3 bytes | `[skill, 0, 0]`; `skill` is now 2 (medium) **or 3 (hard)** | decision I4: the constructor takes the skill; it is `gameskill` |
+| right after `level.secret_exit` | **`level.map`** (new) | u8, 1–9 | the map number of the Episode 1 slot (`gamemap`). `A_BossDeath` (p_enemy.c:1629–1634) and `PIT_StompThing` (p_map.c:102) test it, so it is canonical state. The constructor takes it (decision I2); it is constant for a run |
+
+The episode is not encoded. The policy admits episode 1 only, so `gameepisode` is 1 by
+construction. The independent projection reads `level.map` and the skill from bytes 3 and 1 of
+the demo header, which `G_DoPlayDemo` hands to `G_InitNew`. The skill must equal the dump's
+`gameskill`. The genuine driver has no `gamemap` column; nothing else reads it.
+
+**Compatibility rule.** A state that wire 23 can reach is encoded by v40 exactly as by v39,
+except in the four places above: the version word, `profile`, `context.schema` and the
+inserted `level.map`. (`actors.options` is unchanged at skill 2.) The projection checks this
+rule on every snapshot it projects with both profiles
+([evidence](validation/M4B.md#independent-projection)).
+
+**No new per-actor or per-player field.** Teleport, telefrag, the Baron and `A_BossDeath` change
+only values that DSIM39 already carries:
+
+- `x`, `y`, `z`, `floor`, `ceiling`, `angle` and the momenta;
+- `reaction_time`, `health`, `state`, `tics`, `flags` and `target`;
+- the store, `thinker.order`, `thinker.shared_order` and `spatial.link_order`;
+- the sector heights and the sector-thinker records;
+- `rng.gameplay`, the level totals and the kill count.
+
+`tracer` stays unencoded and must be NULL: no admitted action writes it. `player->viewz` is not
+encoded. The teleport writes it (p_telept.c:107–108), but it is presentation: `P_CalcHeight`
+recomputes it every tic, and no gameplay code reads it.
+
+### New actor types and states
+
+Numbers are `mobjtype_t` and `statenum_t` ordinals (info.h), as in every original-ID capture.
+
+| Type | Doomednum | States allowed in `type`/`state` (the normal closure) | Notes |
+| --- | --- | --- | --- |
+| `MT_BRUISER` (15), Baron of Hell | 3003 | `S_BOSS_STND` (527) … `S_BOSS_DIE7` (548) | health 1,000, mass 1,000, radius 24, height 64; no xdeath. `S_BOSS_RAISE1`–`7` (549–555) are not allowed |
+| `MT_BRUISERSHOT` (16), Baron fireball | — | `S_BRBALL1` (522) … `S_BRBALLX3` (526) | an ordinary missile actor, like the Imp fireball (type 31); damage 8 |
+| `MT_TFOG` (39), teleport fog | — | `S_TFOG` (130) … `S_TFOG10` (141) | NOGRAVITY\|NOBLOCKMAP; removed at the end of its chain (`S_NULL`), like a puff |
+| `MT_TELEPORTMAN` (41), teleport landing | 14 | `state` **0** only | see below |
+
+The normal closure of a type is every state reached through `nextstate` from its info.c
+`spawnstate`, `seestate`, `painstate`, `meleestate`, `missilestate`, `deathstate` and
+`xdeathstate`. `raisestate` is excluded because Episode 1 has no Archvile. Every type wire 23
+admits keeps its own closure, plus two extras:
+
+- the player's `S_PLAY_ATK2`, which p_pspr.c sets by name;
+- `S_GIBS` for any corpse that a moving sector crushes.
+
+A record pending removal may also hold the removal sentinel 65535.
+
+**The landing (`MT_TELEPORTMAN`).** Its spawn state is `S_NULL`. A live landing is encoded with:
+
+- `state` **0**: the index of `S_NULL`, which is not the removal sentinel 65535;
+- `tics` −1, `sprite` 0, `frame` 0 and `health` 1,000;
+- flags 24 (NOBLOCKMAP|NOSECTOR) and zero momentum.
+
+It never thinks, moves or is removed. It occupies a slot and appears in `thinker.order` and
+`thinker.shared_order` like any actor. It also appears in `spatial.link_order`, because
+`P_SpawnMobj` ran `P_SetThingPosition` for it. It is in no `sector.N.actors` list, because of
+NOSECTOR. Its `.sector` is its subsector's sector, as for every actor. Landings spawn on skill 2
+and skill 3 alike, subject only to the THING option bits.
+
+### What the new behaviour writes into existing fields
+
+**Teleport** (line special 97, `EV_Teleport`, p_telept.c:47–131; the M4b note §2 T1–T7). When a
+crossing teleports a thing:
+
+- `x` and `y` take the landing's position. `floor` and `ceiling` come from `P_TeleportMove`
+  (p_map.c:115–177), and `z` is the new `floor`.
+- `angle` takes the landing's angle, and `momx`, `momy` and `momz` become 0.
+- The thing is relinked, so it moves to the front of `spatial.link_order`.
+- Two `MT_TFOG` actors are then spawned, in this order:
+  1. at the thing's old x, y and z;
+  2. 20 units from the landing along the landing's angle, at the new z.
+
+  Each spawn draws once for `lastlook`, so `rng.gameplay` advances by 2. Both fogs take the
+  lowest free slots and come after the relinked thing in `spatial.link_order`.
+- A player's body gets `reaction_time` 18. `P_PlayerThink` counts it down by one per tic
+  (p_user.c:267–268) and skips `P_MovePlayer` while it is nonzero. The `player.0.*` command
+  fields still hold the command that was received. A non-player's `reaction_time` is not changed.
+- A teleport that fails changes nothing. It fails on a crossing from the back side, when no
+  sector with the line's tag holds a landing, or when `P_TeleportMove` refuses.
+
+The teleport runs inside the move, as in `P_TryMove`. A split move or a slide continues from
+the landing (decision I7).
+
+**Telefrag** (`PIT_StompThing`, p_map.c:81–106; decision I8). Only a player stomps: on maps 1–9
+a non-player's teleport fails when any shootable thing overlaps the landing (p_map.c:102). Each
+overlapping shootable thing is hit by `P_DamageMobj(thing, player, player, 10000)`:
+
+- Its `health` drops by 10,000, so a telefragged monster's health lies between −9,999 and its
+  spawn health minus 10,000 (−9,000 for a Baron). It dies through the ordinary `P_KillMobj`, which takes its usual
+  draws.
+- Its momentum gains the knockback, unless the player's ready weapon is the chainsaw
+  (p_inter.c:806–810). The thrust is the **wrapped** 32-bit value of the source expression
+  `damage*(FRACUNIT>>3)*100/mass` (p_inter.c:817; decision I3): the product 8,192,000,000 wraps
+  to −397,934,592 and is then divided by the mass, truncating toward zero:
+
+  | Mass | Thrust |
+  | --- | --- |
+  | 100 | −3,979,345 |
+  | 400 | −994,836 |
+  | 1,000 | −397,934 |
+
+  It is applied with `FixedMul` along the angle from the player's position before the teleport
+  to the victim, so the corpse is pushed toward that position. The "fall forwards" branch never
+  applies, because the damage is not below 40.
+- `level.single_player_kill_count` counts the kill as usual.
+
+**The Baron.** `A_BruisAttack` (p_enemy.c:979–996) either claws or fires:
+
+- In melee range it claws: `(P_Random()%8+1)*10` damage through `P_DamageMobj`, with no actor
+  spawned.
+- Otherwise it fires an `MT_BRUISERSHOT` through the shared `P_SpawnMissile`, with the same
+  record shape as an Imp fireball (`target` is the Baron).
+
+Pain (`S_BOSS_PAIN`, painchance 50), infighting and death follow the shared services. A Baron's
+fireball that hits another Baron explodes without damage (the same-species rule, p_map.c:299–313);
+the Hell Knight half of that rule does not arise, because the Knight is not admitted.
+
+**`A_BossDeath`** (p_enemy.c:1609–1757; decision I9) runs when a Baron enters `S_BOSS_DIE7`.
+That state has `tics` −1, so the action runs on entry. It acts only when all of these hold:
+
+- `level.map` is 8;
+- the player is alive (`original_player.0.health` > 0);
+- no other `MT_BRUISER` in the thinker list has `health` > 0.
+
+It then calls `EV_DoFloor(lowerFloorToLowest)` on every sector tagged 666. Each floor started is
+an existing kind-7 record (`type` 1, `direction` −1, `speed` 65536). It is appended to the
+shared order and steps once in the same tic. A sector that already has a mover starts nothing.
+In every other case the action returns and changes nothing. On episode 1, `G_ExitLevel` is never
+reached from here. E1M8 ends through sector special 11, as in wire 23, and every tic after the
+exit tic is refused with `LevelExited`.
+
+**Hard skill.** Under skill 3 the THING filter tests option bit 4 instead of bit 2
+(p_mobj.c:743–751). That is the only single-player difference (M4b note §3 part C).
+`level.total_kills` and `level.total_items` count what spawned.
+
+### Events
+
+Every DSIM39 tag keeps its layout. Mover tag 26 gains three sub-tags, admitted by the v40
+reader only:
+
+| Sub-tag | Meaning | Payload after tag and sub-tag | Position |
+| --- | --- | --- | --- |
+| 15 | Teleported (`EV_Teleport` returned 1) | thing actor ID, u16 line, landing actor ID, i32 old x, i32 old y, i32 old z (16.16) | after the records of what the teleport caused (the stomp's combat records, then the two fog spawn records, tag 1, each followed by the fog's state-initialisation record and its `sfx_telept` sound record), and before the sub-tag 3 record of the same crossing |
+| 16 | Teleport not taken (`EV_Teleport` returned 0) | thing actor ID, u16 line, u8 reason: 0 crossed from the back side, 1 no landing in any sector with the line's tag, 2 `P_TeleportMove` refused (a non-player met a shootable thing) | the same position |
+| 17 | `A_BossDeath` ran | Baron actor ID, u8 outcome: 0 `level.map` is not 8, 1 no live player, 2 another Baron alive, 3 the tag-666 floor call was made | where the action runs, in the `S_BOSS_DIE7` state entry. Outcome 3 comes after the call's sub-tag 5 records and its sub-tag 6 record. That record has function 4 (`EV_DoFloor`), line 65535 (no line: the source passes a local line whose only field set is tag 666), argument 1 (`lowerFloorToLowest`), the call's result and the number of movers created |
+
+Notes on the events:
+
+- Missiles never reach sub-tags 15 or 16. `P_CrossSpecialLine` returns before the special for
+  every Episode 1 missile type.
+- `A_BossDeath`'s type test cannot fail for an admitted actor, because only the Baron's
+  `S_BOSS_DIE7` names it.
+- A telefrag uses the existing combat records (tag 13): damage (sub-tag 2) with amount 10,000,
+  inflictor and source the teleporting player; knockback (sub-tag 4) with the wrapped thrust
+  above; health, kill and death-timer records as for any kill. Like the v39 reader, the v40
+  reader does not check combat record amounts; it bounds the result, each actor's `health`
+  being at least −9,999.
+- The Baron's attacks use the existing combat and projectile records (tags 13 and 15) with
+  `MT_BRUISERSHOT` (16) wherever the v39 forms name `MT_TROOPSHOT` (31).
+
+The projection strips the event stream on both sides; the events remain canonical in the Rust
+capture.
+
+### What the v40 reader checks
+
+The v40 reader applies every v39 check, with these changes:
+
+- version 40, `profile` 24 and the v40 context;
+- `level.map` is 1–9;
+- `actors.options` is `[2, 0, 0]` or `[3, 0, 0]`;
+- every actor's `type`/`state` lies in the closures above. `MT_TELEPORTMAN` must be in state 0
+  with `tics` −1 and is never pending;
+- every actor's `health` is at least −9,999 (one telefrag of a live thing; the player is never
+  stomped, so this bounds it too);
+- the tag-26 sub-tags 15–17 and the widened damage form are admitted.
+
+**Admission so far (M4b step 6).** The v40 reader admits the `MT_TFOG`, `MT_TELEPORTMAN`,
+`MT_BRUISER` and `MT_BRUISERSHOT` closures (the Baron's raise states refused), sub-tags 15, 16
+and 17, the sub-tag 6 record of `A_BossDeath`'s floor call (function 4, line 65535, argument 1),
+`MT_BRUISERSHOT` in the projectile launch record and the sky removal, and the telefrag's health
+domain, and, since step 6, `actors.options[0]` 2 or 3 (any other value is refused with `Identity`;
+the DSIM36-39 readers admit 2 only; M4b note §7, finding 10, closed).
+
+The per-map bounds, and the placed totals (`level.total_kills`, `level.total_items`) the reader
+re-derives, come from `map.things` with the skill bit of `actors.options[0]` (2 for skill 2, 4 for
+skill 3, p_mobj.c:743-751), after the single-player filter, so a frame whose skill byte
+disagrees with its totals is refused. Doomednum 3003 counts as a monster
+that drops nothing, and doomednum 14 as a landing. The bound formulas and the store-full witness
+are wire 24's and are documented in
+[COMPATIBILITY](COMPATIBILITY.md) with the policy.
+
+Reader limitations, as for v39: the reader does not re-run the load rules or replay the engine.
+So it cannot tell whether a teleport, a stomp or an `A_BossDeath` outcome matches the map. Those
+are replay and C-comparison facts, not per-capture invariants.

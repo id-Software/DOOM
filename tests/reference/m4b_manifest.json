@@ -1,0 +1,859 @@
+{
+ "schema": "DOOM-M4B-MANIFEST-v1",
+ "wads": [
+  {
+   "name": "TELE",
+   "file": "tests/reference/m4b_wads/tele.wad",
+   "slot": "E1M1",
+   "episode": 1,
+   "map": 1,
+   "sha256": "73c6a8b35e112bac0c4dd0151f94a2803c4a7b671127e6a0462927411b447f20",
+   "bytes": 48862,
+   "sectors": 7,
+   "lines": 28,
+   "things": {
+    "2": {
+     "1": 1,
+     "14": 4,
+     "2014": 1
+    },
+    "3": {
+     "1": 1,
+     "14": 4,
+     "2014": 1
+    }
+   },
+   "scripts": [
+    {
+     "lump": "TELE1",
+     "source": "tests/reference/m4b_scripts/tele1.txt",
+     "lmp": "tests/reference/m4b_scripts/TELE1.lmp",
+     "c_end": "marker",
+     "end_tic": 173,
+     "rust": "tbd",
+     "must_show": [
+      {
+       "what": "back-side crossing (player west of the line, no fog)",
+       "event": "first M type=MT_PLAYER x<0",
+       "tic": 34
+      },
+      {
+       "what": "teleported: landing, angle 90, reactiontime 18, momentum 0",
+       "event": "first M type=MT_PLAYER x=1152u y=0 angle=1073741824 reactiontime=18 momx=0 momy=0",
+       "tic": 88
+      },
+      {
+       "what": "fog 1 at the crossing point",
+       "event": "first M type=MT_TFOG x<100u",
+       "tic": 88
+      },
+      {
+       "what": "fog 2 offset from the landing",
+       "event": "first M type=MT_TFOG x>1100u",
+       "tic": 88
+      },
+      {
+       "what": "freeze over: the player moves again",
+       "event": "first M type=MT_PLAYER x>1000u y>0",
+       "tic": 107
+      },
+      {
+       "what": "health bonus on the landing picked up",
+       "event": "first P idx=0 itemcount=1",
+       "tic": 107
+      },
+      {
+       "what": "both fogs removed",
+       "event": "gone M type=MT_TFOG",
+       "tic": 159
+      }
+     ]
+    },
+    {
+     "lump": "TELE2",
+     "source": "tests/reference/m4b_scripts/tele2.txt",
+     "lmp": "tests/reference/m4b_scripts/TELE2.lmp",
+     "c_end": "marker",
+     "end_tic": 61,
+     "rust": "tbd",
+     "must_show": [
+      {
+       "what": "lands on the first T2B landing (angle 0)",
+       "event": "first M type=MT_PLAYER x=1600u y=640u angle=0 reactiontime=18",
+       "tic": 25
+      },
+      {
+       "what": "never on the second T2B landing",
+       "event": "first M type=MT_PLAYER x=1728u y=640u",
+       "tic": null
+      },
+      {
+       "what": "never on the T2C landing",
+       "event": "first M type=MT_PLAYER x=2176u y=640u",
+       "tic": null
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "name": "TELEMOVE",
+   "file": "tests/reference/m4b_wads/telemove.wad",
+   "slot": "E1M1",
+   "episode": 1,
+   "map": 1,
+   "sha256": "457a19c00d29419d1348b2d1e2d20369d88a7d43a0782760238503cf0e7a0387",
+   "bytes": 47813,
+   "sectors": 5,
+   "lines": 18,
+   "things": {
+    "2": {
+     "1": 1,
+     "14": 2,
+     "2014": 2
+    },
+    "3": {
+     "1": 1,
+     "14": 2,
+     "2014": 2
+    }
+   },
+   "scripts": [
+    {
+     "lump": "TSPLIT",
+     "source": "tests/reference/m4b_scripts/tsplit.txt",
+     "lmp": "tests/reference/m4b_scripts/TSPLIT.lmp",
+     "c_end": "marker",
+     "end_tic": 65,
+     "rust": "tbd",
+     "must_show": [
+      {
+       "what": "teleported in the first half: landing x plus the second half, momentum 0",
+       "event": "first M type=MT_PLAYER x>1160u x<1168u y<-200u reactiontime=18 momx=0 momy=0",
+       "tic": 36
+      },
+      {
+       "what": "health bonus picked up by the second half",
+       "event": "first P idx=0 itemcount=1",
+       "tic": 36
+      }
+     ]
+    },
+    {
+     "lump": "TSLIDE",
+     "source": "tests/reference/m4b_scripts/tslide.txt",
+     "lmp": "tests/reference/m4b_scripts/TSLIDE.lmp",
+     "c_end": "marker",
+     "end_tic": 170,
+     "rust": "tbd",
+     "must_show": [
+      {
+       "what": "teleported from inside the slide",
+       "event": "first M type=MT_PLAYER x=1152u y=256u reactiontime=18",
+       "tic": 110
+      },
+      {
+       "what": "health bonus picked up by the zero-length try at the landing",
+       "event": "first P idx=0 itemcount=1",
+       "tic": 110
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "name": "TFRAG",
+   "file": "tests/reference/m4b_wads/tfrag.wad",
+   "slot": "E1M1",
+   "episode": 1,
+   "map": 1,
+   "sha256": "836caf9f348bb3ef40d99cdd9b958def3d55aa3ed3c2c7e627daed30231cd4a3",
+   "bytes": 48892,
+   "sectors": 7,
+   "lines": 29,
+   "things": {
+    "2": {
+     "1": 1,
+     "14": 3,
+     "3002": 1,
+     "3003": 1,
+     "3004": 1
+    },
+    "3": {
+     "1": 1,
+     "14": 3,
+     "3002": 1,
+     "3003": 1,
+     "3004": 1
+    }
+   },
+   "scripts": [
+    {
+     "lump": "TFRAG1",
+     "source": "tests/reference/m4b_scripts/tfrag1.txt",
+     "lmp": "tests/reference/m4b_scripts/TFRAG1.lmp",
+     "c_end": "marker",
+     "end_tic": 282,
+     "rust": "tbd",
+     "must_show": [
+      {
+       "what": "zombieman telefragged (gibbed)",
+       "event": "first M type=MT_POSSESSED state=S_POSS_XDIE1",
+       "tic": 63
+      },
+      {
+       "what": "clip dropped",
+       "event": "first M type=MT_CLIP",
+       "tic": 63
+      },
+      {
+       "what": "Demon telefragged",
+       "event": "first M type=MT_SERGEANT state=S_SARG_DIE1",
+       "tic": 139
+      },
+      {
+       "what": "Baron telefragged",
+       "event": "first M type=MT_BRUISER state=S_BOSS_DIE1",
+       "tic": 223
+      },
+      {
+       "what": "Baron reaches DIE7 on E1M1",
+       "event": "first M type=MT_BRUISER state=S_BOSS_DIE7",
+       "tic": 271
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "name": "MONTELE",
+   "file": "tests/reference/m4b_wads/montele.wad",
+   "slot": "E1M1",
+   "episode": 1,
+   "map": 1,
+   "sha256": "6970d19b6f655d2ab82eff929e7669e2c546df612a75e069072d011b6fdd06f4",
+   "bytes": 47689,
+   "sectors": 5,
+   "lines": 18,
+   "things": {
+    "2": {
+     "1": 1,
+     "14": 2,
+     "2035": 1,
+     "3002": 2
+    },
+    "3": {
+     "1": 1,
+     "14": 2,
+     "2035": 1,
+     "3002": 2
+    }
+   },
+   "scripts": [
+    {
+     "lump": "MTELE1",
+     "source": "tests/reference/m4b_scripts/mtele1.txt",
+     "lmp": "tests/reference/m4b_scripts/MTELE1.lmp",
+     "c_end": "marker",
+     "end_tic": 160,
+     "rust": "tbd",
+     "must_show": [
+      {
+       "what": "west Demon teleported to the free landing",
+       "event": "first M type=MT_SERGEANT sp_x=-640 x>1200u",
+       "tic": 86
+      },
+      {
+       "what": "east Demon crosses its line without teleporting",
+       "event": "first M type=MT_SERGEANT sp_x=640 x<256u",
+       "tic": 117
+      },
+      {
+       "what": "east Demon never reaches the blocked landing",
+       "event": "first M type=MT_SERGEANT sp_x=640 x>1200u",
+       "tic": null
+      },
+      {
+       "what": "one fog pair only",
+       "event": "edge 2 M type=MT_TFOG",
+       "tic": null
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "name": "SLIDEB",
+   "file": "tests/reference/m4b_wads/slideb.wad",
+   "slot": "E1M1",
+   "episode": 1,
+   "map": 1,
+   "sha256": "435cd25fe9f97d72b8dc61d0cf22966a52ec6513e60492f1203a1d11207409b4",
+   "bytes": 46809,
+   "sectors": 3,
+   "lines": 11,
+   "things": {
+    "2": {
+     "1": 1,
+     "14": 1,
+     "2035": 2
+    },
+    "3": {
+     "1": 1,
+     "14": 1,
+     "2035": 2
+    }
+   },
+   "scripts": [
+    {
+     "lump": "SLIDEB",
+     "source": "tests/reference/m4b_scripts/slideb.txt",
+     "lmp": "tests/reference/m4b_scripts/SLIDEB.lmp",
+     "c_end": "marker",
+     "end_tic": 100,
+     "rust": "tbd",
+     "must_show": [
+      {
+       "what": "west barrel explodes",
+       "event": "first M type=MT_BARREL sp_x=-156 health<=0",
+       "tic": 32
+      },
+      {
+       "what": "east barrel wounded by the splash",
+       "event": "first M type=MT_BARREL sp_x=-8 health<20",
+       "tic": 44
+      },
+      {
+       "what": "east barrel teleported alive",
+       "event": "first M type=MT_BARREL sp_x=-8 x=1152u health>0",
+       "tic": 49
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "name": "SLIDEC",
+   "file": "tests/reference/m4b_wads/slidec.wad",
+   "slot": "E1M1",
+   "episode": 1,
+   "map": 1,
+   "sha256": "656bbc13e38f05adf0cada3f9f1c2f5cd829a82b461563d0793a15237d580eca",
+   "bytes": 46809,
+   "sectors": 3,
+   "lines": 11,
+   "things": {
+    "2": {
+     "1": 1,
+     "14": 1,
+     "2001": 1,
+     "3004": 1
+    },
+    "3": {
+     "1": 1,
+     "14": 1,
+     "2001": 1,
+     "3004": 1
+    }
+   },
+   "scripts": [
+    {
+     "lump": "SLIDEC",
+     "source": "tests/reference/m4b_scripts/slidec.txt",
+     "lmp": "tests/reference/m4b_scripts/SLIDEC.lmp",
+     "c_end": "marker",
+     "end_tic": 123,
+     "rust": "tbd",
+     "must_show": [
+      {
+       "what": "zombieman killed by one shotgun blast",
+       "event": "first M type=MT_POSSESSED health<=0",
+       "tic": 66
+      },
+      {
+       "what": "corpse teleported",
+       "event": "first M type=MT_POSSESSED x=1152u",
+       "tic": 73
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "name": "BARON",
+   "file": "tests/reference/m4b_wads/baron.wad",
+   "slot": "E1M1",
+   "episode": 1,
+   "map": 1,
+   "sha256": "54afdbc9be494c01bdb5c63ed8b39d2a85ce2d18a806c47ce3966c83d3704faa",
+   "bytes": 46080,
+   "sectors": 1,
+   "lines": 4,
+   "things": {
+    "2": {
+     "1": 1,
+     "2003": 1,
+     "2013": 1,
+     "2019": 1,
+     "2046": 3,
+     "3003": 1
+    },
+    "3": {
+     "1": 1,
+     "2003": 1,
+     "2013": 1,
+     "2019": 1,
+     "2046": 3,
+     "3003": 1
+    }
+   },
+   "scripts": [
+    {
+     "lump": "BARON1",
+     "source": "tests/reference/m4b_scripts/baron1.txt",
+     "lmp": "tests/reference/m4b_scripts/BARON1.lmp",
+     "c_end": "marker",
+     "end_tic": 753,
+     "rust": "tbd",
+     "must_show": [
+      {
+       "what": "first fireball hits the player (armor and health drop)",
+       "event": "first P idx=0 health<200 armorpoints<200 armorpoints>0",
+       "tic": 119
+      },
+      {
+       "what": "a fireball explodes on the west wall",
+       "event": "first M type=MT_BRUISERSHOT x<-740u state=S_BRBALLX1",
+       "tic": 380
+      },
+      {
+       "what": "Baron pain",
+       "event": "first M type=MT_BRUISER state=S_BOSS_PAIN",
+       "tic": 552
+      },
+      {
+       "what": "Baron dies",
+       "event": "first M type=MT_BRUISER state=S_BOSS_DIE1",
+       "tic": 688
+      },
+      {
+       "what": "Baron reaches DIE7",
+       "event": "first M type=MT_BRUISER state=S_BOSS_DIE7",
+       "tic": 736
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "name": "INFIGHT",
+   "file": "tests/reference/m4b_wads/infight.wad",
+   "slot": "E1M1",
+   "episode": 1,
+   "map": 1,
+   "sha256": "7449b20f32f69e0a62daf2ba05fc6c263513aca2b50d7328628ff147717d362b",
+   "bytes": 46158,
+   "sectors": 1,
+   "lines": 4,
+   "things": {
+    "2": {
+     "1": 1,
+     "58": 1,
+     "2013": 1,
+     "2019": 1,
+     "3003": 1
+    },
+    "3": {
+     "1": 1,
+     "58": 1,
+     "2013": 1,
+     "2019": 1,
+     "3003": 1
+    }
+   },
+   "scripts": [
+    {
+     "lump": "BINF1",
+     "source": "tests/reference/m4b_scripts/binf1.txt",
+     "lmp": "tests/reference/m4b_scripts/BINF1.lmp",
+     "c_end": "marker",
+     "end_tic": 300,
+     "rust": "tbd",
+     "must_show": [
+      {
+       "what": "Baron fireball hits the Spectre",
+       "event": "first M type=MT_SHADOWS health<150",
+       "tic": 81
+      },
+      {
+       "what": "Spectre bites the Baron",
+       "event": "first M type=MT_BRUISER health<1000",
+       "tic": 197
+      },
+      {
+       "what": "Spectre dies",
+       "event": "first M type=MT_SHADOWS health<=0",
+       "tic": 246
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "name": "BVB",
+   "file": "tests/reference/m4b_wads/bvb.wad",
+   "slot": "E1M1",
+   "episode": 1,
+   "map": 1,
+   "sha256": "6002a21e582bc65f56c9be249b91468f10c6e070f7920bee2d2490f888162eee",
+   "bytes": 47453,
+   "sectors": 3,
+   "lines": 12,
+   "things": {
+    "2": {
+     "1": 1,
+     "2013": 1,
+     "2019": 1,
+     "2035": 1,
+     "3003": 2
+    },
+    "3": {
+     "1": 1,
+     "2013": 1,
+     "2019": 1,
+     "2035": 1,
+     "3003": 2
+    }
+   },
+   "scripts": [
+    {
+     "lump": "BVB1",
+     "source": "tests/reference/m4b_scripts/bvb1.txt",
+     "lmp": "tests/reference/m4b_scripts/BVB1.lmp",
+     "c_end": "marker",
+     "end_tic": 735,
+     "rust": "tbd",
+     "must_show": [
+      {
+       "what": "barrel wounded by the ledge Baron",
+       "event": "first M type=MT_BARREL health<20 health>0",
+       "tic": 227
+      },
+      {
+       "what": "barrel explodes",
+       "event": "first M type=MT_BARREL health<=0",
+       "tic": 264
+      },
+      {
+       "what": "sleeping Baron wounded by the splash",
+       "event": "first M type=MT_BRUISER sp_y=112 health<1000",
+       "tic": 278
+      },
+      {
+       "what": "ledge Baron wounded by the other",
+       "event": "first M type=MT_BRUISER sp_y=0 health<1000",
+       "tic": 605
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "name": "BOSS8",
+   "file": "tests/reference/m4b_wads/boss8.wad",
+   "slot": "E1M8",
+   "episode": 1,
+   "map": 8,
+   "sha256": "0d89bc70838b14ccf664047d58cd9c082aec4384c46304d2d869dcbbb6e3a90c",
+   "bytes": 50744,
+   "sectors": 10,
+   "lines": 43,
+   "things": {
+    "2": {
+     "1": 1,
+     "14": 3,
+     "3003": 2
+    },
+    "3": {
+     "1": 1,
+     "14": 3,
+     "3003": 2
+    }
+   },
+   "scripts": [
+    {
+     "lump": "BOSS1",
+     "source": "tests/reference/m4b_scripts/boss1.txt",
+     "lmp": "tests/reference/m4b_scripts/BOSS1.lmp",
+     "c_end": "exit",
+     "end_tic": 544,
+     "rust": "tbd",
+     "must_show": [
+      {
+       "what": "first Baron reaches DIE7 (the other alive)",
+       "event": "first M type=MT_BRUISER sp_x=1152 state=S_BOSS_DIE7",
+       "tic": 112
+      },
+      {
+       "what": "second Baron reaches DIE7",
+       "event": "first M type=MT_BRUISER sp_x=2176 state=S_BOSS_DIE7",
+       "tic": 223
+      },
+      {
+       "what": "tag-666 floor lowering (lowerFloorToLowest)",
+       "event": "first FL sector=@BLOCK type=1",
+       "tic": 223
+      },
+      {
+       "what": "step down at 0",
+       "event": "first S idx=@BLOCK floorheight=0",
+       "tic": 286
+      },
+      {
+       "what": "exit through sector 11",
+       "event": "first H gameaction=6",
+       "tic": 544
+      }
+     ]
+    },
+    {
+     "lump": "BOSS2",
+     "source": "tests/reference/m4b_scripts/boss2.txt",
+     "lmp": "tests/reference/m4b_scripts/BOSS2.lmp",
+     "c_end": "marker",
+     "end_tic": 364,
+     "rust": "tbd",
+     "must_show": [
+      {
+       "what": "step raising (W1 raiseFloor, the sector busy)",
+       "event": "first FL sector=@BLOCK type=3",
+       "tic": 215
+      },
+      {
+       "what": "second Baron reaches DIE7",
+       "event": "first M type=MT_BRUISER sp_x=2176 state=S_BOSS_DIE7",
+       "tic": 223
+      },
+      {
+       "what": "never a lowerFloorToLowest",
+       "event": "first FL sector=@BLOCK type=1",
+       "tic": null
+      },
+      {
+       "what": "step closed at 128",
+       "event": "first S idx=@BLOCK floorheight=128u",
+       "tic": 278
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "name": "BOSSM1",
+   "file": "tests/reference/m4b_wads/bossm1.wad",
+   "slot": "E1M1",
+   "episode": 1,
+   "map": 1,
+   "sha256": "37d1bf6a0c98517c195d6390d8b069474cbaa16d508a97cd386d1628946e19b3",
+   "bytes": 50744,
+   "sectors": 10,
+   "lines": 43,
+   "things": {
+    "2": {
+     "1": 1,
+     "14": 3,
+     "3003": 2
+    },
+    "3": {
+     "1": 1,
+     "14": 3,
+     "3003": 2
+    }
+   },
+   "scripts": [
+    {
+     "lump": "BOSSM1",
+     "source": "tests/reference/m4b_scripts/bossm1.txt",
+     "lmp": "tests/reference/m4b_scripts/BOSSM1.lmp",
+     "c_end": "marker",
+     "end_tic": 600,
+     "rust": "tbd",
+     "must_show": [
+      {
+       "what": "second Baron reaches DIE7 on E1M1",
+       "event": "first M type=MT_BRUISER sp_x=2176 state=S_BOSS_DIE7",
+       "tic": 223
+      },
+      {
+       "what": "no floor mover ever",
+       "event": "first FL sector=@BLOCK",
+       "tic": null
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "name": "SPECH8",
+   "file": "tests/reference/m4b_wads/spech8.wad",
+   "slot": "E1M1",
+   "episode": 1,
+   "map": 1,
+   "sha256": "dc412ba1b0739c65a7b310262a9b265b0e3a534f693bc2821d7398db49ca5198",
+   "bytes": 49394,
+   "sectors": 10,
+   "lines": 28,
+   "things": {
+    "2": {
+     "1": 1,
+     "2014": 1
+    },
+    "3": {
+     "1": 1,
+     "2014": 1
+    }
+   },
+   "scripts": [
+    {
+     "lump": "SPECH8",
+     "source": "tests/reference/m4b_scripts/spech8.txt",
+     "lmp": "tests/reference/m4b_scripts/SPECH8.lmp",
+     "c_end": "marker",
+     "end_tic": 98,
+     "rust": "tbd",
+     "must_show": [
+      {
+       "what": "player box inside the cluster (eight special lines)",
+       "event": "first M type=MT_PLAYER x>80u",
+       "tic": 75
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "name": "SPECH9",
+   "file": "tests/reference/m4b_wads/spech9.wad",
+   "slot": "E1M1",
+   "episode": 1,
+   "map": 1,
+   "sha256": "b4c10ed37795995053d851972d052cab49e1a8dfdf07ac6d54fb157fb13a0b6a",
+   "bytes": 49394,
+   "sectors": 10,
+   "lines": 28,
+   "things": {
+    "2": {
+     "1": 1,
+     "2014": 1
+    },
+    "3": {
+     "1": 1,
+     "2014": 1
+    }
+   },
+   "scripts": [
+    {
+     "lump": "SPECH9",
+     "source": "tests/reference/m4b_scripts/spech9.txt",
+     "lmp": "tests/reference/m4b_scripts/SPECH9.lmp",
+     "c_end": "marker",
+     "end_tic": 75,
+     "rust": {
+      "refuse": "SpecialCross",
+      "tic": 75,
+      "note": "the genuine engine appends a ninth spechit entry (p_map.c:242) in tic 75, shown by the overrun probe; Rust must refuse that tic (H3); no genuine dump of tic 75 or later is an expectation"
+     },
+     "must_show": [
+      {
+       "what": "player box at the cluster edge",
+       "event": "first M type=MT_PLAYER x>64u",
+       "tic": 71
+      }
+     ],
+     "overrun_probe": {
+      "lmp": "tests/reference/m4b_scripts/SPECH8.lmp",
+      "variant": "address",
+      "last_dump": 74,
+      "report": "p_map.c:242"
+     }
+    }
+   ]
+  },
+  {
+   "name": "SKILL",
+   "file": "tests/reference/m4b_wads/skill.wad",
+   "slot": "E1M1",
+   "episode": 1,
+   "map": 1,
+   "sha256": "eb6091f8b58769b8fea5e45911c94554a8d5e0025802ef3d8096921cc51bc8aa",
+   "bytes": 47483,
+   "sectors": 4,
+   "lines": 15,
+   "things": {
+    "2": {
+     "1": 1,
+     "2007": 1,
+     "2012": 1,
+     "3002": 1,
+     "3004": 1
+    },
+    "3": {
+     "1": 1,
+     "14": 1,
+     "2011": 1,
+     "2012": 1,
+     "3001": 1,
+     "3002": 1,
+     "3003": 1
+    }
+   },
+   "scripts": [
+    {
+     "lump": "SKILL2",
+     "source": "tests/reference/m4b_scripts/skill2.txt",
+     "lmp": "tests/reference/m4b_scripts/SKILL2.lmp",
+     "c_end": "marker",
+     "end_tic": 90,
+     "rust": "tbd",
+     "must_show": [
+      {
+       "what": "skill 2 in the header row",
+       "event": "first H gameskill=2",
+       "tic": -1
+      },
+      {
+       "what": "no teleport (the only landing is hard-only)",
+       "event": "first M type=MT_TFOG",
+       "tic": null
+      }
+     ]
+    },
+    {
+     "lump": "SKILL3",
+     "source": "tests/reference/m4b_scripts/skill3.txt",
+     "lmp": "tests/reference/m4b_scripts/SKILL3.lmp",
+     "c_end": "marker",
+     "end_tic": 90,
+     "rust": "tbd",
+     "must_show": [
+      {
+       "what": "skill 3 in the header row",
+       "event": "first H gameskill=3",
+       "tic": -1
+      },
+      {
+       "what": "teleported to the hard-only landing",
+       "event": "first M type=MT_PLAYER x=1152u reactiontime=18",
+       "tic": 64
+      }
+     ]
+    }
+   ]
+  }
+ ],
+ "note": "M4b synthetic CI maps (tools/reference/m4b_wad.py), their scripts (tools/reference/m4b_scripts.py) and the genuine-engine expectations checked by tools/reference/m4b_reference.py. Event expressions are those of m4a_reference.py; tics are dump tics (load = -1); \"tic\": null means the event never happens. rust: \"tbd\" until the wire-24 Rust runner exists; a refusal names the expected Rust refusal and the C tic at which its condition first holds.",
+ "selftest": {
+  "wad": "TELE",
+  "script": "TELE1"
+ }
+}

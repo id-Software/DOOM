@@ -100,9 +100,25 @@ fn strike_player<A: ActorAccess>(host: &mut LifeHost<'_, A>, id: ActorId) -> Res
     let body_life = body.life().ok_or(PlayerBodyError::Invariant)?;
     // Powers/SHADOW, cheats and arbitrary player flag mutations are unadmitted.
     // JUSTHIT and CORPSE are the source damage/death additions to pristine flags.
+    // Wire 24 also admits `A_Saw`'s MF_JUSTATTACKED, set by the player's think
+    // earlier in the same tic (p_pspr.c:542) and read by nothing on this path
+    // (`has_bite_on_lunging_body`); `apply_damage` keeps it on a kill, as
+    // `P_KillMobj` does (p_inter.c:675–680).
+    let lunge = if player.policy.has_bite_on_lunging_body() {
+        player_commands::MF_JUSTATTACKED
+    } else {
+        0
+    };
+    // The four terms are pairwise disjoint bit sets (MT_PLAYER's `MF_SOLID|
+    // MF_SHOOTABLE|MF_DROPOFF|MF_PICKUP|MF_NOTDMATCH`, info.c:1130, against
+    // `MF_JUSTHIT` 0x40, `MF_JUSTATTACKED` 0x80 and `MF_CORPSE` 0x100000,
+    // p_mobj.h:120–193; `saw_bite_tests::the_allowed_flag_terms_are_disjoint`), so
+    // each `|` equals `^` here: the mutants `|` → `^` of Mutants run 43543402068 are
+    // equivalent.
     let allowed = OriginalActorType::MT_PLAYER.descriptor().flags
         | original_player::MF_JUSTHIT
-        | original_player::MF_CORPSE;
+        | original_player::MF_CORPSE
+        | lunge;
     if player.mo != Some(target)
         || body_life.actor_type.0 != OriginalActorType::MT_PLAYER.ordinal()
         || player.health != body_life.health.max(0)
@@ -495,3 +511,7 @@ fn current_map_melee<A: ActorAccess>(host: &LifeHost<'_, A>, id: ActorId) -> Mel
         damage: Some((amount, damage)),
     }
 }
+
+#[cfg(test)]
+#[path = "saw_bite_tests.rs"]
+mod saw_bite_tests;

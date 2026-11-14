@@ -24,8 +24,19 @@
 //! without one), whether the exit was the secret one (`secret_exit`) and the
 //! actor-store high-water mark (`store_high_water`: one past the highest slot
 //! `thinker.order` named on any capture).
+//!
+//! With `--policy episode1v2` it builds `original_player_episode1_v2_map`
+//! (`PlayerMonstersEpisode1V2`, wire 24, DSIM40; M4b decision I2) as for
+//! `episode1`, with the map number of `--map` and the skill of the demo header,
+//! read with `parse_demo_episode1_v2` (skill 2 or 3; the header map must be the
+//! `--map` one); a skill-3 demo runs at hard skill (M4b step 6, decision I4).
+//! `--write-idle` writes a skill-2
+//! header with `write_demo_episode1_v2`; `stats.txt` is `episode1`'s.
 use doom_sim::{
-    demo::{parse_demo, parse_demo_episode1, write_demo, write_demo_episode1},
+    demo::{
+        parse_demo, parse_demo_episode1, parse_demo_episode1_v2, write_demo, write_demo_episode1,
+        write_demo_episode1_v2,
+    },
     *,
 };
 use std::{error::Error, fmt::Write as _, fs, path::PathBuf};
@@ -33,14 +44,26 @@ use std::{error::Error, fmt::Write as _, fs, path::PathBuf};
 type ResultHost<T> = Result<T, Box<dyn Error>>;
 
 const USAGE: &str = "usage: player_level_run --wad <path> --map E1M1 --demo <lmp> --out <dir> \
-     [--captures] [--policy level|episode1 (wire 22, default | wire 23)] \
-     | --write-idle <tics> --demo <lmp> [--policy episode1 --map E1Mn]";
+     [--captures] [--policy level|episode1|episode1v2 (wire 22, default | wire 23 | wire 24)] \
+     | --write-idle <tics> --demo <lmp> [--policy episode1|episode1v2 --map E1Mn]";
 
-/// `n` of `E1M<n>`, `n` in 1..=9, for the Episode 1 policy.
-fn episode1_map(name: &str) -> ResultHost<u8> {
+/// The policy `--policy` selects.
+#[derive(Clone, Copy, Default, Eq, PartialEq)]
+enum Policy {
+    /// `PlayerMonstersLevelV1`, wire 22 (the default).
+    #[default]
+    Level,
+    /// `PlayerMonstersEpisode1V1`, wire 23.
+    Episode1,
+    /// `PlayerMonstersEpisode1V2`, wire 24.
+    Episode1V2,
+}
+
+/// `n` of `E1M<n>`, `n` in 1..=9, for the Episode 1 policies.
+fn episode1_map(name: &str, policy: &str) -> ResultHost<u8> {
     match name.as_bytes() {
         [b'E', b'1', b'M', n @ b'1'..=b'9'] => Ok(n - b'0'),
-        _ => Err(format!("--policy episode1 needs --map E1M1..E1M9, not {name}").into()),
+        _ => Err(format!("--policy {policy} needs --map E1M1..E1M9, not {name}").into()),
     }
 }
 
@@ -103,7 +126,7 @@ struct Args {
     out: Option<PathBuf>,
     captures: bool,
     write_idle: Option<usize>,
-    episode1: bool,
+    policy: Policy,
     help: bool,
 }
 fn args() -> ResultHost<Args> {
@@ -121,9 +144,10 @@ fn args() -> ResultHost<Args> {
             "--captures" => a.captures = true,
             "--help" => a.help = true,
             "--policy" => {
-                a.episode1 = match it.next().as_deref() {
-                    Some("level") => false,
-                    Some("episode1") => true,
+                a.policy = match it.next().as_deref() {
+                    Some("level") => Policy::Level,
+                    Some("episode1") => Policy::Episode1,
+                    Some("episode1v2") => Policy::Episode1V2,
                     _ => return Err(USAGE.into()),
                 }
             }
@@ -142,10 +166,12 @@ fn main() -> ResultHost<()> {
     }
     if let Some(tics) = a.write_idle {
         let idle = vec![TicCommand::default(); tics];
-        let demo = if a.episode1 {
-            write_demo_episode1(episode1_map(&a.map)?, &idle)?
-        } else {
-            write_demo(&idle)?
+        let demo = match a.policy {
+            Policy::Level => write_demo(&idle)?,
+            Policy::Episode1 => write_demo_episode1(episode1_map(&a.map, "episode1")?, &idle)?,
+            Policy::Episode1V2 => {
+                write_demo_episode1_v2(episode1_map(&a.map, "episode1v2")?, 2, &idle)?
+            }
         };
         fs::write(a.demo.ok_or(USAGE)?, &demo)?;
         println!("wrote an idle demo of {tics} tics ({} bytes)", demo.len());
@@ -156,23 +182,45 @@ fn main() -> ResultHost<()> {
         return Ok(());
     };
     let (demo_path, out) = (a.demo.ok_or(USAGE)?, a.out.ok_or(USAGE)?);
-    let map_number = if a.episode1 {
-        Some(episode1_map(&a.map)?)
-    } else {
-        None
-    };
     let demo_bytes = fs::read(demo_path)?;
-    let demo = match map_number {
-        Some(n) => parse_demo_episode1(&demo_bytes, n)?.1,
-        None => parse_demo(&demo_bytes)?,
+    // The wire-24 map number and skill (decisions I2 and I4).
+    let mut v2 = None;
+    let demo = match a.policy {
+        Policy::Level => parse_demo(&demo_bytes)?,
+        Policy::Episode1 => parse_demo_episode1(&demo_bytes, episode1_map(&a.map, "episode1")?)?.1,
+        Policy::Episode1V2 => {
+            let (header, demo) =
+                parse_demo_episode1_v2(&demo_bytes, episode1_map(&a.map, "episode1v2")?)?;
+            // The reader admits skill bytes 2 and 3 only (decision I4).
+            let skill = match header.skill {
+                2 => Skill::Medium,
+                3 => Skill::Hard,
+                other => {
+                    return Err(format!(
+                        "--policy episode1v2: the demo header's skill {other} is not admitted; \
+                         wire 24 runs skills 2 and 3"
+                    )
+                    .into());
+                }
+            };
+            v2 = Some((header.map, skill));
+            demo
+        }
     };
     let bytes = fs::read(wad_path)?;
     let wad = doom_wad::Wad::parse(&bytes, doom_wad::Limits::default())?;
     let map = doom_map::Map::from_wad(&wad, &a.map, doom_map::MapLimits::default())?;
-    let mut s = if a.episode1 {
-        Simulation::original_player_episode1_map(map, MapContextOptions::default())?
-    } else {
-        Simulation::original_player_level_map(map, MapContextOptions::default())?
+    let mut s = match (a.policy, v2) {
+        (Policy::Episode1V2, Some((n, skill))) => Simulation::original_player_episode1_v2_map(
+            map,
+            n,
+            skill,
+            MapContextOptions::default(),
+        )?,
+        (Policy::Episode1, _) => {
+            Simulation::original_player_episode1_map(map, MapContextOptions::default())?
+        }
+        _ => Simulation::original_player_level_map(map, MapContextOptions::default())?,
     };
     let report = s.spawn_map_things()?;
     s.initialize_player_weapons(PlayerSlot::One, WeaponInventory::default())?;
@@ -237,7 +285,7 @@ fn main() -> ResultHost<()> {
          peak_thinkers {peak_thinkers}\n",
         stats.max_intercepts, stats.max_spechit
     );
-    if a.episode1 {
+    if a.policy != Policy::Level {
         match exit {
             Some((tic, secret)) => writeln!(stats_text, "exit_tic {tic}\nsecret_exit {secret}")?,
             None => writeln!(stats_text, "exit_tic none\nsecret_exit false")?,

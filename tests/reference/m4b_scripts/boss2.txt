@@ -1,0 +1,13 @@
+# output: BOSS2.lmp
+# BOSS2 on tests/reference/m4b_wads/boss8.wad (M4b). Authored closed loop against the strict genuine runner.
+# E1M8 slot: as BOSS1 up to the second telefrag, then crosses the W1 raiseFloor line on tag 666, so the step is
+# busy (rising) when the second Baron reaches DIE7: A_BossDeath skips it and the step ends closed at 128.
+# format: tools/reference/m4b_scripts.py (tools/e1m1_scripts.py plus "skill N"); turn byte t = t*1.40625 degrees counter-clockwise; buttons 1 ATTACK
+map E1M8
+cmd 60 25 0 0 0
+idle 60
+cmd 60 25 0 0 0
+idle 19
+cmd 1 0 0 192 0
+cmd 14 25 0 0 0
+idle 150

@@ -373,6 +373,13 @@ pub(crate) fn validate_e1m1(map: &Map) -> Result<MoverAdmission, SimError> {
 pub(crate) fn validate_episode1(map: &Map) -> Result<MoverAdmission, SimError> {
     validate_movers_with(map, Rules::Episode1)
 }
+/// Wire 24's load rules (M4b step 4): those of [`validate_episode1`] plus line
+/// special 97 (WR teleport, p_spec.c:904–907), which moves no tagged family: its
+/// `EV_Teleport` (p_telept.c:47–131) only searches the tagged sectors for a
+/// landing. 39, 125 and 126 stay refused (decision I1).
+pub(crate) fn validate_episode1_teleport(map: &Map) -> Result<MoverAdmission, SimError> {
+    validate_movers_with(map, Rules::Episode1Teleport)
+}
 /// Which policy's load rules [`validate_movers_with`] runs.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 enum Rules {
@@ -382,6 +389,8 @@ enum Rules {
     E1M1,
     /// The Episode 1 policy (wire 23).
     Episode1,
+    /// Wire 24: the Episode 1 rules plus line special 97.
+    Episode1Teleport,
 }
 /// The donut load rule of decision H8 for every sector `s1` tagged by a line with
 /// special 9: `EV_DoDonut` (p_spec.c:1163–1221) reads `s1->lines[0]` through
@@ -424,7 +433,8 @@ pub(crate) fn donut_geometry(map: &Map) -> Result<(), SimError> {
 fn validate_movers_with(map: &Map, rules: Rules) -> Result<MoverAdmission, SimError> {
     use crate::sector_thinkers::{MAX_LINE_ANIMS, SCROLLING_WALL};
     let two_sided_scrollers = rules != Rules::Movers;
-    let episode1 = rules == Rules::Episode1;
+    let episode1 = matches!(rules, Rules::Episode1 | Rules::Episode1Teleport);
+    let teleport = rules == Rules::Episode1Teleport;
     crate::demon_expanded_map::validate_sector_specials_for(map, episode1)?;
     let sectors = map.sectors().len();
     let mut kinds = vec![Kinds::default(); sectors];
@@ -459,6 +469,8 @@ fn validate_movers_with(map: &Map, rules: Rules) -> Result<MoverAdmission, SimEr
             // stairs and the donut move no tagged family (their sectors are
             // bounded below by `reachable` and checked by `donut_geometry`).
             35 | 51 | 7 | 8 | 9 if episode1 => {}
+            // Wire 24: the WR teleport moves no sector (M4b step 4).
+            crate::teleport::LINE_TELEPORT if teleport => {}
             SCROLLING_WALL if back.is_none() || two_sided_scrollers => scrollers += 1,
             LINE_DOOR_DR => kinds[back.ok_or(MapScaleError::DoorLine)?].dr = true,
             26..=28 if episode1 => kinds[back.ok_or(MapScaleError::DoorLine)?].dr = true,

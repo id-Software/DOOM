@@ -1,0 +1,164 @@
+name: Mutants
+
+# Informational mutation testing of the branch's source diff (M4b decision I12).
+# This is NOT a required check: no ruleset or branch protection names it, and its
+# workflow and job names ("Mutants", "Mutants shard k/8", "Mutants summary") do
+# not collide with the required check names reported by rust.yml.
+#
+# Triggers:
+#  * workflow_dispatch: only offered by GitHub once this file is on the default
+#    branch, so it cannot be used before the milestone merges.
+#  * pull_request `labeled`: putting the label `run-mutants` on the pull request
+#    starts a run. This works before merge. Only `labeled` is used, not
+#    `synchronize`, so an ordinary push to a labelled PR does not burn eight
+#    long shards; remove and re-add the label to re-run on the new head.
+
+on:
+  workflow_dispatch:
+  pull_request:
+    branches: [master]
+    types: [labeled]
+
+permissions:
+  contents: read
+
+# One run per PR (or per ref for a manual run); a newer run cancels an older one.
+# The label name is part of the group so that adding an unrelated label (whose run
+# is skipped by the job conditions below) cannot cancel a running campaign.
+concurrency:
+  group: mutants-${{ github.event.pull_request.number || github.ref }}-${{ github.event.label.name || 'dispatch' }}
+  cancel-in-progress: true
+
+env:
+  CARGO_TERM_COLOR: always
+  # cargo-mutants 27.1.0 and cargo-nextest 0.9.151: the versions of the M4a campaign
+  # (docs/TESTING.md, "Mutation testing"). Keep the optimisation settings of that
+  # campaign for the many test builds.
+  CARGO_PROFILE_DEV_OPT_LEVEL: "1"
+  CARGO_PROFILE_DEV_DEBUG: "0"
+
+jobs:
+  mutants:
+    name: Mutants shard ${{ matrix.shard }}/8
+    if: ${{ github.event_name == 'workflow_dispatch' || github.event.label.name == 'run-mutants' }}
+    runs-on: ubuntu-latest
+    # GitHub's hosted-runner maximum is 360 minutes; leave a few for setup/upload.
+    timeout-minutes: 355
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [0, 1, 2, 3, 4, 5, 6, 7]
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+          # Test the PR head itself, not the synthetic merge commit.
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - name: Install stable Rust
+        run: rustup toolchain install stable --profile minimal
+      - name: Install cargo-mutants and cargo-nextest
+        uses: taiki-e/install-action@cfdb7ed4ccc7c7dce37759eae89dc5674b469b39 # v2.90.3
+        with:
+          tool: cargo-mutants@27.1.0,cargo-nextest@0.9.151
+      - name: Compute the diff against master
+        id: diff
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch --no-tags origin master
+          git diff --no-ext-diff origin/master...HEAD -- crates/ > "$RUNNER_TEMP/mutants.patch"
+          lines=$(wc -l < "$RUNNER_TEMP/mutants.patch")
+          echo "Diff against origin/master: $lines lines"
+          if [ "$lines" -eq 0 ]; then
+            echo "empty=true" >> "$GITHUB_OUTPUT"
+            echo "::notice::No change under crates/ against master: nothing to mutate."
+          fi
+      - name: Run this shard
+        if: steps.diff.outputs.empty != 'true'
+        shell: bash
+        env:
+          SHARD: ${{ matrix.shard }}
+        run: |
+          set -uo pipefail
+          # Exit codes of cargo-mutants: 0 all caught, 1 usage error, 2 mutants
+          # missed, 3 timeouts, 4 the unmutated baseline failed. This job is
+          # informational: 2 and 3 are findings, reported by the summary job, so
+          # they do not fail the shard; any other nonzero status does.
+          set +e
+          cargo mutants -p doom-sim --test-tool nextest --jobs 2 \
+            --timeout 300 --build-timeout 900 \
+            --in-diff "$RUNNER_TEMP/mutants.patch" \
+            --shard "$SHARD/8" \
+            --output "$RUNNER_TEMP/mutants-out"
+          rc=$?
+          set -e
+          echo "cargo-mutants exit status: $rc"
+          case "$rc" in
+            0) ;;
+            2) echo "::warning::shard $SHARD/8: missed mutants (see the summary job)" ;;
+            3) echo "::warning::shard $SHARD/8: mutant timeouts (see the summary job)" ;;
+            *) exit "$rc" ;;
+          esac
+      - name: Upload this shard's results
+        if: ${{ always() && steps.diff.outputs.empty != 'true' }}
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: mutants-shard-${{ matrix.shard }}
+          path: |
+            ${{ runner.temp }}/mutants-out/mutants.out/outcomes.json
+            ${{ runner.temp }}/mutants-out/mutants.out/missed.txt
+            ${{ runner.temp }}/mutants-out/mutants.out/caught.txt
+            ${{ runner.temp }}/mutants-out/mutants.out/timeout.txt
+            ${{ runner.temp }}/mutants-out/mutants.out/unviable.txt
+          if-no-files-found: warn
+          retention-days: 30
+
+  summary:
+    name: Mutants summary
+    needs: mutants
+    if: ${{ always() && (github.event_name == 'workflow_dispatch' || github.event.label.name == 'run-mutants') }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Download every shard's results
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          pattern: mutants-shard-*
+          path: shards
+      - name: Combine and report
+        shell: bash
+        env:
+          SHARDS_RESULT: ${{ needs.mutants.result }}
+        run: |
+          python3 - <<'PY' >> "$GITHUB_STEP_SUMMARY"
+          import os, pathlib
+          kinds = ["caught", "missed", "timeout", "unviable"]
+          root = pathlib.Path("shards")
+          shards = sorted(root.glob("mutants-shard-*"), key=lambda p: int(p.name.rsplit("-", 1)[1]))
+          lines = {k: [] for k in kinds}
+          rows = []
+          for d in shards:
+            counts = []
+            for k in kinds:
+              f = d / f"{k}.txt"
+              items = [l.rstrip() for l in f.read_text().splitlines() if l.strip()] if f.exists() else []
+              lines[k] += items
+              counts.append(len(items))
+            rows.append((d.name.rsplit("-", 1)[1], counts))
+          print("## Mutation testing (informational)\n")
+          print(f"Shard jobs result: `{os.environ['SHARDS_RESULT']}`; shards with results: {len(shards)} of 8.\n")
+          if len(shards) < 8:
+            print("Some shards uploaded nothing (empty diff, failed or cancelled shard): the totals below are incomplete.\n")
+          print("| Shard | Caught | Missed | Timeout | Unviable |\n| ---: | ---: | ---: | ---: | ---: |")
+          for s, c in rows:
+            print(f"| {s}/8 | " + " | ".join(map(str, c)) + " |")
+          print("| **Total** | " + " | ".join(f"**{len(lines[k])}**" for k in kinds) + " |\n")
+          for k in ("missed", "timeout"):
+            print(f"### {k.capitalize()} ({len(lines[k])})\n")
+            if lines[k]:
+              print("```text"); print("\n".join(sorted(lines[k]))); print("```\n")
+            else:
+              print("None.\n")
+          print("A missed or timed-out mutant is a finding to resolve, not a failure of this job; see docs/TESTING.md, Mutation testing.")
+          PY

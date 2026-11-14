@@ -1,0 +1,60 @@
+# output: M9DIE.lmp
+# M9DIE: E1M9 death. The player walks to the nearest monsters without firing
+# and stands among them until it dies, idles 40 tics dead, then presses USE once: the run ends end=reborn (the next
+# G_Ticker would reload the level).
+# Authored iteratively against the genuine strict build (turns, durations and buttons only).
+map E1M9
+idle 1
+cmd 1 40 0 8 0
+cmd 15 40 0 0 0
+cmd 1 40 0 1 0
+cmd 11 40 0 0 0
+cmd 1 40 0 -1 0
+cmd 1 40 0 -127 0
+cmd 2 40 0 0 0
+cmd 1 40 0 -68 0
+cmd 3 40 0 1 0
+cmd 1 40 0 0 0
+cmd 2 40 0 1 0
+cmd 1 40 0 0 0
+cmd 2 40 0 1 0
+cmd 1 40 0 0 0
+cmd 1 40 0 1 0
+cmd 1 40 0 0 0
+cmd 2 40 0 1 0
+cmd 1 40 0 0 0
+cmd 1 40 0 1 0
+cmd 1 40 0 0 0
+cmd 5 40 0 1 0
+cmd 2 40 0 2 0
+cmd 1 40 0 4 0
+cmd 1 40 0 6 0
+cmd 1 40 0 17 0
+cmd 1 40 0 51 0
+cmd 1 40 0 28 0
+cmd 1 40 0 10 0
+cmd 1 40 0 4 0
+cmd 1 40 0 -79 0
+cmd 2 40 0 1 0
+cmd 1 40 0 2 0
+cmd 2 40 0 1 0
+cmd 2 40 0 2 0
+idle 56
+cmd 1 40 0 -20 0
+cmd 2 40 0 0 0
+cmd 1 40 0 1 0
+cmd 4 40 0 0 0
+idle 88
+cmd 1 40 0 23 0
+cmd 5 40 0 0 0
+cmd 1 40 0 1 0
+cmd 1 40 0 0 0
+cmd 1 40 0 3 0
+cmd 1 40 0 0 0
+cmd 1 40 0 1 0
+cmd 1 40 0 0 0
+cmd 1 40 0 1 0
+cmd 1 40 0 0 0
+cmd 2 40 0 1 0
+idle 96
+cmd 1 0 0 0 2

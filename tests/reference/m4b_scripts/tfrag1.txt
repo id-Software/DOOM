@@ -1,0 +1,12 @@
+# output: TFRAG1.lmp
+# TFRAG1 on tests/reference/m4b_wads/tfrag.wad (M4b). Authored closed loop against the strict genuine runner.
+# Three chained teleports onto a zombieman (mass 100), a Demon (400) and a Baron (1000) standing on the
+# landings: telefrags with the wrapped thrust.
+# format: tools/reference/m4b_scripts.py (tools/e1m1_scripts.py plus "skill N"); turn byte t = t*1.40625 degrees counter-clockwise; buttons 1 ATTACK
+map E1M1
+cmd 64 25 0 0 0
+idle 20
+cmd 64 25 0 0 0
+idle 20
+cmd 64 25 0 0 0
+idle 50

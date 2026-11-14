@@ -355,6 +355,37 @@ fn radius_attack<A: ActorAccess>(h: &mut LifeHost<'_, A>, spot: ActorId) -> Resu
     // more pass per relinking victim (only a monster entering its seestate
     // `A_Chase` relinks, at most once per explosion since its threshold becomes
     // 100). Unreachable on an admitted map; exhaustion refuses the tic.
+    //
+    // Why the walk never comes near it (M4b step 8; this also shows the mutant
+    // `9 + order·(R + 2)` refuses nothing). The walk is a run of segments, each
+    // following `bnext` from a cell head without revisiting: one per base cell
+    // walk, and one per relink, from the relinked monster's new successor
+    // (p_maputl.c:436–442, 529–535); a wire-24 teleport inside that move
+    // relinks the same monster again, and the walk follows only its final link
+    // (p_map.c:115–175, 451–517; p_telept.c:48–131). Nothing unlinks, and the
+    // only things linked during the walk are drops (p_inter.c:745–769; the
+    // teleport fogs are NOBLOCKMAP, info.c:2122–2144): nothing else the
+    // callback reaches moves or spawns a linked thing (p_map.c:1164–1197;
+    // p_inter.c:668–769, 775–913; p_enemy.c:672–767).
+    // A monster relinks at most once, at its first visit: one not hit then is
+    // never hit (fixed position and sight, p_map.c:1179–1191); a hit with pain,
+    // a melee/missile state or an unmoved chase leaves its spawn state for the
+    // rest of the walk (p_inter.c:894–913); a chase at a dead source that falls
+    // back to the spawn state repeats with the same outcome on every later hit,
+    // since one call of `P_LookForPlayers` leaves `lastlook` at the one player's
+    // index for good and the sound target does not change (p_enemy.c:499–553,
+    // 604–630, 701–712). So with order = n, L relinks and D′ drops of monsters
+    // that never relink, counting the segments that can reach each thing (its
+    // cell's base walk, then the relinks into its cell while it is there): a
+    // thing that never relinks is visited at most 1 + L times, the j-th
+    // relinker at most 2 + L − j (its relinking visit, then its new cell), the
+    // drop of the i-th relinker (spawned after relink i) at most 1 + L − i, any
+    // other drop at most 1 + L. Summed, visits ≤
+    // n(1 + L) + L + D′(1 + L). With K monsters (L + D′ ≤ K, K ≤ R by the
+    // roster limit, `map_demon_limit`; n ≥ K + 2 for the player and the exploding
+    // barrel or, under episode1, the exploding rocket, which `spatial.order` holds
+    // although it is NOBLOCKMAP: `LifeHost::spawn` links every thing) that is at
+    // most n(R + 2) − 2.
     let roster = h
         .world
         .episode1

@@ -527,10 +527,15 @@ impl Simulation {
                 // decision F4(i)): its own role, never a roster monster, never
                 // rewritten to the owner type, counted against `MAX_BARRELS` alone.
                 let barrel = barrels::is_barrel(self.player_policy(), ty);
+                // The teleport landing (doomednum 14) under wire 24 (M4b step 4):
+                // `P_SpawnMapThing` spawns it like any THING; it is in no roster
+                // and never rewritten to the owner type.
+                let landing = crate::teleport::is_landing(self.player_policy(), ty);
                 if !pickup
                     && !former
                     && !decoration
                     && !barrel
+                    && !landing
                     && ty
                         != crate::identity::OriginalActorType::MT_SERGEANT
                             .resolve(registry)
@@ -569,6 +574,7 @@ impl Simulation {
                 if (!pickup
                     && !decoration
                     && !barrel
+                    && !landing
                     && selected
                         .iter()
                         .filter(|(_, ty)| self.is_roster_monster(*ty))
@@ -595,7 +601,7 @@ impl Simulation {
                     ],
                     info.radius(),
                     978,
-                    !pickup && !decoration,
+                    !pickup && !decoration && !landing,
                 ) {
                     return Err(MonsterError::Arithmetic.into());
                 }
@@ -607,7 +613,7 @@ impl Simulation {
                     ],
                     SpawnHeight::Floor,
                 )?;
-                if !pickup && !former && !decoration && !barrel {
+                if !pickup && !former && !decoration && !barrel && !landing {
                     ty = self.demon_owner_type();
                 }
             }

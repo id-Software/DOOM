@@ -29,12 +29,29 @@ pub const DEMO_MAP_INDEX: usize = 3;
 /// (decision H10).
 pub const EPISODE1_DEMO_MAPS: RangeInclusive<u8> = 1..=9;
 
+/// The offset of the skill byte in the header (g_game.c:1590, `skill`).
+pub const DEMO_SKILL_INDEX: usize = 1;
+/// The skills [`parse_demo_episode1_v2`] and [`write_demo_episode1_v2`] admit
+/// (M4b decision I4): 2 (`sk_medium`) and 3 (`sk_hard`). The wire-24 constructor
+/// decides which of them it executes.
+pub const EPISODE1_V2_DEMO_SKILLS: RangeInclusive<u8> = 2..=3;
+
 /// The varying part of an Episode 1 demo header (decision H10): every other
 /// byte equals [`DEMO_HEADER`]'s.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct DemoHeader {
     /// The map number of `E1M<map>`, in [`EPISODE1_DEMO_MAPS`].
     pub map: u8,
+}
+
+/// The varying part of a wire-24 Episode 1 demo header (M4b decisions I2 and
+/// I4): every other byte equals [`DEMO_HEADER`]'s.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct DemoHeaderV2 {
+    /// The map number of `E1M<map>`, in [`EPISODE1_DEMO_MAPS`].
+    pub map: u8,
+    /// The skill byte, in [`EPISODE1_V2_DEMO_SKILLS`].
+    pub skill: u8,
 }
 
 /// A parsed demo: one command per tic for player 1.
@@ -154,6 +171,40 @@ pub fn parse_demo_episode1(bytes: &[u8], map: u8) -> Result<(DemoHeader, Demo), 
     Ok((DemoHeader { map }, demo))
 }
 
+/// Read a version-110 demo for wire 24 (M4b decisions I2 and I4): as
+/// [`parse_demo_episode1`], except that the skill byte may be any of
+/// [`EPISODE1_V2_DEMO_SKILLS`] (2 or 3; any other value is
+/// [`DemoError::Header`] at [`DEMO_SKILL_INDEX`]). [`parse_demo_episode1`] keeps
+/// admitting skill 2 alone.
+pub fn parse_demo_episode1_v2(bytes: &[u8], map: u8) -> Result<(DemoHeaderV2, Demo), DemoError> {
+    if !EPISODE1_DEMO_MAPS.contains(&map) {
+        return Err(DemoError::MapArgument { map });
+    }
+    let header = bytes.get(..DEMO_HEADER.len()).ok_or(DemoError::Truncated)?;
+    if let Some((index, &value)) = header.iter().enumerate().find(|(i, b)| match *i {
+        DEMO_MAP_INDEX => !EPISODE1_DEMO_MAPS.contains(b),
+        DEMO_SKILL_INDEX => !EPISODE1_V2_DEMO_SKILLS.contains(b),
+        _ => **b != DEMO_HEADER[*i],
+    }) {
+        return Err(DemoError::Header { index, value });
+    }
+    let found = header[DEMO_MAP_INDEX];
+    if found != map {
+        return Err(DemoError::Map {
+            expected: map,
+            found,
+        });
+    }
+    let demo = parse_commands(&bytes[DEMO_HEADER.len()..])?;
+    Ok((
+        DemoHeaderV2 {
+            map,
+            skill: header[DEMO_SKILL_INDEX],
+        },
+        demo,
+    ))
+}
+
 /// Player 1's ticcmds up to the marker, as `G_ReadDemoTiccmd` reads them
 /// (g_game.c:1491–1503); nothing may follow the marker.
 fn parse_commands(mut rest: &[u8]) -> Result<Demo, DemoError> {
@@ -198,6 +249,31 @@ pub fn write_demo_episode1(map: u8, commands: &[TicCommand]) -> Result<Vec<u8>, 
     }
     let mut header = DEMO_HEADER;
     header[DEMO_MAP_INDEX] = map;
+    write_with(header, commands, true)
+}
+
+/// Write `commands` as a version-110 wire-24 demo for map `E1M<map>` at `skill`
+/// (M4b decisions I2 and I4): as [`write_demo_episode1`] with the skill byte
+/// `skill` (in [`EPISODE1_V2_DEMO_SKILLS`], else [`DemoError::Header`] at
+/// [`DEMO_SKILL_INDEX`]). With skill 2 the bytes equal
+/// [`write_demo_episode1`]'s.
+pub fn write_demo_episode1_v2(
+    map: u8,
+    skill: u8,
+    commands: &[TicCommand],
+) -> Result<Vec<u8>, DemoError> {
+    if !EPISODE1_DEMO_MAPS.contains(&map) {
+        return Err(DemoError::MapArgument { map });
+    }
+    if !EPISODE1_V2_DEMO_SKILLS.contains(&skill) {
+        return Err(DemoError::Header {
+            index: DEMO_SKILL_INDEX,
+            value: skill,
+        });
+    }
+    let mut header = DEMO_HEADER;
+    header[DEMO_MAP_INDEX] = map;
+    header[DEMO_SKILL_INDEX] = skill;
     write_with(header, commands, true)
 }
 
@@ -448,5 +524,113 @@ mod tests {
         assert!(write_demo_episode1(2, &[cmd(-127, -127, 0, 0x3f)]).is_ok());
         // The wire-22 writer keeps admitting side −128.
         assert!(write_demo(&[cmd(0, -128, 0, 0)]).is_ok());
+    }
+
+    #[test]
+    fn episode1_v2_header_admits_skill_2_and_3_and_every_map() {
+        let commands = vec![cmd(25, -3, 0x0100, 1), cmd(0, 0, 0, 0)];
+        for map in EPISODE1_DEMO_MAPS {
+            // Skill 2: the bytes of the wire-23 writer, read back by both readers.
+            let medium = write_demo_episode1_v2(map, 2, &commands).unwrap();
+            assert_eq!(medium, write_demo_episode1(map, &commands).unwrap());
+            let (header, demo) = parse_demo_episode1_v2(&medium, map).unwrap();
+            assert_eq!(header, DemoHeaderV2 { map, skill: 2 });
+            assert_eq!(demo.commands, commands);
+            // Skill 3: the wire-24 reader alone admits it.
+            let hard = write_demo_episode1_v2(map, 3, &commands).unwrap();
+            assert_eq!(hard[DEMO_SKILL_INDEX], 3);
+            assert_eq!(
+                parse_demo_episode1_v2(&hard, map).unwrap().0,
+                DemoHeaderV2 { map, skill: 3 }
+            );
+            assert_eq!(
+                parse_demo_episode1(&hard, map),
+                Err(DemoError::Header {
+                    index: DEMO_SKILL_INDEX,
+                    value: 3
+                })
+            );
+        }
+    }
+
+    #[test]
+    fn episode1_v2_header_refusals() {
+        let good = write_demo_episode1_v2(5, 2, &[cmd(0, 0, 0, 0)]).unwrap();
+        for skill in [0, 1, 4, 5, 255] {
+            let mut bytes = good.clone();
+            bytes[DEMO_SKILL_INDEX] = skill;
+            assert_eq!(
+                parse_demo_episode1_v2(&bytes, 5),
+                Err(DemoError::Header {
+                    index: DEMO_SKILL_INDEX,
+                    value: skill
+                })
+            );
+            assert_eq!(
+                write_demo_episode1_v2(5, skill, &[]),
+                Err(DemoError::Header {
+                    index: DEMO_SKILL_INDEX,
+                    value: skill
+                })
+            );
+        }
+        for map in [0, 10] {
+            assert_eq!(
+                parse_demo_episode1_v2(&good, map),
+                Err(DemoError::MapArgument { map })
+            );
+            assert_eq!(
+                write_demo_episode1_v2(map, 2, &[]),
+                Err(DemoError::MapArgument { map })
+            );
+            let mut bytes = good.clone();
+            bytes[DEMO_MAP_INDEX] = map;
+            assert_eq!(
+                parse_demo_episode1_v2(&bytes, 5),
+                Err(DemoError::Header {
+                    index: DEMO_MAP_INDEX,
+                    value: map
+                })
+            );
+        }
+        assert_eq!(
+            parse_demo_episode1_v2(&good, 4),
+            Err(DemoError::Map {
+                expected: 4,
+                found: 5
+            })
+        );
+        // Version 109 (DEMO1's byte), another episode, and every other fixed byte.
+        for (index, value) in [
+            (0, 109),
+            (2, 2),
+            (4, 1),
+            (5, 1),
+            (6, 1),
+            (7, 1),
+            (8, 1),
+            (10, 1),
+        ] {
+            let mut bytes = good.clone();
+            bytes[index] = value;
+            assert_eq!(
+                parse_demo_episode1_v2(&bytes, 5),
+                Err(DemoError::Header { index, value })
+            );
+        }
+        assert_eq!(
+            parse_demo_episode1_v2(&good[..12], 5),
+            Err(DemoError::Truncated)
+        );
+        let mut bytes = good.clone();
+        bytes.push(0);
+        assert_eq!(
+            parse_demo_episode1_v2(&bytes, 5),
+            Err(DemoError::TrailingBytes)
+        );
+        assert_eq!(
+            write_demo_episode1_v2(5, 3, &[cmd(0, -128, 0, 0)]),
+            Err(DemoError::MarkerSide { tic: 0 })
+        );
     }
 }

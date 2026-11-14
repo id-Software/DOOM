@@ -732,3 +732,38 @@ Commands are in [TESTING](../../docs/TESTING.md#m4a-synthetic-mechanism-wads-and
   has no special 51 or 124 line, otherwise a `DumpDeficiency`). The opt-in `strict32` variant
   (`--variant strict32` of either build, `e1m1_reference.py --strict32`) is never part of `all`
   or a contract.
+
+## M4b synthetic mechanism WADs
+
+M4b reuses the [M4a runner](#m4a-synthetic-mechanism-wads-and-the-episode-1-comparison) on
+fourteen synthetic WADs. Commands are in [TESTING](../../docs/TESTING.md#m4b-synthetic-mechanism-wads);
+observations in [validation/M4B.md](../../docs/validation/M4B.md#synthetic-mechanism-wads-ci-evidence).
+
+- [m4b_build.py](m4b_build.py) builds the M4a driver unchanged (no new dump column) with one
+  more declared sanitizer adapter, `p_inter.c:817` (the telefrag thrust product in unsigned
+  arithmetic, overflow and address builds only), and writes or `--check`s
+  [m4b_runner_contract.json](../../tests/reference/m4b_runner_contract.json). It imports
+  `m3h9c_build.py` and `m4a_build.py` as libraries; their contracts are unchanged.
+- [m4b_wad.py](m4b_wad.py) writes the WADs of [m4b_wads](../../tests/reference/m4b_wads)
+  through the frozen `m4a_wad.py` painter and framing, in the slot each needs (E1M8 for the
+  boss map), and the WAD fields of [m4b_manifest.json](../../tests/reference/m4b_manifest.json).
+- [m4b_check_wad.py](m4b_check_wad.py) is the verifier: the M4a parser plus the teleport search
+  order, the special-line box maximum and the spawn counts on skills 2 and 3.
+- [m4b_scripts.py](m4b_scripts.py) generates and checks the lumps of
+  [m4b_scripts](../../tests/reference/m4b_scripts): the `e1m1_scripts.py` format plus `skill N`.
+- [m4b_reference.py](m4b_reference.py) is the manifest-driven three-variant run with per-script
+  observed facts, the `SPECH9` overrun probe, the self-test and the opt-in `--strict32` check;
+  it writes or `--check`s [m4b_synthetic_results.json](../../tests/reference/m4b_synthetic_results.json).
+- [level_snapshot_m4b.py](level_snapshot_m4b.py) is the independent DSIM40 projection (profile
+  `episode1v2`, [STATE_FORMAT](../../docs/STATE_FORMAT.md#dsim-v40--episode-1-part-2-teleporters-the-baron-of-hell-a_bossdeath-and-hard-skill)):
+  the frozen DSIM39 projection of `level_snapshot.py`, imported unchanged, with version 40,
+  policy 24, the new context, `level.map` from the demo header and skill 2 or 3. It adds
+  refusals of unknown dump rows and columns and of actor states outside their type's normal
+  closure. `--compare39` checks that DSIM40 equals DSIM39 outside the declared delta.
+  [test_level_snapshot_m4b.py](test_level_snapshot_m4b.py) checks its tables against
+  `info.h`/`info.c` and its column contract against `m4a_driver.c`.
+- [m4b_snapshot_goldens.py](m4b_snapshot_goldens.py) projects the kept strict dumps of
+  `m4b_reference.py` and writes or `--check`s
+  [m4b_synthetic_goldens.json](../../tests/reference/m4b_synthetic_goldens.json) and the
+  `m4b_episode1v2_*.bin` fixtures; `--selftest` proves the encoder can fail
+  ([observations](../../docs/validation/M4B.md#independent-projection)).

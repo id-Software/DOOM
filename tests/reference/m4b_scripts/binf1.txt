@@ -1,0 +1,8 @@
+# output: BINF1.lmp
+# BINF1 on tests/reference/m4b_wads/infight.wad (M4b). Authored closed loop against the strict genuine runner.
+# Idle player: the Baron fireball aimed at the player hits the Spectre between them, the Spectre turns on the
+# Baron, bites it, and the Baron fights back against the shadowed Spectre (A_FaceTarget fuzz draws) and kills
+# it.
+# format: tools/reference/m4b_scripts.py (tools/e1m1_scripts.py plus "skill N"); turn byte t = t*1.40625 degrees counter-clockwise; buttons 1 ATTACK
+map E1M1
+idle 300

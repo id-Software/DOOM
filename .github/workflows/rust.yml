@@ -286,6 +286,37 @@ jobs:
           EXE=target/release/examples/player_level_run
           if [ -f "$EXE.exe" ]; then EXE="$EXE.exe"; fi
           python3 tools/reference/check_player_episode1.py --binary "$EXE" --out "$RUNNER_TEMP/m4a_rust" --example-args "--policy episode1" --require
+      - name: Independent DSIM40 projection of the M4a runs (wire 24 goldens)
+        if: env.DOCS_ONLY != 'true' && (runner.os == 'Linux')
+        run: python3 tools/reference/m4b_m4a_goldens.py --dumps "$RUNNER_TEMP/m4a/runs" --check
+      - name: Rust wire-24 run of the M4a and admitted M4b synthetic scripts against the DSIM40 goldens
+        if: env.DOCS_ONLY != 'true'
+        shell: bash
+        run: |
+          EXE=target/release/examples/player_level_run
+          if [ -f "$EXE.exe" ]; then EXE="$EXE.exe"; fi
+          python3 tools/reference/check_player_episode1v2.py --binary "$EXE" --out "$RUNNER_TEMP/m4b_rust" --require
+      - name: M4b runner contract, synthetic mechanism WADs, their invariants and demo scripts
+        if: env.DOCS_ONLY != 'true'
+        shell: bash
+        run: |
+          python3 tools/reference/m4b_build.py --check
+          python3 tools/reference/m4b_wad.py --check
+          python3 tools/reference/m4b_check_wad.py --check
+          python3 tools/reference/m4b_scripts.py --check
+          python3 tools/reference/test_level_snapshot_m4b.py
+      - name: Genuine whole-engine runs of the M4b mechanism WADs (strict, UBSan and ASan/UBSan dumps identical), spechit overrun probe and self-test
+        if: env.DOCS_ONLY != 'true' && (runner.os == 'Linux')
+        run: python3 tools/reference/m4b_reference.py --check --keep-dumps --selftest 30 --work "$RUNNER_TEMP/m4b"
+      - name: Independent DSIM40 projection of the M4b runs and its self-test
+        if: env.DOCS_ONLY != 'true' && (runner.os == 'Linux')
+        run: python3 tools/reference/m4b_snapshot_goldens.py --dumps "$RUNNER_TEMP/m4b/runs" --check --selftest
+      - name: Genuine whole-engine runs of the second M4b set (two teleports in one tic; strict, UBSan and ASan/UBSan dumps identical)
+        if: env.DOCS_ONLY != 'true' && (runner.os == 'Linux')
+        run: python3 tools/reference/m4b_reference.py --set 2 --check --keep-dumps --work "$RUNNER_TEMP/m4b2"
+      - name: Independent DSIM40 projection of the second M4b set
+        if: env.DOCS_ONLY != 'true' && (runner.os == 'Linux')
+        run: python3 tools/reference/m4b_snapshot_goldens.py --set 2 --dumps "$RUNNER_TEMP/m4b2/runs" --check
       - name: Original bonus sustained combat debug/release comparison
         if: env.DOCS_ONLY != 'true'
         run: python3 tools/reference/check_player_bonuses.py

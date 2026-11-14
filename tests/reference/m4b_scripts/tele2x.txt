@@ -1,0 +1,9 @@
+# output: TELE2X.lmp
+# TELE2X on tests/reference/m4b_wads/tele2x.wad (M4b, second set). TSPLIT's run: east at forwardmove 127, so
+# P_XYMovement splits the move in two halves; the first half crosses the first 97 line and the player lands
+# 8 units west of a second 97 line, which the second half (continued from the landing) crosses: two
+# teleports, four fogs, in one tic.
+# format: tools/reference/m4b_scripts.py (tools/e1m1_scripts.py plus "skill N"); turn byte t = t*1.40625 degrees counter-clockwise; buttons 1 ATTACK
+map E1M1
+cmd 40 127 0 0 0
+idle 25

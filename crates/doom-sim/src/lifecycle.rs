@@ -448,6 +448,13 @@ impl ActorRegistry {
                                     | "A_TroopAttack"
                             )
                         ))
+                    // The Baron's two own callbacks, each at the one state that
+                    // names it (info.c:675, 684); its role is wire 24's alone.
+                    && !(specialized == SpecialActions::OriginalMonsters
+                        && ((id.0 == crate::identity::OriginalState::S_BOSS_ATK3.ordinal()
+                            && self.action_name(action) == Some("A_BruisAttack"))
+                            || (id.0 == crate::identity::OriginalState::S_BOSS_DIE7.ordinal()
+                                && self.action_name(action) == Some("A_BossDeath"))))
                     && !(specialized == SpecialActions::Barrel
                         && id.0 == crate::identity::OriginalState::S_BEXP4.ordinal()
                         && self.action_name(action) == Some("A_Explode"))
@@ -933,9 +940,13 @@ impl ActorRegistry {
         ty: ActorTypeId,
         sectors: &[crate::SectorState],
     ) -> Result<(), ActorError> {
-        if crate::original_registry::is_fireball(ty) {
-            // Caller already required the PlayerMonstersImpV1 role. MF_MISSILE is
-            // admitted only here, for the type whose lifecycle the checked pass owns.
+        if crate::original_registry::is_fireball(ty)
+            || crate::original_registry::is_bruiser_shot(ty)
+        {
+            // Caller already required the PlayerMonstersImpV1 role (the Imp's
+            // fireball) or wire 24's (the Baron's, the same flags and an action-free
+            // closure). MF_MISSILE is admitted only here, for the types whose
+            // lifecycle the checked pass owns.
             self.admit_type(
                 ty,
                 sectors,
@@ -1279,6 +1290,12 @@ pub(crate) trait ActorAccess {
     fn movers(&mut self) -> Option<&mut dyn crate::movers::MoverAccess> {
         None
     }
+    /// The nonpending actors in thinker order (`thinkercap.next` onward, removed
+    /// thinkers skipped), for `EV_Teleport`'s landing search (wire 24); `None` for
+    /// an access without one, which that search refuses.
+    fn live_order(&self) -> Option<Vec<ActorId>> {
+        None
+    }
 }
 impl ActorAccess for &mut ThinkerStore<Actor> {
     fn get(&self, id: ActorId) -> Option<&Actor> {
@@ -1302,6 +1319,13 @@ impl ActorAccess for &mut ThinkerStore<Actor> {
     fn movers(&mut self) -> Option<&mut dyn crate::movers::MoverAccess> {
         Some(&mut **self)
     }
+    fn live_order(&self) -> Option<Vec<ActorId>> {
+        Some(
+            self.order()
+                .filter(|id| self.is_pending(*id) == Some(false))
+                .collect(),
+        )
+    }
 }
 impl ActorAccess for &mut ThinkerContext<'_, Actor> {
     fn get(&self, id: ActorId) -> Option<&Actor> {
@@ -1324,6 +1348,15 @@ impl ActorAccess for &mut ThinkerContext<'_, Actor> {
     }
     fn movers(&mut self) -> Option<&mut dyn crate::movers::MoverAccess> {
         Some(&mut **self)
+    }
+    fn live_order(&self) -> Option<Vec<ActorId>> {
+        let store = self.store();
+        Some(
+            store
+                .order()
+                .filter(|id| store.is_pending(*id) == Some(false))
+                .collect(),
+        )
     }
 }
 pub(crate) fn make_actor(
@@ -1623,6 +1656,13 @@ impl<A: ActorAccess> LifeHost<'_, A> {
                         assert!(crate::player_monsters::uses_current_monsters(self));
                         crate::player_monsters::troop_attack(self, id);
                     }
+                    // Wire 24 (M4b step 5): the Baron's role admits both, each at
+                    // its one state.
+                    Some(OriginalAction::BruisAttack) => {
+                        assert!(crate::player_monsters::uses_current_monsters(self));
+                        crate::player_monsters::bruis_attack(self, id);
+                    }
+                    Some(OriginalAction::BossDeath) => crate::boss::boss_death(self, id),
                     Some(OriginalAction::CPosAttack) => {
                         assert!(self.perception.is_some_and(|p| p.chaingunner));
                         crate::chaingunner::attack(self, id);

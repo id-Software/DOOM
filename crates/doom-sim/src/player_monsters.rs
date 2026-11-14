@@ -40,6 +40,12 @@ pub const PLAYER_LEVEL_CONTEXT_SCHEMA: &[u8] = b"PLAYER-MONSTERS-LEVEL-1-MEDIUM-
 /// Explicit Episode 1 context (the level world with per-map bounds, 1,024 actor
 /// slots and the H3 per-tic witnesses, M4a); older contexts stay frozen.
 pub const PLAYER_EPISODE1_CONTEXT_SCHEMA: &[u8] = b"PLAYER-MONSTERS-EPISODE1-1-MEDIUM-v1";
+/// Explicit Episode 1 part 2 context (M4b, wire 24, DSIM40): no skill word,
+/// because the skill is the canonical `actors.options` field; older contexts stay
+/// frozen.
+pub const PLAYER_EPISODE1_V2_CONTEXT_SCHEMA: &[u8] = b"PLAYER-MONSTERS-EPISODE1-2-v1";
+/// The Episode 1 map numbers the wire-24 constructor admits (`E1M1`–`E1M9`).
+pub const EPISODE1_MAP_NUMBERS: std::ops::RangeInclusive<u8> = 1..=9;
 
 impl Simulation {
     /// Autonomous roster member: the native/original Demon owner or a policy
@@ -291,6 +297,51 @@ impl Simulation {
         )
         .map_err(Into::into)
     }
+    /// Episode 1, part 2 (M4b, wire 24, decision I2): the world of
+    /// [`Simulation::original_player_episode1_map`] for the map `E1M<map_number>`
+    /// at `skill`, plus what M4b admits. The map number (1–9,
+    /// [`EPISODE1_MAP_NUMBERS`]) is held for the run and captured as DSIM40
+    /// `level.map`; the skill is `actors.options[0]`. Captures are DSIM40, read by
+    /// [`crate::Diagnostic::decode_episode1_v2`].
+    ///
+    /// Admitted so far: teleportation (line special 97, the landing doomednum 14,
+    /// the fog and the telefrag; M4b step 4), the Baron of Hell (doomednum 3003,
+    /// `A_BruisAttack` and its fireball) and `A_BossDeath` with the E1M8 tag-666
+    /// floor (step 5), and hard skill (step 6, decision I4): `skill` is
+    /// [`Skill::Medium`] or [`Skill::Hard`], and the per-map bounds, the landing
+    /// count and the item total's cross-check count the THINGs with that skill's
+    /// option bit (2 or 4, p_mobj.c:743–751), as the spawner does. The per-map
+    /// bounds count the Baron as a monster. Refused at load, each explicitly: a map
+    /// number outside 1–9 and any skill but medium or hard
+    /// (`SimError::PlayerBody(PlayerBodyError::Unsupported)`, as every older
+    /// player policy refuses non-default options). As for
+    /// wire 23, call [`Simulation::spawn_map_things`],
+    /// [`Simulation::initialize_player_weapons`] and
+    /// [`Simulation::spawn_level_specials`] once before the first tic.
+    pub fn original_player_episode1_v2_map(
+        map: Map,
+        map_number: u8,
+        skill: Skill,
+        context: MapContextOptions,
+    ) -> Result<Self, OriginalRegistryError> {
+        let policy = OriginalExecutionProfile::PlayerMonstersEpisode1V2;
+        if !EPISODE1_MAP_NUMBERS.contains(&map_number) {
+            return Err(SimError::from(PlayerBodyError::Unsupported).into());
+        }
+        let mut sim = Self::with_original_registry(
+            map,
+            crate::player_map_scale::actor_slots(policy),
+            OriginalExecutionRegistry::new(policy)?,
+            ActorOptions {
+                skill,
+                ..ActorOptions::default()
+            },
+            context,
+        )?;
+        sim.level_map = Some(map_number);
+        sim.world.map_number = Some(map_number);
+        Ok(sim)
+    }
 }
 
 use crate::lifecycle::{ActorAccess, LifeHost};
@@ -524,6 +575,65 @@ fn troop_attack_checked<A: ActorAccess>(
         return Ok(());
     }
     projectiles::launch_fireball(h, id, target)
+}
+
+/// p_enemy.c A_BruisAttack: `(P_Random()%8+1)*10` (p_enemy.c:989), in the
+/// MonsterEvent draw namespace of the Imp's claw.
+const BARON_DAMAGE_CHOICES: i32 = 8;
+const BARON_DAMAGE_UNIT: i32 = 10;
+
+/// `A_BruisAttack` (p_enemy.c:979–996, wire 24): the Baron's `S_BOSS_ATK3`. Unlike
+/// `A_TroopAttack` it does not call `A_FaceTarget` (M4b note §3 fact 4); the
+/// claw-or-fireball choice is made again here from the current state. Any late
+/// error is latched and discards the whole staged tic.
+pub(crate) fn bruis_attack<A: ActorAccess>(h: &mut LifeHost<'_, A>, id: ActorId) {
+    if let Err(error) = bruis_attack_checked(h, id) {
+        if !h.sight_failed() {
+            h.fail_sight(error);
+        }
+    }
+}
+fn bruis_attack_checked<A: ActorAccess>(
+    h: &mut LifeHost<'_, A>,
+    id: ActorId,
+) -> Result<(), SimError> {
+    if !h.player.as_deref().is_some_and(|p| p.policy.has_baron()) {
+        return Err(PlayerBodyError::Unsupported.into());
+    }
+    // `if (!actor->target) return;` (983–984).
+    let Some(target) = readable_target(h, id)? else {
+        return Ok(());
+    };
+    // `P_CheckMeleeRange` (986; p_enemy.c:174–191): no draw.
+    if crate::monsters::melee_host(h, id) {
+        let claw = lifecycle::source_sound("sfx_claw").ok_or(MonsterError::Definition)?;
+        h.sound(Some(id), claw);
+        let draw = crate::monsters::draw(h, id, IMP_DAMAGE_DRAW);
+        let amount = (i32::from(draw) % BARON_DAMAGE_CHOICES + 1) * BARON_DAMAGE_UNIT;
+        // `P_DamageMobj (actor->target, actor, actor, damage)` (990).
+        let plan = combat::DamagePlan::current_original(
+            h,
+            DamageRequest {
+                target,
+                inflictor: Some(id),
+                source: Some(id),
+                amount,
+            },
+        )?;
+        h.access.reserve(plan.spawn_count())?;
+        h.apply_damage(plan);
+        return Ok(());
+    }
+    if h.sight_failed() {
+        return Ok(());
+    }
+    // `P_SpawnMissile (actor, actor->target, MT_BRUISERSHOT)` (995).
+    projectiles::launch_missile(
+        h,
+        id,
+        target,
+        ActorTypeId(crate::identity::OriginalActorType::MT_BRUISERSHOT.ordinal()),
+    )
 }
 
 /// A_CPosRefire with the checked expanded sight query; decision order is the

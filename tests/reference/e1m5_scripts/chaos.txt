@@ -1,0 +1,4 @@
+# output: M5CHAOS.lmp
+# M5CHAOS: E1M5 chaos, seed 20261110 (20261105 + 5), 5000 tics of the fixed-seed generator, skill 2.
+map E1M5
+seed 20261110 chaos 5000

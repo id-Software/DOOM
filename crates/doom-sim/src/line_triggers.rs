@@ -163,6 +163,11 @@ pub(crate) fn cross<M: MoverAccess + ?Sized>(
         side,
         special,
     } = crossing;
+    // Special 97 is `crate::teleport::cross`'s alone (wire 24): it needs the actor
+    // store, the damage service and the RNG, which a starter does not hold.
+    if special == crate::teleport::LINE_TELEPORT {
+        return Err(crate::PursuitError::Specials.into());
+    }
     if matches!(
         special,
         2 | 5 | 8 | 16 | 22 | 35 | 76 | 82 | 86 | 90 | 91 | 98
