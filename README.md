@@ -14,6 +14,10 @@ Software's code, down to every single step of game logic. (Rust DOOM is a workin
 > not guarantee correctness. This project is not affiliated with id Software or
 > Bethesda.
 
+![The original C engine and the Rust engine replay the same synthetic test run side by side; every tic matches.](docs/media/m4b-tele1-side-by-side.svg)
+
+*A synthetic test run replayed by the original engine's code and the Rust engine, tic by tic, from real values of both ([how](docs/TESTING.md#m4b-synthetic-mechanism-wads)).*
+
 ## Why this exists
 
 Most source ports (modern rewrites of a game's released source code) aim to be playable

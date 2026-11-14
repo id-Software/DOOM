@@ -2438,7 +2438,7 @@ and for the observations [validation/M4A.md](validation/M4A.md); Rust-only tests
 
 ## Original Episode 1, part 2: teleporters, the Baron of Hell, `A_BossDeath` and hard skill (wire 24)
 
-**Status: in progress (M4b, plan steps 1-14 done, step 15, the full gates, next; see the
+**Status: merged (M4b, PR #58, 2026-11-14; see the
 [note](M4B_REFERENCE_INVESTIGATION.md#6-plan-size-estimate-and-cap) and [ROADMAP](ROADMAP.md)).** Wire 24 is wire 23 plus teleportation, the Baron of Hell, `A_BossDeath`
 and hard skill (skills 2 and 3, decision I4). Skills 1, 4 and 5 are refused at load, as listed below.
 

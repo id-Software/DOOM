@@ -1895,6 +1895,13 @@ cd fuzz && cargo +nightly fuzz run player_episode1_v2 /tmp/doom-episode1v2-corpu
 python3 tools/reference/level_compare_m4b.py DUMP_DIR RUST_DIR --wad WAD --demo LMP [--values] [--json OUT]
 ```
 
+The README's animated recording (`docs/media/m4b-tele1-side-by-side.svg`) is generated, not
+captured: `python3 tools/media/make_readme_recording.py [--work DIR] [--cargo-target DIR] [--check]`
+builds the strict genuine runner, runs the synthetic TELE1 script through it and through
+`player_level_run --policy episode1v2 --captures`, and draws the values read from the two engines'
+per-tic snapshots (it needs a C compiler and cargo, and refuses to write if any tic differs). The
+output is deterministic; `--check` compares it with the committed file.
+
 - `m4b_m4a_goldens.py --check` requires each strict M4a dump set to equal the frozen
   `dumps_sha256` of `m4a_synthetic_results.json`, projects every M4a script to DSIM40 with the
   skill and map of its header and compares `tests/reference/m4b_m4a_goldens.json` byte for
