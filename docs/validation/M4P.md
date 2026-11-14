@@ -6,7 +6,8 @@ and the plan; [testing](../TESTING.md#advance-benchmarks-m4p) owns the commands.
 to GitHub.
 
 **Scope of the record.** Phase 2 step 1 (2026-11-14, America/Los_Angeles): the committed benchmark harness and
-the master baseline, in [Baseline (master)](#baseline-master). Later steps append their own sections.
+the master baseline, in [Baseline (master)](#baseline-master). Step 2 (O1), in [O1 (owner callback)](#o1-owner-callback).
+Later steps append their own sections.
 
 ## Baseline (master)
 
@@ -77,3 +78,54 @@ objects.
 **Run-to-run noise of the CI metrics.** Two further `ir --check --jobs 1` runs on the same machine and build
 reproduced every one of the 36 metric values exactly (0.00% on all workloads); the digests and outcomes of all
 nine workloads equal the baseline's. Runner-to-runner stability on hosted CI is not yet measured.
+
+## O1 (owner callback)
+
+Code commit `3ca7623`, recorded on 2026-11-14 (America/Los_Angeles) with the same host, toolchain (rustc 1.85.0),
+valgrind and ext4 paths as the baseline; `/mnt/c` had 63 GiB free at the end.
+
+**CI-set instruction counts.** `python3 -I tools/bench_advance.py ir --check`: all nine outcomes (admitted tics,
+refusal tic, final stripped SHA-256) equal the baseline's; `threshold 3.0%: ok`. The baseline was not lowered.
+malloc and realloc call counts are unchanged on all nine workloads.
+
+| Workload | Advance Ir excl. libc, baseline | After O1 | Change | memcpy calls, baseline | After O1 |
+|---|--:|--:|--:|--:|--:|
+| `SYNCHAOS_wire22` | 2,417,221,845 | 2,417,221,845 | 0.00% | 3,726,424 | 3,726,424 |
+| `SCALE2_episode1v2` | 607,264,606 | 607,264,606 | 0.00% | 787,156 | 787,156 |
+| `MTELE1_wire24` | 9,657,230 | 6,338,588 | −34.36% | 18,813 | 13,767 |
+| `TFRAG1_wire24` | 12,167,172 | 10,822,358 | −11.05% | 25,971 | 23,671 |
+| `BVB1_wire24` | 19,876,640 | 19,876,640 | 0.00% | 45,342 | 45,342 |
+| `M4a_dense64_lift` | 2,458,894,726 | 2,458,894,726 | 0.00% | 2,525,763 | 2,525,763 |
+| `M4a_dense64_fight` | 1,894,182,959 | 1,894,182,959 | 0.00% | 2,973,051 | 2,973,051 |
+| `M4a_gallery_patrol` | 254,615,183 | 254,615,183 | 0.00% | 422,489 | 422,489 |
+| `M4a_corpse_continuation` | 5,462,483 | 4,497,073 | −17.67% | 13,858 | 12,668 |
+
+Only the three workloads with a live Demon change, as expected: O1 runs only for an owner-type actor.
+
+**Indicative timing (one repetition, not performance evidence of the milestone).**
+`python3 -I tools/bench_advance.py timing --reps 1` on the 61 real-map cases, ending 13:21 PST, with no local build, test,
+fuzz or Valgrind process running (the CI run on GitHub is remote). All 61 runs ended in the recorded final digest and
+admitted-tic count (0 mismatches). One repetition only, so these medians are single-run values.
+
+| Map | Advance-only us/tic, baseline (5 reps) | After O1 (1 rep) |
+|---|--:|--:|
+| E1M1 | 63.5 | 64.0 |
+| E1M2 | 145.1 | 147.2 |
+| E1M3 | 351.7 | 246.5 |
+| E1M4 | 256.7 | 150.5 |
+| E1M5 | 484.5 | 206.0 |
+| E1M6 | 830.1 | 299.7 |
+| E1M7 | 361.8 | 228.0 |
+| E1M8 | 344.1 | 100.5 |
+| E1M9 | 667.6 | 230.9 |
+| DEMO1 | 703.2 | 252.7 |
+
+**Gates run for O1.** Build, both format checks, Clippy with warnings denied, `cargo test --workspace` (1,383
+passed, 4 ignored), the release tests (1,350 passed, 2 ignored), `cargo +1.85.0 test --workspace` (1,383 passed,
+4 ignored), warnings-denied rustdoc; `run_reference.py --suite --jobs 2` (65 commands passed); the 95 Python
+commands of the CI `stable` job other than the three genuine-engine runs (`m3h9c_reference`, `m4a_reference`,
+`m4b_reference` twice) and the four projections that read their dumps, all passed (the 22 headless debug/release
+checks ran with `python3`, as `python` does not exist on this host), including `check_player_level.py`,
+`check_player_episode1.py --require` and `check_player_episode1v2.py --require`; and
+`check_player_level_advance.py`. Not run for O1: the genuine-engine runs and their projections, fuzz builds and the
+sanitizer campaign (due at step 11, or after step 3 for the genuine-engine checks).
