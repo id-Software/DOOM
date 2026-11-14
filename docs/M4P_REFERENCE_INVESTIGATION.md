@@ -15,10 +15,22 @@ genuine-engine checks. Milestone status lives in [ROADMAP](ROADMAP.md), support 
 of this milestone will go to `docs/validation/M4P.md`, created in Phase 2. This note records only counts,
 timings, instruction counts and digests: no IWAD-derived coordinate, lump byte or per-object datum.
 
-**Status / next step (2026-11-14 PST).** Phase 1 (profile, inventory, decisions, plan) is done on branch
-`feat/m4p-performance`. Decisions P1–P9 (§4) await the owner; each has one recommendation, and none needs
-an observable change. Phase 2 starts, after the owner's answers, with the committed benchmark harness (§5
-step 1). **Open owner questions: P1–P9.**
+**Status / next step (2026-11-14 PST).** Phase 1 (profile, inventory, decisions, plan) is done. Phase 2 step 1
+(the committed harness) is done on branch `feat/m4p-performance`: `tools/bench_advance.py` (code commits `ea507c4`
+and `debb09f`; the docs commit after `debb09f` adds [validation/M4P.md](validation/M4P.md), the
+[TESTING](TESTING.md#advance-benchmarks-m4p) commands and this line), and the master baseline is committed as
+`tests/reference/m4p_ir_baseline.json` (rustc 1.85.0, valgrind 3.26.0). The modes are the subcommands `timing`
+and `ir` (not `--local`/`--ir`); no new Rust example was needed, `player_level_advance` and the four M4a examples
+suffice. **Next step: step 2, O1 (§3 and §5)**; the decisions P1–P9 (§4) still await the owner, so confirm them
+first (O1 itself needs none of them). Half-done work: none. Failing checks: none known (CI on the pushed head
+is checked by GitHub; the new `simulation-ir` CI job of P6 is not yet written and its hosted-runner stability is
+unmeasured). Resume commands (build on ext4, never `/mnt/*`; `/mnt/c` had 71 GiB free):
+`export CARGO_TARGET_DIR=~/scratch/m4p/target-185; cargo +1.85.0 build -p doom-sim --examples --release --locked;
+python3 -I tools/bench_advance.py ir --check` (expect all 0.00% before any optimisation, 9 workloads), then after
+a change the same command shows the delta; timing: `python3 -I tools/bench_advance.py timing --binary
+$CARGO_TARGET_DIR/release/examples/player_level_advance --iwad ~/scratch/m4p/iwad/DOOM.WAD --out-dir
+~/scratch/m4p/harness --reps 5` on an idle machine (the scratch IWAD copy and `target-185` exist locally only).
+Compare timings only between builds of the same toolchain. **Open owner questions: P1–P9.**
 
 ## Summary
 
@@ -543,7 +555,7 @@ examples, fuzz builds, a bounded sanitizer campaign) and the exact-head CI matri
 
 **Step 1, the committed harness.**
 
-- An example, `crates/doom-sim/examples/advance_bench.rs`, with no new dependency. Given a WAD, a map, a
+- (Not needed: `player_level_advance` already prints these.) An example, `crates/doom-sim/examples/advance_bench.rs`, with no new dependency. Given a WAD, a map, a
   script and a policy, it prints the admitted tics, the successful-advance nanoseconds and the final stripped
   SHA-256. It reuses `player_level_advance`'s setup; that example may itself serve, if its output is enough.
 - A tool, `tools/bench_advance.py`, with two modes:
