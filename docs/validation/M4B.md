@@ -916,7 +916,7 @@ Whole-process instruction counts differ by at most 1% in 84; 18 differ by more, 
 | original_registry case0 | +28% / +26% | 2,592,475 to 2,592,540 (0.0%) |
 | map_extent 3 | +4% / +4% | 491,766 to 479,722 (-2.4%) |
 
-**Cause: not established.** The slowdowns of the short workloads are not explained by instruction counts: the
+**Cause: not a source cause; tied to the 9p mount (see the 2026-11-14 test below).** The slowdowns of the short workloads are not explained by instruction counts: the
 branch executes the same or fewer instructions in the timed region and in total, with equal system-call counts
 (87 each for player_commands idle), nearly equal minor page-fault counts (for example 184 and 187) and
 near-identical simulated cache and branch behaviour. No source cause was identified, because no
@@ -930,6 +930,42 @@ inside a short timed region depends on code layout (binaries of 3.38 and 3.49 MB
 counts, some groups running faster, and no effect on long runs; whole-process minor fault counts do not rule it
 out. A test: re-time with the binaries on ext4, or read `getrusage` around the timed region. Carried to the
 performance milestone.
+
+**Test of the 9p hypothesis (2026-11-14 PST, 08:17 to 08:20, ext4 against 9p).** Same host as above,
+rustc 1.100.0; `/mnt/c` had 73 GB free before and after. Fresh detached worktrees of master `7cd6285` and
+`ce00f06` on ext4 under `~/scratch/m4b-perf`, each built with `cargo build -p doom-sim --examples --release
+--locked` into an ext4 target directory; the same 49 example binaries were copied to `/mnt/d` (9p) for the
+other two configurations. Four configurations ({master, branch} by {ext4, 9p}), the 36 short workloads that
+were more than 30% slower in both runs above plus 10 flat controls (one per group, deltas under 3% in both
+runs), 11 rounds with the order rotated per workload and round (2,024 samples), the same timer fields, one
+process per sample, and `wait4` resource usage per process. Non-timing stdout was identical in every sample
+and between all four configurations (0 differing). Idle: no cargo, rustc, fuzz, valgrind or C process before
+any round; 1-minute load at round starts 0.85 to 0.98 (waits 0 to 10 s); no Windows-side use was reported.
+The scratch scripts and raw samples stay outside the repository.
+
+| Class | Configuration | Median of medians, master / branch | Median delta | Range | Workloads over +30% |
+| --- | --- | ---: | ---: | ---: | ---: |
+| 36 slow | ext4 | 180.5 / 184.9 us | +1.0% | -5.2% to +4.8% | 0 |
+| 36 slow | 9p | 461.5 / 1,054.0 us | +146.7% | +30.8% to +380.9% | 36 |
+| 10 controls | ext4 | 228.6 / 231.3 us | +1.2% | -1.3% to +2.7% | 0 |
+| 10 controls | 9p | 746.6 / 733.1 us | -1.0% | -6.7% to +3.2% | 0 |
+
+Page faults per process (median over all samples of the class): on ext4, 210 minor and 0 major (master) and
+215 and 0 (branch) for the 36; on 9p, 195 minor and 50 major (master) and 200 and 48 (branch). Controls:
+about 2,045 minor on ext4 and 2,031 to 2,034 minor with 48 to 49 major on 9p, equal between trees. For the
+worst workloads (`player_pistol idle`, `player_bonuses none_idle`, `player_demon retirement`) the minor
+counts differ by 3 to 7 between trees and the major counts by 1 to 2, in both directions.
+
+**Conclusion: the slowdown is a property of running the binaries from 9p, not of the code.** On ext4 the 36
+workloads show no slowdown (median +1.0%, none above +4.8%), where on 9p the same pair of binaries
+reproduces it (all 36 over +30%, median +147%, worst +381%); the controls are flat on both. Major faults occur
+only on 9p (about 50 per process) and their counts are equal between the trees, so the counts do not show the
+mechanism: the data do not say which first-touch faults fall inside the short timed region, only that the
+effect needs the 9p mount. That the effect depends on the layout of the changed binaries, not on a count of
+faults, is consistent with the reviewer's hypothesis but was not isolated here. Not done: dropping the page
+cache (no root), `getrusage` around the timed region, and a build of the branch with a layout-neutral
+change. The earlier statement of "no source cause" stands; the instruction counts above remain valid. The
+performance milestone should place timing binaries on ext4.
 The whole-level runs and the long real-map advance timings, which spread any cold start over thousands of tics,
 show no corresponding slowdown. In M4a the matching groups moved 3 to 5% and extra validation instructions
 explained it; no such increase exists here. **This is carried to the step 14 review and to the
