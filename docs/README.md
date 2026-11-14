@@ -162,3 +162,6 @@ original evidence and former guide contents with exact-byte copies and digests.
 - [M4b the rest of Episode 1 (teleporters, the Baron, A_BossDeath, hard skill, DEMO1) investigation](M4B_REFERENCE_INVESTIGATION.md)
   (the E1M5/E1M8/E1M9 census on skills 2 and 3, the original C facts, the wire 23 Rust inventory, decisions
   I1–I13 and the plan; Phase 1 done, decisions pending the owner).
+- [M4p simulation performance (no behaviour change) investigation](M4P_REFERENCE_INVESTIGATION.md)
+  (the master profile by cause, the optimisation inventory with an equivalence argument per item,
+  decisions P1–P9 and the plan; Phase 1 done, decisions pending the owner).
