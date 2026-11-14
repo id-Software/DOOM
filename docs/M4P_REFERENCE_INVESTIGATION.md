@@ -358,6 +358,33 @@ policy flag is false, and otherwise calls `validate_item` with the identical arg
 self.item_sectors(), a)` for exactly the same set (same order, same filter) before the loop starts. The
 second call therefore returns `Ok`. The suffix and drop checks at 131–135 stay. Risk: low.
 
+*O3 as implemented (2026-11-14 PST), as proposed.* The `validate_item` call in the pickup branch of the
+`preflight_map_demons` loop is removed; the drop and suffix test after it stays. The proof:
+
+1. *Pure on `&self`.* `validate_item(room, heights, a)` is a free function of its three arguments. It reads the
+   `OnceLock` memo of `validate_definition` (`world_pickups.rs:505`, a pure function of the type ordinal) and
+   static descriptors, and draws no RNG. `self.room()` (`player_map_scale.rs:886`) and `self.item_sectors()`
+   (892) are getters of the policy, the player record and the committed sector table.
+2. *Nothing mutates in between.* `preflight_map_demons` takes `&self`; it calls `preflight_world_pickups` (88)
+   before its loop, and the loop calls only `&self` functions.
+3. *Identical arguments, earlier call succeeded.* The skipped call is reached only when `has_world_pickups()`
+   holds and `kind_for(policy, ty).is_some()` for a non-pending actor. Under the same flag
+   `preflight_world_pickups` does not return early, and its loop runs over the same `actors.order()` with the same
+   `is_pending(id) != Some(false)` filter and the same `kind_for` test; it calls
+   `validate_item(self.room(), self.item_sectors(), a)` with `a = *self.actor(id)`. In the skipped call `a` is the
+   value `monster_actor(id, 1008)` returned, which is `*self.perception_actor_ref(id)?`, that is `*self.actor(id)`
+   (`monsters.rs`, `monster_actor` ends `Ok(*a)`; `perception.rs:56–66`). The branch's set is a subset of
+   `preflight_world_pickups`'s set (the decoration, barrel and landing branches come first). Since
+   `preflight_world_pickups` returned `Ok`, every one of its calls returned `Ok`, so each skipped call would
+   return `Ok`. Skipping it leaves every other check in its relative order: the first error, its reason and its
+   tic are unchanged.
+4. *Other callers keep the full check.* The only other caller, `world_pickups.rs:845` (the pickup touch path),
+   is untouched, and `preflight_world_pickups` itself (1214) keeps its call: it is the load-bearing check. A P8
+   test must corrupt one field `validate_item` witnesses (for example a pickup's `health` away from 1000) under a
+   `uses_demon_map` policy with world pickups and assert the same `PlayerBodyError::Invariant` refusal on the same
+   tic; removing the call at 1214 (or the `preflight_world_pickups` call at `demon_map_spawn.rs:88`) must make it
+   fail.
+
 **O4. Replace the second `monster_actor` of the owner loop by its one margin-dependent check.** Shared,
 applied only when `uses_demon_map()`. Gain 37–142 kIr per tic. In `preflight_monster_owner` (727), every
 actor already passed `monster_actor(id, 1008)` in the loop at `demon_map_spawn.rs:97`, over the same

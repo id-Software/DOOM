@@ -126,7 +126,9 @@ impl Simulation {
             } else if self.player_policy().has_world_pickups()
                 && world_pickups::kind_for(self.player_policy(), life.actor_type).is_some()
             {
-                world_pickups::validate_item(self.room(), self.item_sectors(), a)?;
+                // `preflight_world_pickups` above already ran `validate_item` with
+                // these exact arguments on every non-pending pickup of this `&self`
+                // and returned `Ok`; the repeat could only return `Ok` (M4p note §3 O3).
                 // P_KillMobj drops are appended after the player/impact suffix.
                 let dropped = self.player_policy().has_monsters()
                     && life.flags & world_pickups::MF_DROPPED != 0;
