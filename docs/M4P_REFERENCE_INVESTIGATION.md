@@ -15,27 +15,27 @@ genuine-engine checks. Milestone status lives in [ROADMAP](ROADMAP.md), support 
 of this milestone will go to `docs/validation/M4P.md`, created in Phase 2. This note records only counts,
 timings, instruction counts and digests: no IWAD-derived coordinate, lump byte or per-object datum.
 
-**Status / next step (2026-11-14 15:22 PST).** Phase 1 is done. Phase 2 step 1 (the committed harness
+**Status / next step (2026-11-14 15:45 PST).** Phase 1 is done. Phase 2 step 1 (the committed harness
 `tools/bench_advance.py` and the master baseline `tests/reference/m4p_ir_baseline.json`, rustc 1.85.0, valgrind
-3.26.0) is done. Step 2, O1, is done (code commit `3ca7623`). **Step 3 is done:** O3 in code commit `69c1a3a` (the
-demon-map pass skips its second `validate_item` of each pickup) and O4 in code commit `c439d91` (the owner loop keeps
-only the margin check of its repeated `monster_actor` and runs only the callback's reference checks); the proofs are
-under O3 and O4 in §3. Each passed its per-item gates locally, and **group check 1** (after O1, O3, O4) passed: all
-61 real-map digests (one timing repetition) and the M3h9c, M4a and M4b (both sets) synthetic genuine-engine checks
-with their projections and Rust runs; the observations are in [validation/M4P.md](validation/M4P.md#group-check-1).
-**Next step: the P8 tester step** (one Rust-only test per elision of O1, O3 and O4, each failing if its
-load-bearing remaining check, named in the proofs, is removed), **then step 4, O2** (distinct sound targets, §3 and
-§5). The decisions P1–P9 (§4) were adopted as recommended under the unattended rule; owner confirmation pending.
-Half-done work: none. Failing checks: none known locally; CI on `617b2af` and `69c1a3a` passed, and CI on `c439d91`
-was running when this line was written (check GitHub). The `simulation-ir` CI job of P6 is not yet written. The
-`ir --check` baseline is not lowered (it reports improvements as notices and passes). Resume commands (build on ext4,
-never `/mnt/*`; `/mnt/c` had 58 GiB free): `export CARGO_TARGET_DIR=~/scratch/m4p/target-185; cargo +1.85.0 build -p
-doom-sim --examples --release --locked; python3 -I tools/bench_advance.py ir --check` (expect, against the baseline,
-SYNCHAOS −21.13%, SCALE2 −17.04%, MTELE1 −44.26%, TFRAG1 −23.74%, BVB1 −8.50%, dense64_lift −12.39%, dense64_fight
-−22.18%, gallery_patrol −14.10%, corpse_continuation −28.19%, until the baseline is lowered); timing: `python3 -I
-tools/bench_advance.py timing --binary $CARGO_TARGET_DIR/release/examples/player_level_advance --iwad
-~/scratch/m4p/iwad/DOOM.WAD --out-dir ~/scratch/m4p/harness --reps 5` on an idle machine. Compare timings only
-between builds of the same toolchain. **Open owner questions: confirmation of P1–P9.**
+3.26.0) is done. Step 2, O1, is done (code commit `3ca7623`). Step 3 is done: O3 in code commit `69c1a3a` and O4 in
+code commit `c439d91`; the proofs are under O3 and O4 in §3, and **group check 1** (after O1, O3, O4) passed (see
+[validation/M4P.md](validation/M4P.md#group-check-1)). **The P8 tests for O1, O3 and O4 are done** (test commit
+`1239d4c`, `crates/doom-sim/src/m4p_elision_tests.rs`): each fails when its load-bearing check is removed. The O1/O4
+references step and the residual 978 check are covered; the 978 state is reachable (an owner at 1000 map units is
+admitted at 1008 and refused at 978), so it is tested directly and at the 978 and 1008 boundaries. Under
+`DemonMapSpawn` the references step is redundant (an earlier pass refuses the same corruption with
+`MapSpawnError::Target`), so its test uses the `DemonLifecycle` profile, where `preflight_map_demons` is a no-op.
+**Next step: step 4, O2** (distinct sound targets, §3 and §5), then its P8 test. The decisions P1–P9 (§4) were
+adopted as recommended under the unattended rule; owner confirmation pending. Half-done work: none. Failing checks:
+none known locally. The `simulation-ir` CI job of P6 is not yet written. The `ir --check` baseline is not lowered
+(it reports improvements as notices and passes). Resume commands (build on ext4, never `/mnt/*`; `/mnt/c` had 58 GiB
+free): `export CARGO_TARGET_DIR=~/scratch/m4p/target-185; cargo +1.85.0 build -p doom-sim --examples --release
+--locked; python3 -I tools/bench_advance.py ir --check` (expect, against the baseline, SYNCHAOS −21.13%, SCALE2
+−17.04%, MTELE1 −44.26%, TFRAG1 −23.74%, BVB1 −8.50%, dense64_lift −12.39%, dense64_fight −22.18%, gallery_patrol
+−14.10%, corpse_continuation −28.19%, until the baseline is lowered); timing: `python3 -I tools/bench_advance.py
+timing --binary $CARGO_TARGET_DIR/release/examples/player_level_advance --iwad ~/scratch/m4p/iwad/DOOM.WAD
+--out-dir ~/scratch/m4p/harness --reps 5` on an idle machine. Compare timings only between builds of the same
+toolchain. **Open owner questions: confirmation of P1–P9.**
 
 ## Summary
 
