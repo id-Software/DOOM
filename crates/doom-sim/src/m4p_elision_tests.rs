@@ -2,7 +2,8 @@
 //! elision of O1, O2, O3 and O4 and per check named for O7, each failing if the remaining check named in the "as implemented"
 //! proofs of §3 is removed. They restate behaviour that existed before the elisions and need no
 //! new C citation; the existing goldens remain the equivalence evidence. Each refusal leaves
-//! the canonical state bytes, the RNG and the tic exactly as before.
+//! the canonical state bytes, the RNG and the tic exactly as before. Module `o6` is not an
+//! elision test: it compares O6's single-pass `for_things` with the per-cell scan it replaced.
 use crate::*;
 #[allow(clippy::duplicate_mod)]
 #[path = "../../../tests/support/m3f3.rs"]
@@ -379,5 +380,200 @@ mod expanded {
             refuses_with(&mut s, expected);
             assert_eq!(s.tic(), 0);
         }
+    }
+}
+
+/// O6 (docs/M4P_REFERENCE_INVESTIGATION.md §3 O6): the single-pass `for_things` against
+/// the per-cell scan it replaced, kept here verbatim as the oracle. Crowded synthetic
+/// layouts with ids out of slot order, ids repeated in the spatial order, actors outside
+/// the blockmap and `MF_NOBLOCKMAP` actors; every box clamp; every early exit; the mover's
+/// own `actor` substituted for its stored copy; and the missing-handle panic.
+mod o6 {
+    use super::*;
+    use crate::movement::{SpatialIndex, cell, for_things};
+
+    /// The pre-O6 body of `movement::for_things` (master `4021d60`, movement.rs:254–277).
+    fn per_cell_scan(
+        world: &StaticWorld,
+        id: ActorId,
+        actor: &Actor,
+        target: [Fixed; 2],
+        spatial: &SpatialIndex,
+        get: &impl Fn(ActorId) -> Option<Actor>,
+        mut visit: impl FnMut(ActorId, Actor) -> bool,
+    ) {
+        let margin = actor.spec.radius + Fixed::from_map_units(32);
+        let [xl, yl] = cell(world, [target[0] - margin, target[1] - margin]);
+        let [xh, yh] = cell(world, [target[0] + margin, target[1] + margin]);
+        let [w, h] = world.map().blockmap().dimensions().map(i32::from);
+        for x in xl.max(0)..=xh.min(w - 1) {
+            for y in yl.max(0)..=yh.min(h - 1) {
+                for candidate in &spatial.order {
+                    let other = if *candidate == id {
+                        *actor
+                    } else {
+                        get(*candidate).expect("valid spatial handle")
+                    };
+                    if !crate::lifecycle::blocks_cell_index(&other)
+                        || cell(world, other.spec.position) != [x, y]
+                    {
+                        continue;
+                    }
+                    if !visit(*candidate, other) {
+                        return;
+                    }
+                }
+            }
+        }
+    }
+
+    /// A small deterministic generator (test-only; not the game RNG).
+    struct Lcg(u64);
+    impl Lcg {
+        fn next(&mut self, n: u64) -> u64 {
+            self.0 = self
+                .0
+                .wrapping_mul(6_364_136_223_846_793_005)
+                .wrapping_add(1_442_695_040_888_963_407);
+            (self.0 >> 33) % n
+        }
+    }
+
+    type Visits = Vec<(ActorId, Actor)>;
+
+    /// Runs one implementation, stopping after `stop` visits, and returns its visits and
+    /// whether it panicked.
+    fn run(
+        new: bool,
+        s: &Simulation,
+        id: ActorId,
+        actor: &Actor,
+        target: [Fixed; 2],
+        stop: usize,
+    ) -> (Visits, bool) {
+        let mut visits = Vec::new();
+        let get = |i| s.actors.get(i).copied();
+        let panicked = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+            let visit = |candidate, other| {
+                visits.push((candidate, other));
+                visits.len() < stop
+            };
+            if new {
+                for_things(&s.world, id, actor, target, &s.spatial, &get, visit);
+            } else {
+                per_cell_scan(&s.world, id, actor, target, &s.spatial, &get, visit);
+            }
+        }))
+        .is_err();
+        (visits, panicked)
+    }
+
+    /// A crowd of copies of one spawned actor over and around the blockmap.
+    fn crowd(seed: u64, count: usize) -> (Simulation, Vec<ActorId>) {
+        // The `lifecycle` fixture's map, actor and 64-slot store.
+        let mut s = lifecycle();
+        let template = *s.actors.get(OWNER).unwrap();
+        let blockmap = s.world.map().blockmap();
+        let origin = blockmap.origin();
+        let [w, h] = blockmap.dimensions().map(i32::from);
+        assert!(w >= 2 && h >= 2, "the layout needs several cells");
+        let mut rng = Lcg(seed);
+        let mut ids = s.spatial.order.clone();
+        for _ in 0..count {
+            let mut a = template;
+            // From one cell before the blockmap to one cell past it, in map units.
+            let x = i32::from(origin.x) - 128 + rng.next((w as u64 + 2) * 128) as i32;
+            let y = i32::from(origin.y) - 128 + rng.next((h as u64 + 2) * 128) as i32;
+            a.spec.position = [x, y].map(|v| Fixed::from_bits(v << 16));
+            if rng.next(6) == 0 {
+                a.life.as_mut().unwrap().flags |= 16; // MF_NOBLOCKMAP
+            }
+            ids.push(s.actors.spawn(a).unwrap());
+        }
+        // Spatial order unrelated to slot order, with some ids repeated.
+        for i in (1..ids.len()).rev() {
+            ids.swap(i, rng.next(i as u64 + 1) as usize);
+        }
+        for _ in 0..count / 8 {
+            let i = rng.next(ids.len() as u64) as usize;
+            ids.insert(rng.next(ids.len() as u64 + 1) as usize, ids[i]);
+        }
+        s.spatial.order = ids.clone();
+        (s, ids)
+    }
+
+    fn compare(s: &Simulation, ids: &[ActorId], rng: &mut Lcg, rounds: usize) -> usize {
+        let blockmap = s.world.map().blockmap();
+        let origin = blockmap.origin();
+        let [w, h] = blockmap.dimensions().map(i32::from);
+        let mut visited = 0;
+        for _ in 0..rounds {
+            let id = ids[rng.next(ids.len() as u64) as usize];
+            let mut actor = *s.actors.get(id).unwrap();
+            let x = i32::from(origin.x) - 256 + rng.next((w as u64 + 4) * 128) as i32;
+            let y = i32::from(origin.y) - 256 + rng.next((h as u64 + 4) * 128) as i32;
+            let mut target = [x, y].map(|v| Fixed::from_bits(v << 16));
+            if rng.next(2) == 0 {
+                // Into the crowd: another listed actor's position.
+                let other = ids[rng.next(ids.len() as u64) as usize];
+                target = s.actors.get(other).unwrap().spec.position;
+            }
+            if rng.next(2) == 0 {
+                // The mover's own copy differs from the stored one.
+                actor.spec.position = target;
+            }
+            let full = run(false, s, id, &actor, target, usize::MAX);
+            assert_eq!(run(true, s, id, &actor, target, usize::MAX), full);
+            for stop in 1..=full.0.len() {
+                assert_eq!(
+                    run(true, s, id, &actor, target, stop),
+                    run(false, s, id, &actor, target, stop)
+                );
+            }
+            visited += full.0.len();
+        }
+        visited
+    }
+
+    #[test]
+    fn single_pass_reproduces_the_per_cell_visit_sequence() {
+        let mut total = 0;
+        for seed in 1..=6 {
+            let (s, ids) = crowd(seed, [12, 24, 36, 48, 60, 62][seed as usize - 1]);
+            total += compare(&s, &ids, &mut Lcg(seed ^ 0x5eed), 200);
+        }
+        assert!(total > 1000, "layouts too sparse: {total} visits");
+    }
+
+    #[test]
+    fn a_missing_handle_panics_after_the_same_first_cell_visits() {
+        let mut checked = 0;
+        for seed in 1..=4 {
+            let (mut s, ids) = crowd(seed, 60);
+            let mut rng = Lcg(seed ^ 0xdead);
+            // A stale handle (a later generation of a used slot) at a random position.
+            let stale = ActorId::from_parts(ids[0].slot(), 99);
+            let at = rng.next(s.spatial.order.len() as u64 + 1) as usize;
+            s.spatial.order.insert(at, stale);
+            let ids: Vec<_> = ids.into_iter().filter(|i| *i != stale).collect();
+            for _ in 0..40 {
+                let id = ids[rng.next(ids.len() as u64) as usize];
+                let actor = *s.actors.get(id).unwrap();
+                let target = actor.spec.position;
+                let full = run(false, &s, id, &actor, target, usize::MAX);
+                assert_eq!(run(true, &s, id, &actor, target, usize::MAX), full);
+                checked += usize::from(full.1);
+                for stop in 1..=full.0.len() {
+                    assert_eq!(
+                        run(true, &s, id, &actor, target, stop),
+                        run(false, &s, id, &actor, target, stop)
+                    );
+                }
+            }
+            // The scratch is usable again after a panic inside the walk.
+            s.spatial.order.retain(|i| *i != stale);
+            compare(&s, &ids, &mut rng, 4);
+        }
+        assert!(checked > 0, "no walk reached the missing handle");
     }
 }
