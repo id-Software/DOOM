@@ -255,20 +255,106 @@ pub(crate) fn for_things(
     let [xl, yl] = cell(world, [target[0] - margin, target[1] - margin]);
     let [xh, yh] = cell(world, [target[0] + margin, target[1] + margin]);
     let [w, h] = world.map().blockmap().dimensions().map(i32::from);
-    for x in xl.max(0)..=xh.min(w - 1) {
-        for y in yl.max(0)..=yh.min(h - 1) {
-            for candidate in &spatial.order {
-                let other = if *candidate == id {
-                    *actor
-                } else {
-                    get(*candidate).expect("valid spatial handle")
-                };
-                if !crate::lifecycle::blocks_cell_index(&other)
-                    || cell(world, other.spec.position) != [x, y]
-                {
-                    continue;
-                }
-                if !visit(*candidate, other) {
+    let ([x0, x1], [y0, y1]) = ([xl.max(0), xh.min(w - 1)], [yl.max(0), yh.min(h - 1)]);
+    if x0 > x1 || y0 > y1 {
+        return;
+    }
+    let mut walk = |inside: &mut Vec<(usize, [i32; 2])>| {
+        inside.clear();
+        // One growth to the order's length: no reallocation inside the pass.
+        inside.reserve(spatial.order.len());
+        things_in_box(
+            world,
+            id,
+            actor,
+            spatial,
+            get,
+            ([x0, x1], [y0, y1]),
+            inside,
+            &mut visit,
+        );
+        inside.clear();
+    };
+    // A reentrant walk (none exists today) takes a fresh buffer: same visits.
+    let reused = FOR_THINGS_SCRATCH.with(|scratch| {
+        scratch
+            .try_borrow_mut()
+            .map(|mut inside| walk(&mut inside))
+            .is_ok()
+    });
+    if !reused {
+        walk(&mut Vec::new());
+    }
+}
+
+std::thread_local! {
+    /// Non-canonical scratch of [`for_things`]: the in-box candidates of one walk as
+    /// (spatial order index, cell), empty between walks. Its capacity is at most the
+    /// longest spatial order this thread walked, bounded by the store's slot bound.
+    static FOR_THINGS_SCRATCH: std::cell::RefCell<Vec<(usize, [i32; 2])>> =
+        const { std::cell::RefCell::new(Vec::new()) };
+}
+
+/// One pass over the spatial order (M4p note §3 O6) keeps, in order, every
+/// candidate that the per-cell scan would visit in some cell of the box: each
+/// actor has exactly one cell, that of its position (P_SetThingPosition links a
+/// thing into the one block of its origin, p_maputl.c:424–448, and
+/// P_BlockThingsIterator walks that block's list, 529–535), so the per-cell scan
+/// visits it at most once per box walk. Visiting the kept list cell by cell, x
+/// outer and y inner, in the kept order, gives the same visits in the same order
+/// with the same early exit. A missing handle stops the pass where the first
+/// cell's scan would have panicked: only that cell's earlier candidates are
+/// visited before the same panic.
+#[allow(clippy::too_many_arguments)]
+fn things_in_box(
+    world: &StaticWorld,
+    id: ActorId,
+    actor: &Actor,
+    spatial: &SpatialIndex,
+    get: &impl Fn(ActorId) -> Option<Actor>,
+    ([x0, x1], [y0, y1]): ([i32; 2], [i32; 2]),
+    inside: &mut Vec<(usize, [i32; 2])>,
+    visit: &mut impl FnMut(ActorId, Actor) -> bool,
+) {
+    let read = |candidate: ActorId| {
+        if candidate == id {
+            Some(*actor)
+        } else {
+            get(candidate)
+        }
+    };
+    let mut missing = false;
+    for (index, candidate) in spatial.order.iter().enumerate() {
+        let Some(other) = read(*candidate) else {
+            missing = true;
+            break;
+        };
+        if !crate::lifecycle::blocks_cell_index(&other) {
+            continue;
+        }
+        let [cx, cy] = cell(world, other.spec.position);
+        if (x0..=x1).contains(&cx) && (y0..=y1).contains(&cy) {
+            inside.push((index, [cx, cy]));
+        }
+    }
+    // `get` borrows the store immutably for the whole walk, so a second read of a
+    // kept candidate returns the value the pass read.
+    let mut emit = |index: usize| {
+        let candidate = spatial.order[index];
+        visit(candidate, read(candidate).expect("valid spatial handle"))
+    };
+    if missing {
+        for &(index, at) in inside.iter() {
+            if at == [x0, y0] && !emit(index) {
+                return;
+            }
+        }
+        panic!("valid spatial handle");
+    }
+    for x in x0..=x1 {
+        for y in y0..=y1 {
+            for &(index, at) in inside.iter() {
+                if at == [x, y] && !emit(index) {
                     return;
                 }
             }

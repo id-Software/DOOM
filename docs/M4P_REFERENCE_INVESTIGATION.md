@@ -555,6 +555,51 @@ exactly the same cases. Guards: dense64 workloads, the movement, barrels and mul
 real-map digests. Risk: medium (the order must match exactly); it needs a test comparing visit sequences on
 crowded synthetic layouts.
 
+
+*O6 as implemented (2026-11-14 PST), as proposed, with a reused scratch buffer.* `for_things`
+(`crates/doom-sim/src/movement.rs:245`) computes the clamped box as before and returns at once when it is empty.
+Otherwise `things_in_box` (309) makes one pass over `spatial.order`: each candidate is read as before (the moving
+actor's own `*actor` for `id`, `get` for every other), skipped unless `blocks_cell_index`, and kept as (order index,
+cell) when its cell lies in the box. It then runs the same x-outer, y-inner loops over the kept list, visiting each
+entry whose cell is the current one, re-reading the candidate the same way, and returns when `visit` returns false.
+The kept list lives in a thread-local, non-canonical `Vec` (`FOR_THINGS_SCRATCH`, 294) reserved to the order's
+length and cleared before and after each walk; a reentrant walk (none exists) would take a fresh `Vec`. A first
+attempt with a local `Vec` per call lowered Ir but raised dense64_lift's `realloc` calls by 69.8%, failing
+`ir --check`, and was discarded. The proof:
+
+1. *One cell per actor, as in the source.* The per-cell scan tested `cell(world, other.spec.position) == [x, y]`,
+   so a candidate matches exactly one cell, that of its position, and only when `blocks_cell_index` holds (flag 16,
+   `MF_NOBLOCKMAP`). This is the source's model: `P_SetThingPosition` links a thing not `MF_NOBLOCKMAP` into the one
+   block of its origin (`linuxdoom-1.10/p_maputl.c:424–448`), and `P_BlockThingsIterator` walks that block's list
+   and stops when the callback returns false (529–535), called for `bx` outer and `by` inner by `P_CheckPosition`
+   (`p_map.c:425–428`) and `P_TeleportMove` (`p_map.c:159–162`). So the old scan's visit sequence is the list of
+   in-box candidates ordered by (x, y, order index), with duplicates of an id in the order kept at their positions
+   (an id twice in the order is visited twice, in its one cell). The new loops emit exactly that list: the pass
+   keeps in-box candidates in order index, and the loops select by (x, y) in the same nesting.
+2. *Same values, same early exit.* `get` borrows the store immutably for the whole call (every caller passes a
+   closure over `&` access: `access.get(i).copied()` or `ThinkerStore::get`), and no implementation has interior
+   mutability, so the second read of a candidate equals the first and equals what the old scan read in that cell;
+   `visit` receives the same `(ActorId, Actor)` pairs in the same order. The return at the first false is kept.
+   No caller's `visit` sees the cell, and none calls `for_things`. `get` is now called once or twice per in-box
+   candidate instead of once per candidate per cell; it draws no RNG and counts nothing (F1–F3).
+3. *Same panic cases.* The old scan reached `expect("valid spatial handle")` only for a non-empty box, while
+   scanning the first cell `[x0, y0]` at the first missing handle (order index k), after visiting that cell's
+   candidates of index below k, unless one of those returned false. The pass stops at k, and the new code visits
+   only the kept entries of cell `[x0, y0]` (all of index below k) and then panics with the same message, unless one
+   returned false. With no missing handle neither panics. `cell` uses wrapping `Fixed` subtraction and a shift and
+   cannot panic.
+4. *Not observable, bounded.* The scratch holds `(usize, [i32; 2])` pairs, is empty between walks, is never read
+   by canonical code and is not part of any `Simulation` (no clone, snapshot, DSIM byte or digest sees it). Its
+   capacity is at most the longest spatial order this thread walked, which `max_slots` bounds (`store.rs:298`). The
+   `reserve` is infallible like the old code's (nothing in the old function allocated, so no new
+   `StoreError::Capacity` point is possible); per process it adds one `malloc` and at most one `realloc` per growth
+   of the order (measured: +1 `malloc` and +0 or +1 `realloc` per CI workload, against Ir decreases on every
+   workload).
+
+There is no elision, so P8 asks for no elision test; the medium risk named above is answered by a differential test
+that runs the old per-cell scan beside `for_things` on crowded synthetic layouts and compares visit sequences,
+early exits and the panic case.
+
 **O7. Replace the `linked` `BTreeSet` with a slot bitmap.** Wire-24/23/22 shared preflight. Gain 24–120 kIr
 per tic. Every id inserted has passed `is_pending(id) == Some(false)`, so it is the current generation of
 its slot. Two equal ids therefore share a slot index, and two ids with the same slot index are equal. The
