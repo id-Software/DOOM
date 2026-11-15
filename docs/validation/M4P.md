@@ -12,8 +12,11 @@ Step 3 (O3, O4) and the first group check, in [O3 (pickup revalidation)](#o3-pic
 (O2, O5, O7) and the second group check, in [O2 (sound-target references)](#o2-sound-target-references),
 [O5 (event buffer)](#o5-event-buffer), [O7 (linked bitmap)](#o7-linked-bitmap) and [Group check 2](#group-check-2).
 Steps 7 and 8 (O6; O8, dropped) and the third group check, in [O6 (single-pass for_things)](#o6-single-pass-for_things),
-[O8 (location memo): dropped](#o8-location-memo-dropped) and [Group check 3](#group-check-3). Later steps append their
-own sections.
+[O8 (location memo): dropped](#o8-location-memo-dropped) and [Group check 3](#group-check-3). Steps 9 and 10 (O9a to
+O9c; O9d, dropped; O10) and the fourth group check, in [O9a (descriptor tables)](#o9a-descriptor-tables),
+[O9b (decoration states inline)](#o9b-decoration-states-inline), [O9c (state-role memo)](#o9c-state-role-memo),
+[O9d (THINGS total memo): dropped](#o9d-things-total-memo-dropped), [O10 (actor reads by reference)](#o10-actor-reads-by-reference)
+and [Group check 4](#group-check-4). Later steps append their own sections.
 
 ## Baseline (master)
 
@@ -484,11 +487,130 @@ no workload rose. The three wire-24 workloads and `M4a_corpse_continuation` hold
 
 **Gates run for O9b** (code of `251ada7`; its proof text was added to the commit after the gates). Build, both format checks, Clippy with warnings denied, `cargo test --workspace` (1,395 passed, 4 ignored), the release tests (1,362 passed, 2 ignored), `cargo +1.85.0 test --workspace` (1,395 passed, 4 ignored), warnings-denied rustdoc; `run_reference.py --suite --jobs 2` (65 passed); the 95 CI `stable` Python commands (95 passed, 0 failed, run with `python3`). All under the owner's caps (`CARGO_BUILD_JOBS=6`, `NEXTEST_TEST_THREADS=4`, `RUST_TEST_THREADS=4`, two C jobs).
 
-## O9c (state-role memo): not committed
+## O9c (state-role memo)
 
-Paused on 2026-11-15 at 02:16 PST at the owner's request, with its gates incomplete; the work is a patch in scratch,
-not on the branch. Observed so far, on the build before formatting: `ir --check` passed with all nine outcomes equal
-and every workload lower than after O9b (−2.22% to −4.50%). Of the full gate list, build, both format checks,
-Clippy, the workspace tests (1,395 passed, 4 ignored), the release tests (1,362 passed, 2 ignored), the rustc 1.85.0
-tests (1,395 passed, 4 ignored), rustdoc and the reference suite (65 passed) passed; the 95 CI commands and the gate
-run's own `ir --check` were stopped before they finished. O9d, O10 and group check 4 were not started.
+Code commit `122370a`, recorded on 2026-11-15 (America/Los_Angeles), same host, toolchain, valgrind and ext4 paths.
+Work had paused at 02:16 PST with the gates incomplete (the code was a scratch patch); the full gate list was rerun
+from the start on the resumed, idle machine without caps. `/mnt/c` had 49 GiB free after the gates.
+
+**CI-set instruction counts.** `ir --check` as above: all nine outcomes equal the baseline's; `threshold 3.0%: ok`;
+every workload fell, and the call counts are unchanged (the memo allocates nothing).
+
+| Workload | After O9b | After O9c | Change vs O9b | Change vs baseline | malloc calls | realloc calls | memcpy calls |
+|---|--:|--:|--:|--:|--:|--:|--:|
+| `SYNCHAOS_wire22` | 1,309,257,849 | 1,253,626,237 | −4.25% | −48.14% | 41,851 | 9,351 | 2,564,614 |
+| `SCALE2_episode1v2` | 297,831,537 | 286,057,165 | −3.95% | −52.89% | 27,318 | 9,517 | 554,672 |
+| `MTELE1_wire24` | 4,463,208 | 4,278,034 | −4.15% | −55.70% | 3,403 | 503 | 11,460 |
+| `TFRAG1_wire24` | 7,766,939 | 7,480,423 | −3.69% | −38.52% | 4,714 | 713 | 18,902 |
+| `BVB1_wire24` | 15,774,682 | 15,223,405 | −3.49% | −23.41% | 7,511 | 590 | 40,431 |
+| `M4a_dense64_lift` | 1,463,542,068 | 1,431,070,327 | −2.22% | −41.80% | 351,226 | 323,313 | 1,829,474 |
+| `M4a_dense64_fight` | 988,833,091 | 944,334,813 | −4.50% | −50.15% | 415,934 | 154,671 | 2,072,198 |
+| `M4a_gallery_patrol` | 152,388,424 | 146,286,670 | −4.00% | −42.55% | 231,303 | 81,328 | 318,741 |
+| `M4a_corpse_continuation` | 3,485,757 | 3,359,237 | −3.63% | −38.50% | 3,736 | 242 | 10,787 |
+
+**Gates run for O9c** (on the tree of `122370a`). Build, both format checks, Clippy with warnings denied, `cargo test --workspace` (1,395 passed, 4 ignored), the release tests (1,362 passed, 2 ignored), `cargo +1.85.0 test --workspace` (1,395 passed, 4 ignored), warnings-denied rustdoc; `run_reference.py --suite --jobs 2` (65 passed); the 95 CI `stable` Python commands (95 passed, 0 failed, run with `python3`). No caps (the owner lifted them for this session).
+
+**Timing after O9c (stop-rule check, P9).** With the timings hold lifted by the owner, `python3 -I tools/bench_advance.py
+timing --reps 5` ran on the rustc 1.85.0 build of `122370a` (binary, IWAD copy and output on ext4) from 12:17 to
+12:19 PST, once the gates had finished. Idle gate at each repetition start: all-CPU busy 0.35% to 0.92%, no stray
+process, 1-minute load 1.48 falling to 0.99 (the decay of the finished gates plus the timing process itself). All 305
+runs ended in the recorded digest and admitted-tic count (0 mismatches). E1M6 at 158.6 µs was above P1's 150 µs, so
+the plan continued with O9d and O10.
+
+| Map | Cases | Admitted tics | Advance-only median us/tic (median of script medians) | Worst run us/tic | Whole-process wall median us/tic (secondary) |
+|---|--:|--:|--:|--:|--:|
+| E1M1 | 5 | 10,029 | 33.8 | 36.6 | 41.3 |
+| E1M2 | 5 | 9,094 | 83.2 | 90.2 | 96.0 |
+| E1M3 | 5 | 13,750 | 140.0 | 158.6 | 153.5 |
+| E1M4 | 5 | 9,386 | 85.0 | 91.1 | 91.2 |
+| E1M5 | 10 | 36,783 | 111.9 | 165.0 | 147.3 |
+| E1M6 | 5 | 12,742 | 158.6 | 176.0 | 186.1 |
+| E1M7 | 5 | 12,939 | 123.9 | 142.6 | 137.9 |
+| E1M8 | 10 | 30,840 | 49.7 | 70.2 | 55.2 |
+| E1M9 | 10 | 21,693 | 112.0 | 171.7 | 137.9 |
+| DEMO1 | 1 | 1,710 | 132.5 | 139.3 | 143.0 |
+
+## O9d (THINGS total memo): dropped
+
+Not committed (2026-11-15, America/Los_Angeles). Two forms were measured with `ir --check` against the O9c build;
+both passed the 3% threshold with all nine outcomes equal, and both raised some workloads, so §5's zero-or-negative
+rule drops O9d. Form A (a word field of `Simulation`) ran its full gate list first: all passed, including the 95 CI
+commands. Its measurement then showed `MTELE1_wire24` +0.18%, `TFRAG1_wire24` +0.19%, `M4a_gallery_patrol` +0.12%
+and `M4a_corpse_continuation` +0.25%, against −0.91% to −2.40% on the other five. Form B (a 32-bit word in
+`StaticWorld` padding, no size change) raised five workloads by +0.33% to +0.90%. The cause (an inlining shift in
+`demon_plan`) and the forms are in the [investigation, §3 O9](../M4P_REFERENCE_INVESTIGATION.md#3-inventory).
+
+## O10 (actor reads by reference)
+
+Code commit `50c71f2`, recorded on 2026-11-15 (America/Los_Angeles), same host, toolchain, valgrind and ext4 paths,
+no caps. `/mnt/c` had 47 GiB free after the gates.
+
+**CI-set instruction counts.** `ir --check` as above: all nine outcomes equal the baseline's; `threshold 3.0%: ok`;
+every workload fell. The `memcpy` call count fell by 19% to 31%; `malloc` and `realloc` are unchanged.
+
+| Workload | After O9c | After O10 | Change vs O9c | Change vs baseline | malloc calls | realloc calls | memcpy calls |
+|---|--:|--:|--:|--:|--:|--:|--:|
+| `SYNCHAOS_wire22` | 1,253,626,237 | 1,235,898,000 | −1.41% | −48.87% | 41,851 | 9,351 | 1,763,633 |
+| `SCALE2_episode1v2` | 286,057,165 | 282,363,537 | −1.29% | −53.50% | 27,318 | 9,517 | 392,111 |
+| `MTELE1_wire24` | 4,278,034 | 4,237,630 | −0.94% | −56.12% | 3,403 | 503 | 9,113 |
+| `TFRAG1_wire24` | 7,480,423 | 7,402,979 | −1.04% | −39.16% | 4,714 | 713 | 14,947 |
+| `BVB1_wire24` | 15,223,405 | 15,143,665 | −0.52% | −23.81% | 7,511 | 590 | 34,377 |
+| `M4a_dense64_lift` | 1,431,070,327 | 1,420,342,299 | −0.75% | −42.24% | 351,226 | 323,313 | 1,363,680 |
+| `M4a_dense64_fight` | 944,334,813 | 930,057,873 | −1.51% | −50.90% | 415,934 | 154,671 | 1,415,616 |
+| `M4a_gallery_patrol` | 146,286,670 | 144,716,218 | −1.07% | −43.16% | 231,303 | 81,328 | 258,136 |
+| `M4a_corpse_continuation` | 3,359,237 | 3,333,796 | −0.76% | −38.97% | 3,736 | 242 | 8,407 |
+
+**Gates run for O10** (on the tree of `50c71f2`). Build, both format checks, Clippy with warnings denied, `cargo test --workspace` (1,395 passed, 4 ignored), the release tests (1,362 passed, 2 ignored), `cargo +1.85.0 test --workspace` (1,395 passed, 4 ignored), warnings-denied rustdoc; `run_reference.py --suite --jobs 2` (65 passed); the 95 CI `stable` Python commands (95 passed, 0 failed, run with `python3`).
+
+**P8 tests for step 9 and O10.** None needed: O9a, O9b, O9c and O10 elide no check (each item's proof in the
+investigation says why), and O9d was dropped.
+
+## Group check 4
+
+After O10 (head `50c71f2`), on 2026-11-15 (America/Los_Angeles), on the idle machine with no caps and the timings
+hold lifted.
+
+**Real-map timing and digests.** `python3 -I tools/bench_advance.py timing --reps 5` on the rustc 1.85.0 release build
+in `~/scratch/m4p/target-185` with the scratch IWAD copy (binary, IWAD and output all ext4; no path under `/mnt/*`),
+from 14:04 to 14:06 PST, with no build, test, fuzz, Valgrind or C process running. Idle gate at each repetition
+start: all-CPU busy 0.32% to 0.43%, no stray process, 1-minute load 1.46 falling to 0.92 (the gate waited 45 s
+before the first repetition). All 305 runs ended in the recorded final stripped SHA-256 and admitted-tic count (0
+mismatches; 158,966 admitted tics per repetition).
+
+| Map | Cases | Admitted tics | Advance-only median us/tic (median of script medians) | Worst run us/tic | Whole-process wall median us/tic (secondary) |
+|---|--:|--:|--:|--:|--:|
+| E1M1 | 5 | 10,029 | 32.5 | 36.1 | 40.3 |
+| E1M2 | 5 | 9,094 | 81.7 | 91.0 | 93.3 |
+| E1M3 | 5 | 13,750 | 136.8 | 156.8 | 149.8 |
+| E1M4 | 5 | 9,386 | 81.7 | 88.5 | 89.2 |
+| E1M5 | 10 | 36,783 | 109.4 | 160.1 | 142.4 |
+| E1M6 | 5 | 12,742 | 150.9 | 167.8 | 176.8 |
+| E1M7 | 5 | 12,939 | 120.7 | 134.5 | 133.6 |
+| E1M8 | 10 | 30,840 | 48.9 | 69.3 | 54.5 |
+| E1M9 | 10 | 21,693 | 109.3 | 169.3 | 132.9 |
+| DEMO1 | 1 | 1,710 | 130.3 | 132.3 | 139.9 |
+
+**Against P1.** Every map's advance-only median is at or below 150 µs except E1M6 at 150.9 µs (5 scripts; its
+worst run 167.8 µs). P9's stop rule ("at P1's target, or after O10, whichever comes first") ends the optimisation
+items here, with the target missed on one map by 0.9 µs. No further item was started.
+
+**Synthetic genuine-engine checks.** The same commands as group checks 1 and 3, run one at a time (one C job at a
+time), with dumps under `~/scratch/m4p/ci-g4` (ext4), after the timing; the address variants run with
+`ASAN_OPTIONS=detect_leaks=0` set by the runners (leak detection disabled). All passed:
+
+- `m3h9c_reference.py --check --keep-dumps`: 6 scripts, variants identical for all 6, results file matched;
+  `m3h9c_snapshot_goldens.py --dumps … --check` (11 files); `check_player_level.py` on the six Rust runs (all checks
+  passed).
+- `m4a_reference.py --check --keep-dumps --selftest 300`: 30 scripts, variants identical for all 30, results file
+  matched, selftest passed; `m4a_snapshot_goldens.py --check` (19 files); `check_player_episode1.py --example-args
+  "--policy episode1" --require` (all checks passed); `m4b_m4a_goldens.py --check` (30 scripts, 15,116 snapshots
+  projected).
+- `m4b_reference.py --check --keep-dumps --selftest 30`: 18 scripts, variants identical for all 18, the `SPECH9`
+  overrun probe reported `p_map.c:242` after tic 74 as required, results file matched, selftest passed;
+  `m4b_snapshot_goldens.py --check --selftest` (20 files, 8 selftest checks).
+- `m4b_reference.py --set 2 --check --keep-dumps`: 4 scripts, variants identical, results file matched;
+  `m4b_snapshot_goldens.py --set 2 --check` (5 files).
+- `check_player_episode1v2.py --require`: 52 of 52 scripts matched (20,205 tics), 0 pending.
+
+No digest or byte differed. Not run for the group: the opt-in `strict32` variants, fuzz builds and the sanitizer
+campaign (due at step 11). `/mnt/c` had 47 GiB free after the group check.

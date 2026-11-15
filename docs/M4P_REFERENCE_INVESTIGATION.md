@@ -15,33 +15,20 @@ genuine-engine checks. Milestone status lives in [ROADMAP](ROADMAP.md), support 
 of this milestone will go to `docs/validation/M4P.md`, created in Phase 2. This note records only counts,
 timings, instruction counts and digests: no IWAD-derived coordinate, lump byte or per-object datum.
 
-**Status / next step (2026-11-15 02:25 PST).** Phase 1 is done. Phase 2 steps 1 to 8 are done (harness and baseline;
-O1 `3ca7623`, O3 `69c1a3a`, O4 `c439d91`, O2 `e8586a1`, O5 `320053c`, O7 `46f4b4e`, O6 `fda9230`, their P8 and
-differential tests, group checks 1 to 3; O8 dropped, see §3). **Step 9 is part done:** O9a (static descriptor tables)
-is `1408ee3` and O9b (`decoration_states` inline) is `251ada7`, each with its full gate list passed and its proof in §3
-(records in [validation/M4P.md](validation/M4P.md#o9a-descriptor-tables)). **Machine in use by the owner; work paused
-at 02:16 PST on 2026-11-15 at the owner's request.** Half-done work: O9c (the `Ok`-only `state_role_for` memo) is
-not committed; its code and proof text are the patch `~/scratch/m4p/wip/o9c_state_role_memo.patch` (apply with `git
-apply` on `251ada7` or later). It passed `ir --check` (all nine workloads lower than O9b, outcomes equal), build,
-format, Clippy, the workspace, release and rustc 1.85.0 tests, rustdoc and the reference suite; the 95 CI commands and
-the gate run's `ir --check` were stopped unfinished, so they must be rerun before it is committed. Drafts, untested
-on the current tree: O9d (THINGS total memo, `~/scratch/m4p/wip/o9d.py`) and O10 (actor reads by reference,
-`~/scratch/m4p/wip/o10.py`), both scripts that edit the tree. **Next step:** rerun the full gates for O9c and commit
-it, then O9d and O10 (each measured and gated alone), then group check 4 (all 61 real-map digests, digest only while
-timings are held, and the synthetic genuine-engine checks as `~/scratch/m4p/logs/group3.sh`), then P8 tests for any
-O9/O10 elision (none so far), then step 3 of Phase 2: the `simulation-ir` CI job (P6) and re-baselining. Failing
-checks: none known; CI was green on `1408ee3`. The decisions P1–P9 (§4) were adopted as recommended under the
-unattended rule; owner confirmation pending. Caps when work resumes on a shared machine: `CARGO_BUILD_JOBS=6`,
-`NEXTEST_TEST_THREADS=4`, `RUST_TEST_THREADS=4` (wrapper `~/scratch/m4p/logs/capped.sh`), at most two C jobs, the
-genuine-engine suites one at a time, timings held. Resume commands (build on ext4, never `/mnt/*`; `/mnt/c` had 46
-GiB free at the pause): `cd ~/src/DOOM && git apply ~/scratch/m4p/wip/o9c_state_role_memo.patch && cd
-~/scratch/m4p/logs && ./capped.sh bash full_gates.sh o9c`; Ir alone: `export CARGO_TARGET_DIR=~/scratch/m4p/target-185
-CARGO_BUILD_JOBS=6; cargo +1.85.0 build -p doom-sim --examples --release --locked; python3 -I tools/bench_advance.py
-ir --check`. The `ir --check` baseline is not lowered; against it `251ada7` measures SYNCHAOS −45.84%, SCALE2
-−50.96%, MTELE1 −53.78%, TFRAG1 −36.16%, BVB1 −20.64%, dense64_lift −40.48%, dense64_fight −47.80%, gallery_patrol
-−40.15% and corpse_continuation −36.19%. Timing, only when the owner lifts the hold and nothing else is running:
-`python3 -I tools/bench_advance.py timing --binary $CARGO_TARGET_DIR/release/examples/player_level_advance --iwad
-~/scratch/m4p/iwad/DOOM.WAD --out-dir ~/scratch/m4p/harness --reps 5`. **Open owner questions: confirmation of P1–P9.**
+**Status / next step (2026-11-15 14:10 PST).** Phase 1 is done; the owner confirmed P1–P9 on 2026-11-15 (§4).
+Phase 2 steps 1 to 10 are done: O1 `3ca7623`, O3 `69c1a3a`, O4 `c439d91`, O2 `e8586a1`, O5 `320053c`, O7 `46f4b4e`,
+O6 `fda9230`, O9a `1408ee3`, O9b `251ada7`, O9c `122370a` and O10 `50c71f2`, each with its full gate list and its
+proof in §3; O8 and O9d were dropped under §5's zero-or-negative rule (§3). Group checks 1 to 4 passed (group 4: all
+61 real-map digests with timing, and the synthetic genuine-engine checks). O9a to O10 elide no check, so they
+need no P8 test. **P1 against the stop rule:** after O10 every map's advance-only median is at or below
+150 µs except E1M6 at 150.9 µs; P9 stops the optimisation items after O10, so the target is missed on one map by
+0.9 µs and reported, not chased ([group check 4](validation/M4P.md#group-check-4)). Step 3 (P6): the
+`simulation-ir` CI job and the re-recorded baseline are committed; the runner-to-runner stability that fixes its
+threshold is measured from the CI runs. **Next:** the stability record, step 11 (re-record, evidence, docs,
+review), mutation testing on the PR, fuzz builds and a bounded sanitizer campaign, matched timings, the full gates
+and the exact-head CI matrix. Records: [validation/M4P.md](validation/M4P.md). Failing checks: none known. Scratch:
+`~/scratch/m4p` (ext4; build there, never on `/mnt/*`). **Open owner questions: none** (whether `simulation-ir`
+becomes a required check is the owner's call, P6).
 
 ## Summary
 

@@ -164,4 +164,5 @@ original evidence and former guide contents with exact-byte copies and digests.
   I1–I13 and the plan; Phase 1 done, decisions pending the owner).
 - [M4p simulation performance (no behaviour change) investigation](M4P_REFERENCE_INVESTIGATION.md)
   (the master profile by cause, the optimisation inventory with an equivalence argument per item,
-  decisions P1–P9 and the plan; Phase 1 done, decisions pending the owner).
+  decisions P1–P9, confirmed by the owner, and the plan; Phase 2 in progress;
+  [observations](validation/M4P.md)).
