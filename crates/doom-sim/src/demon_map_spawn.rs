@@ -82,8 +82,15 @@ impl Simulation {
             return Err(CombatError::Player.into());
         }
         self.preflight_perception_roster()?;
+        // `validate_perception_reference` depends only on `(self, id)`: a repeat
+        // of the id it last accepted in this loop is not checked again; the first
+        // failing id is still checked first (M4p note §3 O2).
+        let mut last = None;
         for target in self.sound_targets.iter().flatten() {
-            self.validate_perception_reference(*target)?;
+            if last != Some(*target) {
+                self.validate_perception_reference(*target)?;
+                last = Some(*target);
+            }
         }
         self.preflight_world_pickups()?;
         let mut suffix = false;

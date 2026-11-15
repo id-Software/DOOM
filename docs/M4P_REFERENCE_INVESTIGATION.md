@@ -355,6 +355,46 @@ so a skipped call would have returned the `Ok` already observed. The first faili
 at the same position in the same order, so the error and its position are unchanged. No store is needed:
 one `Option<ActorId>` per loop and one flag per pass. Risk: low.
 
+*O2 as implemented (2026-11-14 PST), narrower than above.* Two skips. (a) In `preflight_map_demons` the
+sound-target loop calls `validate_perception_reference(t)` only when `t` differs from the id it last accepted in this
+loop (one `Option<ActorId>`, set after the call returns `Ok`). (b) `monster_callback_references(a, sounds)` checks the
+owner's target with `monster_reference` and then, only when `sounds` is true, every sound target with
+`monster_reference`, as before. `preflight_monster_owner` passes `true` for the first live owner it reaches and `false`
+for every later owner of the same pass; `preflight_monster_callback` always passes `true`, so its 14 other callers keep
+the full walk. A first draft also skipped repeats inside the owner walk with an eight-entry seen-set; it passed every
+gate but made five CI workloads slightly slower than O4 (+0.02% to +0.32%), against §5's zero-or-negative rule, so it
+was replaced by this form, which is faster than O4 on all nine. The proof:
+
+1. *Pure on `&self`.* `validate_perception_reference(id)` and `monster_reference(id)` take `&self`, draw no RNG and
+   reach only the interior mutability listed in O1 item 1, so each returns a function of `(self, id)`; a repeat on the
+   same state returns the same result, and reaches a panicking path (`life.unwrap()` and the like) only if the first
+   call did, which returned `Ok`.
+2. *Nothing mutates in between.* `preflight_map_demons` and `preflight_monster_owner` take `&self`, and every call
+   between two owners of the owner loop is a `&self` call, so `self.sound_targets` and every actor are the same at
+   each skipped call as at the call that was kept.
+3. *No refusal can change.*
+   - (a) A skipped call has the same function and argument as the immediately preceding call of the loop for an
+     accepted id, which returned `Ok`, so it would return `Ok`. The first failing id is never the last accepted one,
+     so it is still checked at its first occurrence, after the same accepted calls as before.
+   - (b) The skipped walk of a later owner is the identical sequence of `monster_reference` calls on the identical
+     list that the first owner's walk completed with `Ok` in the same borrow (the flag is set only after that call
+     returned `Ok`; an error returns from the whole pass). Each later owner's own target is still checked, first, as
+     before, so a later owner can only fail where it failed before (its target). An owner's target that equals a
+     sound target is checked as the target, as before, and again in the first owner's walk, as before.
+   - The two functions are never conflated: (a) uses only `validate_perception_reference`, whose roster branch can
+     return before any type test, and (b) only `monster_reference`; neither skip is informed by the other.
+   Skipping calls that return `Ok` leaves every other check in its relative order: the first error, its reason and
+   its tic are unchanged.
+4. *Bounded and deterministic.* One `Option<ActorId>` and one `bool` on the stack; no store, allocation or
+   unordered iteration.
+
+Load-bearing checks for the P8 test: in (a), the kept call for each run of equal sound targets (two distinct targets,
+the second corrupt, must still refuse with the same error on the same tic; a skip keyed on anything wider than the
+last id would let it through); in (b), the first owner's walk of the sound targets (a corrupt sound target with two
+live owners must still refuse with the same error on the same tic, which the walk-once flag must not skip on the
+first owner) and every later owner's own target (a second owner whose target is corrupt and distinct from the first
+owner's must still refuse; removing the target check of later owners must make it fail).
+
 **O3. Drop the second `validate_item` in the same pass.** Shared. Gain 12–69 kIr per tic. The call at
 `demon_map_spawn.rs:129` runs only under `has_world_pickups()` with `kind_for(..).is_some()`, on a
 non-pending actor. `preflight_world_pickups` (`world_pickups.rs:1190–1247`) returns early only when that

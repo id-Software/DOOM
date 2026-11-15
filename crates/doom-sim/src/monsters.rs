@@ -586,20 +586,25 @@ impl Simulation {
             return Err(MonsterError::Ownership.into());
         }
         self.preflight_perception_roster()?;
-        self.monster_callback_references(&a)
+        self.monster_callback_references(&a, true)
     }
     /// The callback's last step: the owner's target and every sound target, in
     /// order. `preflight_monster_owner` calls it alone, because every earlier step
     /// of the callback already returned `Ok` on the same `&self` (M4p note §3 O1, O4).
-    fn monster_callback_references(&self, a: &Actor) -> Result<(), SimError> {
-        for t in a
-            .life
-            .unwrap()
-            .target
-            .iter()
-            .chain(self.sound_targets.iter().flatten())
-        {
-            self.monster_reference(*t)?;
+    ///
+    /// `monster_reference` depends only on `(self, id)`, so within one `&self`
+    /// borrow a repeat of the id it last accepted is skipped, and the sound targets
+    /// are walked only when `sounds` (the owner loop walks them once): a
+    /// skipped call could only return the `Ok` already observed, and the first
+    /// failing id is still checked first (M4p note §3 O2).
+    fn monster_callback_references(&self, a: &Actor, sounds: bool) -> Result<(), SimError> {
+        if let Some(t) = a.life.unwrap().target {
+            self.monster_reference(t)?;
+        }
+        if sounds {
+            for t in self.sound_targets.iter().flatten() {
+                self.monster_reference(*t)?;
+            }
         }
         Ok(())
     }
@@ -726,6 +731,7 @@ impl Simulation {
         self.preflight_map_demons()?;
         self.preflight_perception_roster()?;
         let mut shot_owner = None;
+        let mut sounds_passed = false;
         for id in self.actors.order() {
             if self.actors.is_pending(id) != Some(false) {
                 continue;
@@ -750,7 +756,8 @@ impl Simulation {
             {
                 // The callback's whole-state passes, owner test, `monster_actor(id,
                 // 1008)` (implied by the 978 result) and health test all hold here.
-                self.monster_callback_references(&a)?;
+                self.monster_callback_references(&a, !sounds_passed)?;
+                sounds_passed = true;
                 if l.tics == 1
                     && l.state.is_some_and(|s| {
                         if self.profile.uses_demon() {
