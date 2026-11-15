@@ -1276,7 +1276,37 @@ pub(crate) fn require_role_for(
         other => Err(OriginalRegistryError::Unsupported(other)),
     }
 }
+/// Entries of the [`state_role_for`] memo.
+const STATE_ROLE_MEMO: usize = 1024;
+/// `Ok`-only memo of [`state_role_for`], a pure function of its three arguments
+/// over static source data (M4p note §3 O9c). Each entry holds one complete key
+/// (a valid bit, the profile, the type and the state), so a hit is an input that
+/// already returned `Ok`; a miss or a collision recomputes. Process-wide and never
+/// part of a `Simulation`, snapshot, DSIM byte or digest; relaxed atomics suffice
+/// because every entry is one word and a stale read only recomputes.
+static STATE_ROLE_OK: [std::sync::atomic::AtomicU64; STATE_ROLE_MEMO] =
+    [const { std::sync::atomic::AtomicU64::new(0) }; STATE_ROLE_MEMO];
 pub(crate) fn state_role_for(
+    profile: OriginalExecutionProfile,
+    ty: ActorTypeId,
+    state: StateId,
+) -> Result<(), OriginalRegistryError> {
+    use std::sync::atomic::Ordering;
+    let key = 1_u64 << 63 | (profile as u64) << 32 | u64::from(ty.0) << 16 | u64::from(state.0);
+    let entry =
+        &STATE_ROLE_OK[(usize::from(ty.0) * 977 + usize::from(state.0) + profile as usize * 31)
+            % STATE_ROLE_MEMO];
+    if entry.load(Ordering::Relaxed) == key {
+        return Ok(());
+    }
+    let result = state_role_uncached(profile, ty, state);
+    if result.is_ok() {
+        entry.store(key, Ordering::Relaxed);
+    }
+    result
+}
+/// [`state_role_for`] without the memo.
+fn state_role_uncached(
     profile: OriginalExecutionProfile,
     ty: ActorTypeId,
     state: StateId,

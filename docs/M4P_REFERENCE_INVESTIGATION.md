@@ -735,6 +735,42 @@ unchanged. The proof:
 No elision, so no P8 test. The firestick loop (the one multi-state decoration) is swept by the existing
 `a_decoration_holds_a_state_of_its_own_loop_only` (`tests/episode1v2_reader_domains.rs`) and the M4a goldens.
 
+*O9c as implemented (2026-11-15 PST): an `Ok`-only memo inside `state_role_for`.* The former body is
+`state_role_uncached`; `state_role_for` (`crates/doom-sim/src/original_registry.rs:1289`) first reads one entry of a
+process-wide `static STATE_ROLE_OK: [AtomicU64; 1024]` (1287). Each entry is a full key: bit 63 set, the profile's
+ordinal in bits 32–39 (24 variants), the type in bits 16–31 and the state in bits 0–15. If the entry equals the key
+it returns `Ok(())`; otherwise it calls `state_role_uncached` and, only if that returned `Ok`, stores the key. The
+entry index is `(type · 977 + state + profile · 31) mod 1024`; it only spreads the keys, because a hit compares the
+whole key. All nine call sites (`actions.rs`, `combat.rs` twice, `demon_lifecycle.rs`, `diagnostic.rs` twice,
+`player_pistol.rs`, `original_registry.rs` twice) get the memo. The proof:
+
+1. *A pure function of its three arguments.* `state_role_uncached(profile, ty, state)` has no `&self`, and reaches
+   only: `require_role_for` (`kind_for`, `identity`, the profile's `has_*` predicates and constant type lists);
+   `OriginalState::try_from`; `world_pickups::kind_for`, `kind` and `state_allowed` (constant matches, the O9a
+   descriptor table and `spawn_loop` over it); `e1m1_rules::is_decoration` and `spawn_state` (constant lists and
+   `decoration_states`); `barrels::is_barrel` and `state_allowed`; `teleport::is_landing` and `is_fog`; the
+   `owner_slot` and `body_slot` constants; and the per-type `ActorPolicy` `OnceLock`s (`demon_policy`,
+   `tfog_policy`, `player_policy`, `extended_policy`, `fireball_policy`, `rocket_policy`, `bruisershot_policy`, the
+   `BODY`/`PUFF`/`BLOOD` cells), each initialised from static source data by a function without arguments. None
+   draws RNG, reads a `Simulation` or counts work. So two calls with the same `(profile, ty, state)` return the
+   same result, in any process state.
+2. *A hit returns what the call would.* The key is injective on `(profile, ty, state)` (disjoint bit fields, each
+   wide enough, and the valid bit keeps the zero-initialised entries from matching), and a key is stored only after
+   `state_role_uncached` returned `Ok` for exactly that input; by item 1 the call would return `Ok` again. A
+   `OnceLock` that a skipped call would have initialised was already initialised by the call that stored the key.
+3. *Errors are untouched.* An input that fails is never stored, so every failing call still runs the full body and
+   returns its own error (`Unsupported`, `Definition`, `State`, `Graph` or a policy's error); the caller maps it as
+   before. Overwriting an entry (a collision) only turns a later hit into a recomputation of the same `Ok`.
+4. *Not observable, bounded.* The memo is not a field of `Simulation` or of anything cloned, compared, formatted,
+   snapshotted, encoded or digested; it is 8 KiB of process-wide `static` data. Each entry is one atomic word, so a
+   reader on another thread sees either a whole key or not; `Relaxed` suffices because a missed or stale read only
+   recomputes (the `AdmittedTypes` argument). This adds one item to O1's list of interior mutability: the memo can
+   only turn a repeat into the `Ok` it would have returned.
+
+No check is elided (a hit stands for a call whose result is known), so P8 asks for no test; the tests that sweep
+`state_role_for`'s rejections (for example the reader-domain sweeps and `admit_state`'s tests) run it on inputs that
+fail, which the memo never stores.
+
 **O10. Read actors by reference in the validators.** Shared. Gain: most of the 4.2–6.1% direct `memcpy` that
 remains after O1–O4. Internal `&Actor` variants of `monster_actor` and `perception_actor` replace the copies,
 and `preflight_world_pickups` borrows. Pure refactor, same checks in the same order. Risk: low; the size is
