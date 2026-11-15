@@ -248,6 +248,25 @@ def load_cases(iwad, out_dir):
     return cases
 
 
+DEFAULT_MAX_LOAD = 1.5
+DEFAULT_MAX_BUSY = 0.04
+
+
+def not_evidence_reasons(args, fs_ok):
+    """Why a timing run is not performance evidence: any relaxed idle-gate limit, --allow-slow-fs,
+    or a path that is not on a Linux disk. Empty when it is."""
+    reasons = []
+    if args.max_load > DEFAULT_MAX_LOAD:
+        reasons.append(f"--max-load {args.max_load} relaxed beyond the default {DEFAULT_MAX_LOAD}")
+    if args.max_busy > DEFAULT_MAX_BUSY:
+        reasons.append(f"--max-busy {args.max_busy} relaxed beyond the default {DEFAULT_MAX_BUSY}")
+    if args.allow_slow_fs:
+        reasons.append("--allow-slow-fs used")
+    if not fs_ok:
+        reasons.append("a path is under /mnt or not on a Linux disk filesystem")
+    return reasons
+
+
 def timing_mode(args):
     binary = args.binary or os.path.join(
         os.environ.get("CARGO_TARGET_DIR", os.path.join(REPO, "target")), "release", "examples", "player_level_advance"
@@ -258,7 +277,9 @@ def timing_mode(args):
         die("--iwad PATH (a scratch copy of DOOM.WAD on the Linux disk) is required")
     out_dir = os.path.abspath(args.out_dir)
     os.makedirs(out_dir, exist_ok=True)
-    fs, fast = check_filesystems({"binary": binary, "iwad": args.iwad, "out_dir": out_dir}, args.allow_slow_fs)
+    fs, fs_ok = check_filesystems({"binary": binary, "iwad": args.iwad, "out_dir": out_dir}, args.allow_slow_fs)
+    reasons = not_evidence_reasons(args, fs_ok)
+    fast = not reasons
     cases = load_cases(args.iwad, out_dir)
     log, obs, bad = [], [], []
     for rep in range(args.reps):
@@ -291,6 +312,7 @@ def timing_mode(args):
     record = {
         "schema": "DOOM-M4P-TIMING-v1",
         "performance_evidence": fast,
+        "not_performance_evidence_because": reasons,
         "filesystems": fs,
         "binary_rustc": rustc_of_binary(binary),
         "host": host_record(),
@@ -305,10 +327,13 @@ def timing_mode(args):
     with open(os.path.join(out_dir, "bench_timing.json"), "w") as handle:
         json.dump({"record": record, "observations": obs}, handle, indent=1)
     table = timing_table(summary)
+    if reasons:
+        table += "\nNot performance evidence: " + "; ".join(reasons) + ".\n"
     with open(os.path.join(out_dir, "bench_timing.md"), "w") as handle:
         handle.write(table)
     print(table)
-    print(f"runs {len(obs)}, digest/tic mismatches {len(bad)}, performance evidence: {fast}")
+    print(f"runs {len(obs)}, digest/tic mismatches {len(bad)}, performance evidence: {fast}"
+          + ("" if fast else " (" + "; ".join(reasons) + ")"))
     if bad:
         print(json.dumps(bad), file=sys.stderr)
         return 1
@@ -596,8 +621,8 @@ def main():
     t.add_argument("--out-dir", required=True, help="scratch directory for DEMO1.lmp and the result files")
     t.add_argument("--reps", type=int, default=5)
     t.add_argument("--rotate", type=int, default=12, help="case-order rotation per repetition")
-    t.add_argument("--max-load", type=float, default=1.5, help="1-minute load limit before a repetition")
-    t.add_argument("--max-busy", type=float, default=0.04, help="all-CPU busy fraction limit over the idle window")
+    t.add_argument("--max-load", type=float, default=DEFAULT_MAX_LOAD, help="1-minute load limit before a repetition")
+    t.add_argument("--max-busy", type=float, default=DEFAULT_MAX_BUSY, help="all-CPU busy fraction limit over the idle window")
     t.add_argument("--idle-window", type=float, default=5.0)
     t.add_argument("--idle-timeout", type=int, default=1800)
     t.add_argument("--allow-slow-fs", action="store_true",
