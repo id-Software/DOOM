@@ -2088,7 +2088,8 @@ CARGO_TARGET_DIR=~/scratch/m4p/target cargo +1.85.0 build -p doom-sim --examples
 `tests/reference/m4p_ir_baseline.json`: instructions inside `advance` outside libc and ld.so, plus the
 `malloc`, `realloc` and `memcpy` call counts (total `advance` instructions are printed for information).
 A final-state digest or outcome that differs from the baseline also fails, so a behaviour change is caught.
-It refuses examples built by a different rustc than the baseline's. These are instruction counts, not time.
+It refuses examples built by a different rustc than the baseline's, also when rewriting the baseline
+(`--allow-toolchain-mismatch` overrides). These are instruction counts, not time.
 
 ```sh
 export CARGO_TARGET_DIR=~/scratch/m4p/target
@@ -2096,6 +2097,12 @@ python3 -I tools/bench_advance.py ir --check                  # fail above the t
 python3 -I tools/bench_advance.py ir --update-baseline        # rewrite the baseline after a reviewed change
 python3 -I tools/bench_advance.py ir --only TFRAG1_wire24     # one workload; --jobs N, --keep, --json-out PATH
 ```
+
+CI runs `ir --check` in the Linux job **Simulation instruction counts** (`simulation-ir`): it installs the
+runner's `valgrind` package and Rust 1.85.0, builds the release examples with `cargo +1.85.0`, and uploads the
+measured counts as the `simulation-ir` artifact. It is not a required check unless the owner makes it one. After a
+reviewed change that lowers the counts, rewrite the baseline from a pinned build (`ir --update-baseline` refuses a
+build by another rustc) and commit it with the change.
 
 **`timing`** (local only, needs an IWAD copy in scratch). Times `player_level_advance --policy episode1v2`
 over the 61 real-map cases of `tests/reference/m4b_real_results.json` (DEMO1 is extracted from the IWAD copy

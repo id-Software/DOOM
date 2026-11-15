@@ -22,12 +22,12 @@
     "refused_at": null,
     "final_sha_stripped": "0eba38f408a4c56ab2c744f49f14abc443067616ba612ed616c75a6772c15dea"
    },
-   "ir_advance_excl_libc": 2417221845,
-   "ir_advance_total": 2817871837,
-   "malloc_calls": 537034,
-   "realloc_calls": 40302,
-   "memcpy_calls": 3726424,
-   "free_calls": 537034
+   "ir_advance_excl_libc": 1235898000,
+   "ir_advance_total": 1300490041,
+   "malloc_calls": 41851,
+   "realloc_calls": 9351,
+   "memcpy_calls": 1763633,
+   "free_calls": 46852
   },
   "SCALE2_episode1v2": {
    "description": "pickups, decorations, barrels",
@@ -48,12 +48,12 @@
     "refused_at": null,
     "final_sha_stripped": "a4af1a38230032c65dcd9431b99f7a0ccad98d345976993cd0fa34733dbe9563"
    },
-   "ir_advance_excl_libc": 607264606,
-   "ir_advance_total": 685446699,
-   "malloc_calls": 121778,
-   "realloc_calls": 32962,
-   "memcpy_calls": 787156,
-   "free_calls": 121778
+   "ir_advance_excl_libc": 282363537,
+   "ir_advance_total": 297974296,
+   "malloc_calls": 27318,
+   "realloc_calls": 9517,
+   "memcpy_calls": 392111,
+   "free_calls": 27919
   },
   "MTELE1_wire24": {
    "description": "two Demons",
@@ -74,12 +74,12 @@
     "refused_at": null,
     "final_sha_stripped": "35ea2afc402b9dce689e1a20aede7c79ef0fe603573af48b9b8aff2b7e6274c6"
    },
-   "ir_advance_excl_libc": 9657230,
-   "ir_advance_total": 10954763,
-   "malloc_calls": 3883,
-   "realloc_calls": 1141,
-   "memcpy_calls": 18813,
-   "free_calls": 3883
+   "ir_advance_excl_libc": 4237630,
+   "ir_advance_total": 4705945,
+   "malloc_calls": 3403,
+   "realloc_calls": 503,
+   "memcpy_calls": 9113,
+   "free_calls": 3564
   },
   "TFRAG1_wire24": {
    "description": "one Demon",
@@ -100,12 +100,12 @@
     "refused_at": null,
     "final_sha_stripped": "e93dee2a0c794e17e708b0cee995823b30d394dbc333625e04f6aaffb5d8f624"
    },
-   "ir_advance_excl_libc": 12167172,
-   "ir_advance_total": 14285193,
-   "malloc_calls": 5560,
-   "realloc_calls": 1646,
-   "memcpy_calls": 25971,
-   "free_calls": 5560
+   "ir_advance_excl_libc": 7402979,
+   "ir_advance_total": 8339413,
+   "malloc_calls": 4714,
+   "realloc_calls": 713,
+   "memcpy_calls": 14947,
+   "free_calls": 4997
   },
   "BVB1_wire24": {
    "description": "Barons, infighting",
@@ -126,12 +126,12 @@
     "refused_at": null,
     "final_sha_stripped": "0fa53ab337fda19e031fc2f6fd92aff2f46866197de23b2f5d31d59568c3eac5"
    },
-   "ir_advance_excl_libc": 19876640,
-   "ir_advance_total": 24787687,
-   "malloc_calls": 9716,
-   "realloc_calls": 3168,
-   "memcpy_calls": 45342,
-   "free_calls": 9716
+   "ir_advance_excl_libc": 15143665,
+   "ir_advance_total": 17183979,
+   "malloc_calls": 7511,
+   "realloc_calls": 590,
+   "memcpy_calls": 34377,
+   "free_calls": 8247
   },
   "M4a_dense64_lift": {
    "description": "check_things",
@@ -146,12 +146,12 @@
     "calls": 1200,
     "digest": "775002081fb13dd7"
    },
-   "ir_advance_excl_libc": 2458894726,
-   "ir_advance_total": 2829702660,
-   "malloc_calls": 634539,
-   "realloc_calls": 340572,
-   "memcpy_calls": 2525763,
-   "free_calls": 499446
+   "ir_advance_excl_libc": 1420342299,
+   "ir_advance_total": 1582039924,
+   "malloc_calls": 351226,
+   "realloc_calls": 323313,
+   "memcpy_calls": 1363680,
+   "free_calls": 218534
   },
   "M4a_dense64_fight": {
    "description": "events, decorations",
@@ -166,12 +166,12 @@
     "calls": 1200,
     "digest": "0e71b9055c322104"
    },
-   "ir_advance_excl_libc": 1894182959,
-   "ir_advance_total": 2224314539,
-   "malloc_calls": 779089,
-   "realloc_calls": 177944,
-   "memcpy_calls": 2973051,
-   "free_calls": 538085
+   "ir_advance_excl_libc": 930057873,
+   "ir_advance_total": 983768975,
+   "malloc_calls": 415934,
+   "realloc_calls": 154671,
+   "memcpy_calls": 1415616,
+   "free_calls": 178531
   },
   "M4a_gallery_patrol": {
    "description": "decorations, weapon state",
@@ -186,12 +186,12 @@
     "calls": 1200,
     "digest": "8d93b11841b30c12"
    },
-   "ir_advance_excl_libc": 254615183,
-   "ir_advance_total": 293362995,
-   "malloc_calls": 357331,
-   "realloc_calls": 95649,
-   "memcpy_calls": 422489,
-   "free_calls": 222238
+   "ir_advance_excl_libc": 144716218,
+   "ir_advance_total": 158371578,
+   "malloc_calls": 231303,
+   "realloc_calls": 81328,
+   "memcpy_calls": 258136,
+   "free_calls": 99811
   },
   "M4a_corpse_continuation": {
    "description": "older Demon profile",
@@ -206,12 +206,12 @@
     "calls": 100,
     "digest": "8895f91dc8652aec"
    },
-   "ir_advance_excl_libc": 5462483,
-   "ir_advance_total": 6824249,
-   "malloc_calls": 4933,
-   "realloc_calls": 1123,
-   "memcpy_calls": 13858,
-   "free_calls": 4933
+   "ir_advance_excl_libc": 3333796,
+   "ir_advance_total": 3817671,
+   "malloc_calls": 3736,
+   "realloc_calls": 242,
+   "memcpy_calls": 8407,
+   "free_calls": 4136
   }
  }
 }

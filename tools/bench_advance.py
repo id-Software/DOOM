@@ -554,7 +554,9 @@ def ir_mode(args):
             die(f"example not built: {w[3][0]} (cargo build -p doom-sim --examples --release --locked)")
     rustc = rustc_of_binary(os.path.join(examples, "player_level_advance"))
     baseline = json.load(open(args.baseline)) if os.path.isfile(args.baseline) else None
-    if baseline and not args.update_baseline and baseline.get("rustc") != rustc and not args.allow_toolchain_mismatch:
+    # Also on --update-baseline: rewriting the baseline from another toolchain's build
+    # (for example the stable build in ./target) would silently move every count.
+    if baseline and baseline.get("rustc") != rustc and not args.allow_toolchain_mismatch:
         die(f"examples built by rustc '{rustc}', baseline recorded with '{baseline.get('rustc')}': "
             "build with the pinned toolchain (cargo +1.85.0 ...) or pass --allow-toolchain-mismatch")
     work = tempfile.mkdtemp(prefix="bench_ir_")
