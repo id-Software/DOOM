@@ -498,6 +498,45 @@ and with it the spare, is dropped and `self.events` is untouched, as today. The 
 largest admitted tic's event count. No new fallible allocation is added, so no new `StoreError::Capacity`
 point appears. Risk: low.
 
+
+*O5 as implemented (2026-11-14 PST), as proposed, for the operation paths too.* A new non-canonical field `spare_events: Vec<Event>` (always
+empty) is taken by `demon_plan` as the plan's event buffer instead of `Vec::new()`. At the commit of
+`advance_expanded_demons`, when `self.pending` is empty the plan's vector becomes `self.events` by
+`mem::replace`, and the replaced vector is cleared and kept as the spare; when `self.pending` is not empty,
+`self.pending` becomes `self.events` as before, the plan's events are moved after it with `Vec::append`, and the
+plan's emptied vector is kept as the spare. The phase markers are then pushed exactly as before. The two operation
+paths (`checked_map_spawn_batch`, `checked_demon_operation`) move the plan's events into `self.pending` with
+`append` instead of `extend` and keep the emptied vector as the spare. The proof:
+
+1. *Same event sequence.* Before, the tic's `self.events` was `pending ++ plan.events ++ tail`, built by taking
+   `pending` and extending it by `plan.events`. With `pending` empty that is `plan.events ++ tail`, which is what the
+   moved vector holds before the same pushes; otherwise the same `pending` vector is extended by the same events in
+   the same order (`append` and `extend` both add the source's elements in order). The operation paths append the
+   same events in the same order to the same `pending`. The plan's buffer starts empty in every case (the spare is
+   cleared when stored, and `Vec::new()` when absent), so no earlier event can leak into a plan: everything the
+   tic pushes to `plan.events` is pushed to the same positions as before.
+2. *Capacity is not observable.* `Event` vectors are read through their contents only (`snapshot`, the DSIM
+   encoders, `PartialEq`, `Debug`); `grep -rn 'capacity()' crates/doom-sim/src` lists no read of an event vector's
+   capacity, and the spare is never read, encoded or compared (like `spare_sound_targets`). `Simulation` derives
+   only `Clone` and `Debug` (`lib.rs`, `#[derive(Clone, Debug)]`), not `PartialEq`; `snapshot()` and the DSIM
+   encoders name their fields, so the spare reaches no digest, DSIM byte or snapshot; a clone copies the empty spare
+   as an empty vector; and no test or tool formats a whole `Simulation` with `Debug` (the soak tests format single
+   fields).
+3. *Refuse-the-tic unchanged.* The only new write before the fallible steps is
+   `mem::take(&mut self.spare_events)`, a non-canonical field, taken after every fallible step of `demon_plan`
+   (so a failing `demon_plan` keeps the spare). Every refusal returns before `commit_demon_plan`, dropping the plan and its buffer;
+   `self.events`, `self.pending`, the actors, the RNG and the tic are untouched, as before. The next plan starts
+   from an empty vector, the old behaviour. The commit's new steps (`mem::replace`, `append`, `clear`) are
+   infallible, and no fallible allocation is added, so no new `StoreError::Capacity` point exists.
+4. *Bounded.* The spare is one previously live event vector (the replaced `self.events` or a committed plan's
+   buffer), emptied. Its capacity is at most the largest capacity an event vector of this `Simulation` already
+   reached for an admitted tic or operation, so the retained memory between tics is at most one such vector more
+   than before, and the peak at a commit is not above the old peak, when the old `self.events`, `pending` and the
+   plan's vector were all live.
+
+There is no elision, so no load-bearing check; P8 does not ask for a test of O5. The event-order evidence is the
+existing goldens and DSIM bytes (every event list is encoded in the snapshots and checked byte for byte).
+
 **O6. Scan the spatial order once in `for_things`.** Shared by every wire with actor movement. Gain up to 555
 kIr per tic (E1M5 M5WALK3), and about 0.7 of dense64_lift's 43.7%. Today the function visits, for x then y
 over the box, every candidate of `spatial.order` whose cell is `[x, y]`, in order, and stops when `visit`

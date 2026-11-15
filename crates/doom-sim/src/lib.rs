@@ -603,6 +603,11 @@ pub struct Simulation {
     /// tables a commit replaced), reused as the next plan's (like `spare_specials`).
     /// Never read or encoded.
     pub(crate) spare_writes: staging::StagedWrites,
+    /// An empty event vector kept with its capacity (the replaced `events` of the
+    /// last committed tic, or a committed plan's emptied buffer), taken as the next
+    /// plan's event buffer (like `spare_specials`). Always empty; never read, encoded
+    /// or compared (M4p note §3 O5).
+    pub(crate) spare_events: Vec<Event>,
     /// Under the movers policy, what its load rules derived from the immutable map
     /// (families, `M`, reachable heights, `Δ`); never canonical state.
     pub(crate) movers: Option<mover_rules::MoverAdmission>,
@@ -803,6 +808,7 @@ impl Simulation {
             spare_sector_slots: Vec::new(),
             line_specials: Vec::new(),
             spare_writes: staging::StagedWrites::default(),
+            spare_events: Vec::new(),
             movers: None,
             level_exit: false,
             level_secret_exit: false,
