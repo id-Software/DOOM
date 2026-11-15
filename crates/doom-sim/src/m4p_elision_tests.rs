@@ -1,9 +1,12 @@
 //! M4p decision P8 (docs/M4P_REFERENCE_INVESTIGATION.md §4 P8): Rust-only tests, one per
-//! elision of O1, O3 and O4, each failing if the remaining check named in the "as implemented"
+//! elision of O1, O2, O3 and O4 and per check named for O7, each failing if the remaining check named in the "as implemented"
 //! proofs of §3 is removed. They restate behaviour that existed before the elisions and need no
 //! new C citation; the existing goldens remain the equivalence evidence. Each refusal leaves
 //! the canonical state bytes, the RNG and the tic exactly as before.
 use crate::*;
+#[allow(clippy::duplicate_mod)]
+#[path = "../../../tests/support/m3f3.rs"]
+mod fixtures;
 
 /// Canonical bytes, RNG and tic: the whole observable state a refused tic must preserve.
 fn witness(s: &Simulation) -> (Vec<u8>, doom_types::DoomRng, u64) {
@@ -202,5 +205,179 @@ fn demon_map_pickup_corruption_refuses_through_preflight_world_pickups() {
         assert_eq!(s.advance(commands).err(), Some(expected));
         assert_eq!(witness(&s), before);
         assert_eq!(s.tic(), 0);
+    }
+}
+
+// ---------------------------------------------------------------------------------------
+// O2 (note §3 "O2 as implemented"): the sound-target and owner-target reference checks.
+// ---------------------------------------------------------------------------------------
+
+/// `demon_map` with a good id (the owners' Demon target) and a bad one (an effect).
+fn map_ids() -> (Simulation, ActorId, ActorId) {
+    let mut s = demon_map();
+    let good = s.actor(OWNER).unwrap().life().unwrap().target.unwrap();
+    let bad = effect(&mut s);
+    assert!(s.validate_perception_reference(good).is_ok());
+    assert!(s.validate_perception_reference(bad).is_err());
+    (s, good, bad)
+}
+
+/// Pins the kept `validate_perception_reference` call of each run of equal sound targets in
+/// `preflight_map_demons` (O2 (a), last-accepted-id skip). A below-API guard: the public API
+/// refuses a bad sound target at write time, so the table is written from inside the crate.
+/// Cases: a different bad id after an accepted run, a bad id first, a bad id repeated (it must
+/// fail at its first occurrence and never count as accepted), and a bad id between good runs.
+/// Each must refuse with the error the function gives for the bad id, on the same tic, with
+/// canonical bytes, RNG and tic unchanged.
+#[test]
+fn sound_target_loop_refuses_a_bad_id_after_and_inside_runs_of_equal_ids() {
+    let (s, good, bad) = map_ids();
+    let expected = s.validate_perception_reference(bad).unwrap_err();
+    // The map has one sector; `preflight_map_demons` walks whatever the table holds, so the
+    // table is widened (below the API) to give a loop of several entries.
+    let mut s = s;
+    s.sound_targets.resize(4, None);
+    // Control: the all-good table passes the pass.
+    let mut ok = s.clone();
+    ok.sound_targets.iter_mut().for_each(|t| *t = Some(good));
+    assert_eq!(ok.preflight_map_demons(), Ok(()));
+    let (g, b) = (Some(good), Some(bad));
+    for table in [
+        [g, g, b, None],
+        [b, g, None, None],
+        [b, b, g, None],
+        [g, b, b, g],
+        [g, b, g, g],
+        [g, g, g, b],
+    ] {
+        let mut s = s.clone();
+        s.sound_targets.iter_mut().for_each(|t| *t = None);
+        s.sound_targets[..4].copy_from_slice(&table);
+        assert_eq!(s.preflight_map_demons(), Err(expected));
+        refuses_with(&mut s, expected);
+        assert_eq!(s.tic(), 0);
+    }
+}
+
+/// Pins O2 (b), the first live owner's walk of the sound targets in `preflight_monster_owner`
+/// (`monster_callback_references(a, true)`: the walk-once flag starts unset). In `DemonLifecycle`
+/// `preflight_map_demons` is a no-op, so this walk is the only check of a sound target there;
+/// the direct call of the owner pass proves it is the pass that refuses. Below the API: the
+/// public `step` refuses without saying which pass did, and the corrupt table is injected.
+#[test]
+fn first_live_owner_still_walks_the_sound_targets() {
+    let mut s = lifecycle();
+    assert_eq!(s.preflight_map_demons(), Ok(()));
+    assert_eq!(s.preflight_monster_owner().map(|_| ()), Ok(()));
+    let e = effect(&mut s);
+    let expected = s.monster_reference(e).unwrap_err();
+    s.sound_targets[0] = Some(e);
+    assert_eq!(s.preflight_map_demons(), Ok(()));
+    assert_eq!(s.preflight_monster_owner().map(|_| ()), Err(expected));
+    refuses_with(&mut s, expected);
+    assert_eq!(s.tic(), 0);
+}
+
+/// O2 (c), the target check of every later owner (`monster_callback_references(a, false)`), and
+/// the nearest reachable boundary. Why (c) has no reachable witness: a second live owner exists
+/// only under a `uses_demon_map` profile (`monster_actor` and `spawn_type` refuse a second owner
+/// elsewhere: `monsters.rs` "actors.order().next() != Some(id)" and the `monster_is_owner_type`
+/// spawn test), and there `preflight_map_demons`, which runs first in `preflight_monster_owner`
+/// on the same `&self`, already calls `validate_perception_reference` on the target of every
+/// live roster monster, and that function ends in `monster_reference` (for these policies,
+/// `perception.rs` `validate_perception_reference`), so it refuses every target that the
+/// owner loop's own check would refuse, earlier and at the same tic. So the test pins the
+/// reachable boundary: a second owner whose target (distinct from the first owner's) is bad
+/// refuses on the same tic, through `preflight_map_demons`, and a second owner with a good
+/// distinct target passes. The injection is below the API (`set_actor_target` refuses it).
+#[test]
+fn later_map_owner_with_a_bad_distinct_target_refuses_before_the_owner_loop() {
+    let (mut s, good, bad) = map_ids();
+    let second = ActorId::from_parts(1, 1);
+    assert!(s.monster_is_owner(OWNER) && s.monster_is_owner(second));
+    // Another good target, distinct from the first owner's.
+    let other = s
+        .spawn_type(
+            ActorTypeId(135),
+            [Fixed::from_map_units(32), Fixed::ZERO],
+            SpawnHeight::Floor,
+        )
+        .unwrap();
+    assert!(s.validate_perception_reference(other).is_ok());
+    set_target(&mut s, OWNER, Some(good));
+    set_target(&mut s, second, Some(other));
+    assert_eq!(s.preflight_monster_owner().map(|_| ()), Ok(()));
+    let expected = s.validate_perception_reference(bad).unwrap_err();
+    set_target(&mut s, second, Some(bad));
+    assert_eq!(s.preflight_map_demons(), Err(expected));
+    assert_eq!(s.preflight_monster_owner().map(|_| ()), Err(expected));
+    refuses_with(&mut s, expected);
+    assert_eq!(s.tic(), 0);
+}
+
+fn set_target(s: &mut Simulation, owner: ActorId, t: Option<ActorId>) {
+    s.actors
+        .get_mut(owner)
+        .unwrap()
+        .life
+        .as_mut()
+        .unwrap()
+        .target = t;
+}
+
+// ---------------------------------------------------------------------------------------
+// O7 (note §3 "O7 as implemented"): the slot bitmap of `preflight_expanded_demons_for`.
+// ---------------------------------------------------------------------------------------
+
+mod expanded {
+    use super::fixtures;
+    use super::*;
+
+    fn setup() -> Simulation {
+        let s = fixtures::setup(&fixtures::cases()[0]);
+        // Control: the uncorrupted fixture advances, so a refusal below comes from the corruption.
+        let mut c = s.clone();
+        assert!(c.step([TicCommand::default(); 4]).is_ok());
+        assert!(s.spatial.order.len() >= 2);
+        s
+    }
+
+    /// Pins the duplicate test of the first loop (`linked[word] & bit != 0`): an id twice in
+    /// `spatial.order` must refuse with `MapSpawnError::Ownership` (the `BTreeSet::insert`
+    /// returning false before O7) from `step` and `advance` on the same tic (the preflight is
+    /// private to its module, so the public step is the witness).
+    /// Every id stays live and in range, so no other clause refuses; below the API because
+    /// the spatial order is only ever built without repeats. Checked at the start, middle and
+    /// end of the order and for a distinct slot pair that must not count as a duplicate.
+    #[test]
+    fn an_id_twice_in_the_spatial_order_is_refused() {
+        let expected = SimError::MapSpawn(MapSpawnError::Ownership);
+        let n = setup().spatial.order.len();
+        for (at, dup) in [(0, 0), (0, n - 1), (n - 1, 0), (n - 1, n - 1)] {
+            let mut s = setup();
+            let id = s.spatial.order[dup];
+            s.spatial.order.insert(at, id);
+            refuses_with(&mut s, expected);
+            assert_eq!(s.tic(), 0);
+        }
+        // Control: distinct slots are not duplicates (the bitmap keys by slot, not by position).
+        let mut s = setup();
+        s.spatial.order.reverse();
+        assert!(s.step([TicCommand::default(); 4]).is_ok());
+    }
+
+    /// Pins the second loop's membership test (`linked[word] & bit == 0`): a live actor of
+    /// `actors.order()` that is absent from `spatial.order` must refuse with
+    /// `MapSpawnError::Ownership`, whichever entry is removed. Below the API: removal from the
+    /// spatial order is only done together with the actor.
+    #[test]
+    fn a_live_actor_missing_from_the_spatial_order_is_refused() {
+        let expected = SimError::MapSpawn(MapSpawnError::Ownership);
+        for at in 0..setup().spatial.order.len() {
+            let mut s = setup();
+            s.spatial.order.remove(at);
+            refuses_with(&mut s, expected);
+            assert_eq!(s.tic(), 0);
+        }
     }
 }
