@@ -2087,7 +2087,8 @@ CARGO_TARGET_DIR=~/scratch/m4p/target cargo +1.85.0 build -p doom-sim --examples
 `valgrind --tool=callgrind --toggle-collect` on `Simulation::advance` and compares them with
 `tests/reference/m4p_ir_baseline.json`: instructions inside `advance` outside libc and ld.so, plus the
 `malloc`, `realloc` and `memcpy` call counts (total `advance` instructions are printed for information).
-A final-state digest or outcome that differs from the baseline also fails, so a behaviour change is caught.
+A final-state digest or outcome that differs from the baseline also fails, so a behaviour change is caught. A gated
+count that falls to 0 from a nonzero baseline fails too (a renamed glibc symbol would otherwise stop the guard).
 It refuses examples built by a different rustc than the baseline's, also when rewriting the baseline
 (`--allow-toolchain-mismatch` overrides). These are instruction counts, not time.
 

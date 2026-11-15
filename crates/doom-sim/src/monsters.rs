@@ -598,10 +598,10 @@ impl Simulation {
     /// of the callback already returned `Ok` on the same `&self` (M4p note §3 O1, O4).
     ///
     /// `monster_reference` depends only on `(self, id)`, so within one `&self`
-    /// borrow a repeat of the id it last accepted is skipped, and the sound targets
-    /// are walked only when `sounds` (the owner loop walks them once): a
-    /// skipped call could only return the `Ok` already observed, and the first
-    /// failing id is still checked first (M4p note §3 O2).
+    /// borrow the sound targets are walked only when `sounds` (the owner loop walks
+    /// them once, for its first owner): a later walk could only return the `Ok`
+    /// already observed, and the first failing id is still checked first (M4p note
+    /// §3 O2). The owner's own target is checked on every call.
     fn monster_callback_references(&self, a: &Actor, sounds: bool) -> Result<(), SimError> {
         if let Some(t) = a.life.unwrap().target {
             self.monster_reference(t)?;

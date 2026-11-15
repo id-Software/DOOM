@@ -519,6 +519,10 @@ def compare(measured, baseline, threshold):
             row.append((b, n, pct))
             if pct > threshold:
                 failures.append(f"{name}: {metric} {b:,} -> {n:,} (+{pct:.2f}% > {threshold}%)")
+            elif n == 0 and b > 0:
+                # A count that vanishes (for example a renamed glibc symbol that the
+                # call filter no longer matches) would stop guarding: fail, not notice.
+                failures.append(f"{name}: {metric} {b:,} -> 0: the metric stopped counting")
             elif pct < -threshold:
                 notices.append(f"{name}: {metric} {b:,} -> {n:,} ({pct:.2f}%): lower the baseline (--update-baseline)")
         rows.append(row)
