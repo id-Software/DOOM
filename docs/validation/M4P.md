@@ -362,7 +362,7 @@ No digest or byte differed, so no optimisation of the group was reverted. Not ru
 Code commit `fda9230`, its differential test in `3bfaf45`, recorded on 2026-11-14 (America/Los_Angeles), same host,
 toolchain, valgrind and ext4 paths; `/mnt/c` had 51 GiB free after the gates. From this step on the owner had
 lifted the caps (2026-11-14 evening PST) and the machine was idle: builds and tests ran uncapped, with two C jobs for
-the reference suite. Instruction counts do not depend on load.
+the reference suite. The caps returned at about 23:00 PST, after these gates. Instruction counts do not depend on load.
 
 **CI-set instruction counts.** `python3 -I tools/bench_advance.py ir --check`: all nine outcomes equal the
 baseline's; `threshold 3.0%: ok`. The baseline was not lowered. The thread-local scratch adds one `malloc` per
@@ -408,29 +408,16 @@ list ran. The forms, their measurements and the cause are in the
 
 ## Group check 3
 
-After O6 (head `3bfaf45`; O8 dropped), on 2026-11-14 between 22:24 and 22:31 PST (America/Los_Angeles). The owner had
-lifted the caps and the machine was idle.
+After O6 (head `3bfaf45`; O8 dropped), on 2026-11-14 between 22:24 and 22:31 PST (America/Los_Angeles), while the
+machine was idle with the caps lifted. The machine was in use by the owner from about 23:00 PST, with the caps back
+on, and timings are held.
 
-**Real-map digests and indicative timing (one repetition, not performance evidence of the milestone).**
-`python3 -I tools/bench_advance.py timing --reps 1` with the rustc 1.85.0 release build in
-`~/scratch/m4p/target-185` and the scratch IWAD copy (both ext4), with no build, test, fuzz or Valgrind process
-running. The idle gate waited 85 s and then passed at its default limits (1-minute load average 1.49, CPU 1.9% busy,
-no stray process), so the tool reported performance evidence True. One repetition is still indicative only. All 61
-runs ended in the recorded final stripped SHA-256 and admitted-tic count (0 mismatches; 158,966 admitted tics).
-Single-run medians, advance-only µs per tic (median of script medians):
-
-| Map | Baseline (5 reps) | After O4 (1 rep) | After O6 (1 rep) | Worst run after O6 |
-|---|--:|--:|--:|--:|
-| E1M1 | 63.5 | 55.2 | 43.5 | 47.8 |
-| E1M2 | 145.1 | 127.0 | 97.5 | 104.4 |
-| E1M3 | 351.7 | 213.3 | 160.5 | 178.2 |
-| E1M4 | 256.7 | 140.7 | 97.0 | 105.5 |
-| E1M5 | 484.5 | 185.6 | 138.1 | 187.7 |
-| E1M6 | 830.1 | 260.0 | 173.0 | 185.7 |
-| E1M7 | 361.8 | 205.3 | 136.7 | 154.2 |
-| E1M8 | 344.1 | 91.3 | 56.0 | 73.7 |
-| E1M9 | 667.6 | 216.2 | 126.7 | 175.8 |
-| DEMO1 | 703.2 | 230.9 | 150.8 | 150.8 |
+**Real-map digests (no timing recorded).** `python3 -I tools/bench_advance.py timing --reps 1` ran with the rustc
+1.85.0 release build in `~/scratch/m4p/target-185` and the scratch IWAD copy (both ext4), with no build, test, fuzz or
+Valgrind process running. The idle gate passed at its default limits. After the run, the owner's instruction to hold
+timings applied to this group check, so the run counts only as a digest check and **no timing figure from it is
+recorded**. All 61 runs ended in the recorded final stripped SHA-256 and admitted-tic count (0 mismatches; 158,966
+admitted tics).
 
 **Synthetic genuine-engine checks.** The same commands as group check 1, run one at a time (one C job at a time),
 with dumps under `~/scratch/m4p/ci-g3` (ext4); the address variants run with `ASAN_OPTIONS=detect_leaks=0` set by the
