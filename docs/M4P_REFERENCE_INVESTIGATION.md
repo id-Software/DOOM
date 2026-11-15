@@ -15,33 +15,31 @@ genuine-engine checks. Milestone status lives in [ROADMAP](ROADMAP.md), support 
 of this milestone will go to `docs/validation/M4P.md`, created in Phase 2. This note records only counts,
 timings, instruction counts and digests: no IWAD-derived coordinate, lump byte or per-object datum.
 
-**Status / next step (2026-11-14 21:10 PST).** Phase 1 is done. Phase 2 step 1 (the committed harness
+**Status / next step (2026-11-14 22:33 PST).** Phase 1 is done. Phase 2 step 1 (the committed harness
 `tools/bench_advance.py` and the master baseline `tests/reference/m4p_ir_baseline.json`, rustc 1.85.0, valgrind
 3.26.0) is done. Steps 2 and 3 (O1 `3ca7623`, O3 `69c1a3a`, O4 `c439d91`), group check 1 and the P8 tests of O1, O3
-and O4 (`1239d4c`, `crates/doom-sim/src/m4p_elision_tests.rs`) are done. Steps 4 to 6 are done: O2 in `e8586a1`
-(narrower than proposed: a last-accepted-id skip in `preflight_map_demons` and one sound-target walk per owner pass),
-O5 in `320053c` and O7 in `46f4b4e`; the proofs are under O2, O5 and O7 in §3, and **group check 2** passed (see
-[validation/M4P.md](validation/M4P.md#group-check-2)). **The P8 tests of O2 and O7 are done (`910919f`,
-same test file):** each was shown to fail with its load-bearing check neutralised (the kept sound-target call, the
-first owner's sound-target walk, the slot bitmap's duplicate test, its membership test). The later owners' own-target
-check of O2 (c) has no reachable witness (a second owner exists only under demon-map profiles, where
-`preflight_map_demons` refuses the same target first), so the test pins that nearest boundary and the reason is in its
-comment; neutralising (c) leaves `cargo test -p doom-sim` green. A harness fix (`9775d19`): `timing` now reports
-performance evidence False, with the reasons in the JSON and Markdown, when `--max-load` or `--max-busy` is relaxed
-beyond its default or `--allow-slow-fs` is used. **Next step: step 7, O6 (single-pass `for_things`).** The decisions
-P1–P9 (§4) were adopted as recommended under the unattended rule; owner confirmation pending. The owner's caps were in
-force for this step (`CARGO_BUILD_JOBS=6`, `NEXTEST_TEST_THREADS=4`, `RUST_TEST_THREADS=4`, at most two C jobs); a later
-relayed message said the owner lifted them, which this record does not rely on until the owner confirms it; timings are
-held. Half-done work: none. Failing checks: none known locally. The `simulation-ir` CI job of P6 is not
-yet written. The `ir --check` baseline is not lowered (it reports improvements as notices and passes). Resume commands
-(build on ext4, never `/mnt/*`; `/mnt/c` had 52 GiB free after these builds): `export CARGO_TARGET_DIR=~/scratch/m4p/target-185
-CARGO_BUILD_JOBS=6; cargo +1.85.0 build -p doom-sim --examples --release --locked; python3 -I tools/bench_advance.py
-ir --check` (expect, against the baseline, SYNCHAOS −30.75%, SCALE2 −24.85%, MTELE1 −47.94%, TFRAG1 −29.57%, BVB1
-−12.96%, dense64_lift −17.15%, dense64_fight −29.95%, gallery_patrol −23.29%, corpse_continuation −33.71%, until the
-baseline is lowered); timing (only on an idle machine, when the owner lifts the hold): `python3 -I
-tools/bench_advance.py timing --binary $CARGO_TARGET_DIR/release/examples/player_level_advance --iwad
-~/scratch/m4p/iwad/DOOM.WAD --out-dir ~/scratch/m4p/harness --reps 5`. Compare timings only between builds of the
-same toolchain. **Open owner questions: confirmation of P1–P9.**
+and O4 (`1239d4c`, `crates/doom-sim/src/m4p_elision_tests.rs`) are done. Steps 4 to 6 are done: O2 `e8586a1` (narrower
+than proposed), O5 `320053c`, O7 `46f4b4e`, group check 2, the P8 tests of O2 and O7 (`910919f`) and a harness fix
+(`9775d19`). **Steps 7 and 8 are done.** O6 (single-pass `for_things` with a thread-local scratch) is in `fda9230`,
+with a differential test against the old per-cell scan in `3bfaf45`. **O8 (location memo) was dropped:** every form
+measured raised `M4a_corpse_continuation` (a map without BSP nodes) by +0.11% to +0.38%, against §5's zero-or-negative
+rule, and it was reverted before any commit. Both are recorded under O6 and O8 in §3. **Group check 3** passed: all 61
+real-map digests matched and the synthetic genuine-engine checks passed (see
+[validation/M4P.md](validation/M4P.md#group-check-3)). O6 has no elision, so P8 needs no O6 test beyond the
+differential one, and the dropped O8 needs none. **Next step: step 9, O9 (static tables and pure memos), then step 10,
+O10 (actor reads by reference).** The decisions P1–P9 (§4) were adopted as recommended under the unattended rule;
+owner confirmation pending. Machine: caps lifted by the owner (2026-11-14 evening PST); machine idle. Builds and tests
+now run uncapped (OOM rule: halve a killed process's parallelism and re-run; a killed run is never a result), with at
+most two C jobs for the reference suite. Group-check timings stay indicative only. Half-done work: none. Failing
+checks: none known locally. The `simulation-ir` CI job of P6 is not yet written. The `ir --check` baseline is not
+lowered (it reports improvements as notices and passes). Resume commands (build on ext4, never `/mnt/*`; `/mnt/c` had
+49 GiB free after group check 3): `export CARGO_TARGET_DIR=~/scratch/m4p/target-185; cargo +1.85.0 build -p doom-sim
+--examples --release --locked; python3 -I tools/bench_advance.py ir --check`. Until the baseline is lowered, expect
+these changes against it: SYNCHAOS −33.24%, SCALE2 −39.23%, MTELE1 −49.62%, TFRAG1 −31.14%, BVB1 −15.70%, dense64_lift
+−33.06%, dense64_fight −34.97%, gallery_patrol −25.48% and corpse_continuation −34.63%. Timing, only with nothing else
+running: `python3 -I tools/bench_advance.py timing --binary $CARGO_TARGET_DIR/release/examples/player_level_advance
+--iwad ~/scratch/m4p/iwad/DOOM.WAD --out-dir ~/scratch/m4p/harness --reps 5`. Compare timings only between builds of
+the same toolchain. **Open owner questions: confirmation of P1–P9.**
 
 ## Summary
 
@@ -645,6 +643,37 @@ be stale, so no invalidation proof is needed. The store is bounded by `max_slots
 updated either through the `AdmittedTypes` atomic pattern or by passing it mutably from
 `advance_expanded_demons`, which holds `&mut self`. Risk: low. It needs a debug assertion or test that the
 memo and the direct call agree.
+
+
+*O8 not implemented (2026-11-14 PST): dropped under §5's zero-or-negative rule.* The memo was built as proposed
+and would have kept every wire unchanged. It was a non-canonical `Vec<Option<(position, Location)>>` per actor slot,
+a field of `Simulation` taken by `mem::take` in a `&mut self` wrapper around the `&self` preflight and put back after
+it. It was grown to `slots.len()` and consulted only at the location witness, in the same place in the same `||`
+chain, with a `debug_assert_eq!` against the direct call on every hit. The proof rested on facts checked in the
+code: `locate_validated` reads only `world.map` (nodes) and `world.topology` (leaf sectors), and no write after
+construction touches either (the post-construction writes to `world` set `sector_lines`, `extent_sight_work`,
+`sight_work_budget`, `teleport`, `sight_query_limit`, `checked_arithmetic`, `sky_ceilings`, `sector_block_boxes` and
+`map_number`). It lowered Ir on eight of the nine CI workloads. It raised `M4a_corpse_continuation` in every one of
+the six forms measured with `ir --check`. Against the O6 build, as excl-libc Ir change on `SYNCHAOS_wire22`, the
+best other workload and `M4a_corpse_continuation`:
+
+| Form | `SYNCHAOS_wire22` | `M4a_gallery_patrol` | `M4a_dense64_fight` | `M4a_corpse_continuation` |
+| --- | ---: | ---: | ---: | ---: |
+| `Option<&mut memo>` argument, memo on every map | −5.78% | −3.39% | −0.64% | +0.22% (+1 `malloc`) |
+| the same, memo skipped on maps without BSP nodes | −5.72% | −3.29% | +0.10% | +0.38% |
+| a generic locator closure (two instantiations), node test kept | −5.19% | −2.82% | −0.11% | +0.36% |
+| the same, plus `#[inline(always)]` on `preflight_live_missiles` | −5.38% | −3.00% | −0.11% | +0.11% |
+| the same with a boxed slice instead of a `Vec` | −5.38% | −2.98% | −0.11% | +0.38% |
+| the closure form with `#[inline(never)]` on the preflight | −5.72% | −3.28% | +0.01% | +0.26% |
+
+`M4a_corpse_continuation` runs on a map with no BSP nodes, where `locate` returns subsector 0 without a descent
+(800 location checks in 400 tics, 527 of which would have been hits). A memo cannot help there. Callgrind
+attributed the remaining cost to code layout: the larger preflight stopped inlining `preflight_live_missiles` (400
+calls, 10,800 Ir), and the `Simulation` field changed the copy in `commit_demon_plan` (+12 libc Ir per tic). The best
+form still cost +10 excl-libc Ir per tic (+4,000 Ir, +0.11%). The rule admits no positive delta, as the O2 narrowing
+already applied, so O8 was reverted before any commit and the code is unchanged. P8's O8 test is therefore not
+needed. A later step may retry O8 if another change makes the no-node path cheaper. It would then need the same
+proof and a fresh measurement.
 
 **O9. Static tables and pure memos for the per-actor validators.** Shared. Gain 8–24 kIr per tic from the
 descriptor and `decoration_states` alone, plus the `state_role_for` memo (5.4–10.4% inclusive today, mostly

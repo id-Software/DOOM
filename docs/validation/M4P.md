@@ -11,7 +11,9 @@ Step 3 (O3, O4) and the first group check, in [O3 (pickup revalidation)](#o3-pic
 [O4 (owner-loop monster_actor)](#o4-owner-loop-monster_actor) and [Group check 1](#group-check-1). Steps 4 to 6
 (O2, O5, O7) and the second group check, in [O2 (sound-target references)](#o2-sound-target-references),
 [O5 (event buffer)](#o5-event-buffer), [O7 (linked bitmap)](#o7-linked-bitmap) and [Group check 2](#group-check-2).
-Later steps append their own sections.
+Steps 7 and 8 (O6; O8, dropped) and the third group check, in [O6 (single-pass for_things)](#o6-single-pass-for_things),
+[O8 (location memo): dropped](#o8-location-memo-dropped) and [Group check 3](#group-check-3). Later steps append their
+own sections.
 
 ## Baseline (master)
 
@@ -354,3 +356,99 @@ runners (leak detection disabled). All passed:
 
 No digest or byte differed, so no optimisation of the group was reverted. Not run for the group: the opt-in
 `strict32` variants, fuzz builds and the sanitizer campaign (due at step 11).
+
+## O6 (single-pass for_things)
+
+Code commit `fda9230`, its differential test in `3bfaf45`, recorded on 2026-11-14 (America/Los_Angeles), same host,
+toolchain, valgrind and ext4 paths; `/mnt/c` had 51 GiB free after the gates. From this step on the owner had
+lifted the caps (2026-11-14 evening PST) and the machine was idle: builds and tests ran uncapped, with two C jobs for
+the reference suite. Instruction counts do not depend on load.
+
+**CI-set instruction counts.** `python3 -I tools/bench_advance.py ir --check`: all nine outcomes equal the
+baseline's; `threshold 3.0%: ok`. The baseline was not lowered. The thread-local scratch adds one `malloc` per
+process and at most one `realloc` per growth of the spatial order. A first form with a local `Vec` per call lowered
+Ir too, but raised `M4a_dense64_lift`'s `realloc` calls from 340,572 (baseline) to 578,233 (+69.78%), failed the
+check and was discarded before any commit.
+
+| Workload | After O7 | After O6 | Change vs O7 | Change vs baseline | malloc calls | realloc calls | memcpy calls |
+|---|--:|--:|--:|--:|--:|--:|--:|
+| `SYNCHAOS_wire22` | 1,673,950,274 | 1,613,824,201 | −3.59% | −33.24% | 311,905 | 9,351 | 2,564,614 |
+| `SCALE2_episode1v2` | 456,387,352 | 369,062,175 | −19.13% | −39.23% | 80,207 | 23,942 | 554,672 |
+| `MTELE1_wire24` | 5,028,005 | 4,864,943 | −3.24% | −49.62% | 3,403 | 503 | 11,460 |
+| `TFRAG1_wire24` | 8,569,796 | 8,378,591 | −2.23% | −31.14% | 4,714 | 713 | 18,902 |
+| `BVB1_wire24` | 17,300,504 | 16,755,693 | −3.15% | −15.70% | 7,511 | 590 | 40,431 |
+| `M4a_dense64_lift` | 2,037,221,536 | 1,645,910,068 | −19.21% | −33.06% | 504,890 | 323,313 | 1,829,474 |
+| `M4a_dense64_fight` | 1,326,920,948 | 1,231,860,255 | −7.16% | −34.97% | 610,388 | 154,671 | 2,072,198 |
+| `M4a_gallery_patrol` | 195,316,887 | 189,743,220 | −2.85% | −25.48% | 303,323 | 81,328 | 318,741 |
+| `M4a_corpse_continuation` | 3,621,350 | 3,570,560 | −1.40% | −34.63% | 3,736 | 242 | 10,787 |
+
+**Gates run for O6** (on `fda9230`). Build, both format checks, Clippy with warnings denied, `cargo test
+--workspace` (1,393 passed, 4 ignored), the release tests (1,360 passed, 2 ignored), `cargo +1.85.0 test --workspace`
+(1,393 passed, 4 ignored), warnings-denied rustdoc; `run_reference.py --suite --jobs 2` (65 passed); the 95 CI
+`stable` Python commands (95 passed, 0 failed, run with `python3`).
+
+**Differential test** (`3bfaf45`, module `o6` of `crates/doom-sim/src/m4p_elision_tests.rs`). It keeps the pre-O6
+per-cell scan as an oracle and compares visit sequences and panics on six crowded synthetic layouts (12 to 62
+actors on a 4×2-cell blockmap, ids out of slot order, repeated ids, `MF_NOBLOCKMAP` actors, actors off the
+blockmap, the mover's own copy differing from its stored one). It also tries every early-exit point, and a stale
+handle on four further layouts. It made 2,332 full-walk visits. It was shown to fail with each of three mutations of
+`things_in_box`: y-outer loops (both tests failed), visiting every kept entry before the missing-handle panic (the
+panic test failed), and no substitution of the mover's own copy (both failed). `cargo test -p doom-sim` passed
+(1,356, 2 ignored), and the module passed under the release profile and under rustc 1.85.0, with Clippy and format
+clean. The full gate list was not rerun for this test-only commit.
+
+## O8 (location memo): dropped
+
+Not committed (2026-11-14, America/Los_Angeles). The memo was built and measured in six forms against the O6 build
+with `ir --check` (each passed the 3% threshold). Each lowered excl-libc Ir on eight CI workloads (best form:
+`SYNCHAOS_wire22` −5.38%, `M4a_gallery_patrol` −3.00%). Each raised `M4a_corpse_continuation` (+0.11% to +0.38%),
+whose map has no BSP nodes. §5's zero-or-negative rule therefore drops it; the working tree was reset, so no O8 gate
+list ran. The forms, their measurements and the cause are in the
+[investigation, §3 O8](../M4P_REFERENCE_INVESTIGATION.md#3-inventory).
+
+## Group check 3
+
+After O6 (head `3bfaf45`; O8 dropped), on 2026-11-14 between 22:24 and 22:31 PST (America/Los_Angeles). The owner had
+lifted the caps and the machine was idle.
+
+**Real-map digests and indicative timing (one repetition, not performance evidence of the milestone).**
+`python3 -I tools/bench_advance.py timing --reps 1` with the rustc 1.85.0 release build in
+`~/scratch/m4p/target-185` and the scratch IWAD copy (both ext4), with no build, test, fuzz or Valgrind process
+running. The idle gate waited 85 s and then passed at its default limits (1-minute load average 1.49, CPU 1.9% busy,
+no stray process), so the tool reported performance evidence True. One repetition is still indicative only. All 61
+runs ended in the recorded final stripped SHA-256 and admitted-tic count (0 mismatches; 158,966 admitted tics).
+Single-run medians, advance-only µs per tic (median of script medians):
+
+| Map | Baseline (5 reps) | After O4 (1 rep) | After O6 (1 rep) | Worst run after O6 |
+|---|--:|--:|--:|--:|
+| E1M1 | 63.5 | 55.2 | 43.5 | 47.8 |
+| E1M2 | 145.1 | 127.0 | 97.5 | 104.4 |
+| E1M3 | 351.7 | 213.3 | 160.5 | 178.2 |
+| E1M4 | 256.7 | 140.7 | 97.0 | 105.5 |
+| E1M5 | 484.5 | 185.6 | 138.1 | 187.7 |
+| E1M6 | 830.1 | 260.0 | 173.0 | 185.7 |
+| E1M7 | 361.8 | 205.3 | 136.7 | 154.2 |
+| E1M8 | 344.1 | 91.3 | 56.0 | 73.7 |
+| E1M9 | 667.6 | 216.2 | 126.7 | 175.8 |
+| DEMO1 | 703.2 | 230.9 | 150.8 | 150.8 |
+
+**Synthetic genuine-engine checks.** The same commands as group check 1, run one at a time (one C job at a time),
+with dumps under `~/scratch/m4p/ci-g3` (ext4); the address variants run with `ASAN_OPTIONS=detect_leaks=0` set by the
+runners (leak detection disabled). All passed:
+
+- `m3h9c_reference.py --check --keep-dumps`: 6 scripts, variants identical for all 6, results file matched;
+  `m3h9c_snapshot_goldens.py --dumps … --check` (11 files); `check_player_level.py` on the six Rust runs (all checks
+  passed).
+- `m4a_reference.py --check --keep-dumps --selftest 300`: 30 scripts, variants identical for all 30, results file
+  matched, selftest passed; `m4a_snapshot_goldens.py --check` (19 files); `check_player_episode1.py --example-args
+  "--policy episode1" --require` (all checks passed); `m4b_m4a_goldens.py --check` (30 scripts, 15,116 snapshots
+  projected).
+- `m4b_reference.py --check --keep-dumps --selftest 30`: 18 scripts, variants identical for all 18, the `SPECH9`
+  overrun probe reported `p_map.c:242` after tic 74 as required, results file matched, selftest passed;
+  `m4b_snapshot_goldens.py --check --selftest` (20 files, 8 selftest checks).
+- `m4b_reference.py --set 2 --check --keep-dumps`: 4 scripts, variants identical, results file matched;
+  `m4b_snapshot_goldens.py --set 2 --check` (5 files).
+- `check_player_episode1v2.py --require`: 52 of 52 scripts matched (20,205 tics), 0 pending.
+
+No digest or byte differed, so O6 was not reverted. Not run for the group: the opt-in `strict32` variants, fuzz
+builds and the sanitizer campaign (due at step 11). `/mnt/c` had 49 GiB free after the group check.
