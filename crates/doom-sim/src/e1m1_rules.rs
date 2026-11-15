@@ -345,3 +345,46 @@ pub(crate) fn validate_decoration(
 pub(crate) fn spawn_state(ty: ActorTypeId, state: OriginalState) -> bool {
     listed_decoration(ty).is_some_and(|d| decoration_states(d).contains(&state))
 }
+
+#[cfg(test)]
+mod decoration_states_tests {
+    use super::*;
+
+    /// Pins the eight-state bound of `decoration_states` (`states.len < 8`). A type whose spawn
+    /// chain runs on past eight states without returning to its root or `S_NULL` must stop at
+    /// exactly eight (the inline array's size) and not index past it. The static data has such
+    /// chains (the chain of the type of ordinal 4 is 30 states, of ordinal 39 is 12, of ordinal
+    /// 29 exactly 8), so the bound is reachable by the function's contract. Below the public API: the function is
+    /// `pub(crate)` and takes any original type, while the public API only reaches it through
+    /// the admitted decoration roles.
+    #[test]
+    fn a_spawn_chain_longer_than_eight_states_holds_exactly_eight() {
+        for ordinal in [4_u16, 39] {
+            let ty = OriginalActorType::try_from(ordinal).unwrap();
+            let chain = chain_length(ty);
+            assert!(chain > 8, "ordinal {ordinal}: chain of {chain} states");
+            let states = decoration_states(ty);
+            assert_eq!(states.len(), 8, "ordinal {ordinal}");
+            assert_eq!(states[0], ty.descriptor().states.spawn);
+            for pair in states.windows(2) {
+                assert_eq!(pair[0].descriptor().next, pair[1]);
+            }
+        }
+        // A chain of exactly eight states fits whole.
+        let eight = OriginalActorType::try_from(29_u16).unwrap();
+        assert_eq!(chain_length(eight), 8);
+        assert_eq!(decoration_states(eight).len(), 8);
+    }
+
+    /// The spawn chain's length counted without the bound, from the static data.
+    fn chain_length(ty: OriginalActorType) -> usize {
+        let root = ty.descriptor().states.spawn;
+        let mut n = 1;
+        let mut s = root.descriptor().next;
+        while s != root && s != OriginalState::S_NULL {
+            n += 1;
+            s = s.descriptor().next;
+        }
+        n
+    }
+}

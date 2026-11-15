@@ -340,3 +340,32 @@ impl ActorRegistry {
         Ok(original)
     }
 }
+
+/// `source_u16` is a `const fn` run only at compile time on the static tables, whose verified
+/// data never trips its range check; these unit tests call it at run time. Below the public
+/// API because no public path passes it an out-of-range value.
+#[cfg(test)]
+mod source_u16_tests {
+    use super::source_u16;
+
+    /// Pins the lower bound (`v < 0`) of the check.
+    #[test]
+    #[should_panic(expected = "range probe")]
+    fn rejects_minus_one() {
+        source_u16(-1, "range probe");
+    }
+
+    /// Pins the upper bound (`v > u16::MAX`) of the check.
+    #[test]
+    #[should_panic(expected = "range probe")]
+    fn rejects_65536() {
+        source_u16(65536, "range probe");
+    }
+
+    /// Pins both inclusive ends: 0 and 65535 are in range and returned unchanged.
+    #[test]
+    fn accepts_the_inclusive_ends() {
+        assert_eq!(source_u16(0, "range probe"), 0);
+        assert_eq!(source_u16(65535, "range probe"), 65535);
+    }
+}

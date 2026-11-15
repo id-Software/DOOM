@@ -1672,3 +1672,109 @@ fn player_policy() -> Result<&'static ActorPolicy, OriginalRegistryError> {
         .as_ref()
         .map_err(|e| *e)
 }
+
+#[cfg(test)]
+mod state_role_memo_tests {
+    use super::*;
+    use crate::identity::OriginalActorType;
+
+    const PROFILES: [OriginalExecutionProfile; 24] = {
+        use OriginalExecutionProfile::*;
+        [
+            DemonNormalV1,
+            PlayerBodyLifecycleV1,
+            PlayerBodyKnockbackV1,
+            PlayerCommandMovementV1,
+            PlayerDemonAcquisitionV1,
+            PlayerDemonMeleeV1,
+            PlayerDemonPistolV1,
+            PlayerDemonWeaponsV1,
+            PlayerDemonPickupsV1,
+            PlayerDemonArmorV1,
+            PlayerDemonBonusesV1,
+            PlayerMonstersV1,
+            PlayerMonstersImpV1,
+            PlayerMonstersMapScaleV1,
+            PlayerMonstersHeightsV1,
+            PlayerMonstersDiagonalV1,
+            PlayerMonstersRealMapV1,
+            PlayerMonstersSpecialsV1,
+            PlayerMonstersMoversV1,
+            PlayerMonstersE1M1V1,
+            PlayerMonstersBarrelsV1,
+            PlayerMonstersLevelV1,
+            PlayerMonstersEpisode1V1,
+            PlayerMonstersEpisode1V2,
+        ]
+    };
+
+    /// Pins the key and slot of the `Ok`-only memo in `state_role_for` (M4p note §3 O9c): the
+    /// function is pure, so it must equal `state_role_uncached` on every input whatever the memo
+    /// holds. The memo is a process-wide static that parallel tests also warm, so each probe
+    /// first re-warms its own `Ok` input, then asks for an input that fails and shares its slot
+    /// (same state, a type 1024 apart, or a different profile and type), and finally asks for
+    /// the all-zero input against a zero-initialised entry. A key that dropped its valid bit or
+    /// merged types or fields would answer `Ok` for a failing input. A below-API guard: the
+    /// public API reaches `state_role_for` only with inputs the registry already admitted, so
+    /// it cannot ask for these failing inputs against a warm entry.
+    #[test]
+    fn memo_never_turns_a_refusal_into_an_acceptance() {
+        // Ok warm inputs: every type's spawn state under every profile, thinned to a few
+        // per profile, spread along the type table.
+        let mut warm = Vec::new();
+        for profile in PROFILES {
+            let oks: Vec<_> = OriginalActorType::all()
+                .map(|t| {
+                    (
+                        ActorTypeId(t.ordinal()),
+                        StateId(t.descriptor().states.spawn.ordinal()),
+                    )
+                })
+                .filter(|&(t, s)| state_role_uncached(profile, t, s).is_ok())
+                .collect();
+            let step = (oks.len() / 4).max(1);
+            warm.extend(oks.into_iter().step_by(step).map(|(t, s)| (profile, t, s)));
+        }
+        assert!(warm.len() >= 24, "warm inputs found: {}", warm.len());
+        let mut probes = 0_usize;
+        for &(wp, wt, ws) in &warm {
+            let warm_it = || assert_eq!(state_role_for(wp, wt, ws), Ok(()));
+            // Candidate types: every source type, and every type 1024 apart from the warm one
+            // (the same slot, as `977` is odd) up to the `u16` limit.
+            let far = (1..64)
+                .map(|k| u32::from(wt.0) + 1024 * k)
+                .filter(|v| *v <= 0xFFFF);
+            let types: Vec<u16> = (0..OriginalActorType::COUNT)
+                .chain(far.map(|v| v as u16))
+                .collect();
+            for p in PROFILES {
+                for &t in &types {
+                    let (t, s) = (ActorTypeId(t), ws);
+                    if state_role_uncached(p, t, s).is_ok() {
+                        continue;
+                    }
+                    warm_it();
+                    assert_eq!(
+                        state_role_for(p, t, s),
+                        state_role_uncached(p, t, s),
+                        "{p:?} {t:?} {s:?} after warming {wp:?} {wt:?} {ws:?}"
+                    );
+                    probes += 1;
+                }
+            }
+        }
+        assert!(probes > 10_000, "probes run: {probes}");
+        // The all-zero key against a zero-initialised entry (slot 0), and the extreme ids.
+        let zero = (PROFILES[0], ActorTypeId(0), StateId(0));
+        assert!(state_role_uncached(zero.0, zero.1, zero.2).is_err());
+        assert_eq!(
+            state_role_for(zero.0, zero.1, zero.2),
+            state_role_uncached(zero.0, zero.1, zero.2)
+        );
+        for p in PROFILES {
+            let (t, s) = (ActorTypeId(u16::MAX), StateId(u16::MAX));
+            assert_eq!(state_role_for(p, t, s), state_role_uncached(p, t, s));
+            assert!(state_role_for(p, t, s).is_err());
+        }
+    }
+}
