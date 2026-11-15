@@ -15,21 +15,26 @@ genuine-engine checks. Milestone status lives in [ROADMAP](ROADMAP.md), support 
 of this milestone will go to `docs/validation/M4P.md`, created in Phase 2. This note records only counts,
 timings, instruction counts and digests: no IWAD-derived coordinate, lump byte or per-object datum.
 
-**Status / next step (2026-11-14 19:35 PST).** Phase 1 is done. Phase 2 step 1 (the committed harness
+**Status / next step (2026-11-14 21:10 PST).** Phase 1 is done. Phase 2 step 1 (the committed harness
 `tools/bench_advance.py` and the master baseline `tests/reference/m4p_ir_baseline.json`, rustc 1.85.0, valgrind
 3.26.0) is done. Steps 2 and 3 (O1 `3ca7623`, O3 `69c1a3a`, O4 `c439d91`), group check 1 and the P8 tests of O1, O3
-and O4 (`1239d4c`, `crates/doom-sim/src/m4p_elision_tests.rs`) are done. **Steps 4 to 6 are done:** O2 in code commit
-`e8586a1` (narrower than proposed: a last-accepted-id skip in `preflight_map_demons` and one sound-target walk per
-owner pass; a seen-set form was dropped because it cost more than O4 on five CI workloads), O5 in `320053c` and O7 in
-`46f4b4e`; the proofs, with their load-bearing checks, are under O2, O5 and O7 in §3, and **group check 2** (after O2,
-O5, O7) passed (see [validation/M4P.md](validation/M4P.md#group-check-2)). **Next step: the P8 tests for O2 and O7**
-(O5 has no elision), then step 7, O6 (single-pass `for_things`). The decisions P1–P9 (§4) were adopted as recommended
-under the unattended rule; owner confirmation pending. Since the O7 gates the machine is in use: builds and tests
-run with `CARGO_BUILD_JOBS=6`, `NEXTEST_TEST_THREADS=4` and `RUST_TEST_THREADS=4`, at most two C jobs, genuine-engine
-suites one at a time, and timings are held (group check 2 ran the 61 real-map cases as a digest check only, with no
-timing recorded). Half-done work: none. Failing checks: none known locally. The `simulation-ir` CI job of P6 is not
+and O4 (`1239d4c`, `crates/doom-sim/src/m4p_elision_tests.rs`) are done. Steps 4 to 6 are done: O2 in `e8586a1`
+(narrower than proposed: a last-accepted-id skip in `preflight_map_demons` and one sound-target walk per owner pass),
+O5 in `320053c` and O7 in `46f4b4e`; the proofs are under O2, O5 and O7 in §3, and **group check 2** passed (see
+[validation/M4P.md](validation/M4P.md#group-check-2)). **The P8 tests of O2 and O7 are done (`910919f`,
+same test file):** each was shown to fail with its load-bearing check neutralised (the kept sound-target call, the
+first owner's sound-target walk, the slot bitmap's duplicate test, its membership test). The later owners' own-target
+check of O2 (c) has no reachable witness (a second owner exists only under demon-map profiles, where
+`preflight_map_demons` refuses the same target first), so the test pins that nearest boundary and the reason is in its
+comment; neutralising (c) leaves `cargo test -p doom-sim` green. A harness fix (`9775d19`): `timing` now reports
+performance evidence False, with the reasons in the JSON and Markdown, when `--max-load` or `--max-busy` is relaxed
+beyond its default or `--allow-slow-fs` is used. **Next step: step 7, O6 (single-pass `for_things`).** The decisions
+P1–P9 (§4) were adopted as recommended under the unattended rule; owner confirmation pending. The owner's caps were in
+force for this step (`CARGO_BUILD_JOBS=6`, `NEXTEST_TEST_THREADS=4`, `RUST_TEST_THREADS=4`, at most two C jobs); a later
+relayed message said the owner lifted them, which this record does not rely on until the owner confirms it; timings are
+held. Half-done work: none. Failing checks: none known locally. The `simulation-ir` CI job of P6 is not
 yet written. The `ir --check` baseline is not lowered (it reports improvements as notices and passes). Resume commands
-(build on ext4, never `/mnt/*`; `/mnt/c` had 53 GiB free): `export CARGO_TARGET_DIR=~/scratch/m4p/target-185
+(build on ext4, never `/mnt/*`; `/mnt/c` had 52 GiB free after these builds): `export CARGO_TARGET_DIR=~/scratch/m4p/target-185
 CARGO_BUILD_JOBS=6; cargo +1.85.0 build -p doom-sim --examples --release --locked; python3 -I tools/bench_advance.py
 ir --check` (expect, against the baseline, SYNCHAOS −30.75%, SCALE2 −24.85%, MTELE1 −47.94%, TFRAG1 −29.57%, BVB1
 −12.96%, dense64_lift −17.15%, dense64_fight −29.95%, gallery_patrol −23.29%, corpse_continuation −33.71%, until the
