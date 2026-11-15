@@ -714,6 +714,26 @@ from `SOURCE_TYPES` and `SOURCE_STATES`. The proof:
    `tests/reference/m3f4_identities.csv`; it is part of the workspace tests. There is no elision, so P8 asks for no
    further test.
 
+*O9b as implemented (2026-11-15 PST), as proposed.* `e1m1_rules::decoration_states` returns a `DecorationStates`, an
+inline `[OriginalState; 8]` with a length, instead of a `Vec` (`crates/doom-sim/src/e1m1_rules.rs:153`). It derefs
+to the slice of its first `len` entries, so its four readers (`animated_decoration`, `validate_decoration`,
+`spawn_state` and the DSIM39/40 reader in `diagnostic.rs`) keep their `contains`, `len`, `last` and `iter` calls
+unchanged. The proof:
+
+1. *Same sequence.* The loop is the former one: it starts from the spawn state, follows `next` while the state is
+   neither the root nor `S_NULL` and fewer than eight are held, and writes each state at the index where the old code
+   pushed it. The old `Vec` never held more than eight states (the bound is tested before each push), so the slice
+   equals the old vector element by element.
+2. *Same answers, no new failure.* `contains`, `len`, `last` and `iter` on equal slices return the same values. The
+   unused tail entries (copies of the root) lie outside the slice and are never read. The function has no error
+   path; its only panics were the descriptor reads, which O9a moved to compile time.
+3. *Not observable.* The value is a local of each caller and reaches no snapshot, DSIM byte, digest, RNG draw or work
+   counter. The removed `malloc` calls (up to 87% of a CI workload's calls inside `advance`) are not observable
+   either.
+
+No elision, so no P8 test. The firestick loop (the one multi-state decoration) is swept by the existing
+`a_decoration_holds_a_state_of_its_own_loop_only` (`tests/episode1v2_reader_domains.rs`) and the M4a goldens.
+
 **O10. Read actors by reference in the validators.** Shared. Gain: most of the 4.2–6.1% direct `memcpy` that
 remains after O1–O4. Internal `&Actor` variants of `monster_actor` and `perception_actor` replace the copies,
 and `preflight_world_pickups` borrows. Pure refactor, same checks in the same order. Risk: low; the size is

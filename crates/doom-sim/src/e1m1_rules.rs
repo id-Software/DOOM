@@ -150,15 +150,32 @@ pub(crate) fn is_decoration(policy: OriginalExecutionProfile, ty: ActorTypeId) -
 }
 /// The states a decoration may hold: its spawn state, or for an animated one
 /// ([`animated_decoration`]) every state of its spawn loop.
-pub(crate) fn decoration_states(ty: OriginalActorType) -> Vec<OriginalState> {
+pub(crate) fn decoration_states(ty: OriginalActorType) -> DecorationStates {
     let root = ty.descriptor().states.spawn;
-    let mut states = vec![root];
+    let mut states = DecorationStates {
+        states: [root; 8],
+        len: 1,
+    };
     let mut state = root.descriptor().next;
-    while state != root && state != OriginalState::S_NULL && states.len() < 8 {
-        states.push(state);
+    while state != root && state != OriginalState::S_NULL && states.len < 8 {
+        states.states[states.len] = state;
+        states.len += 1;
         state = state.descriptor().next;
     }
     states
+}
+/// The states of [`decoration_states`], at most eight in spawn-loop order, held
+/// inline instead of in a `Vec`; read as a slice of its first `len` entries.
+#[derive(Clone, Copy, Debug)]
+pub(crate) struct DecorationStates {
+    states: [OriginalState; 8],
+    len: usize,
+}
+impl std::ops::Deref for DecorationStates {
+    type Target = [OriginalState];
+    fn deref(&self) -> &[OriginalState] {
+        &self.states[..self.len]
+    }
 }
 /// Whether a decoration in `state` may hold the countdown `tics`: −1 in a static
 /// spawn state, `1..=` the state's tics in an animated loop.
