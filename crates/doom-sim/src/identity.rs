@@ -156,6 +156,96 @@ pub struct OriginalStateDef {
     /// Preserved miscellaneous fields.
     pub misc: [i32; 2],
 }
+/// Checked conversion of a verified source value; a failure stops the build.
+const fn source_u16(v: i32, what: &str) -> u16 {
+    if v < 0 || v > u16::MAX as i32 {
+        panic!("{}", what);
+    }
+    v as u16
+}
+const fn source_state(v: i32) -> OriginalState {
+    let v = source_u16(v, "verified original state reference");
+    assert!(
+        (v as usize) < SOURCE_STATES.len(),
+        "verified original state reference"
+    );
+    OriginalState(v)
+}
+/// `OriginalActorType::descriptor` of every type, decoded at compile time from
+/// `SOURCE_TYPES` field by field exactly as the former per-call decoding did.
+static ACTOR_DESCRIPTORS: [OriginalActorDef; SOURCE_TYPES.len()] = {
+    const fn decode(p: &[i32; 23]) -> OriginalActorDef {
+        assert!(p[21] >= 0, "verified original flags");
+        OriginalActorDef {
+            doomed_number: p[0],
+            states: OriginalActorStates {
+                spawn: source_state(p[1]),
+                see: source_state(p[3]),
+                pain: source_state(p[7]),
+                melee: source_state(p[10]),
+                missile: source_state(p[11]),
+                death: source_state(p[12]),
+                extreme_death: source_state(p[13]),
+                raise: source_state(p[22]),
+            },
+            spawn_health: p[2],
+            reaction_time: p[5],
+            pain_chance: p[8],
+            sounds: [
+                source_u16(p[4], "verified original sound"),
+                source_u16(p[6], "verified original sound"),
+                source_u16(p[9], "verified original sound"),
+                source_u16(p[14], "verified original sound"),
+                source_u16(p[20], "verified original sound"),
+            ],
+            speed: p[15],
+            radius: p[16],
+            height: p[17],
+            mass: p[18],
+            damage: p[19],
+            flags: p[21] as u32,
+        }
+    }
+    let mut table = [decode(&SOURCE_TYPES[0].1); SOURCE_TYPES.len()];
+    let mut i = 1;
+    while i < SOURCE_TYPES.len() {
+        table[i] = decode(&SOURCE_TYPES[i].1);
+        i += 1;
+    }
+    table
+};
+/// `OriginalState::descriptor` of every state, decoded at compile time from
+/// `SOURCE_STATES` field by field exactly as the former per-call decoding did.
+static STATE_DESCRIPTORS: [OriginalStateDef; SOURCE_STATES.len()] = {
+    const fn decode(v: &[i32; 7]) -> OriginalStateDef {
+        let sprite = source_u16(v[0], "verified original sprite reference");
+        assert!(
+            (sprite as usize) < SOURCE_SPRITES.len(),
+            "verified original sprite reference"
+        );
+        assert!(v[1] >= 0, "verified original frame bits");
+        OriginalStateDef {
+            sprite: OriginalSprite(sprite),
+            frame: v[1] as u32,
+            tics: v[2],
+            action: if v[3] == 0 {
+                None
+            } else {
+                assert!(v[3] > 0, "verified action reference");
+                Some(SOURCE_ACTIONS[v[3] as usize])
+            },
+            next: source_state(v[4]),
+            misc: [v[5], v[6]],
+        }
+    }
+    let mut table = [decode(&SOURCE_STATES[0].1); SOURCE_STATES.len()];
+    let mut i = 1;
+    while i < SOURCE_STATES.len() {
+        table[i] = decode(&SOURCE_STATES[i].1);
+        i += 1;
+    }
+    table
+};
 impl OriginalActorType {
     /// Original MT_* symbol.
     pub fn name(self) -> &'static str {
@@ -168,42 +258,14 @@ impl OriginalActorType {
     }
     /// Named state references; every value is validated original metadata.
     pub fn states(self) -> OriginalActorStates {
-        let p = self.properties();
-        let state = |i| OriginalState::try_from(p[i]).expect("verified original state reference");
-        OriginalActorStates {
-            spawn: state(1),
-            see: state(3),
-            pain: state(7),
-            melee: state(10),
-            missile: state(11),
-            death: state(12),
-            extreme_death: state(13),
-            raise: state(22),
-        }
+        ACTOR_DESCRIPTORS[usize::from(self.0)].states
     }
     /// Named original actor information; all fields retain source units.
+    ///
+    /// Read from a table decoded once, at compile time, from the same source
+    /// properties, so a reference that fails verification is a build error.
     pub fn descriptor(self) -> OriginalActorDef {
-        let p = self.properties();
-        OriginalActorDef {
-            doomed_number: p[0],
-            states: self.states(),
-            spawn_health: p[2],
-            reaction_time: p[5],
-            pain_chance: p[8],
-            sounds: [
-                u16::try_from(p[4]).expect("verified original sound"),
-                u16::try_from(p[6]).expect("verified original sound"),
-                u16::try_from(p[9]).expect("verified original sound"),
-                u16::try_from(p[14]).expect("verified original sound"),
-                u16::try_from(p[20]).expect("verified original sound"),
-            ],
-            speed: p[15],
-            radius: p[16],
-            height: p[17],
-            mass: p[18],
-            damage: p[19],
-            flags: u32::try_from(p[21]).expect("verified original flags"),
-        }
+        ACTOR_DESCRIPTORS[usize::from(self.0)]
     }
     /// Resolve one exact record in an owned registry. Execution admission is separate.
     pub fn resolve(self, registry: &ActorRegistry) -> Result<ActorTypeId, IdentityError> {
@@ -220,20 +282,10 @@ impl OriginalState {
         SOURCE_STATES[usize::from(self.0)].0
     }
     /// Exact original descriptor. Private static source data is independently checked against C.
+    ///
+    /// Read from a table decoded once, at compile time, from the same source record.
     pub fn descriptor(self) -> OriginalStateDef {
-        let v = SOURCE_STATES[usize::from(self.0)].1;
-        OriginalStateDef {
-            sprite: OriginalSprite::try_from(v[0]).expect("verified original sprite reference"),
-            frame: u32::try_from(v[1]).expect("verified original frame bits"),
-            tics: v[2],
-            action: if v[3] == 0 {
-                None
-            } else {
-                Some(SOURCE_ACTIONS[usize::try_from(v[3]).expect("verified action reference")])
-            },
-            next: Self::try_from(v[4]).expect("verified original next reference"),
-            misc: [v[5], v[6]],
-        }
+        STATE_DESCRIPTORS[usize::from(self.0)]
     }
     /// Resolve one complete state record, including next reference and callback.
     /// This does not certify the records reached by that next reference.

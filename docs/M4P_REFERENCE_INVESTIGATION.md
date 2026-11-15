@@ -690,6 +690,30 @@ in the repeated passes; not included in the projection):
 
 Every result is identical by construction. Risk: low.
 
+*O9a as implemented (2026-11-14 PST): both descriptor tables.* `OriginalActorType::descriptor` and `states`, and also
+`OriginalState::descriptor` (the profile of the O6 build put it at 2.4–5.6% self on the CI workloads, reached from
+`decoration_states`, `validate_item`, `validate_decoration` and `planes::is_gibs`), now read one entry of a `static`
+table (`ACTOR_DESCRIPTORS`, 137 entries, and `STATE_DESCRIPTORS`, 967 entries; `crates/doom-sim/src/identity.rs:176`,
+219) instead of decoding the source record on every call. Both tables are built at compile time by `const fn decode`
+from `SOURCE_TYPES` and `SOURCE_STATES`. The proof:
+
+1. *Same values.* Each `decode` reads the same source index for every field as the former body did (types: `p[0]`,
+   the eight state references `p[1, 3, 7, 10, 11, 12, 13, 22]`, `p[2, 5, 8]`, the five sounds `p[4, 6, 9, 14, 20]`,
+   `p[15]`–`p[19]`, flags `p[21]`; states: sprite `v[0]`, frame `v[1]`, tics `v[2]`, action `v[3]` with 0 as `None`,
+   next `v[4]`, misc `v[5, 6]`), and applies the same conversions: a state, sprite or sound reference must lie in
+   `0..=u16::MAX` and, for states and sprites, below the table length (the macro's `TryFrom<i32>`); flags and frame
+   must be non-negative (`u32::try_from`); an action reference must be positive and index `SOURCE_ACTIONS`. `states()`
+   returns the `states` field of the same entry, which the old `descriptor` built by calling `states()`.
+2. *No panic path changes.* The old `expect`s ran on every call; the `const` checks run once, during compilation, on
+   the same constant data, and a failure is a build error. The build succeeds, so every check holds and no old call
+   could have panicked. The functions keep their signatures and still return by value.
+3. *Not observable.* The tables are immutable `static` data with no interior mutability; nothing reaches a snapshot,
+   DSIM byte, digest, RNG draw or work counter.
+4. *Load-bearing check.* `tests/m3f4_reference.rs` (`every_identity_and_descriptor_matches_compiled_c`) compares every
+   field of all 137 type descriptors and all 967 state descriptors with the compiled-C capture
+   `tests/reference/m3f4_identities.csv`; it is part of the workspace tests. There is no elision, so P8 asks for no
+   further test.
+
 **O10. Read actors by reference in the validators.** Shared. Gain: most of the 4.2–6.1% direct `memcpy` that
 remains after O1–O4. Internal `&Actor` variants of `monster_actor` and `perception_actor` replace the copies,
 and `preflight_world_pickups` borrows. Pure refactor, same checks in the same order. Risk: low; the size is
