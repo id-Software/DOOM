@@ -771,10 +771,44 @@ No check is elided (a hit stands for a call whose result is known), so P8 asks f
 `state_role_for`'s rejections (for example the reader-domain sweeps and `admit_state`'s tests) run it on inputs that
 fail, which the memo never stores.
 
+*O9d not implemented (2026-11-15 PST): dropped under §5's zero-or-negative rule.* The memo of the THINGS total
+(`counted_map_things`, called once per tic by the item-total cross-check of `preflight_world_pickups`) was built in
+two forms and measured with `ir --check` against the O9c build (both passed the 3% threshold, all nine outcomes
+equal). Form A, a 64-bit word field of `Simulation` (valid bit, `episode1` flag, option bit, count), lowered
+`SYNCHAOS_wire22` −1.71%, `SCALE2_episode1v2` −2.40%, `BVB1_wire24` −1.81%, `M4a_dense64_lift` −0.91% and
+`M4a_dense64_fight` −1.95%, and raised `MTELE1_wire24` +0.18%, `TFRAG1_wire24` +0.19%, `M4a_gallery_patrol` +0.12%
+and `M4a_corpse_continuation` +0.25%. A Callgrind diff of `MTELE1_wire24` traced its rise to inlining, not to the
+memo: `Simulation` grew by one word, and the clone loop that was inlined into `demon_plan` (−69,750 Ir there) became
+an out-of-line `Cloned::fold` (+77,590 Ir), net +7,841. Form B, a 32-bit word in `StaticWorld` placed in padding the
+struct already had (`size_of::<Simulation>()` stayed 1,888 bytes and `StaticWorld` 536), raised five workloads
+(+0.33% to +0.90%, `M4a_dense64_lift` the most). Neither form meets the rule, so the working tree was reset and
+no O9d gate list was kept (form A's full gate list had passed, including the 95 CI commands, before its
+measurement was read). The equivalence argument (the THINGS lump is immutable for the life of a `Simulation`: `Map`
+has private fields and no `&mut self` method, and `world` is never reassigned) stays valid for a later attempt.
+
 **O10. Read actors by reference in the validators.** Shared. Gain: most of the 4.2–6.1% direct `memcpy` that
 remains after O1–O4. Internal `&Actor` variants of `monster_actor` and `perception_actor` replace the copies,
 and `preflight_world_pickups` borrows. Pure refactor, same checks in the same order. Risk: low; the size is
 mechanical.
+
+*O10 as implemented (2026-11-15 PST), for `monster_actor` and `validate_item`.* `perception_actor` needs no
+change: its borrowing form `perception_actor_ref` (`perception.rs:56`) predates M4p. `monster_actor` (`crates/doom-sim/src/monsters.rs:484`) becomes a wrapper that copies the result
+of the new `monster_actor_ref` (489), which is the former body returning `Ok(a)` instead of `Ok(*a)`. Likewise
+`validate_item` (`world_pickups.rs:586`) wraps the new `validate_item_ref` (595), the former body on `&Actor`. Three
+loops read through the borrow instead of a copy: `preflight_map_demons` (`demon_map_spawn.rs:77`; the decoration,
+barrel and landing validators still take their actor by value, so the copy moves to those three branches),
+`preflight_monster_owner` (`monsters.rs:735`, both the Demon-map branch and the `monster_actor_ref(id, 978)` branch)
+and `preflight_world_pickups` (`world_pickups.rs:1199`). The proof:
+
+1. *Same checks in the same order.* Each `_ref` body is the former body token for token except its return; the
+   wrappers return `Ok(*a)` or the same error, so every other caller sees the former result.
+2. *The borrow sees the same value the copy held.* All three loops are `&self` methods; nothing between the read
+   and the last use can write `self.actors` (the borrow checker enforces it), so every field read through the
+   reference equals the copy's field.
+3. *Not observable.* Only the removed `memcpy` of an `Actor` differs; no snapshot, DSIM byte, digest, RNG draw,
+   event or work counter depends on where a validator reads its actor from.
+
+No check is elided, so P8 asks for no test.
 
 **O11. Replace the staged plan copy by an undo log or copy-on-write: not recommended.** Gain at most 1.7% on
 real maps. The risk is high: every write path would have to log, and a refused tic would have to restore
@@ -815,6 +849,9 @@ tic (E1M6). What remains is the single necessary preflight pass and `thinkers::r
 
 Each decision answers four questions: (a) consistent with prior owner decisions, (b) no observable change on
 any wire, (c) refuse-the-tic contract kept exactly, (d) bounded stores.
+
+**P1–P9 confirmed by owner 2026-11-15**, as written below (they had been adopted as recommended under the
+unattended rule while confirmation was pending).
 
 **P1. Target.** Recommendation: **every map's advance-only median (median of script medians, the committed
 harness of §5) at or below 150 µs per tic, with 100 µs as a stretch.** Report the factor against the

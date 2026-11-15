@@ -482,6 +482,11 @@ impl Simulation {
         Ok(())
     }
     pub(crate) fn monster_actor(&self, id: ActorId, margin: u32) -> Result<Actor, SimError> {
+        self.monster_actor_ref(id, margin).copied()
+    }
+    /// [`Self::monster_actor`] without the copy: the same checks in the same order,
+    /// returning the stored actor in place (M4p note §3 O10).
+    pub(crate) fn monster_actor_ref(&self, id: ActorId, margin: u32) -> Result<&Actor, SimError> {
         if !self.profile.uses_monsters() {
             return Err(MonsterError::Profile.into());
         }
@@ -531,7 +536,7 @@ impl Simulation {
         if !self.gibbed(a) {
             self.monster_state_role(l.actor_type, state)?;
         }
-        Ok(*a)
+        Ok(a)
     }
     pub(crate) fn monster_state_role(
         &self,
@@ -741,7 +746,7 @@ impl Simulation {
             // returned `Ok`; `monster_actor(id, 978)` can then differ only in its one
             // margin-dependent check, kept here (M4p note §3 O4).
             let a = if self.profile.uses_demon_map() {
-                let a = *self.actor(id).ok_or(PerceptionError::Reference)?;
+                let a = self.actor(id).ok_or(PerceptionError::Reference)?;
                 if self.monster_is_owner_type(a.life.unwrap().actor_type)
                     && !self.position_admitted(a.position(), 978)
                 {
@@ -749,14 +754,14 @@ impl Simulation {
                 }
                 a
             } else {
-                self.monster_actor(id, 978)?
+                self.monster_actor_ref(id, 978)?
             };
             let l = a.life.unwrap();
             if self.monster_is_owner(id) && !(self.profile.uses_demon_lifecycle() && l.health <= 0)
             {
                 // The callback's whole-state passes, owner test, `monster_actor(id,
                 // 1008)` (implied by the 978 result) and health test all hold here.
-                self.monster_callback_references(&a, !sounds_passed)?;
+                self.monster_callback_references(a, !sounds_passed)?;
                 sounds_passed = true;
                 if l.tics == 1
                     && l.state.is_some_and(|s| {
@@ -774,7 +779,7 @@ impl Simulation {
             } else if !self.position_admitted(a.position(), 994) {
                 return Err(MonsterError::Arithmetic.into());
             }
-            if !crate::player_map_scale::vertical_witness(self.player_policy(), &a) {
+            if !crate::player_map_scale::vertical_witness(self.player_policy(), a) {
                 return Err(MonsterError::Arithmetic.into());
             }
         }

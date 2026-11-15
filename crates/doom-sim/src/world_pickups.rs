@@ -588,6 +588,15 @@ pub(crate) fn validate_item(
     heights: ItemHeights<'_>,
     a: Actor,
 ) -> Result<(), SimError> {
+    validate_item_ref(room, heights, &a)
+}
+/// [`validate_item`] on a borrowed actor: the same checks in the same order
+/// (M4p note §3 O10).
+pub(crate) fn validate_item_ref(
+    room: Option<crate::player_map_scale::RoomBounds>,
+    heights: ItemHeights<'_>,
+    a: &Actor,
+) -> Result<(), SimError> {
     let l = a.life().ok_or(ActorError::InvalidType)?;
     let k = kind(l.actor_type).ok_or(ActorError::InvalidType)?;
     validate_definition(l.actor_type)?;
@@ -1205,13 +1214,13 @@ impl Simulation {
             if self.actors.is_pending(id) != Some(false) {
                 continue;
             }
-            let a = *self.actor(id).ok_or(StoreError::InvalidHandle)?;
+            let a = self.actor(id).ok_or(StoreError::InvalidHandle)?;
             if a.life()
                 .is_some_and(|l| kind_for(self.player_policy(), l.actor_type).is_some())
             {
                 count += 1;
                 counted += usize::from(a.life().is_some_and(|l| l.flags & MF_COUNTITEM != 0));
-                validate_item(self.room(), self.item_sectors(), a)?;
+                validate_item_ref(self.room(), self.item_sectors(), a)?;
             }
         }
         if self.player_policy().has_player_bonuses() {

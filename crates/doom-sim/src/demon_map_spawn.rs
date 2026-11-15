@@ -101,7 +101,7 @@ impl Simulation {
             if self.actors.is_pending(id) != Some(false) {
                 continue;
             }
-            let a = self.monster_actor(id, 1008)?;
+            let a = self.monster_actor_ref(id, 1008)?;
             let life = a.life.unwrap();
             // Validate complete future actions, not only this tic's next state.
             self.validate_combat_type(life.actor_type)?;
@@ -114,7 +114,7 @@ impl Simulation {
                 if decorations > self.decoration_limit() {
                     return Err(MapSpawnError::DecorationLimit.into());
                 }
-                e1m1_rules::validate_decoration(self.room(), a)?;
+                e1m1_rules::validate_decoration(self.room(), *a)?;
             } else if crate::barrels::is_barrel(self.player_policy(), life.actor_type) {
                 // An exploding barrel (M3h9b note §2.1) interleaves with the other
                 // THINGs in lump order and is never the suffix; its witness covers
@@ -123,13 +123,13 @@ impl Simulation {
                 if barrels > self.barrel_limit() {
                     return Err(MapSpawnError::BarrelLimit.into());
                 }
-                crate::barrels::validate_barrel(self.room(), a, self.gibbed(&a))?;
+                crate::barrels::validate_barrel(self.room(), *a, self.gibbed(a))?;
             } else if crate::teleport::is_landing(self.player_policy(), life.actor_type) {
                 // The teleport landing (wire 24): spawned by `P_SpawnMapThing` in
                 // THINGS order like a decoration, never the suffix; it holds its
                 // spawn record forever (`S_NULL`, tics −1, no momentum; p_mobj.c:
                 // 497–501, 441–449; M4b note §2 T7).
-                crate::teleport::validate_landing(self.room(), a)?;
+                crate::teleport::validate_landing(self.room(), *a)?;
             } else if self.player_policy().has_world_pickups()
                 && world_pickups::kind_for(self.player_policy(), life.actor_type).is_some()
             {
@@ -170,7 +170,7 @@ impl Simulation {
                     return Err(MapSpawnError::Ownership.into());
                 }
             }
-            if !crate::player_map_scale::vertical_witness(self.player_policy(), &a) {
+            if !crate::player_map_scale::vertical_witness(self.player_policy(), a) {
                 return Err(MonsterError::Arithmetic.into());
             }
         }
