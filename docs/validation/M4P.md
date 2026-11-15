@@ -439,3 +439,56 @@ runners (leak detection disabled). All passed:
 
 No digest or byte differed, so O6 was not reverted. Not run for the group: the opt-in `strict32` variants, fuzz
 builds and the sanitizer campaign (due at step 11). `/mnt/c` had 49 GiB free after the group check.
+
+## O9a (descriptor tables)
+
+Code commit `1408ee3`, recorded on 2026-11-15 (America/Los_Angeles), same host, toolchain, valgrind and ext4 paths;
+the machine was in use by the owner, so only instruction counts were taken. `/mnt/c` had 42 GiB free after the gates.
+
+**CI-set instruction counts.** `python3 -I tools/bench_advance.py ir --check` on the rustc 1.85.0 build: all nine
+outcomes equal the baseline's; `threshold 3.0%: ok`. The baseline was not lowered.
+
+| Workload | After O6 | After O9A | Change vs O6 | Change vs baseline | malloc calls | realloc calls | memcpy calls |
+|---|--:|--:|--:|--:|--:|--:|--:|
+| `SYNCHAOS_wire22` | 1,613,824,201 | 1,321,947,849 | −18.09% | −45.31% | 311,905 | 9,351 | 2,564,614 |
+| `SCALE2_episode1v2` | 369,062,175 | 301,820,357 | −18.22% | −50.30% | 80,207 | 23,942 | 554,672 |
+| `MTELE1_wire24` | 4,864,943 | 4,463,208 | −8.26% | −53.78% | 3,403 | 503 | 11,460 |
+| `TFRAG1_wire24` | 8,378,591 | 7,766,939 | −7.30% | −36.16% | 4,714 | 713 | 18,902 |
+| `BVB1_wire24` | 16,755,693 | 15,774,682 | −5.85% | −20.64% | 7,511 | 590 | 40,431 |
+| `M4a_dense64_lift` | 1,645,910,068 | 1,470,761,268 | −10.64% | −40.19% | 504,890 | 323,313 | 1,829,474 |
+| `M4a_dense64_fight` | 1,231,860,255 | 997,969,891 | −18.99% | −47.31% | 610,388 | 154,671 | 2,072,198 |
+| `M4a_gallery_patrol` | 189,743,220 | 155,772,424 | −17.90% | −38.82% | 303,323 | 81,328 | 318,741 |
+| `M4a_corpse_continuation` | 3,570,560 | 3,485,757 | −2.38% | −36.19% | 3,736 | 242 | 10,787 |
+
+**Gates run for O9a** (on the tree of `1408ee3`). Build, both format checks, Clippy with warnings denied, `cargo test --workspace` (1,395 passed, 4 ignored), the release tests (1,362 passed, 2 ignored), `cargo +1.85.0 test --workspace` (1,395 passed, 4 ignored), warnings-denied rustdoc; `run_reference.py --suite --jobs 2` (65 passed); the 95 CI `stable` Python commands (95 passed, 0 failed, run with `python3`). All under the owner's caps (`CARGO_BUILD_JOBS=6`, `NEXTEST_TEST_THREADS=4`, `RUST_TEST_THREADS=4`, two C jobs).
+
+## O9b (decoration states inline)
+
+Code commit `251ada7`, recorded on 2026-11-15 (America/Los_Angeles), under the same conditions. `/mnt/c` had 45 GiB
+free after the gates.
+
+**CI-set instruction counts.** `ir --check` as above: all nine outcomes equal the baseline's; `threshold 3.0%: ok`;
+no workload rose. The three wire-24 workloads and `M4a_corpse_continuation` hold no decoration and are unchanged.
+
+| Workload | After O9a | After O9B | Change vs O9a | Change vs baseline | malloc calls | realloc calls | memcpy calls |
+|---|--:|--:|--:|--:|--:|--:|--:|
+| `SYNCHAOS_wire22` | 1,321,947,849 | 1,309,257,849 | −0.96% | −45.84% | 41,851 | 9,351 | 2,564,614 |
+| `SCALE2_episode1v2` | 301,820,357 | 297,831,537 | −1.32% | −50.96% | 27,318 | 9,517 | 554,672 |
+| `MTELE1_wire24` | 4,463,208 | 4,463,208 | 0.00% | −53.78% | 3,403 | 503 | 11,460 |
+| `TFRAG1_wire24` | 7,766,939 | 7,766,939 | 0.00% | −36.16% | 4,714 | 713 | 18,902 |
+| `BVB1_wire24` | 15,774,682 | 15,774,682 | 0.00% | −20.64% | 7,511 | 590 | 40,431 |
+| `M4a_dense64_lift` | 1,470,761,268 | 1,463,542,068 | −0.49% | −40.48% | 351,226 | 323,313 | 1,829,474 |
+| `M4a_dense64_fight` | 997,969,891 | 988,833,091 | −0.92% | −47.80% | 415,934 | 154,671 | 2,072,198 |
+| `M4a_gallery_patrol` | 155,772,424 | 152,388,424 | −2.17% | −40.15% | 231,303 | 81,328 | 318,741 |
+| `M4a_corpse_continuation` | 3,485,757 | 3,485,757 | 0.00% | −36.19% | 3,736 | 242 | 10,787 |
+
+**Gates run for O9b** (code of `251ada7`; its proof text was added to the commit after the gates). Build, both format checks, Clippy with warnings denied, `cargo test --workspace` (1,395 passed, 4 ignored), the release tests (1,362 passed, 2 ignored), `cargo +1.85.0 test --workspace` (1,395 passed, 4 ignored), warnings-denied rustdoc; `run_reference.py --suite --jobs 2` (65 passed); the 95 CI `stable` Python commands (95 passed, 0 failed, run with `python3`). All under the owner's caps (`CARGO_BUILD_JOBS=6`, `NEXTEST_TEST_THREADS=4`, `RUST_TEST_THREADS=4`, two C jobs).
+
+## O9c (state-role memo): not committed
+
+Paused on 2026-11-15 at 02:16 PST at the owner's request, with its gates incomplete; the work is a patch in scratch,
+not on the branch. Observed so far, on the build before formatting: `ir --check` passed with all nine outcomes equal
+and every workload lower than after O9b (−2.22% to −4.50%). Of the full gate list, build, both format checks,
+Clippy, the workspace tests (1,395 passed, 4 ignored), the release tests (1,362 passed, 2 ignored), the rustc 1.85.0
+tests (1,395 passed, 4 ignored), rustdoc and the reference suite (65 passed) passed; the 95 CI commands and the gate
+run's own `ir --check` were stopped before they finished. O9d, O10 and group check 4 were not started.

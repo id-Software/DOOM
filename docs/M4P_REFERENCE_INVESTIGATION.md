@@ -15,32 +15,33 @@ genuine-engine checks. Milestone status lives in [ROADMAP](ROADMAP.md), support 
 of this milestone will go to `docs/validation/M4P.md`, created in Phase 2. This note records only counts,
 timings, instruction counts and digests: no IWAD-derived coordinate, lump byte or per-object datum.
 
-**Status / next step (2026-11-14 23:05 PST).** Phase 1 is done. Phase 2 step 1 (the committed harness
-`tools/bench_advance.py` and the master baseline `tests/reference/m4p_ir_baseline.json`, rustc 1.85.0, valgrind
-3.26.0) is done. Steps 2 and 3 (O1 `3ca7623`, O3 `69c1a3a`, O4 `c439d91`), group check 1 and the P8 tests of O1, O3
-and O4 (`1239d4c`, `crates/doom-sim/src/m4p_elision_tests.rs`) are done. Steps 4 to 6 are done: O2 `e8586a1` (narrower
-than proposed), O5 `320053c`, O7 `46f4b4e`, group check 2, the P8 tests of O2 and O7 (`910919f`) and a harness fix
-(`9775d19`). **Steps 7 and 8 are done.** O6 (single-pass `for_things` with a thread-local scratch) is in `fda9230`,
-with a differential test against the old per-cell scan in `3bfaf45`. **O8 (location memo) was dropped:** every form
-measured raised `M4a_corpse_continuation` (a map without BSP nodes) by +0.11% to +0.38%, against §5's zero-or-negative
-rule, and it was reverted before any commit. Both are recorded under O6 and O8 in §3. **Group check 3** passed: all 61
-real-map digests matched (a digest check only; no timing recorded) and the synthetic genuine-engine checks passed (see
-[validation/M4P.md](validation/M4P.md#group-check-3)). O6 has no elision, so P8 needs no O6 test beyond the
-differential one, and the dropped O8 needs none. **Next step: step 9, O9 (static tables and pure memos), then step 10,
-O10 (actor reads by reference).** The decisions P1–P9 (§4) were adopted as recommended under the unattended rule;
-owner confirmation pending. Machine: caps lifted by the owner (2026-11-14 evening PST) for steps 7 and 8 and group check
-3, machine idle. Then machine in use by the owner from 23:00 PST; caps on (`CARGO_BUILD_JOBS=6`,
-`NEXTEST_TEST_THREADS=4`, `RUST_TEST_THREADS=4`, wrapper `~/scratch/m4p/logs/capped.sh`, at most two C jobs, the
-genuine-engine suites one at a time); timings held. Instruction counts are unaffected. Half-done work: none. Failing
-checks: none known locally. The `simulation-ir` CI job of P6 is not yet written. The `ir --check` baseline is not
-lowered (it reports improvements as notices and passes). Resume commands (build on ext4, never `/mnt/*`; `/mnt/c` had
-49 GiB free after group check 3): `export CARGO_TARGET_DIR=~/scratch/m4p/target-185 CARGO_BUILD_JOBS=6; cargo +1.85.0 build -p doom-sim
---examples --release --locked; python3 -I tools/bench_advance.py ir --check`. Until the baseline is lowered, expect
-these changes against it: SYNCHAOS −33.24%, SCALE2 −39.23%, MTELE1 −49.62%, TFRAG1 −31.14%, BVB1 −15.70%, dense64_lift
-−33.06%, dense64_fight −34.97%, gallery_patrol −25.48% and corpse_continuation −34.63%. Timing, only when the owner lifts the hold and nothing else is
-running: `python3 -I tools/bench_advance.py timing --binary $CARGO_TARGET_DIR/release/examples/player_level_advance
---iwad ~/scratch/m4p/iwad/DOOM.WAD --out-dir ~/scratch/m4p/harness --reps 5`. Compare timings only between builds of
-the same toolchain. **Open owner questions: confirmation of P1–P9.**
+**Status / next step (2026-11-15 02:25 PST).** Phase 1 is done. Phase 2 steps 1 to 8 are done (harness and baseline;
+O1 `3ca7623`, O3 `69c1a3a`, O4 `c439d91`, O2 `e8586a1`, O5 `320053c`, O7 `46f4b4e`, O6 `fda9230`, their P8 and
+differential tests, group checks 1 to 3; O8 dropped, see §3). **Step 9 is part done:** O9a (static descriptor tables)
+is `1408ee3` and O9b (`decoration_states` inline) is `251ada7`, each with its full gate list passed and its proof in §3
+(records in [validation/M4P.md](validation/M4P.md#o9a-descriptor-tables)). **Machine in use by the owner; work paused
+at 02:16 PST on 2026-11-15 at the owner's request.** Half-done work: O9c (the `Ok`-only `state_role_for` memo) is
+not committed; its code and proof text are the patch `~/scratch/m4p/wip/o9c_state_role_memo.patch` (apply with `git
+apply` on `251ada7` or later). It passed `ir --check` (all nine workloads lower than O9b, outcomes equal), build,
+format, Clippy, the workspace, release and rustc 1.85.0 tests, rustdoc and the reference suite; the 95 CI commands and
+the gate run's `ir --check` were stopped unfinished, so they must be rerun before it is committed. Drafts, untested
+on the current tree: O9d (THINGS total memo, `~/scratch/m4p/wip/o9d.py`) and O10 (actor reads by reference,
+`~/scratch/m4p/wip/o10.py`), both scripts that edit the tree. **Next step:** rerun the full gates for O9c and commit
+it, then O9d and O10 (each measured and gated alone), then group check 4 (all 61 real-map digests, digest only while
+timings are held, and the synthetic genuine-engine checks as `~/scratch/m4p/logs/group3.sh`), then P8 tests for any
+O9/O10 elision (none so far), then step 3 of Phase 2: the `simulation-ir` CI job (P6) and re-baselining. Failing
+checks: none known; CI was green on `1408ee3`. The decisions P1–P9 (§4) were adopted as recommended under the
+unattended rule; owner confirmation pending. Caps when work resumes on a shared machine: `CARGO_BUILD_JOBS=6`,
+`NEXTEST_TEST_THREADS=4`, `RUST_TEST_THREADS=4` (wrapper `~/scratch/m4p/logs/capped.sh`), at most two C jobs, the
+genuine-engine suites one at a time, timings held. Resume commands (build on ext4, never `/mnt/*`; `/mnt/c` had 46
+GiB free at the pause): `cd ~/src/DOOM && git apply ~/scratch/m4p/wip/o9c_state_role_memo.patch && cd
+~/scratch/m4p/logs && ./capped.sh bash full_gates.sh o9c`; Ir alone: `export CARGO_TARGET_DIR=~/scratch/m4p/target-185
+CARGO_BUILD_JOBS=6; cargo +1.85.0 build -p doom-sim --examples --release --locked; python3 -I tools/bench_advance.py
+ir --check`. The `ir --check` baseline is not lowered; against it `251ada7` measures SYNCHAOS −45.84%, SCALE2
+−50.96%, MTELE1 −53.78%, TFRAG1 −36.16%, BVB1 −20.64%, dense64_lift −40.48%, dense64_fight −47.80%, gallery_patrol
+−40.15% and corpse_continuation −36.19%. Timing, only when the owner lifts the hold and nothing else is running:
+`python3 -I tools/bench_advance.py timing --binary $CARGO_TARGET_DIR/release/examples/player_level_advance --iwad
+~/scratch/m4p/iwad/DOOM.WAD --out-dir ~/scratch/m4p/harness --reps 5`. **Open owner questions: confirmation of P1–P9.**
 
 ## Summary
 
