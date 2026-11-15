@@ -540,11 +540,20 @@ impl Simulation {
         if self.statistics.is_none() || self.sound_targets.len() != self.sectors.len() {
             return Err(MapSpawnError::Ownership.into());
         }
-        let mut linked = std::collections::BTreeSet::new();
+        // Membership by slot (M4p note §3 O7): every id inserted or queried has
+        // `is_pending(id) == Some(false)`, so its slot is in range and holds its
+        // current generation; two such ids are equal exactly when their slots are.
+        let mut linked = vec![0_u64; self.actors.slots.len().div_ceil(64)];
+        let slot_bit = |id: ActorId| (id.slot() as usize / 64, 1_u64 << (id.slot() % 64));
         for &id in &self.spatial.order {
-            if self.actors.is_pending(id) != Some(false) || !linked.insert(id) {
+            if self.actors.is_pending(id) != Some(false) {
                 return Err(MapSpawnError::Ownership.into());
             }
+            let (word, bit) = slot_bit(id);
+            if linked[word] & bit != 0 {
+                return Err(MapSpawnError::Ownership.into());
+            }
+            linked[word] |= bit;
         }
         for id in self.actors.order() {
             if self.actors.is_pending(id) != Some(false) {
@@ -586,7 +595,8 @@ impl Simulation {
                     && actor.z == actor.floor
                     && actor.momz == Fixed::ZERO
                     && actor.momentum() == [Fixed::ZERO; 2];
-            if !linked.contains(&id)
+            let (word, bit) = slot_bit(id);
+            if linked[word] & bit == 0
                 || (!unlinked_blast
                     && actor.location != Some(self.world.locate_validated(actor.position())))
                 || (actor.floor > actor.ceiling && !inert_decoration)

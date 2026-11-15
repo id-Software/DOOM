@@ -557,6 +557,34 @@ to membership by `ActorId`, and duplicate detection gives the same `Ownership` e
 The bitmap holds `max_slots` bits, at most 8 KiB at the store's 65,536-slot bound (`crates/doom-sim/src/store.rs:298`). It is allocated infallibly,
 like the `BTreeSet` today, or taken from a spare. Risk: low.
 
+
+*O7 as implemented (2026-11-14 PST), as proposed.* In `preflight_expanded_demons_for` the `linked`
+`BTreeSet<ActorId>` is replaced by a `Vec<u64>` of `ceil(slots.len() / 64)` words, one bit per actor slot,
+allocated infallibly per call as the set was. The first loop over `self.spatial.order` returns
+`MapSpawnError::Ownership` when `is_pending(id) != Some(false)` and otherwise when the id's slot bit is already
+set, then sets it; the second loop's `!linked.contains(&id)` becomes "the slot bit is clear". The proof:
+
+1. *Membership by slot equals membership by id.* Every id inserted or queried first passed
+   `is_pending(id) == Some(false)` (the inserts after that test in the same `||` order; the queries come from
+   `actors.order()` behind the same filter). `is_pending` returns `Some` only through `slot_entry`
+   (`store.rs:156–162`), which requires `slot < slots.len()` and `generation == slots[slot].generation`. So each
+   such id is the unique current id of its slot, the bit index is in range (no new panic or error), and two such
+   ids are equal exactly when their slots are. Hence `insert` returned false exactly when the bit was set, and
+   `contains` was true exactly when the bit is set.
+2. *Same checks, same order, same errors.* The first loop's two failure conditions gave the same error in the
+   same `||` order before and still do, at the same element; the second loop's condition is evaluated first in the
+   same `||` chain. Iteration order of the set was never used (only `insert` and `contains`).
+3. *Pure and bounded.* The function still takes `&self` and draws no RNG; the bitmap is a local, non-canonical
+   and dropped at return. Its size is at most `max_slots / 64` words, 8 KiB at the store's 65,536-slot bound
+   (`store.rs:298`; `slots` never grows past `max_slots`, `store.rs:212–219`), instead of one tree node per spatial
+   entry. Like the set, it is allocated infallibly; the store bound caps it, so no new `StoreError::Capacity` point
+   appears.
+
+There is no elision, but P8 names O7: the load-bearing checks are the duplicate test (an id twice in
+`spatial.order` must still give `MapSpawnError::Ownership`) and the second loop's membership test (a live actor
+missing from `spatial.order` must still give `MapSpawnError::Ownership`); a test of each fails if its bit test is
+removed.
+
 **O8. Memoise the location witness.** Gain 19–99 kIr per tic. `locate_validated(position)` is a pure function
 of the position over the immutable `StaticWorld` BSP. Keep, per actor slot, the last
 `(position, location)` pair that was actually computed. When the actor's position equals the stored
