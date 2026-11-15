@@ -614,3 +614,93 @@ time), with dumps under `~/scratch/m4p/ci-g4` (ext4), after the timing; the addr
 
 No digest or byte differed. Not run for the group: the opt-in `strict32` variants, fuzz builds and the sanitizer
 campaign (due at step 11). `/mnt/c` had 47 GiB free after the group check.
+
+## Step 3: the `simulation-ir` CI job
+
+The job **Simulation instruction counts** (`simulation-ir`, `.github/workflows/rust.yml`) was added in `0b67580`,
+and the baseline `tests/reference/m4p_ir_baseline.json` was re-recorded on 2026-11-15 from the rustc 1.85.0 build of
+the O10 tree with local valgrind 3.26.0. The re-recorded counts equal the O10 gate measurement field for field. The
+first attempt read the stable-rustc examples in `./target` by mistake; it was reverted before any commit, and
+`--update-baseline` now refuses a build by another rustc. After the review, `ir --check` also fails when a gated
+count falls to 0 from a nonzero baseline.
+
+**Runner-to-runner stability (P6).** First hosted run: run of `c2ae2ac` on `ubuntu-latest` with the runner's
+valgrind package (valgrind 3.22.0, so a different valgrind and glibc than the local baseline). All nine outcomes
+equal, and **every gated count equal to the local baseline** (0.00% on excl-libc Ir and on the `malloc`, `realloc`
+and `memcpy` call counts for all nine workloads); only the informational total Ir (which includes libc) differs.
+The 3% threshold therefore has the whole margin for real regressions. Later runs are GitHub's record.
+
+## Fuzzing and sanitizer campaign
+
+2026-11-15, local, no caps (nightly cargo 1.101.0, cargo-fuzz 0.13.2). `cargo +nightly fuzz build --sanitizer address`
+built all 51 fuzz targets (exit 0). Then a bounded **AddressSanitizer** campaign, **leak detection on**
+(`ASAN_OPTIONS` unset), on the four targets whose runs reach the optimised preflights, each seeded from a fresh
+copy of its generator's seeds, all four in parallel from 14:15 to 14:45 PST: `cargo +nightly fuzz run <target>
+--sanitizer address -- -max_total_time=1800 -seed=<s> -max_len=<len> -timeout=180 -rss_limit_mb=2048`.
+
+| Target | Seeds (generator) | Seed | max_len | Kind | Executions | Corpus after the initial pass | Peak RSS |
+| --- | ---: | ---: | ---: | --- | ---: | --- | ---: |
+| `player_episode1_v2` (wire 24) | 694 | 1601 | 2404 | coverage-guided, ASan | 4,970 | 521 → 1,378 | 782 MB |
+| `player_episode1` (wire 23) | 459 | 1602 | 2404 | coverage-guided, ASan | 1,769 | 411 → 886 | 845 MB |
+| `player_level` (wire 22) | 1,508 | 1603 | 1404 | coverage-guided, ASan | 7,192 | 675 → 1,506 | 812 MB |
+| `player_barrels` | 3,172 | 1604 | 362 | coverage-guided, ASan | 5,307 | 808 → 1,433 | 794 MB |
+
+All four exited 0: **0 crashes, 0 timeouts, 0 out-of-memory, 0 AddressSanitizer or LeakSanitizer reports.**
+libFuzzer wrote 7 slow-unit reports (over 10 s, below the 180 s timeout): 5 on `player_episode1` (up to 71 s), 1 on
+`player_level` and 1 on `player_barrels`, as M4b saw on the wire-23 target under ASan; they stay in scratch.
+**Limits:** one seed and 30 minutes per target, four targets only, no plain (non-sanitizer) campaign and no ILP32
+(`--strict32`) run; a bounded campaign, not exhaustive. The corpora stay outside the repository.
+
+## Matched timing
+
+Recorded **2026-11-15 PST** (America/Los_Angeles, 14:47 to 15:13), on the local host, uncapped, alone: no build,
+test, fuzz, Valgrind or C process ran during it (the fuzz campaign had ended at 14:45). Master `4021d60` (the
+existing scratch worktree) and the branch head `c2ae2ac` were each built with `cargo +1.85.0 build -p doom-sim
+--examples --release --locked` into their own ext4 target directories (`~/scratch/m4p/target-master-185`,
+`~/scratch/m4p/target-185`); the IWAD copy and every output directory were on ext4. Method: `python3 -I
+tools/bench_advance.py timing --reps 5` on each binary, three rounds in alternating order (master, branch; branch,
+master; master, branch): 15 repetitions of the 61 cases per binary, 1,830 runs in all. **Every run ended in the
+recorded final digest and admitted-tic count (0 mismatches in all six runs).** Idle gate at each repetition start:
+all-CPU busy 0.03% to 1.93%, no stray process, 1-minute load 0.85 to 1.35 (the timing process itself contributes
+about 1.0). Windows-side load is invisible from WSL. Columns: median of per-script medians of advance-only µs per
+admitted tic, pooled over the 15 repetitions; the last column gives the branch's value per round.
+
+| Map | Master µs/tic | Branch µs/tic | Change | Master/branch | Branch per-round medians |
+|---|--:|--:|--:|--:|---|
+| E1M1 | 64.1 | 32.6 | −49.1% | 1.96× | 32.6, 33.0, 32.6 |
+| E1M2 | 144.5 | 81.1 | −43.8% | 1.78× | 80.1, 82.2, 81.9 |
+| E1M3 | 351.6 | 139.4 | −60.3% | 2.52× | 136.9, 139.2, 139.6 |
+| E1M4 | 254.6 | 82.2 | −67.7% | 3.10× | 82.0, 82.2, 82.7 |
+| E1M5 | 486.0 | 109.7 | −77.4% | 4.43× | 110.6, 109.5, 110.5 |
+| E1M6 | 829.2 | 149.6 | −82.0% | 5.54× | 149.9, 149.7, 148.8 |
+| E1M7 | 361.2 | 121.0 | −66.5% | 2.98× | 120.3, 120.4, 121.2 |
+| E1M8 | 343.9 | 48.5 | −85.9% | 7.08× | 48.3, 48.7, 48.9 |
+| E1M9 | 666.8 | 108.7 | −83.7% | 6.13× | 107.0, 108.5, 110.0 |
+| DEMO1 | 703.6 | 129.9 | −81.5% | 5.42× | 129.4, 130.3, 128.2 |
+
+**Against P1.** In this matched run every map's median is at or below 150 µs, E1M6 the highest at 149.6 µs (149.9,
+149.7 and 148.8 per round). [Group check 4](#group-check-4), an earlier run of the same code, measured E1M6 at
+150.9 µs. E1M6 therefore sits at the target within run-to-run variation of about 1%: the target is met in the matched
+run and missed by 0.9 µs in group check 4. Against the M4a C medians the gap remains large (P1 does not gate on it).
+
+## Independent review
+
+2026-11-15, by a separate reviewer agent (Claude Opus) given the code diff `4021d60..24bc9c0` (`crates/`,
+`tools/bench_advance.py`, the workflow) and the claim to falsify, not the authors' reasoning. It read every item
+against master and built a scratch copy (debug) to run the 12 `m4p_elision` tests (12 passed) and eight hand-made
+mutants of the remaining checks, one at a time: 7 were killed; 1 survived (below). **It found no input on which the
+new code behaves differently from master.** Findings and dispositions:
+
+1. *The `simulation-ir` job had not run yet* (its commit was not pushed): resolved by the first hosted run, which
+   reproduced every gated count exactly ([step 3](#step-3-the-simulation-ir-ci-job)).
+2. *A gated count that vanishes (for example a renamed glibc `memcpy` or `malloc` symbol) only printed a notice*:
+   fixed in `c2ae2ac`; `ir --check` now fails when a gated count falls to 0 from a nonzero baseline.
+3. *One O2 mutant survives*: skipping a later owner's own-target check in `monster_callback_references` passes all
+   12 tests. The code still checks it. The test comment argues that the mutant is unreachable, because
+   `preflight_map_demons` refuses a bad later-owner target first; the reviewer confirmed that for the tested case
+   but did not prove it for every profile. **Accepted as a known survivor.**
+4. *A stale doc comment* on `monster_callback_references` (it described a skip the code no longer makes): fixed
+   in `c2ae2ac`.
+5. *`Simulation`'s `Debug` output gains `spare_events`*: no test or encoder formats the whole `Simulation`, and
+   the existing `spare_writes` field set the precedent; no action.
+
