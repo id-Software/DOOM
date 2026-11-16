@@ -15,20 +15,18 @@ genuine-engine checks. Milestone status lives in [ROADMAP](ROADMAP.md), support 
 of this milestone will go to `docs/validation/M4P.md`, created in Phase 2. This note records only counts,
 timings, instruction counts and digests: no IWAD-derived coordinate, lump byte or per-object datum.
 
-**Status / next step (2026-11-15 14:10 PST).** Phase 1 is done; the owner confirmed P1–P9 on 2026-11-15 (§4).
-Phase 2 steps 1 to 10 are done: O1 `3ca7623`, O3 `69c1a3a`, O4 `c439d91`, O2 `e8586a1`, O5 `320053c`, O7 `46f4b4e`,
-O6 `fda9230`, O9a `1408ee3`, O9b `251ada7`, O9c `122370a` and O10 `50c71f2`, each with its full gate list and its
-proof in §3; O8 and O9d were dropped under §5's zero-or-negative rule (§3). Group checks 1 to 4 passed (group 4: all
-61 real-map digests with timing, and the synthetic genuine-engine checks). O9a to O10 elide no check, so they
-need no P8 test. **P1 against the stop rule:** after O10 every map's advance-only median is at or below
-150 µs except E1M6 at 150.9 µs; P9 stops the optimisation items after O10, so the target is missed on one map by
-0.9 µs and reported, not chased ([group check 4](validation/M4P.md#group-check-4)). Step 3 (P6): the
-`simulation-ir` CI job and the re-recorded baseline are committed; the runner-to-runner stability that fixes its
-threshold is measured from the CI runs. **Next:** the stability record, step 11 (re-record, evidence, docs,
-review), mutation testing on the PR, fuzz builds and a bounded sanitizer campaign, matched timings, the full gates
-and the exact-head CI matrix. Records: [validation/M4P.md](validation/M4P.md). Failing checks: none known. Scratch:
-`~/scratch/m4p` (ext4; build there, never on `/mnt/*`). **Open owner questions: none** (whether `simulation-ir`
-becomes a required check is the owner's call, P6).
+**Status / next step (2026-11-15 16:15 PST).** Phase 1 is done; the owner confirmed P1–P9 on 2026-11-15 (§4).
+**Phase 2 is complete and at the owner-review gate.** Steps 1 to 10: O1 `3ca7623`, O3 `69c1a3a`, O4 `c439d91`, O2
+`e8586a1`, O5 `320053c`, O7 `46f4b4e`, O6 `fda9230`, O9a `1408ee3`, O9b `251ada7`, O9c `122370a` and O10 `50c71f2`,
+each with its full gate list and its proof in §3; O8 and O9d were dropped under §5's zero-or-negative rule (§3).
+Group checks 1 to 4 passed. Step 3 (P6): the `simulation-ir` CI job and its re-recorded baseline; both hosted runs
+so far reproduced every gated count exactly. Step 11: the independent review (no behaviour difference found; its
+fixes in `c2ae2ac`), mutation testing with survivor tests (`e1c8c15`), a bounded ASan fuzz campaign, the matched
+timing and the final gates from clean all passed; the P7 rule is in AGENTS.md. **P1:** in the matched run every
+map's advance-only median is at or below 150 µs (E1M6 149.6 µs, 1.8× to 7.1× faster than master); group check 4
+measured E1M6 at 150.9 µs, so E1M6 sits at the target within run-to-run variation. Records:
+[validation/M4P.md](validation/M4P.md). Failing checks: none known. **Open owner questions:** whether
+`simulation-ir` becomes a required check (P6); review and merge of PR #60.
 
 ## Summary
 
@@ -902,8 +900,8 @@ owner's call; existing required check names and steps are unchanged. (a) Yes: th
 Not applicable. Not yet established: the run-to-run stability on hosted runners, to be measured in Phase 2
 step 1 before the threshold is fixed.
 
-**P7. AGENTS.md rule: timings only from the Linux disk.** Recommendation: **add to "Session
-conventions":** "Run every timing, benchmark and Callgrind measurement from binaries built on and run from
+**P7. AGENTS.md rule: timings only from the Linux disk.** (Added to AGENTS.md on 2026-11-15.)
+Recommendation: **add to "Session conventions":** "Run every timing, benchmark and Callgrind measurement from binaries built on and run from
 the Linux filesystem (ext4, for example `~/scratch`), never from `/mnt/*`; record the path in the evidence."
 Basis: the M4b 9p test, where the same binaries were +146.7% (median) slower on 9p with about 50 major
 faults per process and +1.0% on ext4 ([M4b matched performance](validation/M4B.md#matched-performance)).

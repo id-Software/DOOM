@@ -704,3 +704,55 @@ new code behaves differently from master.** Findings and dispositions:
 5. *`Simulation`'s `Debug` output gains `spare_events`*: no test or encoder formats the whole `Simulation`, and
    the existing `spare_writes` field set the precedent; no action.
 
+## Mutation testing
+
+The informational `Mutants` workflow, started by the `run-mutants` label on the PR, ran cargo-mutants 27.1.0 over
+the branch's source diff in eight shards. On `c2ae2ac`: **78 caught, 20 missed, 0 timeouts, 26 unviable.** The 20
+were triaged and then handled by a tester agent, which checked each kill by hand (the test fails with the mutant
+applied, passes without it):
+
+- **Killed by new tests (commit `e1c8c15`):**
+  - `state_role_for`'s key: the valid bit, the type field and the two `|`→`&`
+    (`state_role_memo_tests::memo_never_turns_a_refusal_into_an_acceptance`, a differential test against
+    `state_role_uncached` after warming the memo);
+  - the `validate_item` wrapper replaced by `Ok(())`
+    (`bonus_tests::contact_refuses_a_corrupt_item_with_the_invariant_error`, a below-API guard on the contact path);
+  - the three `source_u16` range mutants (`identity::source_u16_tests`);
+  - the eight-state bound of `decoration_states`
+    (`decoration_states_tests::a_spawn_chain_longer_than_eight_states_holds_exactly_eight`; two source types have
+    spawn chains of 12 and 30 states).
+- **Equivalent:**
+  - the three `|`→`^` in the key (disjoint bit fields);
+  - the slot-index arithmetic (`*`→`+`, `*`→`/`, `+`→`*`), which only changes the slot, while a hit compares the full
+    key;
+  - the profile-shift mutant (`<<`→`>>` on the profile), because the slot index already separates profiles with the
+    same type and state (31 is invertible mod 1024 and the profile gap is 1 to 23);
+  - `things_in_box`'s `&&`→`||`: an out-of-box candidate's cell never equals a visited cell
+    (`movement.rs:348`, `357`), so only the collection work changes.
+
+## Final gates
+
+From clean on 2026-11-15 (America/Los_Angeles), local, no caps. `./target`, `~/scratch/m4p/target-185` and the
+fuzz target directory were deleted first. Tree: `e1c8c15` plus the AGENTS.md P7 rule (documentation only). All
+passed:
+
+- build;
+- both format checks (workspace and fuzz);
+- Clippy with warnings denied;
+- `cargo test --workspace` (1,401 passed, 0 failed, 4 ignored);
+- the release tests of `doom-sim` and `doom-types` (1,368 passed, 2 ignored);
+- `cargo +1.85.0 test --workspace` (1,401 passed, 4 ignored);
+- warnings-denied rustdoc;
+- `run_reference.py --suite --jobs 2` (65 unchanged historical source and encoder commands);
+- the 95 CI `stable` Python commands (95 passed, 0 failed: every original-C generator and independent encoder with
+  `--check`, the debug/release example comparisons and the genuine-engine synthetic suites);
+- `bench_advance.py ir --check` on the rustc 1.85.0 build (`threshold 3.0%: ok`, every count equal to the
+  baseline);
+- `check_docs.py` (136 Markdown files, 2,381 links, 649 anchors, 20 archives);
+- `cargo +nightly fuzz build --sanitizer address` (all 51 targets).
+
+`git diff --check 4021d60 HEAD` found one trailing blank line in this record, fixed in the same commit as this
+section. The real-map digests and the synthetic genuine-engine checks last ran in group check 4 and in the matched
+timing, on code that differs from the final tree only by tests and comments. The exact-head CI matrix is GitHub's
+record.
+

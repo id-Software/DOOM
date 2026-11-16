@@ -103,6 +103,9 @@
   after the gates, then leave it unmerged.
 - Run every performance measurement alone on an idle machine (no concurrent builds,
   tests or fuzzing) and say so in the record.
+- Run every timing, benchmark and Callgrind measurement from binaries built on and run from
+  the Linux filesystem (ext4, for example `~/scratch`), never from `/mnt/*`; record the path
+  in the evidence.
 - Keep scratch builds, baseline checkouts and fuzz corpora outside the working tree;
   delete them at the end of a milestone after their results are recorded.
 - Subagent models follow [model routing](#model-routing-for-subagents).

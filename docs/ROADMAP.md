@@ -500,7 +500,7 @@ monster/player behavior. Further stages require separate owner direction.
   to 33–150 µs (1.8× to 7.1× faster), with every real-map digest unchanged; P1's 150 µs target is met there and
   missed by 0.9 µs on E1M6 in an earlier run
   ([evidence record](validation/M4P.md#matched-timing)). The independent review found no behaviour difference.
-  Next: the full gates from clean, then the pull request for the owner's review.
+  Mutation testing, fuzzing and the full gates from clean passed; the pull request awaits the owner's review.
 - Complete player/gameplay integration and broader monster/THING support.
 - The remaining moving sectors and map specials (the established M3e direction) beyond
   the doors, lifts, floors, switches and exit of M3h8: crushers, ceilings, teleporters
