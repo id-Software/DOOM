@@ -477,21 +477,22 @@ monster/player behavior. Further stages require separate owner direction.
 
 ## Later
 
-- **M4b (in progress on `feat/m4b-episode-1-complete`; decisions I1–I13 confirmed by the owner on 2026-11-10; see the
+- **M4b (merged as PR #58, 2026-11-14; decisions I1–I13 confirmed by the owner on 2026-11-10; see the
   [investigation note](M4B_REFERENCE_INVESTIGATION.md)).** Teleportation (line 97 and the landing thing), the
   Baron and `A_BossDeath`, hard skill, and with them E1M5, E1M8 and E1M9; the `DEMO1`
   (E1M5, skill 3) of the four-episode `DOOM.WAD`, which the genuine engine runs as registered because of its file
-  name, becomes runnable here. Plan steps 1–14 are done (the step 14 independent review found one behavior difference, a walking monster's teleport fog z, fixed; see the [review record](validation/M4B.md#independent-review-step-14)): wire 24 (`PlayerMonstersEpisode1V2`, DSIM40) admits
+  name, is runnable here. Wire 24 (`PlayerMonstersEpisode1V2`, DSIM40) admits
   teleportation, the Baron, `A_BossDeath` and hard skill, and E1M5, E1M8 and E1M9 load on skills 2 and 3; the
   real-map runs (61, all matched against the genuine engine, local-only) and `DEMO1` are recorded in the
-  [evidence record](validation/M4B.md#real-maps-and-demo1); the Baron fireball wall tunnel is a declared
+  [evidence record](validation/M4B.md#real-maps-and-demo1); the independent review is in the
+  [review record](validation/M4B.md#independent-review-step-14); the Baron fireball wall tunnel is a declared
   refuse-the-tic witness ([COMPATIBILITY](COMPATIBILITY.md#the-baron-fireball-wall-tunnel-wire-24)); mutation
-  testing, fuzzing and matched timings are recorded in the evidence record (the timings show an unexplained
-  slowdown of short workloads, carried to the performance milestone below). Next: step 15, the full gates,
-  then step 16, the pull request.
+  testing, fuzzing and matched timings are recorded in the evidence record (the short-workload slowdown
+  reproduces only from the 9p mount, not on ext4, so it is not a code regression; it is carried to the
+  performance milestone below).
 - **M4c (proposed, pending the owner).** Pause, easy skill and the reborn reload as an
   admitted transition; level transitions stay a later direction.
-- **M4p, simulation performance (in progress on `feat/m4p-performance`, draft PR #60; decisions P1–P9 confirmed
+- **M4p, simulation performance (merged as PR #60, merge commit 82e2207, 2026-11-15; decisions P1–P9 confirmed
   by the owner on 2026-11-15; see the [investigation note](M4P_REFERENCE_INVESTIGATION.md)).** Make
   `Simulation::advance` faster on the real Episode 1 maps without changing any digest, DSIM byte, refusal or
   event. Plan steps 1–10 are done: eleven optimisations (O1–O7, O9a–O9c, O10; O8 and O9d dropped because they made
@@ -500,7 +501,8 @@ monster/player behavior. Further stages require separate owner direction.
   to 33–150 µs (1.8× to 7.1× faster), with every real-map digest unchanged; P1's 150 µs target is met there and
   missed by 0.9 µs on E1M6 in an earlier run
   ([evidence record](validation/M4P.md#matched-timing)). The independent review found no behaviour difference.
-  Mutation testing, fuzzing and the full gates from clean passed; the pull request awaits the owner's review.
+  Mutation testing, fuzzing and the full gates from clean passed. Whether `simulation-ir` becomes a required
+  check is the owner's call.
 - Complete player/gameplay integration and broader monster/THING support.
 - The remaining moving sectors and map specials (the established M3e direction) beyond
   the doors, lifts, floors, switches and exit of M3h8: crushers, ceilings, teleporters

@@ -14,6 +14,10 @@ Software's code, down to every single step of game logic. (Rust DOOM is a workin
 > not guarantee correctness. This project is not affiliated with id Software or
 > Bethesda.
 
+![The original C engine and the Rust engine replay the same synthetic test run side by side; every tic matches.](docs/media/m4b-tele1-side-by-side.svg)
+
+*A synthetic test run replayed by the original engine's code and the Rust engine, tic by tic, from real values of both ([how](docs/TESTING.md#m4b-synthetic-mechanism-wads)).*
+
 ## Why this exists
 
 Most source ports (modern rewrites of a game's released source code) aim to be playable
@@ -39,7 +43,7 @@ this one needs your own game files, such as those from a copy of Doom you bought
 
 The engine runs DOOM's game logic without graphics. It is driven by tests and small
 example programs, on small test maps built for this project and, locally, on all nine
-real Episode 1 maps (E1M5, E1M8 and E1M9 are work in progress, still under review). Today it can simulate:
+real Episode 1 maps. Today it can simulate:
 
 - one player who moves, uses switches and doors, takes damage and dies, with the fist,
   pistol, shotgun and chaingun;
@@ -51,14 +55,17 @@ real Episode 1 maps (E1M5, E1M8 and E1M9 are work in progress, still under revie
   exploding barrels (with chain reactions) of E1M1, the first map;
 - every Episode 1 door, floor, lift, stair, donut, light and exit special, keys and
   locked doors, powerups, the chainsaw, the rocket launcher and the Spectre;
-- the real E1M1, E1M2, E1M3, E1M4, E1M6 and E1M7, which run in sync with the genuine
-  engine (the original C code, built and run alongside the Rust code) for all 30 scripted
-  runs: idle, walking to the exit, fighting, dying and random commands on each map (on
-  E1M1, a barrels run instead of dying);
-- in progress on a feature branch: teleporters, the Baron of Hell, the E1M8 boss floor, hard
-  skill, and with them the real E1M5, E1M8 and E1M9, plus the original's own `DEMO1` as run
-  by the original code. 61 scripted runs over all nine maps match the genuine engine; the
-  milestone has not been reviewed or merged yet. The comparison harness is local-only.
+- teleporters, the Baron of Hell, the boss floor that opens when the E1M8 Barons die, and
+  hard skill (skill 3, as well as skill 2);
+- all nine real Episode 1 maps, E1M1 to E1M9, on skills 2 and 3, plus the original's own
+  `DEMO1` as run by the original code. All 61 scripted runs (idle, walking to the exit,
+  fighting, dying and random commands on each map, with a barrels run instead of dying on
+  E1M1) run in sync with the genuine engine (the original C code, built and run alongside
+  the Rust code), tic for tic. This comparison uses your own game files and is local-only;
+  see the [evidence record](docs/validation/M4B.md#real-maps-and-demo1).
+- on those maps, one tic of the simulation takes about 33–150 µs on a laptop CPU, 1.8 to 7 times
+  faster than before the performance work, with every result unchanged
+  ([measurements](docs/validation/M4P.md#matched-timing)).
 
 What it cannot do yet:
 
@@ -67,7 +74,8 @@ What it cannot do yet:
   is covered);
 - claim a tic-for-tic match of any map for every input: only the scripted runs recorded
   so far are matched;
-- handle the other episodes, or easy or nightmare skill.
+- handle the other episodes, or easy or nightmare skill, or reach every corner of a map the
+  scripted runs do not.
 
 This is a long-term project, not a quick rewrite. Every behavior is checked against the
 original before it's admitted, so progress is measured in proven features, not weeks.
@@ -176,7 +184,7 @@ identifier in saved test snapshots; earlier Demon profiles are under
 | `PlayerMonstersBarrelsV1` (21) | Exploding barrels with the original's radius attack and chain reactions, 64 pickups, every map-thing angle and the relaxed spawn rule | [Barrels](docs/COMPATIBILITY.md#original-monsters-with-exploding-barrels-pickup-scale-and-every-thing-angle) |
 | `PlayerMonstersLevelV1` (22) | The player start at its place in the map's thing list, with its angle; the full player think, including damage-flash decay and the dead player's turn toward its attacker: the real E1M1 run | [Level runs](docs/COMPATIBILITY.md#original-level-runs-the-player-start-in-lump-order-and-the-full-player-think-wire-22) |
 | `PlayerMonstersEpisode1V1` (23) | Episode 1, part 1: every door, floor, lift, stair, donut, light and exit special, keys, powerups, chainsaw, rocket launcher and Spectre: the real E1M2-E1M4, E1M6 and E1M7 runs | [Episode 1, part 1](docs/COMPATIBILITY.md#original-episode-1-part-1-every-door-floor-plat-stair-donut-light-and-exit-special-keys-items-powers-chainsaw-rocket-launcher-and-spectre-wire-23) |
-| `PlayerMonstersEpisode1V2` (24), in progress | Episode 1, part 2: teleporters, the Baron of Hell and the E1M8 boss floor, hard skill: the real E1M5, E1M8, E1M9 and `DEMO1` runs | [Episode 1, part 2](docs/COMPATIBILITY.md#original-episode-1-part-2-teleporters-the-baron-of-hell-a_bossdeath-and-hard-skill-wire-24) |
+| `PlayerMonstersEpisode1V2` (24) | Episode 1, part 2: teleporters, the Baron of Hell and the E1M8 boss floor, hard skill: the real E1M5, E1M8, E1M9 and `DEMO1` runs | [Episode 1, part 2](docs/COMPATIBILITY.md#original-episode-1-part-2-teleporters-the-baron-of-hell-a_bossdeath-and-hard-skill-wire-24) |
 
 More developer reading:
 
