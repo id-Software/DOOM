@@ -32,8 +32,11 @@ pub struct Item {
     pub wad: PathBuf,
     /// The demo.
     pub lmp: PathBuf,
-    /// Whether it is an M5a room (else an M4b script).
+    /// Whether it is an M5a room (else an M4b script or a real map).
     pub room: bool,
+    /// Whether `tests/reference/m5a_gfx.wad` follows the map WAD in the lump list (the
+    /// synthetic items; a real map's WAD is the IWAD, which holds its own graphics).
+    pub gfx: bool,
 }
 
 /// The `"file"` entry preceding `"lump": "<lump>"` in a manifest's text.
@@ -72,6 +75,7 @@ pub fn items() -> Vec<Item> {
                     wad: reference(file.trim_start_matches("tests/reference/")),
                     lmp: reference(&format!("m5a_scripts/{lump}.lmp")),
                     room: true,
+                    gfx: true,
                     lump,
                 }
             } else {
@@ -83,6 +87,7 @@ pub fn items() -> Vec<Item> {
                     wad: reference(file.trim_start_matches("tests/reference/")),
                     lmp: reference(&format!("m4b_scripts/{lump}.lmp")),
                     room: false,
+                    gfx: true,
                     lump,
                 }
             }
@@ -105,13 +110,15 @@ pub struct Run {
 /// Builds the genuine lump list, the resources, the level and the simulation of `item`.
 pub fn load(item: &Item) -> Run {
     let wad_bytes = std::fs::read(&item.wad).expect("WAD");
-    let gfx_bytes = std::fs::read(reference("m5a_gfx.wad")).expect("gfx");
     let lmp = std::fs::read(&item.lmp).expect("demo");
     let wad = doom_wad::Wad::parse(&wad_bytes, doom_wad::Limits::default()).expect("WAD");
-    let gfx = doom_wad::Wad::parse(&gfx_bytes, doom_wad::Limits::default()).expect("gfx");
     let mut dir = LumpDirectory::new();
     dir.add_wad(&wad).expect("map WAD directory");
-    dir.add_wad(&gfx).expect("gfx directory");
+    if item.gfx {
+        let gfx_bytes = std::fs::read(reference("m5a_gfx.wad")).expect("gfx");
+        let gfx = doom_wad::Wad::parse(&gfx_bytes, doom_wad::Limits::default()).expect("gfx");
+        dir.add_wad(&gfx).expect("gfx directory");
+    }
     dir.add_single_lump(&item.lmp.to_string_lossy(), &lmp)
         .expect("demo lump");
     let res = Resources::load(dir, GameMode::Registered)
@@ -260,6 +267,11 @@ pub fn read_frames(lump: &str, screenblocks: u8) -> FrameStream {
         "m5a_frames/{lump}.sb{screenblocks}.frames"
     )))
     .expect("frames");
+    parse_frames(&text, lump)
+}
+
+/// Parses a DOOM-M5A-FRAMES-v1 stream (`lump` names it in panics).
+pub fn parse_frames(text: &str, lump: &str) -> FrameStream {
     let mut s = FrameStream::default();
     let mut lines = text.lines().map(|l| l.trim_end_matches('\r'));
     assert_eq!(lines.next(), Some("#schema,DOOM-M5A-FRAMES-v1"));
@@ -402,6 +414,14 @@ pub struct Counts {
     pub end: Option<(i64, String, Result<(), doom_render::RenderRefusal>)>,
     /// Refused frames by refusal (Debug form, without payload details).
     pub refusals: BTreeMap<String, usize>,
+    /// Frames the switch-parity witness made non-comparable (decision R7).
+    pub parity_unknown: usize,
+    /// Frames non-comparable as a whole because the genuine tracker could not identify the
+    /// columns (decision R4).
+    pub whole: usize,
+    /// The first tic the renderer could not observe, and why; later genuine frames count as
+    /// not reached.
+    pub observe_error: Option<(i64, String)>,
 }
 
 /// The genuine ending of `lump` at `screenblocks` (`m5a_results.json`: `end`, e.g. `marker`,
@@ -460,6 +480,44 @@ pub fn harness(
     item: &Item,
     configs: &[u8],
     trace: bool,
+    seen: impl FnMut(&Seen<'_>),
+) -> Vec<(u8, Counts)> {
+    let streams: Vec<FrameStream> = configs
+        .iter()
+        .map(|&sb| read_frames(&item.lump, sb))
+        .collect();
+    // A run that ends at a renderer limit: the Rust renderer must refuse the next tic.
+    let end_checks: Vec<Option<(i64, String)>> = configs
+        .iter()
+        .zip(&streams)
+        .map(|(&sb, s)| {
+            let end = genuine_end(&item.lump, sb);
+            expected_refusal(&end)?;
+            let last = s.frames.keys().next_back().copied().unwrap_or(-1);
+            Some((last + 1, end))
+        })
+        .collect();
+    let out = harness_streams(item, configs, &streams, &end_checks, trace, seen);
+    for (sb, c) in &out {
+        assert!(
+            c.observe_error.is_none(),
+            "{} sb{sb}: observe failed: {:?}",
+            item.lump,
+            c.observe_error
+        );
+    }
+    out
+}
+
+/// [`harness`] over the given genuine frame streams (one per configuration) and limit
+/// endings: `end_checks[k]` is the tic after the genuine run's last frame and its ending, when
+/// the genuine run ended at a renderer limit.
+pub fn harness_streams(
+    item: &Item,
+    configs: &[u8],
+    streams: &[FrameStream],
+    end_checks: &[Option<(i64, String)>],
+    trace: bool,
     mut seen: impl FnMut(&Seen<'_>),
 ) -> Vec<(u8, Counts)> {
     let mut run = load(item);
@@ -480,22 +538,7 @@ pub fn harness(
             r
         })
         .collect();
-    let streams: Vec<FrameStream> = configs
-        .iter()
-        .map(|&sb| read_frames(&item.lump, sb))
-        .collect();
     let mut counts = vec![Counts::default(); configs.len()];
-    // A run that ends at a renderer limit: the Rust renderer must refuse the next tic.
-    let end_checks: Vec<Option<(i64, String)>> = configs
-        .iter()
-        .zip(&streams)
-        .map(|(&sb, s)| {
-            let end = genuine_end(&item.lump, sb);
-            expected_refusal(&end)?;
-            let last = s.frames.keys().next_back().copied().unwrap_or(-1);
-            Some((last + 1, end))
-        })
-        .collect();
     let mut frames: Vec<doom_render::Frame> =
         configs.iter().map(|_| doom_render::Frame::new()).collect();
     let mut tic: i64 = 0;
@@ -503,14 +546,23 @@ pub fn harness(
         let index = tic as usize;
         let ok = index < run.commands.len() && advance(&mut run, index).is_ok();
         if !ok {
-            for (c, s) in counts.iter_mut().zip(&streams) {
-                c.not_reached += s.frames.range(tic..).count();
+            for (c, s) in counts.iter_mut().zip(streams) {
+                if c.observe_error.is_none() {
+                    c.not_reached += s.frames.range(tic..).count();
+                }
             }
             break;
         }
         let mut any = false;
         for (k, r) in renderers.iter_mut().enumerate() {
-            r.observe(&run.sim).expect("observe");
+            if counts[k].observe_error.is_some() {
+                continue;
+            }
+            if let Err(e) = r.observe(&run.sim) {
+                counts[k].observe_error = Some((tic, format!("{e:?}")));
+                counts[k].not_reached += streams[k].frames.range(tic..).count();
+                continue;
+            }
             let Some(row) = streams[k].frames.get(&tic) else {
                 if let Some((t, end)) = &end_checks[k] {
                     if *t == tic {
@@ -532,7 +584,14 @@ pub fn harness(
                     c.flag_disagreements += usize::from(!flags_agree);
                 }
                 Outcome::Mismatch => c.mismatched += 1,
-                Outcome::NonComparable => c.non_comparable += 1,
+                Outcome::NonComparable => {
+                    c.non_comparable += 1;
+                    if row.whole {
+                        c.whole += 1;
+                    } else {
+                        c.parity_unknown += 1;
+                    }
+                }
                 Outcome::Refused(e) => {
                     c.refused += 1;
                     *c.refusals.entry(refusal_kind(e)).or_default() += 1;
