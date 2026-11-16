@@ -15,6 +15,7 @@ doom-wad = { path = "../crates/doom-wad" }
 doom-map = { path = "../crates/doom-map" }
 doom-sim = { path = "../crates/doom-sim" }
 doom-types = { path = "../crates/doom-types" }
+doom-render = { path = "../crates/doom-render" }
 
 [lints.rust]
 unsafe_code = "forbid"
@@ -375,6 +376,20 @@ bench = false
 [[bin]]
 name = "player_episode1_v2"
 path = "fuzz_targets/player_episode1_v2.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "render_frames"
+path = "fuzz_targets/render_frames.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "render_data"
+path = "fuzz_targets/render_data.rs"
 test = false
 doc = false
 bench = false

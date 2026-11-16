@@ -69,6 +69,7 @@ name = "doom-fuzz"
 version = "0.0.0"
 dependencies = [
  "doom-map",
+ "doom-render",
  "doom-sim",
  "doom-test-evidence",
  "doom-types",
@@ -80,6 +81,16 @@ dependencies = [
 name = "doom-map"
 version = "0.1.0"
 dependencies = [
+ "doom-types",
+ "doom-wad",
+]
+
+[[package]]
+name = "doom-render"
+version = "0.1.0"
+dependencies = [
+ "doom-map",
+ "doom-sim",
  "doom-types",
  "doom-wad",
 ]
