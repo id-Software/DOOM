@@ -2117,7 +2117,8 @@ cargo +nightly fuzz build --sanitizer address render_frames   # also render_data
 # seed replay (not a campaign); ASAN_OPTIONS=detect_leaks=0 means LeakSanitizer is disabled, not passed
 ASAN_OPTIONS=detect_leaks=0 cargo +nightly fuzz run render_frames --sanitizer address CORPUS -- -runs=0 -max_len=516 -timeout=300 -rss_limit_mb=2048
 cargo +nightly fuzz run render_data --sanitizer address CORPUS -- -runs=0 -max_len=2048 -timeout=60 -rss_limit_mb=2048
-# add -max_total_time=1800 -seed=N for a coverage-guided campaign
+# bounded coverage-guided campaign (M5a; leak detection on works for both targets), binaries from a CARGO_TARGET_DIR on ext4:
+# ASAN_OPTIONS=detect_leaks=1 BIN/render_data CORPUS -max_total_time=1800 -max_len=2048 -timeout=60 -rss_limit_mb=2048 -seed=N
 ```
 
 - `render_frames` loads one of the 23 M5a rooms or 18 M4b WADs with the synthetic graphics set, runs the

@@ -588,3 +588,55 @@ re-run.
   reaches fixed colour map 32.
 - The light-amplification flicker at the end of the power (4,200 tics) is not in AMP; the room shows
   `fixedcolormap` 0 and 1. AMPFLICK covers it ([above](#rooms-added-after-step-2a)).
+
+## Full re-checks and fuzz campaigns after the review fixes
+
+Observed 2026-11-16 (America/Los_Angeles) at head `d69f62f` (docs and tests only changed afterwards), on the
+owner's idle machine (12 logical CPUs). Nothing in this section is a performance measurement.
+
+**Real maps, local** (`python3 tools/local/m5a_real.py --check`, all 61 runs, at most 2 C jobs, the IWAD
+scratch copy; the address variant ran with `ASAN_OPTIONS=detect_leaks=0`, so leak detection was disabled
+there; 32 min 49 s). All 61 records equal `tests/reference/m5a_real_results.json`. Per configuration (screenblocks
+11 and 10) 158,966 frames, all matched, 0 mismatched, 0 non-comparable, 0 refused, 0 not reached, with all
+three genuine variants identical; flagged frames 552 (11) and 494 (10). Refusals by map (both configurations
+summed; DEMO1 is the E1M5 `M5DEMO1` run):
+
+| Map | Runs x configs | Frames | Refused: `MaskedCompositeColumn` | Refused: any other kind | Observe errors |
+| --- | --- | --- | --- | --- | --- |
+| E1M1 | 10 | 20,058 | 0 | 0 | 0 |
+| E1M2 | 10 | 18,188 | 0 | 0 | 0 |
+| E1M3 | 10 | 27,500 | 0 | 0 | 0 |
+| E1M4 | 10 | 18,772 | 0 | 0 | 0 |
+| E1M5 (incl. DEMO1: 1,710 frames at each size, 0 refused) | 22 | 76,986 | 0 | 0 | 0 |
+| E1M6 | 10 | 25,484 | 0 | 0 | 0 |
+| E1M7 | 10 | 25,878 | 0 | 0 | 0 |
+| E1M8 | 20 | 61,680 | 0 | 0 | 0 |
+| E1M9 | 20 | 43,386 | 0 | 0 | 0 |
+
+(Counts from the committed record, which the run proved equal.) Every run loaded: no IWAD map triggered a load
+refusal (a load refusal would have been a refused or errored run, and all 61 records show none).
+
+**Synthetic genuine check** (`ASAN_OPTIONS=detect_leaks=0 python3 tools/reference/m5a_reference.py --work
+~/scratch/m5a/ref --check --pngs --selftest`, leak detection disabled; 3 min 17 s): passed. Frames per configuration 13,191 (11),
+13,191 (10), 13,203 (9); `m5a_results.json` and 180 golden files match (45 items); 32 PNGs checked; the
+self-test planted a pixel and found it at tic 20, pixel (123, 77).
+
+**Coverage-guided fuzz campaigns** (target compiled with `cargo +nightly fuzz build --sanitizer address`, target
+dir `~/scratch/m5a/fuzztarget`, corpora `~/scratch/m5a/fuzz` outside the tree, seeded by
+`tools/seed_render_fuzz.py`: 342 `frames` and 409 `data` seeds). The binaries ran directly with libFuzzer and
+**leak detection on** (`ASAN_OPTIONS=detect_leaks=1`; LeakSanitizer ran and reported nothing on both
+targets, including `render_frames`, where the seed replay also exited 0 with it on). Sequential, each
+`-max_total_time=1800`:
+
+| Target | Options | Execs | Coverage (cov / ft) | Corpus (in memory) | Result |
+| --- | --- | --- | --- | --- | --- |
+| `render_data` | `-max_len=2048 -timeout=60 -rss_limit_mb=2048 -seed=5101` | 114,777 in 1,801 s (about 63/s) | 970 / 1,880 after the seeds, 1,122 / 3,436 at the end | 460 units, 14,820 B | exit 0, no finding |
+| `render_frames` | `-max_len=516 -timeout=300 -rss_limit_mb=2048 -seed=5102` | 1,279 in 1,806 s (a state-heavy target: a full frame run per input) | 15,433 / 54,854 after the seeds, 16,274 / 69,700 at the end | 691 units, 23 KB | exit 0, no finding |
+
+Limits: the libFuzzer length ramp (`lim` 126 for `render_data`, 156 for `render_frames` at the end) never reached the
+`-max_len` caps in 30 minutes (`-len_control` unchanged), so the longest inputs were exercised by the seeds only;
+the slowest `render_frames` unit took 11 s under AddressSanitizer (a notice, not a timeout; the 300 s limit
+never fired); 1,279 executions is small. Bounded campaigns are not exhaustive proof. No crash, leak, timeout or
+out-of-memory input was produced; nothing was minimised or fixed. The corpora were deleted after recording.
+
+**Performance** (R15): not measured in this step. The owner asked to be consulted before any timing run.

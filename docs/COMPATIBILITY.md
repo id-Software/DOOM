@@ -2636,7 +2636,7 @@ of a zero-width texture, or a composite column of a negative-height texture, who
 any allocation) and, by the orchestrator's application of R3 (2026-11-16), `MaskedCompositeColumn` (a
 masked midtexture column that is a multi-patch composite: the genuine post walk reads composite texels as
 post headers, so its end depends on texel values and, once it leaves the composite, on memory layout; a
-declared refusal awaiting the owner, [investigation §7](M5A_REFERENCE_INVESTIGATION.md#7-open-questions-and-where-each-is-decided)
+declared refusal, accepted by the owner 2026-11-16, [investigation §7](M5A_REFERENCE_INVESTIGATION.md#7-open-questions-and-where-each-is-decided)
 item 43) and `MaskedColumnUndefined` (a post walk that leaves its patch lump). A `pixhigh` or `pixlow` left
 over from an earlier wall is reproduced, not refused: the render state carries it (item 42). A refusal is typed, repeatable and leaves the render state unchanged. Only the limit
 refusals are reached by committed rooms; the others are guards, covered by unit tests where the evidence
