@@ -1,0 +1,834 @@
+{
+ "schema": "DOOM-M5A-MANIFEST-v1",
+ "rooms": [
+  {
+   "name": "PEG",
+   "file": "tests/reference/m5a_wads/peg.wad",
+   "slot": "E1M1",
+   "sha256": "5f130bea249a63746d203e58134b9529c22646e36413e880404c501df4c53a1b",
+   "bytes": 88006,
+   "sectors": 5,
+   "lines": 24,
+   "things": {
+    "1": 1
+   },
+   "png": [
+    [
+     10,
+     40
+    ],
+    [
+     10,
+     200
+    ]
+   ],
+   "script": {
+    "lump": "M5PEG",
+    "txt": "tests/reference/m5a_scripts/M5PEG.txt",
+    "lmp": "tests/reference/m5a_scripts/M5PEG.lmp",
+    "what": "turn a full circle, then open the door and watch its upper texture rise",
+    "tics": 219,
+    "lmp_sha256": "9736190f1ba16fdc612217df32ece5ba1ff629dff9c3ab417f7126af5a3a66b6",
+    "views": [
+     11,
+     10,
+     9
+    ],
+    "must_show": [
+     {
+      "what": "door opens: more lines mapped",
+      "expr": "frame mapped >= 20"
+     }
+    ]
+   }
+  },
+  {
+   "name": "MASK",
+   "file": "tests/reference/m5a_wads/mask.wad",
+   "slot": "E1M1",
+   "sha256": "d5f8852ad6a425c4f7067b7af87e54599c393f178e464a0812fd34c626f5f77d",
+   "bytes": 87264,
+   "sectors": 4,
+   "lines": 13,
+   "things": {
+    "1": 1
+   },
+   "png": [
+    [
+     10,
+     60
+    ]
+   ],
+   "script": {
+    "lump": "M5MASK",
+    "txt": "tests/reference/m5a_scripts/M5MASK.txt",
+    "lmp": "tests/reference/m5a_scripts/M5MASK.lmp",
+    "what": "walk past the masked lines at grazing angles, then turn back across them",
+    "tics": 160,
+    "lmp_sha256": "743038c72ca3cb75fc98186b7e38695bbcb191e2b039167ab966d9ad859e61a6",
+    "views": [
+     11,
+     10,
+     9
+    ],
+    "must_show": [
+     {
+      "what": "masked midtextures use openings",
+      "expr": "frame openings > 0"
+     }
+    ]
+   }
+  },
+  {
+   "name": "PLANES",
+   "file": "tests/reference/m5a_wads/planes.wad",
+   "slot": "E1M1",
+   "sha256": "cd1a5498dda9319ceba9d6fe6c365866bdb18f64638604f9dde89b60e1c667cf",
+   "bytes": 94895,
+   "sectors": 26,
+   "lines": 64,
+   "things": {
+    "1": 1
+   },
+   "png": [
+    [
+     10,
+     60
+    ]
+   ],
+   "script": {
+    "lump": "M5PLANE",
+    "txt": "tests/reference/m5a_scripts/M5PLANE.txt",
+    "lmp": "tests/reference/m5a_scripts/M5PLANE.lmp",
+    "what": "walk into the field, turn a full circle",
+    "tics": 168,
+    "lmp_sha256": "a020d2b53d7871481a745f5bb7fc9780e67a0ec7561b387bbf44e53f94b750c3",
+    "views": [
+     11,
+     10,
+     9
+    ],
+    "must_show": [
+     {
+      "what": "many visplanes",
+      "expr": "frame visplanes >= 40"
+     }
+    ]
+   }
+  },
+  {
+   "name": "SKY",
+   "file": "tests/reference/m5a_wads/sky.wad",
+   "slot": "E1M1",
+   "sha256": "a7b015fc413107231bc2ebee4457f8be0540cb2938f86248c79e5c4c76155669",
+   "bytes": 87828,
+   "sectors": 4,
+   "lines": 15,
+   "things": {
+    "1": 1
+   },
+   "png": [
+    [
+     11,
+     100
+    ]
+   ],
+   "script": {
+    "lump": "M5SKY",
+    "txt": "tests/reference/m5a_scripts/M5SKY.txt",
+    "lmp": "tests/reference/m5a_scripts/M5SKY.lmp",
+    "what": "turn a full circle slowly, then look across the sky floor",
+    "tics": 288,
+    "lmp_sha256": "d06f990b8ac82f89e7ab67b9920e8b6663624add60db93044384eacfe978a2f9",
+    "views": [
+     11,
+     10,
+     9
+    ],
+    "must_show": [
+     {
+      "what": "sky planes",
+      "expr": "frame visplanes >= 4"
+     }
+    ]
+   }
+  },
+  {
+   "name": "LIGHT",
+   "file": "tests/reference/m5a_wads/light.wad",
+   "slot": "E1M1",
+   "sha256": "a656f3aa6870e38cf5ff5a0de8532f3cd7457d21cfc1633b47fdf298e54a89a8",
+   "bytes": 93213,
+   "sectors": 17,
+   "lines": 82,
+   "things": {
+    "1": 1
+   },
+   "png": [
+    [
+     10,
+     60
+    ]
+   ],
+   "script": {
+    "lump": "M5LIGHT",
+    "txt": "tests/reference/m5a_scripts/M5LIGHT.txt",
+    "lmp": "tests/reference/m5a_scripts/M5LIGHT.lmp",
+    "what": "walk the hall past the alcoves, turning left and right",
+    "tics": 208,
+    "lmp_sha256": "ade6be85e8818e580bd5c73e973d21e2ad1a2607ee0304b5512e390f3694947b",
+    "views": [
+     11,
+     10,
+     9
+    ],
+    "must_show": [
+     {
+      "what": "alcove planes",
+      "expr": "frame visplanes >= 20"
+     }
+    ]
+   }
+  },
+  {
+   "name": "CONTRAST",
+   "file": "tests/reference/m5a_wads/contrast.wad",
+   "slot": "E1M1",
+   "sha256": "a99cad5e6a4b68ad9705c62cfa9fcf2e8cf8be9727a9f55080fbbbeb694281b3",
+   "bytes": 86507,
+   "sectors": 1,
+   "lines": 8,
+   "things": {
+    "1": 1
+   },
+   "png": [
+    [
+     10,
+     50
+    ]
+   ],
+   "script": {
+    "lump": "M5CONTR",
+    "txt": "tests/reference/m5a_scripts/M5CONTR.txt",
+    "lmp": "tests/reference/m5a_scripts/M5CONTR.lmp",
+    "what": "turn a full circle in the octagon",
+    "tics": 128,
+    "lmp_sha256": "8fb6233507ff0f7fa6c532bb99671c54f1139313cb1c45971bdae67eaf12dd32",
+    "views": [
+     11,
+     10,
+     9
+    ],
+    "must_show": [
+     {
+      "what": "three walls in view",
+      "expr": "frame drawsegs >= 3"
+     }
+    ]
+   }
+  },
+  {
+   "name": "DIST",
+   "file": "tests/reference/m5a_wads/dist.wad",
+   "slot": "E1M1",
+   "sha256": "bfec269621c64cbecbda633913049c821feac88b1f72a27aafc92fa5e40977e8",
+   "bytes": 86487,
+   "sectors": 1,
+   "lines": 4,
+   "things": {
+    "1": 1
+   },
+   "png": [
+    [
+     10,
+     120
+    ]
+   ],
+   "script": {
+    "lump": "M5DIST",
+    "txt": "tests/reference/m5a_scripts/M5DIST.txt",
+    "lmp": "tests/reference/m5a_scripts/M5DIST.lmp",
+    "what": "walk down the corridor slowly",
+    "tics": 202,
+    "lmp_sha256": "898094548b97da1d1d11676e75767b108cbea63273dfd4969efd195b11153d00",
+    "views": [
+     11,
+     10,
+     9
+    ],
+    "must_show": [
+     {
+      "what": "the player walks",
+      "expr": "view viewx > 2097152"
+     }
+    ]
+   }
+  },
+  {
+   "name": "SPRITES",
+   "file": "tests/reference/m5a_wads/sprites.wad",
+   "slot": "E1M1",
+   "sha256": "f5df629e9e22fa01a0396cc5835f9a0993498b990b15fb52c7588c25b23d36fa",
+   "bytes": 87211,
+   "sectors": 2,
+   "lines": 8,
+   "things": {
+    "1": 1,
+    "9": 2,
+    "15": 1,
+    "24": 1,
+    "35": 1,
+    "2007": 1,
+    "2013": 1,
+    "2014": 1,
+    "2015": 1,
+    "2028": 1,
+    "3001": 2,
+    "3002": 1,
+    "3003": 1,
+    "3004": 2
+   },
+   "png": [
+    [
+     11,
+     0
+    ],
+    [
+     11,
+     100
+    ]
+   ],
+   "script": {
+    "lump": "M5SPRIT",
+    "txt": "tests/reference/m5a_scripts/M5SPRIT.txt",
+    "lmp": "tests/reference/m5a_scripts/M5SPRIT.lmp",
+    "what": "turn a full circle among the sleeping monsters and items",
+    "tics": 136,
+    "lmp_sha256": "63f039729688e6cff97022d8bf572f45ace8fcdeb5341f2f043534b6e76ecfb9",
+    "views": [
+     11,
+     10,
+     9
+    ],
+    "must_show": [
+     {
+      "what": "five things in view",
+      "expr": "frame vissprites >= 5"
+     }
+    ]
+   }
+  },
+  {
+   "name": "CLIP",
+   "file": "tests/reference/m5a_wads/clip.wad",
+   "slot": "E1M1",
+   "sha256": "26a58b48a74176d214349fff621950ca000b6f580c1fbdb59e7837db952206ae",
+   "bytes": 87238,
+   "sectors": 4,
+   "lines": 12,
+   "things": {
+    "1": 1,
+    "34": 1,
+    "35": 1,
+    "46": 1,
+    "48": 2,
+    "2028": 2
+   },
+   "png": [
+    [
+     10,
+     60
+    ]
+   ],
+   "script": {
+    "lump": "M5CLIP",
+    "txt": "tests/reference/m5a_scripts/M5CLIP.txt",
+    "lmp": "tests/reference/m5a_scripts/M5CLIP.lmp",
+    "what": "strafe left and right before the grate, the ledge and the pit",
+    "tics": 184,
+    "lmp_sha256": "fa25ba4733445cdb8e0ad7b436a17b8f9e053e672bbf04f21a4991fa62fb4065",
+    "views": [
+     11,
+     10,
+     9
+    ],
+    "must_show": [
+     {
+      "what": "sprites clipped by silhouettes",
+      "expr": "frame vissprites >= 5"
+     },
+     {
+      "what": "masked grate openings",
+      "expr": "frame openings > 0"
+     }
+    ]
+   }
+  },
+  {
+   "name": "WEAPON",
+   "file": "tests/reference/m5a_wads/weapon.wad",
+   "slot": "E1M1",
+   "sha256": "914937159b0cc9f8507ff7867eb3fafdee5b12b757703d70f456e5f7a9b1e0ac",
+   "bytes": 86545,
+   "sectors": 1,
+   "lines": 4,
+   "things": {
+    "1": 1,
+    "2001": 1,
+    "2002": 1,
+    "2003": 1,
+    "2005": 1,
+    "2007": 1,
+    "2008": 1,
+    "2010": 1
+   },
+   "png": [
+    [
+     10,
+     150
+    ],
+    [
+     10,
+     330
+    ]
+   ],
+   "script": {
+    "lump": "M5WEAP",
+    "txt": "tests/reference/m5a_scripts/M5WEAP.txt",
+    "lmp": "tests/reference/m5a_scripts/M5WEAP.lmp",
+    "what": "walk over the weapons, fire each, switch, walk back",
+    "tics": 396,
+    "lmp_sha256": "fe32eedcff3835814bf8c0d4e8f09b1baca27ce000fcd8ea05cc9765a48bf948",
+    "views": [
+     11,
+     10,
+     9
+    ],
+    "must_show": [
+     {
+      "what": "a muzzle flash (extralight)",
+      "expr": "view extralight > 0"
+     },
+     {
+      "what": "a second psprite (flash)",
+      "expr": "view ps1state >= 0"
+     }
+    ]
+   }
+  },
+  {
+   "name": "FUZZ",
+   "file": "tests/reference/m5a_wads/fuzz.wad",
+   "slot": "E1M1",
+   "sha256": "e06c63199be78729066b83e612292aaef79e0628fe9a29a7b3f0ca59cbc1522b",
+   "bytes": 87306,
+   "sectors": 3,
+   "lines": 13,
+   "things": {
+    "1": 1,
+    "58": 2,
+    "2024": 1
+   },
+   "png": [
+    [
+     10,
+     30
+    ],
+    [
+     10,
+     120
+    ]
+   ],
+   "script": {
+    "lump": "M5FUZZ",
+    "txt": "tests/reference/m5a_scripts/M5FUZZ.txt",
+    "lmp": "tests/reference/m5a_scripts/M5FUZZ.lmp",
+    "what": "look at the Spectres, back onto the blur sphere, look again with the fuzzy weapon",
+    "tics": 156,
+    "lmp_sha256": "55d73ed310d5d7e21d56fbd7f13519975a8fbeadf5ca94786aa3107260056bf9",
+    "views": [
+     11,
+     10,
+     9
+    ],
+    "must_show": [
+     {
+      "what": "a Spectre in view",
+      "expr": "frame vissprites >= 1"
+     },
+     {
+      "what": "the player is invisible",
+      "expr": "view invisibility > 0"
+     }
+    ]
+   }
+  },
+  {
+   "name": "AMP",
+   "file": "tests/reference/m5a_wads/amp.wad",
+   "slot": "E1M1",
+   "sha256": "85b3e5e58b7b170a3555a76270cf0bc4658f54e60653e718d2f43b13fdaad14b",
+   "bytes": 86351,
+   "sectors": 1,
+   "lines": 4,
+   "things": {
+    "1": 1,
+    "48": 1,
+    "2028": 1,
+    "2045": 1
+   },
+   "png": [
+    [
+     10,
+     60
+    ]
+   ],
+   "script": {
+    "lump": "M5AMP",
+    "txt": "tests/reference/m5a_scripts/M5AMP.txt",
+    "lmp": "tests/reference/m5a_scripts/M5AMP.lmp",
+    "what": "walk onto the light amplification visor and look around",
+    "tics": 124,
+    "lmp_sha256": "f164a09261fbb66d00e42a3668527d3724821b948943a32ce911dd6d31fd677e",
+    "views": [
+     11,
+     10,
+     9
+    ],
+    "must_show": [
+     {
+      "what": "light amplification",
+      "expr": "view fixedcolormap == 1"
+     }
+    ]
+   }
+  },
+  {
+   "name": "HOM",
+   "file": "tests/reference/m5a_wads/hom.wad",
+   "slot": "E1M1",
+   "sha256": "cab50d64cf294f4efd67f02227dcc3db3c37b7b65d62eee5e13f52669cb0f69d",
+   "bytes": 86701,
+   "sectors": 2,
+   "lines": 9,
+   "things": {
+    "1": 1
+   },
+   "png": [
+    [
+     10,
+     60
+    ]
+   ],
+   "script": {
+    "lump": "M5HOM",
+    "txt": "tests/reference/m5a_scripts/M5HOM.txt",
+    "lmp": "tests/reference/m5a_scripts/M5HOM.lmp",
+    "what": "turn so the missing upper texture sweeps across the view",
+    "tics": 132,
+    "lmp_sha256": "559065f8dd7a2b45fbfabe2e7f35825218154f4b16bfa7ddaf669a9b138e2f5b",
+    "views": [
+     11,
+     10,
+     9
+    ],
+    "must_show": [
+     {
+      "what": "the missing upper wall in view",
+      "expr": "frame drawsegs >= 3"
+     }
+    ]
+   }
+  },
+  {
+   "name": "SHORT",
+   "file": "tests/reference/m5a_wads/short.wad",
+   "slot": "E1M1",
+   "sha256": "76f2cb3002706ecc0577ff37e06ac9172576fc4808a914b5b312619f5baa54a9",
+   "bytes": 86253,
+   "sectors": 1,
+   "lines": 4,
+   "things": {
+    "1": 1
+   },
+   "png": [
+    [
+     10,
+     8
+    ]
+   ],
+   "script": {
+    "lump": "M5SHORT",
+    "txt": "tests/reference/m5a_scripts/M5SHORT.txt",
+    "lmp": "tests/reference/m5a_scripts/M5SHORT.lmp",
+    "what": "look at the three short and gappy walls",
+    "tics": 136,
+    "lmp_sha256": "aca3622f679bd4ac41deca25e3d363bdc77d99c960f58d110c4b50c4c3fdef4b",
+    "views": [
+     11,
+     10,
+     9
+    ],
+    "must_show": [
+     {
+      "what": "tracker-flagged columns",
+      "expr": "frame columns > 0"
+     }
+    ]
+   }
+  },
+  {
+   "name": "VIEW",
+   "file": "tests/reference/m5a_wads/view.wad",
+   "slot": "E1M1",
+   "sha256": "dd6fd4fa44730e58498ce4aa47441bee4d1a7bccd0141ab3cc945d1582fd4f12",
+   "bytes": 86871,
+   "sectors": 2,
+   "lines": 9,
+   "things": {
+    "1": 1,
+    "2013": 1,
+    "2028": 1
+   },
+   "png": [
+    [
+     9,
+     20
+    ],
+    [
+     10,
+     20
+    ],
+    [
+     11,
+     20
+    ]
+   ],
+   "script": {
+    "lump": "M5VIEW",
+    "txt": "tests/reference/m5a_scripts/M5VIEW.txt",
+    "lmp": "tests/reference/m5a_scripts/M5VIEW.lmp",
+    "what": "stand still, then turn a little",
+    "tics": 40,
+    "lmp_sha256": "4b4e5389d4fdd0425e5274a74a0d4a8e04b45cb2636fc5f746ab0b899e05bbff",
+    "views": [
+     11,
+     10,
+     9
+    ],
+    "must_show": [
+     {
+      "what": "the step in view",
+      "expr": "frame visplanes >= 4"
+     }
+    ]
+   }
+  },
+  {
+   "name": "VPLANES",
+   "file": "tests/reference/m5a_wads/vplanes.wad",
+   "slot": "E1M1",
+   "sha256": "120cac469452c5f7c62b64a02f0bf55de5387609f0bf6ed2318b08847ffa89b5",
+   "bytes": 112169,
+   "sectors": 71,
+   "lines": 216,
+   "things": {
+    "1": 1
+   },
+   "png": [
+    [
+     10,
+     40
+    ]
+   ],
+   "script": {
+    "lump": "M5VPLAN",
+    "txt": "tests/reference/m5a_scripts/M5VPLAN.txt",
+    "lmp": "tests/reference/m5a_scripts/M5VPLAN.lmp",
+    "what": "turn from east to north toward the alcoves",
+    "tics": 82,
+    "lmp_sha256": "39c60cd78cb49e903108b92591bb3c2af16cbb75ebd463a2e832d726aeb793fa",
+    "views": [
+     11,
+     10,
+     9
+    ],
+    "must_show": [
+     {
+      "what": "visplanes near the bound",
+      "expr": "frame visplanes >= 120"
+     },
+     {
+      "what": "R_FindPlane I_Error",
+      "expr": "error no more visplanes"
+     }
+    ]
+   }
+  },
+  {
+   "name": "DSEGS",
+   "file": "tests/reference/m5a_wads/dsegs.wad",
+   "slot": "E1M1",
+   "sha256": "93a6484320363c94655307b9c5d495e8666145e30985166f0a7f6c7609a69e87",
+   "bytes": 119199,
+   "sectors": 1,
+   "lines": 515,
+   "things": {
+    "1": 1
+   },
+   "png": [
+    [
+     10,
+     60
+    ]
+   ],
+   "script": {
+    "lump": "M5DSEG",
+    "txt": "tests/reference/m5a_scripts/M5DSEG.txt",
+    "lmp": "tests/reference/m5a_scripts/M5DSEG.lmp",
+    "what": "turn from east to north toward the subdivided wall",
+    "tics": 82,
+    "lmp_sha256": "39c60cd78cb49e903108b92591bb3c2af16cbb75ebd463a2e832d726aeb793fa",
+    "views": [
+     11,
+     10,
+     9
+    ],
+    "must_show": [
+     {
+      "what": "drawsegs at the bound",
+      "expr": "frame drawsegs == 256"
+     },
+     {
+      "what": "a drawseg dropped",
+      "expr": "frame drawseg_drops > 0"
+     }
+    ]
+   }
+  },
+  {
+   "name": "VSPRITES",
+   "file": "tests/reference/m5a_wads/vsprites.wad",
+   "slot": "E1M1",
+   "sha256": "c0898596bd28fec12c4ebb498698f2bb908e191117fc1de0e20bf81df7dedf75",
+   "bytes": 88169,
+   "sectors": 1,
+   "lines": 4,
+   "things": {
+    "1": 1,
+    "2014": 144
+   },
+   "png": [
+    [
+     10,
+     60
+    ]
+   ],
+   "script": {
+    "lump": "M5VSPR",
+    "txt": "tests/reference/m5a_scripts/M5VSPR.txt",
+    "lmp": "tests/reference/m5a_scripts/M5VSPR.lmp",
+    "what": "turn from east to north toward the health bonuses",
+    "tics": 82,
+    "lmp_sha256": "39c60cd78cb49e903108b92591bb3c2af16cbb75ebd463a2e832d726aeb793fa",
+    "views": [
+     11,
+     10,
+     9
+    ],
+    "must_show": [
+     {
+      "what": "vissprites at the bound",
+      "expr": "frame vissprites == 128"
+     },
+     {
+      "what": "a vissprite dropped",
+      "expr": "frame vissprite_drop > 0"
+     }
+    ]
+   }
+  },
+  {
+   "name": "OPENINGS",
+   "file": "tests/reference/m5a_wads/openings.wad",
+   "slot": "E1M1",
+   "sha256": "809d052e692a86327d5e27f76dcb04462d21c992e057a7e7349a19b40e1b0df9",
+   "bytes": 95789,
+   "sectors": 26,
+   "lines": 79,
+   "things": {
+    "1": 1
+   },
+   "png": [
+    [
+     10,
+     30
+    ]
+   ],
+   "script": {
+    "lump": "M5OPEN",
+    "txt": "tests/reference/m5a_scripts/M5OPEN.txt",
+    "lmp": "tests/reference/m5a_scripts/M5OPEN.lmp",
+    "what": "turn from east to north toward the fences",
+    "tics": 82,
+    "lmp_sha256": "39c60cd78cb49e903108b92591bb3c2af16cbb75ebd463a2e832d726aeb793fa",
+    "views": [
+     11,
+     10,
+     9
+    ],
+    "must_show": [
+     {
+      "what": "openings near the bound",
+      "expr": "frame openings >= 19000"
+     },
+     {
+      "what": "written past openings",
+      "expr": "witness OpeningOverflow"
+     }
+    ]
+   }
+  },
+  {
+   "name": "SOLIDSEGS",
+   "file": "tests/reference/m5a_wads/solidsegs.wad",
+   "slot": "E1M1",
+   "sha256": "6772307848f0d4c50c75490dc9dc55086134932e32fc6e631de81b8614acc2b8",
+   "bytes": 117293,
+   "sectors": 1,
+   "lines": 404,
+   "things": {
+    "1": 1
+   },
+   "png": [
+    [
+     10,
+     12
+    ]
+   ],
+   "script": {
+    "lump": "M5SSEG",
+    "txt": "tests/reference/m5a_scripts/M5SSEG.txt",
+    "lmp": "tests/reference/m5a_scripts/M5SSEG.lmp",
+    "what": "turn from east to north toward the pillars",
+    "tics": 82,
+    "lmp_sha256": "39c60cd78cb49e903108b92591bb3c2af16cbb75ebd463a2e832d726aeb793fa",
+    "views": [
+     11,
+     10,
+     9
+    ],
+    "must_show": [
+     {
+      "what": "solid ranges near the bound",
+      "expr": "frame solidsegs_peak >= 30"
+     },
+     {
+      "what": "written past solidsegs",
+      "expr": "witness SolidSegOverflow"
+     }
+    ]
+   }
+  }
+ ]
+}
