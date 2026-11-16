@@ -491,11 +491,16 @@ monster/player behavior. Further stages require separate owner direction.
   then step 16, the pull request.
 - **M4c (proposed, pending the owner).** Pause, easy skill and the reborn reload as an
   admitted transition; level transitions stay a later direction.
-- **Simulation performance (proposed by the owner, after M4b).** Profile
-  `Simulation::advance`, which costs 55–746 µs per tic on the real Episode 1 maps against
-  the genuine C engine's 3.7–13.4 µs ([measurements](validation/M4A.md#simulation-only-real-map-timings)),
-  and reduce it without changing any digest or DSIM byte. This includes the shared-validation
-  costs deferred from M4a.
+- **M4p, simulation performance (in progress on `feat/m4p-performance`, draft PR #60; decisions P1–P9 confirmed
+  by the owner on 2026-11-15; see the [investigation note](M4P_REFERENCE_INVESTIGATION.md)).** Make
+  `Simulation::advance` faster on the real Episode 1 maps without changing any digest, DSIM byte, refusal or
+  event. Plan steps 1–10 are done: eleven optimisations (O1–O7, O9a–O9c, O10; O8 and O9d dropped because they made
+  some workload costlier), each with its equivalence proof, a Callgrind regression guard in CI (`simulation-ir`)
+  and its baseline. In a matched run on rustc 1.85.0, advance-only medians fell from 64–829 µs per tic on master
+  to 33–150 µs (1.8× to 7.1× faster), with every real-map digest unchanged; P1's 150 µs target is met there and
+  missed by 0.9 µs on E1M6 in an earlier run
+  ([evidence record](validation/M4P.md#matched-timing)). The independent review found no behaviour difference.
+  Mutation testing, fuzzing and the full gates from clean passed; the pull request awaits the owner's review.
 - Complete player/gameplay integration and broader monster/THING support.
 - The remaining moving sectors and map specials (the established M3e direction) beyond
   the doors, lifts, floors, switches and exit of M3h8: crushers, ceilings, teleporters

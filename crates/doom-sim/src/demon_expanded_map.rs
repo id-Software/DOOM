@@ -483,6 +483,10 @@ impl Simulation {
         // capacity matches the tables.
         let mut writes = std::mem::take(&mut self.spare_writes);
         writes.clear();
+        // The empty event buffer of the last commit (M4p note §3 O5): no allocation
+        // once its capacity covers a tic's events. A failed plan drops it and the
+        // next plan starts from an empty vector, as before.
+        let events = std::mem::take(&mut self.spare_events);
         Ok(DemonPlan {
             actors: ThinkerStore {
                 slots,
@@ -503,7 +507,7 @@ impl Simulation {
             exit: self.level_exit,
             secret_exit: self.level_secret_exit,
             buttons: self.buttons,
-            events: Vec::new(),
+            events,
         })
     }
     fn checked_demon_inputs<'a>(
@@ -536,11 +540,20 @@ impl Simulation {
         if self.statistics.is_none() || self.sound_targets.len() != self.sectors.len() {
             return Err(MapSpawnError::Ownership.into());
         }
-        let mut linked = std::collections::BTreeSet::new();
+        // Membership by slot (M4p note §3 O7): every id inserted or queried has
+        // `is_pending(id) == Some(false)`, so its slot is in range and holds its
+        // current generation; two such ids are equal exactly when their slots are.
+        let mut linked = vec![0_u64; self.actors.slots.len().div_ceil(64)];
+        let slot_bit = |id: ActorId| (id.slot() as usize / 64, 1_u64 << (id.slot() % 64));
         for &id in &self.spatial.order {
-            if self.actors.is_pending(id) != Some(false) || !linked.insert(id) {
+            if self.actors.is_pending(id) != Some(false) {
                 return Err(MapSpawnError::Ownership.into());
             }
+            let (word, bit) = slot_bit(id);
+            if linked[word] & bit != 0 {
+                return Err(MapSpawnError::Ownership.into());
+            }
+            linked[word] |= bit;
         }
         for id in self.actors.order() {
             if self.actors.is_pending(id) != Some(false) {
@@ -582,7 +595,8 @@ impl Simulation {
                     && actor.z == actor.floor
                     && actor.momz == Fixed::ZERO
                     && actor.momentum() == [Fixed::ZERO; 2];
-            if !linked.contains(&id)
+            let (word, bit) = slot_bit(id);
+            if linked[word] & bit == 0
                 || (!unlinked_blast
                     && actor.location != Some(self.world.locate_validated(actor.position())))
                 || (actor.floor > actor.ceiling && !inert_decoration)
@@ -682,8 +696,9 @@ impl Simulation {
             bindings: &mut plan.bindings,
             events: &mut plan.events,
         })?;
-        let events = self.commit_demon_plan(plan);
-        self.pending.extend(events);
+        let mut events = self.commit_demon_plan(plan);
+        self.pending.append(&mut events);
+        self.spare_events = events;
         Ok(result)
     }
     /// One bounded shared action execution; successful plans are committed once.
@@ -713,8 +728,9 @@ impl Simulation {
         if let Some(error) = control.failure.get() {
             return Err(self.policy_error(error));
         }
-        let events = self.commit_demon_plan(plan);
-        self.pending.extend(events);
+        let mut events = self.commit_demon_plan(plan);
+        self.pending.append(&mut events);
+        self.spare_events = events;
         Ok(result)
     }
     /// The real-map policy names the source's 129th intercept of a trace, reached
@@ -989,9 +1005,20 @@ impl Simulation {
             use_lines::update_buttons(&mut plan.buttons, &mut events);
             events
         });
-        let events = self.commit_demon_plan(plan);
-        self.events = std::mem::take(&mut self.pending);
-        self.events.extend(events);
+        let mut events = self.commit_demon_plan(plan);
+        // The tic's events are `pending` followed by the plan's (M4p note §3 O5).
+        // With nothing pending the plan's vector becomes `events` as it is, and the
+        // replaced vector is kept, emptied, as the next plan's buffer; otherwise
+        // `pending` becomes `events` and the plan's events are moved after it.
+        let mut spare = if self.pending.is_empty() {
+            std::mem::replace(&mut self.events, events)
+        } else {
+            self.events = std::mem::take(&mut self.pending);
+            self.events.append(&mut events);
+            events
+        };
+        spare.clear();
+        self.spare_events = spare;
         match special_events {
             Some(special_events) => {
                 self.events.push(Event::Phase(Phase::Specials));

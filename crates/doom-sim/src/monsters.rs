@@ -482,6 +482,11 @@ impl Simulation {
         Ok(())
     }
     pub(crate) fn monster_actor(&self, id: ActorId, margin: u32) -> Result<Actor, SimError> {
+        self.monster_actor_ref(id, margin).copied()
+    }
+    /// [`Self::monster_actor`] without the copy: the same checks in the same order,
+    /// returning the stored actor in place (M4p note §3 O10).
+    pub(crate) fn monster_actor_ref(&self, id: ActorId, margin: u32) -> Result<&Actor, SimError> {
         if !self.profile.uses_monsters() {
             return Err(MonsterError::Profile.into());
         }
@@ -531,7 +536,7 @@ impl Simulation {
         if !self.gibbed(a) {
             self.monster_state_role(l.actor_type, state)?;
         }
-        Ok(*a)
+        Ok(a)
     }
     pub(crate) fn monster_state_role(
         &self,
@@ -586,14 +591,25 @@ impl Simulation {
             return Err(MonsterError::Ownership.into());
         }
         self.preflight_perception_roster()?;
-        for t in a
-            .life
-            .unwrap()
-            .target
-            .iter()
-            .chain(self.sound_targets.iter().flatten())
-        {
-            self.monster_reference(*t)?;
+        self.monster_callback_references(&a, true)
+    }
+    /// The callback's last step: the owner's target and every sound target, in
+    /// order. `preflight_monster_owner` calls it alone, because every earlier step
+    /// of the callback already returned `Ok` on the same `&self` (M4p note §3 O1, O4).
+    ///
+    /// `monster_reference` depends only on `(self, id)`, so within one `&self`
+    /// borrow the sound targets are walked only when `sounds` (the owner loop walks
+    /// them once, for its first owner): a later walk could only return the `Ok`
+    /// already observed, and the first failing id is still checked first (M4p note
+    /// §3 O2). The owner's own target is checked on every call.
+    fn monster_callback_references(&self, a: &Actor, sounds: bool) -> Result<(), SimError> {
+        if let Some(t) = a.life.unwrap().target {
+            self.monster_reference(t)?;
+        }
+        if sounds {
+            for t in self.sound_targets.iter().flatten() {
+                self.monster_reference(*t)?;
+            }
         }
         Ok(())
     }
@@ -720,15 +736,33 @@ impl Simulation {
         self.preflight_map_demons()?;
         self.preflight_perception_roster()?;
         let mut shot_owner = None;
+        let mut sounds_passed = false;
         for id in self.actors.order() {
             if self.actors.is_pending(id) != Some(false) {
                 continue;
             }
-            let a = self.monster_actor(id, 978)?;
+            // Under `uses_demon_map`, `preflight_map_demons` above ran
+            // `monster_actor(id, 1008)` on every non-pending actor of this `&self` and
+            // returned `Ok`; `monster_actor(id, 978)` can then differ only in its one
+            // margin-dependent check, kept here (M4p note §3 O4).
+            let a = if self.profile.uses_demon_map() {
+                let a = self.actor(id).ok_or(PerceptionError::Reference)?;
+                if self.monster_is_owner_type(a.life.unwrap().actor_type)
+                    && !self.position_admitted(a.position(), 978)
+                {
+                    return Err(MonsterError::Arithmetic.into());
+                }
+                a
+            } else {
+                self.monster_actor_ref(id, 978)?
+            };
             let l = a.life.unwrap();
             if self.monster_is_owner(id) && !(self.profile.uses_demon_lifecycle() && l.health <= 0)
             {
-                self.preflight_monster_callback(id)?;
+                // The callback's whole-state passes, owner test, `monster_actor(id,
+                // 1008)` (implied by the 978 result) and health test all hold here.
+                self.monster_callback_references(a, !sounds_passed)?;
+                sounds_passed = true;
                 if l.tics == 1
                     && l.state.is_some_and(|s| {
                         if self.profile.uses_demon() {
@@ -745,7 +779,7 @@ impl Simulation {
             } else if !self.position_admitted(a.position(), 994) {
                 return Err(MonsterError::Arithmetic.into());
             }
-            if !crate::player_map_scale::vertical_witness(self.player_policy(), &a) {
+            if !crate::player_map_scale::vertical_witness(self.player_policy(), a) {
                 return Err(MonsterError::Arithmetic.into());
             }
         }

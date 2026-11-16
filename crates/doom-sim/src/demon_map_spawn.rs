@@ -82,8 +82,15 @@ impl Simulation {
             return Err(CombatError::Player.into());
         }
         self.preflight_perception_roster()?;
+        // `validate_perception_reference` depends only on `(self, id)`: a repeat
+        // of the id it last accepted in this loop is not checked again; the first
+        // failing id is still checked first (M4p note §3 O2).
+        let mut last = None;
         for target in self.sound_targets.iter().flatten() {
-            self.validate_perception_reference(*target)?;
+            if last != Some(*target) {
+                self.validate_perception_reference(*target)?;
+                last = Some(*target);
+            }
         }
         self.preflight_world_pickups()?;
         let mut suffix = false;
@@ -94,7 +101,7 @@ impl Simulation {
             if self.actors.is_pending(id) != Some(false) {
                 continue;
             }
-            let a = self.monster_actor(id, 1008)?;
+            let a = self.monster_actor_ref(id, 1008)?;
             let life = a.life.unwrap();
             // Validate complete future actions, not only this tic's next state.
             self.validate_combat_type(life.actor_type)?;
@@ -107,7 +114,7 @@ impl Simulation {
                 if decorations > self.decoration_limit() {
                     return Err(MapSpawnError::DecorationLimit.into());
                 }
-                e1m1_rules::validate_decoration(self.room(), a)?;
+                e1m1_rules::validate_decoration(self.room(), *a)?;
             } else if crate::barrels::is_barrel(self.player_policy(), life.actor_type) {
                 // An exploding barrel (M3h9b note §2.1) interleaves with the other
                 // THINGs in lump order and is never the suffix; its witness covers
@@ -116,17 +123,19 @@ impl Simulation {
                 if barrels > self.barrel_limit() {
                     return Err(MapSpawnError::BarrelLimit.into());
                 }
-                crate::barrels::validate_barrel(self.room(), a, self.gibbed(&a))?;
+                crate::barrels::validate_barrel(self.room(), *a, self.gibbed(a))?;
             } else if crate::teleport::is_landing(self.player_policy(), life.actor_type) {
                 // The teleport landing (wire 24): spawned by `P_SpawnMapThing` in
                 // THINGS order like a decoration, never the suffix; it holds its
                 // spawn record forever (`S_NULL`, tics −1, no momentum; p_mobj.c:
                 // 497–501, 441–449; M4b note §2 T7).
-                crate::teleport::validate_landing(self.room(), a)?;
+                crate::teleport::validate_landing(self.room(), *a)?;
             } else if self.player_policy().has_world_pickups()
                 && world_pickups::kind_for(self.player_policy(), life.actor_type).is_some()
             {
-                world_pickups::validate_item(self.room(), self.item_sectors(), a)?;
+                // `preflight_world_pickups` above already ran `validate_item` with
+                // these exact arguments on every non-pending pickup of this `&self`
+                // and returned `Ok`; the repeat could only return `Ok` (M4p note §3 O3).
                 // P_KillMobj drops are appended after the player/impact suffix.
                 let dropped = self.player_policy().has_monsters()
                     && life.flags & world_pickups::MF_DROPPED != 0;
@@ -161,7 +170,7 @@ impl Simulation {
                     return Err(MapSpawnError::Ownership.into());
                 }
             }
-            if !crate::player_map_scale::vertical_witness(self.player_policy(), &a) {
+            if !crate::player_map_scale::vertical_witness(self.player_policy(), a) {
                 return Err(MonsterError::Arithmetic.into());
             }
         }

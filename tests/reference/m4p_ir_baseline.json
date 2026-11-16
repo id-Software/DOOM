@@ -1,0 +1,217 @@
+{
+ "schema": "DOOM-M4P-IR-BASELINE-v1",
+ "rustc": "1.85.0 (4d91de4e4 2025-02-17)",
+ "valgrind": "valgrind-3.26.0",
+ "threshold_percent": 3.0,
+ "metrics": "Ir inside Simulation::advance (toggle-collect) outside libc, ld.so, libm, libgcc_s and unknown objects; malloc, realloc and memcpy call counts from callers outside those; ir_advance_total and free_calls are information only",
+ "workloads": {
+  "SYNCHAOS_wire22": {
+   "description": "older wire 22, events",
+   "kind": "level_advance",
+   "command": [
+    "player_level_advance",
+    "--wad",
+    "tests/reference/m3h9c_synthetic.wad",
+    "--map",
+    "E1M1",
+    "--demo",
+    "tests/reference/m3h9c_scripts/SYNCHAOS.lmp"
+   ],
+   "outcome": {
+    "admitted": 5000,
+    "refused_at": null,
+    "final_sha_stripped": "0eba38f408a4c56ab2c744f49f14abc443067616ba612ed616c75a6772c15dea"
+   },
+   "ir_advance_excl_libc": 1235898000,
+   "ir_advance_total": 1300490041,
+   "malloc_calls": 41851,
+   "realloc_calls": 9351,
+   "memcpy_calls": 1763633,
+   "free_calls": 46852
+  },
+  "SCALE2_episode1v2": {
+   "description": "pickups, decorations, barrels",
+   "kind": "level_advance",
+   "command": [
+    "player_level_advance",
+    "--wad",
+    "tests/reference/m4a_wads/scale.wad",
+    "--map",
+    "E1M1",
+    "--demo",
+    "tests/reference/m4a_scripts/SCALE2.lmp",
+    "--policy",
+    "episode1v2"
+   ],
+   "outcome": {
+    "admitted": 600,
+    "refused_at": null,
+    "final_sha_stripped": "a4af1a38230032c65dcd9431b99f7a0ccad98d345976993cd0fa34733dbe9563"
+   },
+   "ir_advance_excl_libc": 282363537,
+   "ir_advance_total": 297974296,
+   "malloc_calls": 27318,
+   "realloc_calls": 9517,
+   "memcpy_calls": 392111,
+   "free_calls": 27919
+  },
+  "MTELE1_wire24": {
+   "description": "two Demons",
+   "kind": "level_advance",
+   "command": [
+    "player_level_advance",
+    "--wad",
+    "tests/reference/m4b_wads/montele.wad",
+    "--map",
+    "E1M1",
+    "--demo",
+    "tests/reference/m4b_scripts/MTELE1.lmp",
+    "--policy",
+    "episode1v2"
+   ],
+   "outcome": {
+    "admitted": 160,
+    "refused_at": null,
+    "final_sha_stripped": "35ea2afc402b9dce689e1a20aede7c79ef0fe603573af48b9b8aff2b7e6274c6"
+   },
+   "ir_advance_excl_libc": 4237630,
+   "ir_advance_total": 4705945,
+   "malloc_calls": 3403,
+   "realloc_calls": 503,
+   "memcpy_calls": 9113,
+   "free_calls": 3564
+  },
+  "TFRAG1_wire24": {
+   "description": "one Demon",
+   "kind": "level_advance",
+   "command": [
+    "player_level_advance",
+    "--wad",
+    "tests/reference/m4b_wads/tfrag.wad",
+    "--map",
+    "E1M1",
+    "--demo",
+    "tests/reference/m4b_scripts/TFRAG1.lmp",
+    "--policy",
+    "episode1v2"
+   ],
+   "outcome": {
+    "admitted": 282,
+    "refused_at": null,
+    "final_sha_stripped": "e93dee2a0c794e17e708b0cee995823b30d394dbc333625e04f6aaffb5d8f624"
+   },
+   "ir_advance_excl_libc": 7402979,
+   "ir_advance_total": 8339413,
+   "malloc_calls": 4714,
+   "realloc_calls": 713,
+   "memcpy_calls": 14947,
+   "free_calls": 4997
+  },
+  "BVB1_wire24": {
+   "description": "Barons, infighting",
+   "kind": "level_advance",
+   "command": [
+    "player_level_advance",
+    "--wad",
+    "tests/reference/m4b_wads/bvb.wad",
+    "--map",
+    "E1M1",
+    "--demo",
+    "tests/reference/m4b_scripts/BVB1.lmp",
+    "--policy",
+    "episode1v2"
+   ],
+   "outcome": {
+    "admitted": 735,
+    "refused_at": null,
+    "final_sha_stripped": "0fa53ab337fda19e031fc2f6fd92aff2f46866197de23b2f5d31d59568c3eac5"
+   },
+   "ir_advance_excl_libc": 15143665,
+   "ir_advance_total": 17183979,
+   "malloc_calls": 7511,
+   "realloc_calls": 590,
+   "memcpy_calls": 34377,
+   "free_calls": 8247
+  },
+  "M4a_dense64_lift": {
+   "description": "check_things",
+   "kind": "m4a_measure",
+   "command": [
+    "player_barrels",
+    "--measure",
+    "dense64_lift",
+    "advance"
+   ],
+   "outcome": {
+    "calls": 1200,
+    "digest": "775002081fb13dd7"
+   },
+   "ir_advance_excl_libc": 1420342299,
+   "ir_advance_total": 1582039924,
+   "malloc_calls": 351226,
+   "realloc_calls": 323313,
+   "memcpy_calls": 1363680,
+   "free_calls": 218534
+  },
+  "M4a_dense64_fight": {
+   "description": "events, decorations",
+   "kind": "m4a_measure",
+   "command": [
+    "player_barrels",
+    "--measure",
+    "dense64_fight",
+    "advance"
+   ],
+   "outcome": {
+    "calls": 1200,
+    "digest": "0e71b9055c322104"
+   },
+   "ir_advance_excl_libc": 930057873,
+   "ir_advance_total": 983768975,
+   "malloc_calls": 415934,
+   "realloc_calls": 154671,
+   "memcpy_calls": 1415616,
+   "free_calls": 178531
+  },
+  "M4a_gallery_patrol": {
+   "description": "decorations, weapon state",
+   "kind": "m4a_measure",
+   "command": [
+    "player_e1m1",
+    "--measure",
+    "gallery_patrol",
+    "advance"
+   ],
+   "outcome": {
+    "calls": 1200,
+    "digest": "8d93b11841b30c12"
+   },
+   "ir_advance_excl_libc": 144716218,
+   "ir_advance_total": 158371578,
+   "malloc_calls": 231303,
+   "realloc_calls": 81328,
+   "memcpy_calls": 258136,
+   "free_calls": 99811
+  },
+  "M4a_corpse_continuation": {
+   "description": "older Demon profile",
+   "kind": "m4a_measure",
+   "command": [
+    "player_demon_melee",
+    "--measure",
+    "corpse_continuation",
+    "advance"
+   ],
+   "outcome": {
+    "calls": 100,
+    "digest": "8895f91dc8652aec"
+   },
+   "ir_advance_excl_libc": 3333796,
+   "ir_advance_total": 3817671,
+   "malloc_calls": 3736,
+   "realloc_calls": 242,
+   "memcpy_calls": 8407,
+   "free_calls": 4136
+  }
+ }
+}
