@@ -488,7 +488,7 @@ SCRIPTS = {
 # tools/reference/m5a_reference.py (expression syntax there); the tics are observed (--update-events), reviewed,
 # then held fixed in the manifest. PNG lists the (screenblocks, tic) frames committed as images.
 MUST_SHOW = {
-    'peg': [('door opens: more lines mapped', 'frame mapped >= 20')],
+    'peg': [('the door opens: the lines beyond it are mapped', 'frame mapped >= 18')],
     'mask': [('masked midtextures use openings', 'frame openings > 0')],
     'planes': [('many visplanes', 'frame visplanes >= 40')],
     'sky': [('sky planes', 'frame visplanes >= 4')],

@@ -1942,6 +1942,53 @@ the digests are recorded.
 - `level_compare_m4b.py` is `level_compare.py`'s method over the DSIM40 projection. It is a new
   tool, because `level_compare.py` is frozen and has no DSIM40 profile.
 
+## M5a synthetic renderer rooms
+
+The M5a [reference investigation](M5A_REFERENCE_INVESTIGATION.md) (decisions R1-R16, §5) compares
+a Rust renderer with the genuine linuxdoom-1.10 `R_RenderPlayerView`. Phase 2 step 1 adds the
+genuine side: a synthetic graphics PWAD (no id art), one synthetic room per renderer feature and
+per vanilla limit, and the M5a runner, which compiles the genuine renderer whole and renders after
+every dumped tic. Everything here is synthetic and runs on a clean checkout; the observations are
+in [the M5a evidence record](validation/M5A.md).
+
+```sh
+# generators, verifiers and the contract (no compiler)
+python3 tools/reference/m5a_gfx.py [--out PATH] [--list] [--check]   # tests/reference/m5a_gfx.wad; --check compares bytes, then runs the verifier
+python3 tools/reference/m5a_check_gfx.py [PWAD]                        # independent verifier: colour maps, inherited texture/flat order and heights, switches, sky, sprite frames and rotations, patch bounds and padding
+python3 tools/reference/m5a_wad.py [--only NAME] [--list] [--manifest] [--check]   # rooms in tests/reference/m5a_wads/, scripts in tests/reference/m5a_scripts/, generated manifest fields
+python3 tools/reference/m5a_build.py --check                           # tests/reference/m5a_runner_contract.json (DOOM-M5A-RUNNER-v1)
+
+# the genuine renderer (C; Linux); the address variant runs with ASAN_OPTIONS=detect_leaks=0 (leak detection disabled)
+python3 tools/reference/m5a_reference.py --work DIR --check [--pngs] [--selftest]
+python3 tools/reference/m5a_reference.py --work DIR --strict32          # local opt-in: also the -m32 genuine-text build; writes nothing
+python3 tools/reference/m5a_reference.py --work DIR --only M5SHORT,BINF1 # a subset; writes nothing
+python3 tools/reference/m5a_build.py --variant strict|overflow|address|all|strict32 [--out DIR]
+```
+
+What each asserts:
+
+- `m5a_gfx.py --check` regenerates the PWAD and requires the committed bytes; the verifier
+  re-parses it without importing the generator (rules in its docstring).
+- `m5a_wad.py --check` regenerates every room WAD, script text and `.lmp`, and the manifest's
+  generated fields (WAD digest and counts, script digest and tic count, `png` frames and the
+  `must_show` expressions). The observed tics in the manifest come from `m5a_reference.py
+  --update-events` and are held fixed by `--check`.
+- `m5a_build.py --check` regenerates the runner contract: sources and their adapted digests, the
+  inherited and the renderer adapters (each with file, line, original, adapted text and reason; the
+  three line-keyed ones record their occurrence count), stubs, wrapped symbols, driver behaviour,
+  view configurations, and the dump, frame and view row kinds.
+- `m5a_reference.py --check` builds the strict, overflow and address runners and the frozen M4b
+  runner. For every room and every M4b synthetic script: the never-render dump set must equal the
+  committed M4b digest (M4b scripts) or the frozen M4b runner's dump set (rooms); for screenblocks
+  11, 10 and 9 every variant renders every dumped tic, and the dump sets (with `ML_MAPPED` masked)
+  must equal the never-render set, while the frame streams and view records must be byte-identical
+  across the variants up to the earliest end (tracker-flagged frames compared on their masked
+  digest). It then requires the manifest's endings and event tics, `tests/reference/m5a_results.json`,
+  every `tests/reference/m5a_frames/*.frames` and `tests/reference/m5a_views/*.view`, and with
+  `--pngs` the pixels of every `tests/reference/m5a_png/*.png`. `--selftest` plants a one-pixel change
+  in M5VIEW's frame of tic 20 and requires the comparison to report that tic and that pixel.
+- Low detail is refused (decision R2): `--detail 1` exits with status 8 and no comparison is built.
+
 ## Mutation testing
 
 M4a used cargo-mutants 27.1.0 with cargo-nextest 0.9.151. These are separate

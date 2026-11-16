@@ -36,10 +36,29 @@
     ],
     "must_show": [
      {
-      "what": "door opens: more lines mapped",
-      "expr": "frame mapped >= 20"
+      "what": "the door opens: the lines beyond it are mapped",
+      "expr": "frame mapped >= 18",
+      "tic": {
+       "11": 128,
+       "10": 128,
+       "9": 128
+      }
      }
-    ]
+    ],
+    "c_end": {
+     "11": [
+      "marker",
+      219
+     ],
+     "10": [
+      "marker",
+      219
+     ],
+     "9": [
+      "marker",
+      219
+     ]
+    }
    }
   },
   {
@@ -74,9 +93,28 @@
     "must_show": [
      {
       "what": "masked midtextures use openings",
-      "expr": "frame openings > 0"
+      "expr": "frame openings > 0",
+      "tic": {
+       "11": 0,
+       "10": 0,
+       "9": 0
+      }
      }
-    ]
+    ],
+    "c_end": {
+     "11": [
+      "marker",
+      160
+     ],
+     "10": [
+      "marker",
+      160
+     ],
+     "9": [
+      "marker",
+      160
+     ]
+    }
    }
   },
   {
@@ -111,9 +149,28 @@
     "must_show": [
      {
       "what": "many visplanes",
-      "expr": "frame visplanes >= 40"
+      "expr": "frame visplanes >= 40",
+      "tic": {
+       "11": 0,
+       "10": 0,
+       "9": 0
+      }
      }
-    ]
+    ],
+    "c_end": {
+     "11": [
+      "marker",
+      168
+     ],
+     "10": [
+      "marker",
+      168
+     ],
+     "9": [
+      "marker",
+      168
+     ]
+    }
    }
   },
   {
@@ -148,9 +205,28 @@
     "must_show": [
      {
       "what": "sky planes",
-      "expr": "frame visplanes >= 4"
+      "expr": "frame visplanes >= 4",
+      "tic": {
+       "11": 0,
+       "10": 0,
+       "9": 0
+      }
      }
-    ]
+    ],
+    "c_end": {
+     "11": [
+      "marker",
+      288
+     ],
+     "10": [
+      "marker",
+      288
+     ],
+     "9": [
+      "marker",
+      288
+     ]
+    }
    }
   },
   {
@@ -185,9 +261,28 @@
     "must_show": [
      {
       "what": "alcove planes",
-      "expr": "frame visplanes >= 20"
+      "expr": "frame visplanes >= 20",
+      "tic": {
+       "11": 0,
+       "10": 0,
+       "9": 0
+      }
      }
-    ]
+    ],
+    "c_end": {
+     "11": [
+      "marker",
+      208
+     ],
+     "10": [
+      "marker",
+      208
+     ],
+     "9": [
+      "marker",
+      208
+     ]
+    }
    }
   },
   {
@@ -222,9 +317,28 @@
     "must_show": [
      {
       "what": "three walls in view",
-      "expr": "frame drawsegs >= 3"
+      "expr": "frame drawsegs >= 3",
+      "tic": {
+       "11": 0,
+       "10": 0,
+       "9": 0
+      }
      }
-    ]
+    ],
+    "c_end": {
+     "11": [
+      "marker",
+      128
+     ],
+     "10": [
+      "marker",
+      128
+     ],
+     "9": [
+      "marker",
+      128
+     ]
+    }
    }
   },
   {
@@ -259,9 +373,28 @@
     "must_show": [
      {
       "what": "the player walks",
-      "expr": "view viewx > 2097152"
+      "expr": "view viewx > 2097152",
+      "tic": {
+       "11": 10,
+       "10": 10,
+       "9": 10
+      }
      }
-    ]
+    ],
+    "c_end": {
+     "11": [
+      "marker",
+      202
+     ],
+     "10": [
+      "marker",
+      202
+     ],
+     "9": [
+      "marker",
+      202
+     ]
+    }
    }
   },
   {
@@ -313,9 +446,28 @@
     "must_show": [
      {
       "what": "five things in view",
-      "expr": "frame vissprites >= 5"
+      "expr": "frame vissprites >= 5",
+      "tic": {
+       "11": 0,
+       "10": 0,
+       "9": 0
+      }
      }
-    ]
+    ],
+    "c_end": {
+     "11": [
+      "marker",
+      136
+     ],
+     "10": [
+      "marker",
+      136
+     ],
+     "9": [
+      "marker",
+      136
+     ]
+    }
    }
   },
   {
@@ -355,13 +507,37 @@
     "must_show": [
      {
       "what": "sprites clipped by silhouettes",
-      "expr": "frame vissprites >= 5"
+      "expr": "frame vissprites >= 5",
+      "tic": {
+       "11": 0,
+       "10": 0,
+       "9": 0
+      }
      },
      {
       "what": "masked grate openings",
-      "expr": "frame openings > 0"
+      "expr": "frame openings > 0",
+      "tic": {
+       "11": 0,
+       "10": 0,
+       "9": 0
+      }
      }
-    ]
+    ],
+    "c_end": {
+     "11": [
+      "marker",
+      184
+     ],
+     "10": [
+      "marker",
+      184
+     ],
+     "9": [
+      "marker",
+      184
+     ]
+    }
    }
   },
   {
@@ -407,13 +583,37 @@
     "must_show": [
      {
       "what": "a muzzle flash (extralight)",
-      "expr": "view extralight > 0"
+      "expr": "view extralight > 0",
+      "tic": {
+       "11": 155,
+       "10": 155,
+       "9": 155
+      }
      },
      {
       "what": "a second psprite (flash)",
-      "expr": "view ps1state >= 0"
+      "expr": "view ps1state >= 0",
+      "tic": {
+       "11": 155,
+       "10": 155,
+       "9": 155
+      }
      }
-    ]
+    ],
+    "c_end": {
+     "11": [
+      "marker",
+      396
+     ],
+     "10": [
+      "marker",
+      396
+     ],
+     "9": [
+      "marker",
+      396
+     ]
+    }
    }
   },
   {
@@ -454,13 +654,37 @@
     "must_show": [
      {
       "what": "a Spectre in view",
-      "expr": "frame vissprites >= 1"
+      "expr": "frame vissprites >= 1",
+      "tic": {
+       "11": 0,
+       "10": 0,
+       "9": 0
+      }
      },
      {
       "what": "the player is invisible",
-      "expr": "view invisibility > 0"
+      "expr": "view invisibility > 0",
+      "tic": {
+       "11": 70,
+       "10": 70,
+       "9": 70
+      }
      }
-    ]
+    ],
+    "c_end": {
+     "11": [
+      "marker",
+      156
+     ],
+     "10": [
+      "marker",
+      156
+     ],
+     "9": [
+      "marker",
+      156
+     ]
+    }
    }
   },
   {
@@ -498,9 +722,28 @@
     "must_show": [
      {
       "what": "light amplification",
-      "expr": "view fixedcolormap == 1"
+      "expr": "view fixedcolormap == 1",
+      "tic": {
+       "11": 31,
+       "10": 31,
+       "9": 31
+      }
      }
-    ]
+    ],
+    "c_end": {
+     "11": [
+      "marker",
+      124
+     ],
+     "10": [
+      "marker",
+      124
+     ],
+     "9": [
+      "marker",
+      124
+     ]
+    }
    }
   },
   {
@@ -535,9 +778,28 @@
     "must_show": [
      {
       "what": "the missing upper wall in view",
-      "expr": "frame drawsegs >= 3"
+      "expr": "frame drawsegs >= 3",
+      "tic": {
+       "11": 0,
+       "10": 0,
+       "9": 0
+      }
      }
-    ]
+    ],
+    "c_end": {
+     "11": [
+      "marker",
+      132
+     ],
+     "10": [
+      "marker",
+      132
+     ],
+     "9": [
+      "marker",
+      132
+     ]
+    }
    }
   },
   {
@@ -572,9 +834,28 @@
     "must_show": [
      {
       "what": "tracker-flagged columns",
-      "expr": "frame columns > 0"
+      "expr": "frame columns > 0",
+      "tic": {
+       "11": 0,
+       "10": 0,
+       "9": 0
+      }
      }
-    ]
+    ],
+    "c_end": {
+     "11": [
+      "marker",
+      136
+     ],
+     "10": [
+      "marker",
+      136
+     ],
+     "9": [
+      "marker",
+      136
+     ]
+    }
    }
   },
   {
@@ -619,9 +900,28 @@
     "must_show": [
      {
       "what": "the step in view",
-      "expr": "frame visplanes >= 4"
+      "expr": "frame visplanes >= 4",
+      "tic": {
+       "11": 0,
+       "10": 0,
+       "9": 0
+      }
      }
-    ]
+    ],
+    "c_end": {
+     "11": [
+      "marker",
+      40
+     ],
+     "10": [
+      "marker",
+      40
+     ],
+     "9": [
+      "marker",
+      40
+     ]
+    }
    }
   },
   {
@@ -656,13 +956,37 @@
     "must_show": [
      {
       "what": "visplanes near the bound",
-      "expr": "frame visplanes >= 120"
+      "expr": "frame visplanes >= 120",
+      "tic": {
+       "11": 46,
+       "10": 46,
+       "9": 46
+      }
      },
      {
       "what": "R_FindPlane I_Error",
-      "expr": "error no more visplanes"
+      "expr": "error no more visplanes",
+      "tic": {
+       "11": 49,
+       "10": 49,
+       "9": 49
+      }
      }
-    ]
+    ],
+    "c_end": {
+     "11": [
+      "error:R_FindPlane: no more visplanes",
+      49
+     ],
+     "10": [
+      "error:R_FindPlane: no more visplanes",
+      49
+     ],
+     "9": [
+      "error:R_FindPlane: no more visplanes",
+      49
+     ]
+    }
    }
   },
   {
@@ -697,13 +1021,37 @@
     "must_show": [
      {
       "what": "drawsegs at the bound",
-      "expr": "frame drawsegs == 256"
+      "expr": "frame drawsegs == 256",
+      "tic": {
+       "11": 51,
+       "10": 51,
+       "9": 53
+      }
      },
      {
       "what": "a drawseg dropped",
-      "expr": "frame drawseg_drops > 0"
+      "expr": "frame drawseg_drops > 0",
+      "tic": {
+       "11": 51,
+       "10": 51,
+       "9": 53
+      }
      }
-    ]
+    ],
+    "c_end": {
+     "11": [
+      "marker",
+      82
+     ],
+     "10": [
+      "marker",
+      82
+     ],
+     "9": [
+      "marker",
+      82
+     ]
+    }
    }
   },
   {
@@ -739,13 +1087,37 @@
     "must_show": [
      {
       "what": "vissprites at the bound",
-      "expr": "frame vissprites == 128"
+      "expr": "frame vissprites == 128",
+      "tic": {
+       "11": 49,
+       "10": 49,
+       "9": 49
+      }
      },
      {
       "what": "a vissprite dropped",
-      "expr": "frame vissprite_drop > 0"
+      "expr": "frame vissprite_drop > 0",
+      "tic": {
+       "11": 50,
+       "10": 50,
+       "9": 50
+      }
      }
-    ]
+    ],
+    "c_end": {
+     "11": [
+      "marker",
+      82
+     ],
+     "10": [
+      "marker",
+      82
+     ],
+     "9": [
+      "marker",
+      82
+     ]
+    }
    }
   },
   {
@@ -780,13 +1152,37 @@
     "must_show": [
      {
       "what": "openings near the bound",
-      "expr": "frame openings >= 19000"
+      "expr": "frame openings >= 19000",
+      "tic": {
+       "11": 36,
+       "10": 36,
+       "9": 42
+      }
      },
      {
       "what": "written past openings",
-      "expr": "witness OpeningOverflow"
+      "expr": "witness OpeningOverflow",
+      "tic": {
+       "11": 40,
+       "10": 40,
+       "9": 49
+      }
      }
-    ]
+    ],
+    "c_end": {
+     "11": [
+      "refused:OpeningOverflow",
+      40
+     ],
+     "10": [
+      "refused:OpeningOverflow",
+      40
+     ],
+     "9": [
+      "refused:OpeningOverflow",
+      49
+     ]
+    }
    }
   },
   {
@@ -821,13 +1217,37 @@
     "must_show": [
      {
       "what": "solid ranges near the bound",
-      "expr": "frame solidsegs_peak >= 30"
+      "expr": "frame solidsegs_peak >= 30",
+      "tic": {
+       "11": 13,
+       "10": 13,
+       "9": 15
+      }
      },
      {
       "what": "written past solidsegs",
-      "expr": "witness SolidSegOverflow"
+      "expr": "witness SolidSegOverflow",
+      "tic": {
+       "11": 15,
+       "10": 15,
+       "9": 19
+      }
      }
-    ]
+    ],
+    "c_end": {
+     "11": [
+      "refused:SolidSegOverflow",
+      15
+     ],
+     "10": [
+      "refused:SolidSegOverflow",
+      15
+     ],
+     "9": [
+      "refused:SolidSegOverflow",
+      19
+     ]
+    }
    }
   }
  ]

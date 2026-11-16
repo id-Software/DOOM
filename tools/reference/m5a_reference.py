@@ -119,6 +119,7 @@ def report_of(stderr):
     lines = [l for l in stderr.splitlines() if l.startswith('SUMMARY:')] or [l for l in stderr.splitlines() if 'runtime error' in l]
     if not lines: return None
     l = re.sub(r'\S*/([\w.]+\.c:\d+)', r'\1', lines[0].strip())
+    l = re.sub(r' ?\([^()]*\)', '', l)               # the binary path and build id of ASan's frame
     return re.sub(r'0x[0-9a-f]+', '0x?', l)[:200]
 
 
