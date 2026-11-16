@@ -730,6 +730,9 @@ applied, passes without it):
   - `things_in_box`'s `&&`→`||`: an out-of-box candidate's cell never equals a visited cell
     (`movement.rs:348`, `357`), so only the collection work changes.
 
+**Re-run on `e1c8c15`** (label removed and re-added): **87 caught, 11 missed, 0 timeouts, 26 unviable.** The 11
+missed are exactly the 11 mutants classed as equivalent above; every mutant classed as killable was caught.
+
 ## Final gates
 
 From clean on 2026-11-15 (America/Los_Angeles), local, no caps. `./target`, `~/scratch/m4p/target-185` and the
