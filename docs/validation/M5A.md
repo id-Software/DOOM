@@ -10,7 +10,7 @@ owns the commands. Exact review state and CI belong to GitHub.
 the synthetic rooms, the M5a genuine runner and the genuine goldens. Phase 2 step 2a (2026-11-16):
 the Rust renderer's foundation (tables, view setup, resources, render state, view shadow) and the
 comparison harness ([below](#rust-renderer-step-2a)), then three more rooms with their genuine goldens
-([below](#rooms-added-after-step-2a)). No IWAD was read in this step. Address-checked runs used
+([below](#rooms-added-after-step-2a)), then step 2b: the world renderer ([below](#rust-renderer-step-2b)). No IWAD was read in this step. Address-checked runs used
 `ASAN_OPTIONS=detect_leaks=0`: LeakSanitizer was disabled, not passed. No timing or benchmark was
 measured.
 
@@ -197,6 +197,100 @@ showed only additions apart from the manifest, which gained three entries, and
 - **Not reached: a patchless column (investigation §7, item 32).** For the same reason: a texture with
   a column no patch covers must be appended to `TEXTURE1`, which changes `m5a_gfx.wad` and all twenty
   earlier room WADs.
+
+## Rust renderer, step 2b
+
+Observed 2026-11-16 (America/Los_Angeles) at commit `700ee5c`, on the 45 synthetic items (23 rooms, 22
+M4b scripts) at screenblocks 11, 10 and 9; no IWAD was read, no timing was measured. Step 2b draws the
+world: the BSP traversal and the solid-segment list, solid and two-sided walls (pegging, offsets, fake
+contrast, silhouettes, drawsegs and openings), visplanes, spans and the sky, sector, distance and fixed
+colour-map lighting, and masked midtextures. Sprites, weapon sprites and fuzz are step 2c and are not
+drawn; every frame of every item has at least one weapon-sprite column, so a frame matches its genuine
+digest only where nothing of step 2c is visible yet.
+
+- **CI harness** (`cargo test -p doom-render --release --test frames -- --nocapture`, also passing in
+  debug): 39,585 frames rendered and compared; on every one the frame's counters (mapped lines,
+  visplanes, drawsegs, vissprites, openings, the solid-segment peak, dropped drawsegs, the vissprite
+  overflow) and newly mapped lines equal the genuine F and M rows (0 differing frames). 576 frames match
+  their full digest (128, 205 and 243 at screenblocks 11, 10 and 9), 38,904 differ only where step-2c
+  columns are pending, 105 are non-comparable (M5SWTCH's 35 parity-unknown tics per configuration,
+  decision R7), 0 are refused. Rust's undefined-texel columns equal the genuine tracker's on every frame
+  (0 flag disagreements; M5SHORT is the only item with flagged columns).
+- **World pixels** (local, `m5a_compare --c-runner` with the strict runner's raw frames): every pixel
+  except the genuine flagged columns, the columns a vissprite or weapon sprite spans, and the pixels such
+  columns left behind that nothing later overwrote. Compared frames 13,156, 13,156 and 13,168 (all but
+  the non-comparable ones); differing frames 0, differing pixels 0. Pixels compared: 76.2%, 73.2% and
+  74.0% of each frame's 64,000 (at screenblocks 9 this includes the zero border outside the view). The
+  planted one-pixel self-test was detected on all 45 items in each configuration.
+- **Limit rooms** (decision R3). The Rust renderer refuses exactly where the genuine run ends:
+  VPLANES at tic 49 in all three configurations (`VisplaneOverflow`; genuine `R_FindPlane` I_Error),
+  OPENINGS at tic 40, 40 and 49 (`OpeningOverflow`, the first write past `openings[]`), SOLIDSEGS at tic
+  15, 15 and 18 (`SolidSegOverflow`; at screenblocks 9 the crunch loop's read of `solidsegs[32]`
+  (r_bsp.c:178-182), one frame before the genuine write, as the owner accepted; investigation §7 item 29).
+  DSEGS reproduces the silent drop: its per-frame dropped-drawseg counts (first at tic 51, 53 at
+  screenblocks 9) match on every frame and every frame's world pixels match.
+- **Refusals no synthetic frame reaches**: `MaskedCompositeColumn` (orchestrator application of R3,
+  2026-11-16; investigation §7 item 35), `MaskedColumnUndefined`, `RangeCheck`, `TableRead` and
+  `StaleGlobal` (item 36): 0 occurrences.
+- **Debug test time.** Rendering and hashing 119,000 frames took 353 s in the default debug profile;
+  the workspace `Cargo.toml` now builds `doom-render` (opt-level 2) and the SHA-256 crates (opt-level 3)
+  optimized in debug builds, with overflow checks and debug assertions left on; the debug frames test
+  then took 38 s. Every other crate keeps the default dev profile.
+
+No divergence needed a fix: every room matched its genuine goldens on the first full run, so no
+difference had to be explained.
+
+Per item (frames per configuration as sb11/sb10/sb9; "full match" is the genuine digest, "world match"
+the comparison above):
+
+| Item | Frames (sb11/10/9) | Full match | World match | Non-comparable |
+| --- | --- | --- | --- | --- |
+| M5AMP | 124/124/124 | 0/0/0 | 124/124/124 | 0/0/0 |
+| M5AMPFL | 4230/4230/4230 | 0/0/0 | 4230/4230/4230 | 0/0/0 |
+| M5CLIP | 184/184/184 | 0/0/0 | 184/184/184 | 0/0/0 |
+| M5CONTR | 128/128/128 | 3/5/6 | 128/128/128 | 0/0/0 |
+| M5DIST | 202/202/202 | 3/5/6 | 202/202/202 | 0/0/0 |
+| M5DSEG | 82/82/82 | 3/5/6 | 82/82/82 | 0/0/0 |
+| M5FUZZ | 156/156/156 | 0/0/0 | 156/156/156 | 0/0/0 |
+| M5HOM | 132/132/132 | 3/5/6 | 132/132/132 | 0/0/0 |
+| M5LIGHT | 208/208/208 | 3/5/6 | 208/208/208 | 0/0/0 |
+| M5MASK | 160/160/160 | 3/5/6 | 160/160/160 | 0/0/0 |
+| M5OPEN | 40/40/49 | 3/5/6 | 40/40/49 | 0/0/0 |
+| M5PEG | 219/219/219 | 3/5/6 | 219/219/219 | 0/0/0 |
+| M5PLANE | 168/168/168 | 3/5/6 | 168/168/168 | 0/0/0 |
+| M5SHORT | 136/136/136 | 3/5/6 | 136/136/136 | 0/0/0 |
+| M5SKY | 288/288/288 | 3/5/6 | 288/288/288 | 0/0/0 |
+| M5SPRIT | 136/136/136 | 0/0/0 | 136/136/136 | 0/0/0 |
+| M5SSEG | 15/15/18 | 3/5/6 | 15/15/18 | 0/0/0 |
+| M5SWTCH | 213/213/213 | 3/5/6 | 178/178/178 | 35/35/35 |
+| M5VIEW | 40/40/40 | 0/0/0 | 40/40/40 | 0/0/0 |
+| M5VIEWZ | 568/568/568 | 3/5/6 | 568/568/568 | 0/0/0 |
+| M5VPLAN | 49/49/49 | 3/5/6 | 49/49/49 | 0/0/0 |
+| M5VSPR | 82/82/82 | 3/3/3 | 82/82/82 | 0/0/0 |
+| M5WEAP | 396/396/396 | 44/67/78 | 396/396/396 | 0/0/0 |
+| BARON1 | 753/753/753 | 0/0/0 | 753/753/753 | 0/0/0 |
+| BINF1 | 300/300/300 | 0/0/0 | 300/300/300 | 0/0/0 |
+| BOSS1 | 545/545/545 | 3/5/6 | 545/545/545 | 0/0/0 |
+| BOSS2 | 364/364/364 | 3/5/6 | 364/364/364 | 0/0/0 |
+| BOSSM1 | 600/600/600 | 3/5/6 | 600/600/600 | 0/0/0 |
+| BTUNNEL | 190/190/190 | 0/0/0 | 190/190/190 | 0/0/0 |
+| BVB1 | 735/735/735 | 0/0/0 | 735/735/735 | 0/0/0 |
+| MTELE1 | 160/160/160 | 3/5/6 | 160/160/160 | 0/0/0 |
+| SAWBITE | 116/116/116 | 0/0/0 | 116/116/116 | 0/0/0 |
+| SKILL2 | 90/90/90 | 0/0/0 | 90/90/90 | 0/0/0 |
+| SKILL3 | 90/90/90 | 0/0/0 | 90/90/90 | 0/0/0 |
+| SLIDEB | 100/100/100 | 0/0/0 | 100/100/100 | 0/0/0 |
+| SLIDEC | 123/123/123 | 0/0/0 | 123/123/123 | 0/0/0 |
+| SPECH8 | 98/98/98 | 3/5/6 | 98/98/98 | 0/0/0 |
+| SPECH9 | 75/75/75 | 3/5/6 | 75/75/75 | 0/0/0 |
+| TELE1 | 173/173/173 | 3/5/6 | 173/173/173 | 0/0/0 |
+| TELE2 | 61/61/61 | 3/5/6 | 61/61/61 | 0/0/0 |
+| TELE2X | 65/65/65 | 3/5/6 | 65/65/65 | 0/0/0 |
+| TELEZ | 80/80/80 | 0/0/0 | 80/80/80 | 0/0/0 |
+| TFRAG1 | 282/282/282 | 3/5/6 | 282/282/282 | 0/0/0 |
+| TSLIDE | 170/170/170 | 3/5/6 | 170/170/170 | 0/0/0 |
+| TSPLIT | 65/65/65 | 3/5/6 | 65/65/65 | 0/0/0 |
+| Total | 13191/13191/13203 | 128/205/243 | 13156/13156/13168 | 35/35/35 |
 
 ## Findings
 

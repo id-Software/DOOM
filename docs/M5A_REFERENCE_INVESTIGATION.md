@@ -14,7 +14,7 @@ The behavioural authority is the original id Software Linux DOOM 1.10 at
 to `docs/validation/M5A.md`, created in Phase 2. This note records only counts, pass/fail facts and digests from
 runs against the IWAD: no lump content, no IWAD-derived names, coordinates or geometry.
 
-**Status / next step (2026-11-16 02:53 PST).** Phase 2 step 2a is done ([evidence](validation/M5A.md#rust-renderer-step-2a)), and three rooms were added after it with genuine goldens in the strict, overflow and address variants (strict32 identical locally) at screenblocks 11, 10 and 9: AMPFLICK (the light-amplification end-of-power flicker), VIEWZ (step-ups, a hard landing, the death descent and camera) and SWITCH (S1, SR, an SR re-press and a GR re-shot); the earlier rooms, scripts and goldens are byte-identical ([evidence](validation/M5A.md#rooms-added-after-step-2a)). The view shadow matched all 13,252 genuine view records (§7 item 33 settled) and `tests/switches.rs` matches the switch tracker to M5SWTCH's genuine switch textures with the parity unknown at exactly 35 tics. Not reached: a committed Medusa room (§7 item 34: the genuine post walk runs off the composite; every reported frame whole-frame, run time layout-dependent) and a patchless column (§7 item 32); both need a new texture in `m5a_gfx.wad`, which would change every earlier room WAD (owner decision). Last commits: `4751e95` (rooms and goldens), `13298a7` (switch test), `ca37660` (evidence; exact-head CI passed on Linux, Windows, macOS and MSRV), then this status line. Next step: 2b (BSP, walls, planes, sky, lighting, masked midtextures) behind `r_bsp::render_bsp_node`, which refuses every frame with `RenderRefusal::NotImplemented` (39,585 frames refused). Half-done work: none; open: `m5a_tables.py --check` is not yet in CI (step 6). Failing checks: none locally (build, fmt incl. fuzz, Clippy, 1,416 workspace tests, rustdoc, `m5a_gfx.py`, `m5a_wad.py`, `m5a_build.py`, `m5a_tables.py` and `m5a_reference.py --check --pngs`). Resume: `git checkout feat/m5a-renderer && git pull`; `cargo test -p doom-render --release -- --nocapture`; `python3 tools/reference/m5a_reference.py --work ~/scratch/m5a/ref --check --pngs`. /mnt/c free: 44G available.
+**Status / next step (2026-11-16 03:43 PST).** Phase 2 step 2b is done ([evidence](validation/M5A.md#rust-renderer-step-2b)): the Rust renderer draws the world (BSP and solid segments, solid and two-sided walls, visplanes and sky, lighting and fixed colour maps, masked midtextures). Over the 45 synthetic items at screenblocks 11, 10 and 9 (39,585 frames) every frame's counters and newly mapped lines equal the genuine ones, the local world-pixel comparison against the genuine raw frames found 0 differing pixels in every comparable frame (105 non-comparable: M5SWTCH's parity window), 576 frames match their full digest, 0 frames are refused, and the limit rooms refuse at the genuine tics (VPLANES 49; OPENINGS 40, 40, 49; SOLIDSEGS 15, 15 and 18, the first access at screenblocks 9) while DSEGS reproduces the silent drop. New refusals are recorded in §7 items 35 (MaskedCompositeColumn, orchestrator application of R3, 2026-11-16) and 36. Last code commit: `700ee5c` (exact-head CI passed on Linux, Windows, macOS and MSRV), then the evidence and this status line (documentation only). Next step: 2c (`R_SortVisSprites`, `R_DrawSprite` with drawseg clipping and partial masked ranges, `R_DrawVisSprite`, `R_DrawPlayerSprites`/`R_DrawPSprite` with bob and flash, `R_DrawFuzzColumn` and `fuzzpos`); `FrameReport::pending_columns` marks what is still undrawn and turns empty when 2c is complete, at which point `tests/frames.rs`'s full-match assertion covers every frame. Half-done work: none. Open: `m5a_tables.py --check` is not yet in CI (step 6); the patchless column (§7 item 32) and a Medusa room (item 34) still need an owner decision on the graphics PWAD. Failing checks: none locally (build, fmt incl. fuzz, Clippy, 1,416 workspace tests, rustdoc, `cargo +1.85.0 test -p doom-render`, `m5a_gfx.py`, `m5a_wad.py`, `m5a_build.py` and `m5a_tables.py --check`; `m5a_reference.py --check` was not rerun in step 2b, whose change touches no C input). Resume: `git checkout feat/m5a-renderer && git pull`; `cargo test -p doom-render --release --test frames -- --nocapture`; `python3 tools/reference/m5a_build.py --variant strict --out ~/scratch/m5a/build && cargo run -p doom-render --release --example m5a_compare -- --c-runner ~/scratch/m5a/build/strict/crunner`. /mnt/c free: 44G available.
 
 ## Summary
 
@@ -2522,8 +2522,9 @@ settles it or "open".
     the genuine crunch loop `while (next++ != newend) *++start = *next;` (r_bsp.c:178-182) reads
     `solidsegs[32]` in the frame of tic 18, one frame before the first write past the array at tic 19
     ([evidence](validation/M5A.md#limit-rooms)). R3 refuses where the C's behaviour depends on memory
-    layout, so the Rust renderer must refuse that run at tic 18, the first access past `solidsegs[]`
-    (limits are implemented in step 2c).
+    layout, so the Rust renderer must refuse that run at tic 18, the first access past `solidsegs[]`.
+    Implemented in step 2b: the Rust renderer refuses that run at tic 18 and the screenblocks 11 and 10
+    runs at tic 15 ([evidence](validation/M5A.md#rust-renderer-step-2b)).
 30. **Outside M5a's scope, reported to the owner and not acted on** (confirmed by the owner
     2026-11-15): outside commercial mode `P_LoadThings` stops reading THINGS entirely at the first
     DoomEd 65 (`break` out of the loop, linuxdoom-1.10/p_setup.c:317-337), while doom-sim's
@@ -2563,4 +2564,17 @@ settles it or "open".
     fallback of the tracker, and whether the run finishes depends on the memory layout
     ([evidence](validation/M5A.md#rooms-added-after-step-2a)). The Rust renderer must refuse or mark such
     frames non-comparable as a whole (decision R4); a room with terminating composite bytes needs a new
-    texture and so an owner decision on changing the graphics PWAD (open).
+    texture and so an owner decision on changing the graphics PWAD (open).35. **A masked midtexture column that is a multi-patch composite is refused** (orchestrator application of
+    R3, 2026-11-16). The composite holds no post headers and no 0xff terminator, so the genuine
+    `R_DrawMaskedColumn` walk (r_segs.c:181-184, r_things.c:359-385) runs into zone memory (item 34). The
+    Rust renderer refuses any frame that would draw such a column with `RenderRefusal::MaskedCompositeColumn`
+    (step 2b); a masked column whose post walk would leave its patch lump, or whose lump and offset are
+    undefined (item 32), is refused with `MaskedColumnUndefined`. No committed room reaches either. The
+    patchless-column comparison (item 32) stays open.
+36. **Step 2b refusals that no synthetic frame reaches** (applications of R3 and R12, step 2b): a genuine
+    `RANGECHECK` `I_Error` or a draw outside the view rectangle (`RangeCheck`), a table read outside the
+    contiguous genuine tables such as `tantoangle[FixedDiv(0,0)>>DBITS]` for a viewer exactly on a seg's
+    start vertex (`TableRead`, hazard 2 of §1.11 and item 3), and a top or bottom texture chosen on the
+    unshifted heights whose `>>4` test fails, which would draw with an earlier wall's `pixhigh`/`pixlow`
+    (`StaleGlobal`, hazard 8). Over the 39,585 synthetic frames none of them occurred; their reachability on
+    the real maps is measured in step 4.
