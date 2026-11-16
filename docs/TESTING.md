@@ -2039,6 +2039,34 @@ cargo run -p doom-render --release --example m5a_compare -- --c-runner ~/scratch
   values are the strict runner's dump rows, recorded in the evidence record), and the parity to be
   unknown exactly at the tics after a re-press until the button expires (decision R7).
 
+Real maps, local only (M5a step 4; never in CI, it reads the IWAD from a scratch copy). The tool runs
+the 61 runs of `tests/reference/m4b_real_results.json` (the committed E1M1-E1M9 scripts and DEMO1,
+extracted from the IWAD copy and patched 109 to 110 into `--work`, checked against the recorded
+digest) through the genuine M5a runner in the strict, address and overflow variants (address with
+`ASAN_OPTIONS=detect_leaks=0`, so leak detection is disabled) and through the `m5a_real` example
+(the Rust simulation replays the demo, the Rust renderer renders every tic), at screenblocks 11 and
+10, high detail; at most 2 C jobs at once:
+
+```sh
+python3 tools/local/m5a_real.py [--maps E1M1,E1M2] [--only WALK,M2DIE] [--diagnose] [--write | --check]
+cargo run -p doom-render --release --example m5a_real -- --iwad ~/scratch/m5a/iwad/DOOM.WAD \
+  --lmp tests/reference/e1m1_scripts/WALK.lmp --frames 10=FILE [--raw 10=DIR] --json OUT   # one run by hand
+```
+
+- Per run and configuration it requires the three variants' frame streams to be identical up to the
+  earliest end (a tracker-flagged frame compared on its masked digest and its flagged columns), and
+  reports the Rust frames matched, mismatched, non-comparable (switch parity unknown, R7; whole frame,
+  R4), refused by kind and not reached, with the counters, `fuzzpos` and newly mapped lines of every
+  frame. Any mismatch, refusal, counter difference or variant difference makes it exit 1.
+- `--write` merges the selected runs into `tests/reference/m5a_real_results.json`
+  (DOOM-M5A-REAL-RESULTS-v1: counts, pass/fail facts and the genuine and Rust stream digests, the rule
+  in the tool's docstring); `--check` requires the selected runs' records to equal the committed ones.
+- `--diagnose` reruns a failing run with raw frames, and `m5a_real --raw` names the feature at the
+  first differing pixel and writes a PNG pair to `~/scratch/m5a/diff`. Those images, the genuine
+  frame streams (they name IWAD textures), the per-frame digest lists (`--work/digests`) and the
+  per-texture report (`~/scratch/m5a/reports/real_textures.json`) are IWAD-derived and stay in
+  scratch; delete them once the counts are recorded.
+
 ## Mutation testing
 
 M4a used cargo-mutants 27.1.0 with cargo-nextest 0.9.151. These are separate

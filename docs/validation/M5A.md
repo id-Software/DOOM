@@ -10,7 +10,7 @@ owns the commands. Exact review state and CI belong to GitHub.
 the synthetic rooms, the M5a genuine runner and the genuine goldens. Phase 2 step 2a (2026-11-16):
 the Rust renderer's foundation (tables, view setup, resources, render state, view shadow) and the
 comparison harness ([below](#rust-renderer-step-2a)), then three more rooms with their genuine goldens
-([below](#rooms-added-after-step-2a)), then step 2b: the world renderer ([below](#rust-renderer-step-2b)), then step 2c: sprites, weapon sprites and fuzz, full-frame matching and the rewind test ([below](#rust-renderer-step-2c)). No IWAD was read in this step. Address-checked runs used
+([below](#rooms-added-after-step-2a)), then step 2b: the world renderer ([below](#rust-renderer-step-2b)), then step 2c: sprites, weapon sprites and fuzz, full-frame matching and the rewind test ([below](#rust-renderer-step-2c)). No IWAD was read in steps 1-2c; step 4 compared the real maps locally ([below](#real-maps-step-4)). Address-checked runs used
 `ASAN_OPTIONS=detect_leaks=0`: LeakSanitizer was disabled, not passed. No timing or benchmark was
 measured.
 
@@ -402,6 +402,63 @@ Per item (sb11/sb10/sb9):
 | TSLIDE | 170/170/170 | 170/170/170 | 0/0/0 |
 | TSPLIT | 65/65/65 | 65/65/65 | 0/0/0 |
 | Total | 13191/13191/13203 | 13156/13156/13168 | 35/35/35 |
+
+## Real maps, step 4
+
+Observed 2026-11-16 (America/Los_Angeles) at commits `16cf615` (tool and example), `3267254` (E1M1),
+`7bb2d62` (E1M2-E1M9) and `3e63ee0` (DEMO1). Local only: the IWAD was read from its scratch copy
+(`~/scratch/m5a/iwad`, the same SHA-256 as the read-only original); nothing IWAD-derived is committed
+except counts, pass/fail facts and stream digests, in `tests/reference/m5a_real_results.json`
+(DOOM-M5A-REAL-RESULTS-v1, 61 records). Method: `tools/local/m5a_real.py`
+([testing](../TESTING.md#m5a-synthetic-renderer-rooms)) ran the 61 runs of
+`m4b_real_results.json` (every committed E1M1-E1M9 script and DEMO1, the scratch copy patched 109 to
+110 and checked against the M4b digest) through the genuine M5a runner in the strict, address and
+overflow variants (`ASAN_OPTIONS=detect_leaks=0`: leak detection disabled, not LeakSanitizer coverage)
+and through `m5a_real` (the Rust simulation replays the demo under wire 24 and the Rust renderer
+renders every tic), at screenblocks 11 and 10, high detail, every dumped tic (decisions R2, R9). At most
+2 C jobs ran at once; no timing was taken.
+
+- **Every frame matched.** 158,966 frames per configuration (the M4b tic count), 158,966 matched at
+  both: 0 mismatched, 0 refused, 0 not reached, 0 frames with differing counters, `fuzzpos` or newly
+  mapped lines, 0 flag disagreements (Rust's flagged columns equal the genuine U rows on every frame),
+  and in all 122 run-configurations the Rust stream digest equals the genuine one. No divergence was
+  found, so no Rust fix and no new room were needed in this step.
+- **`SwitchParityUnknown` (R7): 0 frames** on every map and every script, at both configurations.
+- **Non-comparable as a whole (R4): 0 frames.** The tracker attributed every undefined read. Flagged
+  columns (only those columns excluded; owner ruling on R4): 552 frames and 1,510 columns at
+  screenblocks 11, 494 and 1,255 at screenblocks 10, from 99 and 90 distinct origins (5 textures, the
+  rest sprite patches). The per-origin breakdown with names is a local report only.
+- **Refusals by kind: none.** `TableRead`, `StaleGlobal`, `RangeCheck`, `MaskedCompositeColumn`,
+  `MaskedColumnUndefined`, `PlayerTranslation`, `FixedDiv` and the limit refusals did not occur on any
+  real frame (investigation §7 items 2, 3, 36 and 37). No genuine run ended at a renderer limit.
+- **Strict = address = overflow.** In all 122 run-configurations the three variants' frame streams are
+  identical through the end (flagged frames on their masked digest and columns), and every variant
+  ended as the strict run did (exit, marker or reborn, as in M4b). This includes M8IDLE, M8IDLE3 and
+  M9WALK, where the Phase 1 prototype's address build stopped at r_segs.c:603 and 604 (§3.7): with the
+  two declared adapters those runs finish with identical streams. Whether each adapted sum actually
+  wrapped in these runs was not instrumented.
+- **Reproducibility.** E1M2-E1M9 were run twice (a diagnostic pass and the `--write` pass): the counts
+  were the same; the first pass kept no digests to compare.
+
+| Map | Runs | Frames (sb11/sb10) | Matched | Non-comparable R7 / R4 (sb11; sb10) | Refused | Flagged frames / columns (sb11; sb10) | Distinct origins (sb11/sb10) | Variants identical |
+| --- | ---: | --- | --- | --- | --- | --- | --- | --- |
+| E1M1 | 5 | 10,029/10,029 | 10,029/10,029 | 0/0; 0/0 | 0/0 | 32/44; 27/35 | 12/9 | 10 of 10 |
+| E1M2 | 5 | 9,094/9,094 | 9,094/9,094 | 0/0; 0/0 | 0/0 | 65/143; 57/131 | 14/12 | 10 of 10 |
+| E1M3 | 5 | 13,750/13,750 | 13,750/13,750 | 0/0; 0/0 | 0/0 | 22/77; 19/65 | 14/12 | 10 of 10 |
+| E1M4 | 5 | 9,386/9,386 | 9,386/9,386 | 0/0; 0/0 | 0/0 | 19/99; 16/76 | 13/12 | 10 of 10 |
+| E1M5 | 10 | 36,783/36,783 | 36,783/36,783 | 0/0; 0/0 | 0/0 | 86/325; 74/285 | 30/26 | 20 of 20 |
+| DEMO1 (E1M5) | 1 | 1,710/1,710 | 1,710/1,710 | 0/0; 0/0 | 0/0 | 6/19; 6/19 | 6/6 | 2 of 2 |
+| E1M6 | 5 | 12,742/12,742 | 12,742/12,742 | 0/0; 0/0 | 0/0 | 19/76; 17/38 | 13/12 | 10 of 10 |
+| E1M7 | 5 | 12,939/12,939 | 12,939/12,939 | 0/0; 0/0 | 0/0 | 30/120; 24/97 | 17/14 | 10 of 10 |
+| E1M8 | 10 | 30,840/30,840 | 30,840/30,840 | 0/0; 0/0 | 0/0 | 211/389; 196/325 | 30/29 | 20 of 20 |
+| E1M9 | 10 | 21,693/21,693 | 21,693/21,693 | 0/0; 0/0 | 0/0 | 62/218; 58/184 | 33/32 | 20 of 20 |
+| Total | 61 | 158,966/158,966 | 158,966/158,966 | 0/0; 0/0 | 0/0 | 552/1,510; 494/1,255 | 99/90 | 122 of 122 |
+
+Per-run stream digests and counts are in the results file. **Limits.** This is source equivalence of
+the Rust renderer with linuxdoom-1.10 on these 61 inputs and two configurations only; DEMO1 matching
+says nothing about the DOS 1.9 executable that recorded it. The patchless-column case (investigation
+§7 item 32) was not identified separately on the real textures. Raw frames, PNGs, per-frame digest
+lists and the genuine frame streams stayed in scratch.
 
 ## Findings
 
