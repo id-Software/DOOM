@@ -16,7 +16,7 @@ of this milestone will go to `docs/validation/M4P.md`, created in Phase 2. This 
 timings, instruction counts and digests: no IWAD-derived coordinate, lump byte or per-object datum.
 
 **Status / next step (2026-11-15 16:15 PST).** Phase 1 is done; the owner confirmed P1–P9 on 2026-11-15 (§4).
-**Phase 2 is complete and at the owner-review gate.** Steps 1 to 10: O1 `3ca7623`, O3 `69c1a3a`, O4 `c439d91`, O2
+**Phase 2 is complete; merged as PR #60 (merge commit 82e2207, 2026-11-15).** Steps 1 to 10: O1 `3ca7623`, O3 `69c1a3a`, O4 `c439d91`, O2
 `e8586a1`, O5 `320053c`, O7 `46f4b4e`, O6 `fda9230`, O9a `1408ee3`, O9b `251ada7`, O9c `122370a` and O10 `50c71f2`,
 each with its full gate list and its proof in §3; O8 and O9d were dropped under §5's zero-or-negative rule (§3).
 Group checks 1 to 4 passed. Step 3 (P6): the `simulation-ir` CI job and its re-recorded baseline; both hosted runs
@@ -26,7 +26,7 @@ timing and the final gates from clean all passed; the P7 rule is in AGENTS.md. *
 map's advance-only median is at or below 150 µs (E1M6 149.6 µs, 1.8× to 7.1× faster than master); group check 4
 measured E1M6 at 150.9 µs, so E1M6 sits at the target within run-to-run variation. Records:
 [validation/M4P.md](validation/M4P.md). Failing checks: none known. **Open owner questions:** whether
-`simulation-ir` becomes a required check (P6); review and merge of PR #60.
+`simulation-ir` becomes a required check (P6).
 
 ## Summary
 

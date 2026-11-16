@@ -63,6 +63,9 @@ real Episode 1 maps. Today it can simulate:
   E1M1) run in sync with the genuine engine (the original C code, built and run alongside
   the Rust code), tic for tic. This comparison uses your own game files and is local-only;
   see the [evidence record](docs/validation/M4B.md#real-maps-and-demo1).
+- on those maps, one tic of the simulation takes about 33–150 µs on a laptop CPU, 1.8 to 7 times
+  faster than before the performance work, with every result unchanged
+  ([measurements](docs/validation/M4P.md#matched-timing)).
 
 What it cannot do yet:
 

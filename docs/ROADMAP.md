@@ -492,7 +492,7 @@ monster/player behavior. Further stages require separate owner direction.
   performance milestone below).
 - **M4c (proposed, pending the owner).** Pause, easy skill and the reborn reload as an
   admitted transition; level transitions stay a later direction.
-- **M4p, simulation performance (in progress on `feat/m4p-performance`, draft PR #60; decisions P1–P9 confirmed
+- **M4p, simulation performance (merged as PR #60, merge commit 82e2207, 2026-11-15; decisions P1–P9 confirmed
   by the owner on 2026-11-15; see the [investigation note](M4P_REFERENCE_INVESTIGATION.md)).** Make
   `Simulation::advance` faster on the real Episode 1 maps without changing any digest, DSIM byte, refusal or
   event. Plan steps 1–10 are done: eleven optimisations (O1–O7, O9a–O9c, O10; O8 and O9d dropped because they made
@@ -501,7 +501,8 @@ monster/player behavior. Further stages require separate owner direction.
   to 33–150 µs (1.8× to 7.1× faster), with every real-map digest unchanged; P1's 150 µs target is met there and
   missed by 0.9 µs on E1M6 in an earlier run
   ([evidence record](validation/M4P.md#matched-timing)). The independent review found no behaviour difference.
-  Mutation testing, fuzzing and the full gates from clean passed; the pull request awaits the owner's review.
+  Mutation testing, fuzzing and the full gates from clean passed. Whether `simulation-ir` becomes a required
+  check is the owner's call.
 - Complete player/gameplay integration and broader monster/THING support.
 - The remaining moving sectors and map specials (the established M3e direction) beyond
   the doors, lifts, floors, switches and exit of M3h8: crushers, ceilings, teleporters
