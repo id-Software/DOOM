@@ -513,6 +513,8 @@ monster/player behavior. Further stages require separate owner direction.
 - **M5 — Rendering and platform integration:** presentation/input/audio and a
   custom Vulkan-first rendering direction across supported platforms. Presentation
   must not change authoritative simulation or RNG; no renderer exists yet.
+  - **M5a (faithful software renderer):** Phase 1 investigation done, awaiting owner decisions R1–R16; see the
+    [investigation note](M5A_REFERENCE_INVESTIGATION.md).
 - Multiplayer and later experiments, after their source/game-context dependencies
   can be independently validated.
 
