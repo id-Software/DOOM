@@ -2605,3 +2605,97 @@ settles it or "open".
     ([evidence](validation/M5A.md#real-maps-step-4)). So the negative `finesine` index and the viewer on
     a vertex (items 2 and 3) were not met as refusals on these inputs; whether the contiguous-table read
     of r_main.c:484-485 occurred on a matching frame was not instrumented.
+
+**Independent review findings (2026-11-16)**
+
+The independent review of the M5a diff ([record](validation/M5A.md#independent-review)) found the
+items below. Each entry gives the C facts first, then the disposition (applications of R3, R4 and R12
+under the unattended rule: each ports a well-defined C behaviour or keeps a refusal where the C
+behaviour is undefined, and none admits a silent divergence).
+
+40. **`R_GenerateLookup` counts patches per column in a byte.** `byte* patchcount` (r_data.c:299) is
+    `alloca`ed and cleared (r_data.c:322-323) and incremented per covering patch (`patchcount[x]++`,
+    r_data.c:343), so it wraps modulo 256. A column covered by 256 patches reads as 0: "column without
+    a patch" prints and the function returns (r_data.c:350-356), leaving that column and every later
+    one with the lump and offset the first loop stored (the last covering patch's, r_data.c:344-345).
+    A column covered by 257 patches reads as 1: a single-patch column of the last patch. **Ported:** a
+    `u8` count with wrapping increments; a wrapped 0 takes the existing "stopped" path, and a column a
+    patch covered keeps that patch's lump and offset.
+41. **Load-time refusals where the genuine startup is well defined** (each checked against the C):
+    - A texture with `patchcount` 0: `Z_Malloc(sizeof(texture_t) + sizeof(texpatch_t)*(0-1))` is
+      exactly the 16-byte header before `patches[]` (r_data.c:524-527), the patch loop does not run
+      and `R_GenerateLookup` stops at column 0 (r_data.c:350-356). **Ported** (its columns are the
+      undefined columns of item 32). A negative `patchcount` allocates less than the fields
+      `R_InitTextures` writes (r_data.c:524-531: a heap overflow): **refusal kept**.
+    - A texture with width 0: `alloca(0)`, `memset(.., 0)` and two 0-byte `Z_Malloc` column tables
+      (r_data.c:322-323, 548-549); the width mask is 0 (r_data.c:551-555). **Ported** at load. Every
+      `R_GetColumn` of it reads `texturecolumnlump[tex][0]` past its 0-byte block (r_data.c:391-392),
+      so a frame that draws one of its columns is refused (`RenderRefusal::UnallocatedColumn`). A
+      negative width is an `alloca`/`memset` of a negative size (r_data.c:322-323): **refusal kept**.
+    - A texture with height 0 or a negative height: `textureheight = height<<FRACBITS`
+      (r_data.c:556) as the genuine (GCC, two's complement) build computes it, like every other
+      negative 16.16 conversion the renderer already reads (vertices, seg offsets). Height 0 adds
+      nothing to `texturecompositesize` (r_data.c:371) and is **ported**. A negative height makes
+      the composite size negative (r_data.c:365-371), and `R_GenerateComposite` would `Z_Malloc` it
+      (r_data.c:244) the first time a composite column is read (r_data.c:394-398): the load is
+      **ported**, and drawing one of its composite columns is refused (`UnallocatedColumn`);
+      single-patch columns draw as usual.
+    - No flat or no sprite lump between the markers: `numflats` and `numspritelumps` are 0
+      (r_data.c:585-590, 608-614) and the tables are `Z_Malloc(4)` and `Z_Malloc(0)`. **Ported.**
+      Markers in the wrong order give a negative count that sizes a `Z_Malloc` with a negative byte
+      count (z_zone.c:195-203 adds the block header to a negative size and splits the zone at it):
+      **refusal kept**. With no flat, `R_FlatNumForName(SKYFLATNAME)` returns an out-of-range number
+      unchecked (r_data.c:672-687); `skyflatnum` is only ever compared with a sector's pic
+      (r_bsp.c:526, r_plane.c:225 and 396, r_segs.c:530-531 and 672), so an out-of-range sky flat is
+      **ported** as a number no in-range pic equals (a sector pic outside the range is still refused:
+      its `flattranslation` read, r_plane.c:423-425, is out of bounds).
+    - A two-sided line with no back side and no seg: `P_LoadLineDefs` sets `backsector = 0`
+      (p_setup.c:425-428) and only `P_LoadSegs` reads `sides[ldef->sidenum[side^1]]`
+      (p_setup.c:189-190). **Ported:** `Level::load` no longer refuses the line; a seg of such a line
+      reads `sides[-1]` and is still refused.
+    - A negative TEXTURE1 or TEXTURE2 count: `numtextures = numtextures1 + numtextures2`
+      (r_data.c:480) sizes seven `Z_Malloc`s (r_data.c:482-488), and the directory switches to
+      TEXTURE2 only at `i == numtextures1` (r_data.c:509-515). A nonnegative total is **ported**:
+      with a negative `numtextures1` every entry is read from TEXTURE1's directory, and with a
+      negative `numtextures2` the first `numtextures` entries of TEXTURE1 are read (a directory entry
+      outside its lump stays refused, as before). A negative total (a negative allocation) or an
+      overflowing sum (signed overflow) is **refused**.
+42. **The stale `pixhigh`/`pixlow` is deterministic.** `pixhigh`, `pixlow`, `pixhighstep` and
+    `pixlowstep` are file-scope globals (r_segs.c:81-84), written only for a two-sided seg whose
+    shifted heights differ (r_segs.c:693-704) and advanced per column while a top or bottom texture is
+    drawn (r_segs.c:297-298, 325-326). The textures themselves are chosen on the unshifted heights
+    (r_segs.c:570-573, 589-592), so a seg whose shifted test fails draws with the values the previous
+    such seg left, in the same frame or any earlier one; nothing resets them (zero in a fresh process,
+    decision R8). **Ported:** the four values persist in the render state (`WallSteps`), which makes
+    the `DRST` encoding version 2 (version 1 never left this branch; docs/STATE_FORMAT.md); the
+    `StaleGlobal("pixhigh"/"pixlow")` refusals are gone. `StaleGlobal` remains only for
+    `R_SortVisSprites`' uninitialised local `best` (r_things.c:792, 815), which is undefined.
+43. **`MaskedCompositeColumn` is not "never terminates".** `R_RenderMaskedSegRange` passes
+    `R_GetColumn(texnum, col) - 3` as a post list (r_segs.c:181-184), so for a composite column the walk
+    reads the previous composite column's texels (or, for the first composite column, the zone memory
+    before the block) as a post header and continues through texels until one reads 0xff
+    (r_things.c:359-385). The outcome depends on the texel values and, once the walk leaves the
+    composite, on the memory layout. **Declared refusal for the owner:** the renderer keeps refusing
+    every such frame rather than following the walk through the composite (a port would be bounded
+    while the walk stays inside defined composite bytes, and would still refuse once it leaves them).
+44. **`FINEANGLES/20*leveltime` overflows `int`** (p_user.c:108) from `leveltime` 5,250,572 on (409 x
+    5,250,572 > `INT_MAX`; about 41.7 hours), on the tics `P_CalcHeight` finds the player on the
+    ground; `leveltime++` (p_tick.c:157) itself overflows at `INT_MAX`. Both are signed overflow
+    (undefined) in this simulation code, which the simulation's checked-arithmetic policy refuses.
+    **Refused:** the view shadow returns `ShadowError::LevelTimeOverflow` at that tic instead of
+    panicking in a debug build.
+45. **The sky depends on the episode.** `G_InitNew` sets `skytexture` to `SKY1`, `SKY2`, `SKY3` or
+    `SKY4` by episode outside commercial mode (g_game.c:1464-1478). **Refused:** `Level::load` takes the
+    game's episode and refuses any episode other than 1 (`ResourceError::SkyEpisode`), so an Episode 2
+    level can no longer be drawn with `SKY1`.
+46. **Unavailable player powers are refused.** The renderer read `player->powers` through
+    `original_player_powers` and assumed zero when the profile has none. **Refused:** the view shadow
+    returns `ShadowError::NoPlayer` and the frame `RenderRefusal::NoPlayer`.
+47. **A restored render state is checked against the level** (Rust-only safety; no C counterpart). A
+    `DRST` state decoded from another level, or built by hand, could make `render` index the mapped
+    set out of bounds (r_segs.rs) or underflow a power in the view shadow's countdown. **Fixed:**
+    `Renderer::restore` returns `RestoreError` unless the mapped set and sector floors have the level's
+    counts, every running button and unknown-parity line is a line of the level, every cleared line is
+    one of its tracked switch lines, the framebuffer and taint cover the screen and every bounded value
+    is in range; the decoder also refuses negative powers (the simulation keeps them nonnegative,
+    p_user.c:339-353).
