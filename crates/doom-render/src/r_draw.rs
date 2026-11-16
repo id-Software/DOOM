@@ -1,13 +1,29 @@
 //! r_draw.c: the column and span drawers at high detail (`R_DrawColumn`, `R_DrawSpan`), with
 //! the read-provenance taint of decision R4 kept per framebuffer pixel as the genuine runner's
 //! tracker keeps it (`tools/reference/m5a_driver.c`, `track_column` and the span wrapper).
-//! Low detail is refused (decision R2); the fuzz drawer is step 2c.
+//! The fuzz drawer `R_DrawFuzzColumn` advances the persistent `fuzzpos` (decision R8). Low
+//! detail is refused (decision R2); `R_DrawTranslatedColumn` is refused where it would be
+//! called (decision R1, `r_things::ColFunc::Translated`).
 use crate::r_data::ColumnSource;
 use crate::r_main::{SCREENHEIGHT, SCREENWIDTH};
 use crate::{Feature, FrameContext, RenderRefusal};
 
 /// `FUZZTABLE` (r_draw.c:259).
 pub const FUZZTABLE: usize = 50;
+/// `FUZZOFF` (r_draw.c:260): one row of the framebuffer.
+const FUZZOFF: i32 = SCREENWIDTH as i32;
+/// `fuzzoffset[FUZZTABLE]` (r_draw.c:263-272).
+const FUZZOFFSET: [i32; FUZZTABLE] = [
+    FUZZOFF, -FUZZOFF, FUZZOFF, -FUZZOFF, FUZZOFF, FUZZOFF, -FUZZOFF, //
+    FUZZOFF, FUZZOFF, -FUZZOFF, FUZZOFF, FUZZOFF, FUZZOFF, -FUZZOFF, //
+    FUZZOFF, FUZZOFF, FUZZOFF, -FUZZOFF, -FUZZOFF, -FUZZOFF, -FUZZOFF, //
+    FUZZOFF, -FUZZOFF, -FUZZOFF, FUZZOFF, FUZZOFF, FUZZOFF, FUZZOFF, -FUZZOFF, //
+    FUZZOFF, -FUZZOFF, FUZZOFF, FUZZOFF, -FUZZOFF, -FUZZOFF, FUZZOFF, //
+    FUZZOFF, -FUZZOFF, -FUZZOFF, -FUZZOFF, -FUZZOFF, FUZZOFF, FUZZOFF, //
+    FUZZOFF, FUZZOFF, -FUZZOFF, FUZZOFF, FUZZOFF, -FUZZOFF, FUZZOFF,
+];
+/// The colour map of every fuzz pixel (`colormaps[6*256 + ...]`, r_draw.c:358).
+const FUZZCOLORMAP: u8 = 6;
 
 /// The `dc_*` globals of one `R_DrawColumn` call (r_draw.c:79-96).
 pub(crate) struct ColumnDraw<'a> {
@@ -43,6 +59,8 @@ pub(crate) struct SpanDraw {
     pub colormap: u8,
     /// The flat number (`ds_source` is its lump).
     pub flat: usize,
+    /// The stage, for first-difference reports.
+    pub feature: Feature,
 }
 
 impl FrameContext<'_> {
@@ -88,6 +106,59 @@ impl FrameContext<'_> {
         Ok(())
     }
 
+    /// `R_DrawFuzzColumn` (r_draw.c:286-368): rows `dc_yl..=dc_yh` after the border clamps,
+    /// top to bottom in place, each pixel `colormaps[6*256 + dest[fuzzoffset[fuzzpos]]]`
+    /// (the row above, already fuzzed, or the row below, not yet), advancing `fuzzpos`. The
+    /// pixel's taint is copied from the pixel read, as the genuine tracker does (R4).
+    pub(crate) fn draw_fuzz_column(
+        &mut self,
+        x: i32,
+        mut yl: i32,
+        mut yh: i32,
+        feature: Feature,
+    ) -> Result<(), RenderRefusal> {
+        // Adjust borders (r_draw.c:293-298; exact-equality tests).
+        if yl == 0 {
+            yl = 1;
+        }
+        if yh == self.view.viewheight - 1 {
+            yh = self.view.viewheight - 2;
+        }
+        let count = yh.wrapping_sub(yl);
+        if count < 0 {
+            return Ok(());
+        }
+        // RANGECHECK (r_draw.c:307-314).
+        if (x as u32) >= SCREENWIDTH as u32 || yl < 0 || yh >= SCREENHEIGHT as i32 {
+            return Err(RenderRefusal::RangeCheck("R_DrawFuzzColumn"));
+        }
+        if !self.in_view(x, yl) || !self.in_view(x, yh) {
+            return Err(RenderRefusal::RangeCheck(
+                "R_DrawFuzzColumn outside the view",
+            ));
+        }
+        for y in yl..=yh {
+            let delta = FUZZOFFSET[self.fuzzpos];
+            // The pixel read is one row up or down; outside the view rectangle it would be
+            // a layout-dependent read (the clamps above keep it inside on every frame).
+            if !self.in_view(x, y + delta / FUZZOFF) {
+                return Err(RenderRefusal::RangeCheck(
+                    "R_DrawFuzzColumn read outside the view",
+                ));
+            }
+            let off = self.view.offset(x, y);
+            let src = (off as isize + delta as isize) as usize;
+            let value = self.colormap(FUZZCOLORMAP, self.screen[src]);
+            let taint = self.taint[src];
+            self.put(off, value, taint, feature);
+            self.fuzzpos += 1;
+            if self.fuzzpos == FUZZTABLE {
+                self.fuzzpos = 0;
+            }
+        }
+        Ok(())
+    }
+
     /// `R_DrawSpan` (r_draw.c:520-563). A flat lump shorter than 4,096 bytes taints the whole
     /// span, as the genuine tracker does; otherwise the span clears the taint.
     pub(crate) fn draw_span(&mut self, s: &SpanDraw) -> Result<(), RenderRefusal> {
@@ -116,7 +187,7 @@ impl FrameContext<'_> {
             let texel = source.get(spot).copied().unwrap_or(0);
             let off = self.view.offset(x, s.y);
             let value = self.colormap(s.colormap, texel);
-            self.put(off, value, taint, Feature::Plane);
+            self.put(off, value, taint, s.feature);
             xfrac = xfrac.wrapping_add(s.xstep);
             yfrac = yfrac.wrapping_add(s.ystep);
         }

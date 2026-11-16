@@ -91,6 +91,8 @@ pub(crate) struct PlaneState {
     baseyscale: i32,
     /// The flat of the plane being drawn (`ds_source`'s flat number).
     flat: usize,
+    /// The visplane being drawn (first-difference reports only).
+    current: usize,
 }
 
 impl Default for PlaneState {
@@ -113,6 +115,7 @@ impl Default for PlaneState {
             basexscale: 0,
             baseyscale: 0,
             flat: 0,
+            current: 0,
         }
     }
 }
@@ -268,6 +271,9 @@ impl FrameContext<'_> {
             ystep,
             colormap,
             flat,
+            feature: Feature::Plane {
+                visplane: self.planes.current as u16,
+            },
         })
     }
 
@@ -353,7 +359,7 @@ impl FrameContext<'_> {
                             colormap: 0,
                             source: res.get_column(res.skytexture, angle),
                             origin: res.skytexture as u32 + 1,
-                            feature: Feature::Sky,
+                            feature: Feature::Sky { visplane: i as u16 },
                         })?;
                     }
                 }
@@ -361,6 +367,7 @@ impl FrameContext<'_> {
             }
             // Regular flat (r_plane.c:423-451).
             self.planes.flat = self.flattranslation[picnum];
+            self.planes.current = i;
             self.planes.planeheight = height.wrapping_sub(self.frame.viewz).wrapping_abs();
             let light = ((lightlevel >> LIGHTSEGSHIFT) + self.frame.extralight)
                 .clamp(0, LIGHTLEVELS as i32 - 1);

@@ -5,13 +5,13 @@
 //! that wrote that pixel.
 //!
 //! With `--c-runner`, it reruns the genuine M5a runner with `--frames-raw` for every item and
-//! configuration and also compares the world pixels of every frame: every pixel except the
-//! genuine tracker's flagged columns, the columns a vissprite or weapon sprite spans
-//! ([`doom_render::FrameReport::pending_columns`], drawn from step 2c) and the pixels such a
-//! column left behind in earlier frames that no later stage has overwritten (the framebuffer
-//! persists, decision R8). For the first world difference of each item and configuration it
-//! writes a PNG pair (genuine, Rust; palette 0 of the synthetic PLAYPAL) to the diff directory
-//! (default `~/scratch/m5a/diff`).
+//! configuration and also compares every pixel of every comparable frame against the genuine
+//! raw frame, except the genuine tracker's flagged columns (decision R4). For the first
+//! difference of each item and configuration it names the feature in play (the renderer
+//! stage and its object: the seg, visplane, vissprite with its sprite name and frame, weapon
+//! sprite, or the fuzz column's owner; [`doom_render::Feature`]) and writes a PNG pair
+//! (genuine, Rust; palette 0 of the synthetic PLAYPAL) to the diff directory (default
+//! `~/scratch/m5a/diff`).
 //!
 //! ```sh
 //! python3 tools/reference/m5a_build.py --variant strict --out ~/scratch/m5a/build
@@ -35,7 +35,7 @@ struct First {
     genuine: Option<Vec<u8>>,
 }
 
-/// World-pixel counts of one configuration.
+/// Raw-frame comparison counts of one configuration.
 #[derive(Default, Clone)]
 struct World {
     frames: usize,
@@ -48,20 +48,15 @@ struct World {
     selftests: usize,
 }
 
-/// The world pixels of `rust` that differ from the genuine frame `c`, outside the excluded
-/// pixels and the genuine flagged columns: their count, the first, and the pixels compared.
-fn world_diff(
-    c: &[u8],
-    rust: &[u8],
-    ex: &[bool],
-    columns: &[u16],
-) -> (usize, Option<(usize, usize)>, usize) {
+/// The pixels of `rust` that differ from the genuine frame `c` outside the genuine flagged
+/// columns: their count, the first, and the pixels compared.
+fn world_diff(c: &[u8], rust: &[u8], columns: &[u16]) -> (usize, Option<(usize, usize)>, usize) {
     let mut first = None;
     let mut n = 0;
     let mut compared = 0;
     for p in 0..c.len() {
         let x = p % SCREENWIDTH;
-        if ex[p] || columns.contains(&(x as u16)) {
+        if columns.contains(&(x as u16)) {
             continue;
         }
         compared += 1;
@@ -71,6 +66,37 @@ fn world_diff(
         }
     }
     (n, first, compared)
+}
+
+/// The feature in play at a pixel, with sprite names (`sprnames` order).
+fn describe(f: Feature) -> String {
+    let name = |sprite: u16| {
+        doom_sim::identity::OriginalSprite::all()
+            .nth(usize::from(sprite))
+            .map_or("?", |s| s.resource_name())
+    };
+    match f {
+        Feature::Sprite {
+            vissprite,
+            sprite,
+            frame,
+        } => format!(
+            "vissprite {vissprite} (sprite {} frame {})",
+            name(sprite),
+            char::from(b'A' + frame as u8)
+        ),
+        Feature::PSprite {
+            psprite,
+            sprite,
+            frame,
+        } => format!(
+            "{} psprite (sprite {} frame {})",
+            if psprite == 0 { "weapon" } else { "flash" },
+            name(sprite),
+            char::from(b'A' + frame as u8)
+        ),
+        other => format!("{other:?}"),
+    }
 }
 
 fn run_genuine(bin: &Path, item: &common::Item, sb: u8, dir: &Path) {
@@ -139,10 +165,6 @@ fn main() {
                 run_genuine(bin, &item, *sb, dir);
             }
         }
-        let mut excluded: Vec<Vec<bool>> = configs
-            .iter()
-            .map(|_| vec![false; SCREENWIDTH * SCREENHEIGHT])
-            .collect();
         let mut world: Vec<World> = vec![World::default(); configs.len()];
         let mut firsts: Vec<Option<First>> = configs.iter().map(|_| None).collect();
         let counts = harness(&item, &configs, true, |s| {
@@ -150,7 +172,7 @@ fn main() {
                 .iter()
                 .position(|c| *c == s.screenblocks)
                 .expect("config");
-            let (Ok(report), Some(trace)) = (s.result, s.renderer.trace()) else {
+            let (Ok(_), Some(trace)) = (s.result, s.renderer.trace()) else {
                 if firsts[k].is_none() {
                     if let Outcome::Refused(e) = s.outcome {
                         firsts[k] = Some(First {
@@ -163,14 +185,18 @@ fn main() {
                 }
                 return;
             };
-            // Pixels pending step 2c, and what they left behind (decision R8).
-            let ex = &mut excluded[k];
-            let pending = &report.pending_columns;
-            for (p, e) in ex.iter_mut().enumerate() {
-                let x = (p % SCREENWIDTH) as u16;
-                *e = pending.binary_search(&x).is_ok() || (*e && trace[p] == Feature::Untouched);
+            if runner.is_none() {
+                if firsts[k].is_none() && matches!(s.outcome, Outcome::Mismatch) {
+                    firsts[k] = Some(First {
+                        tic: s.tic,
+                        what: "the digest differs (rerun with --c-runner for the pixel)".into(),
+                        rust: s.frame.clone(),
+                        genuine: None,
+                    });
+                }
+                return;
             }
-            if runner.is_none() || matches!(s.outcome, Outcome::NonComparable) {
+            if matches!(s.outcome, Outcome::NonComparable) {
                 return;
             }
             let path = raw_dirs[k].join(format!("frame_{:05}.raw", s.tic));
@@ -181,16 +207,16 @@ fn main() {
             let w = &mut world[k];
             w.frames += 1;
             let rust = s.frame.pixels();
-            let (n, first, compared) = world_diff(&c, rust, ex, &s.row.columns);
+            let (n, first, compared) = world_diff(&c, rust, &s.row.columns);
             w.compared_pixels += compared;
             if w.frames == 1 {
                 // Self-test: a planted change to one compared pixel must be detected.
-                if let Some(p) = (0..c.len())
-                    .find(|&p| !ex[p] && !s.row.columns.contains(&((p % SCREENWIDTH) as u16)))
+                if let Some(p) =
+                    (0..c.len()).find(|&p| !s.row.columns.contains(&((p % SCREENWIDTH) as u16)))
                 {
                     let mut planted = rust.to_vec();
                     planted[p] ^= 1;
-                    let (m, _, _) = world_diff(&c, &planted, ex, &s.row.columns);
+                    let (m, _, _) = world_diff(&c, &planted, &s.row.columns);
                     // The planted pixel turns from equal to differing, or the reverse.
                     let before = usize::from(c[p] != rust[p]);
                     let after = usize::from(c[p] != planted[p]);
@@ -210,8 +236,10 @@ fn main() {
                 firsts[k] = Some(First {
                     tic: s.tic,
                     what: format!(
-                        "{n} world pixels differ; first ({x}, {y}): genuine {} rust {} (Rust stage {:?})",
-                        c[p], rust[p], trace[p]
+                        "{n} pixels differ; first ({x}, {y}): genuine {} rust {}; written by {}",
+                        c[p],
+                        rust[p],
+                        describe(trace[p])
                     ),
                     rust: s.frame.clone(),
                     genuine: Some(c),
@@ -230,7 +258,7 @@ fn main() {
                 .map(|(t, e, r)| format!(" end tic {t} genuine {e} rust {r:?}"))
                 .unwrap_or_default();
             println!(
-                "{} sb{sb}: frames {} matched {} mismatched {} non-comparable {} refused {} {:?} counter-mismatches {} flag-disagreements {} pending {} world: compared {} matched {} differing {} ({} pixels; {} pixels compared; self-tests {}){end}",
+                "{} sb{sb}: frames {} matched {} mismatched {} non-comparable {} refused {} {:?} counter-mismatches {} flag-disagreements {} raw: compared {} matched {} differing {} ({} pixels; {} pixels compared; self-tests {}){end}",
                 item.lump,
                 c.frames,
                 c.matched,
@@ -240,7 +268,6 @@ fn main() {
                 c.refusals,
                 c.counter_mismatches,
                 c.flag_disagreements,
-                c.pending_frames,
                 w.frames,
                 w.matched,
                 w.differing,
@@ -274,7 +301,6 @@ fn main() {
             t.0.non_comparable += c.non_comparable;
             t.0.refused += c.refused;
             t.0.counter_mismatches += c.counter_mismatches;
-            t.0.pending_frames += c.pending_frames;
             for (r, n) in c.refusals {
                 *t.0.refusals.entry(r).or_default() += n;
             }
@@ -289,7 +315,7 @@ fn main() {
     }
     for (sb, (c, w)) in &totals {
         println!(
-            "total sb{sb}: frames {} matched {} mismatched {} non-comparable {} refused {} {:?} counter-mismatches {} flag-disagreements {} pending {} world: compared {} matched {} differing {} ({} pixels; {} pixels compared, {:.1}% of the 64,000 per frame; self-tests {})",
+            "total sb{sb}: frames {} matched {} mismatched {} non-comparable {} refused {} {:?} counter-mismatches {} flag-disagreements {} raw: compared {} matched {} differing {} ({} pixels; {} pixels compared, {:.1}% of the 64,000 per frame; self-tests {})",
             c.frames,
             c.matched,
             c.mismatched,
@@ -298,7 +324,6 @@ fn main() {
             c.refusals,
             c.counter_mismatches,
             c.flag_disagreements,
-            c.pending_frames,
             w.frames,
             w.matched,
             w.differing,

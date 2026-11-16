@@ -5,21 +5,22 @@
 //! R8). Frames the genuine read-provenance tracker flagged are compared on the digest with the
 //! flagged columns zeroed (the masked digest the genuine runner wrote; owner ruling on R4).
 //!
-//! Step 2b draws the world (BSP, walls, planes, sky, lighting, masked midtextures) but not the
-//! sprites and weapon sprites (step 2c), so a frame can match its digest only where nothing of
-//! step 2c is on screen. What step 2b asserts on every frame:
+//! The renderer is complete for the admitted configurations (step 2c), so every frame must
+//! match. What is asserted on every frame of every item and configuration:
 //!
+//! - the full digest matches (the masked digest where the genuine tracker flagged columns), and
+//!   the Rust renderer's flagged columns equal the genuine U rows;
 //! - the frame's renderer counters equal the genuine F row's (mapped lines, visplanes,
 //!   drawsegs, vissprites, openings, the solid-segment peak, dropped drawsegs, the vissprite
-//!   overflow) and its newly mapped lines equal the M row (decision R5);
-//! - no frame is refused, and a frame with no pending step-2c column matches its digest;
+//!   overflow), as do `fuzzpos` after the frame and the newly mapped lines (M row, decision
+//!   R5);
+//! - no frame is refused, and the only non-comparable frames are M5SWTCH's 35 parity-unknown
+//!   frames per configuration (decision R7);
 //! - where the genuine run ends at a renderer limit (decision R3), the Rust renderer refuses
 //!   the next tic with the matching witness: VPLANES (`R_FindPlane`'s I_Error), OPENINGS (the
 //!   first write past `openings[]`) and SOLIDSEGS (the first access past `solidsegs[]`, a read
-//!   one frame before the genuine write at screenblocks 9).
-//!
-//! The world pixels of frames with pending columns are compared locally against the genuine
-//! raw frames by the `m5a_compare` example (docs/TESTING.md).
+//!   one frame before the genuine write at screenblocks 9). DSEGS and VSPRITES reproduce the
+//!   silent `MAXDRAWSEGS` and `MAXVISSPRITES` drops and match on every frame.
 mod common;
 
 use common::{Counts, FrameRow, Outcome, compare, harness, items, masked};
@@ -32,23 +33,13 @@ fn harness_runs_every_item_and_configuration() {
     let mut failures = Vec::new();
     for item in items() {
         let configs: &[u8] = &[11, 10, 9];
-        for (sb, c) in harness(&item, configs, false, |s| {
-            let pending = s
-                .result
-                .as_ref()
-                .is_ok_and(|r| !r.pending_columns.is_empty());
-            if matches!(s.outcome, Outcome::Mismatch) && !pending {
-                failures.push(format!(
-                    "{} sb{} tic {}: mismatch without pending columns",
-                    s.item.lump, s.screenblocks, s.tic
-                ));
-            }
-            if let Outcome::Refused(e) = s.outcome {
-                failures.push(format!(
-                    "{} sb{} tic {}: refused {e:?}",
-                    s.item.lump, s.screenblocks, s.tic
-                ));
-            }
+        for (sb, c) in harness(&item, configs, false, |s| match &s.outcome {
+            Outcome::Match { flags_agree: true } => {}
+            Outcome::NonComparable if s.item.lump == "M5SWTCH" => {}
+            other => failures.push(format!(
+                "{} sb{} tic {}: {other:?}",
+                s.item.lump, s.screenblocks, s.tic
+            )),
         }) {
             assert_eq!(c.not_reached, 0, "{} sb{sb}: frames not reached", item.lump);
             if c.counter_mismatches != 0 {
@@ -77,19 +68,27 @@ fn harness_runs_every_item_and_configuration() {
             total.refused += c.refused;
             total.flag_disagreements += c.flag_disagreements;
             total.counter_mismatches += c.counter_mismatches;
-            total.pending_frames += c.pending_frames;
         }
     }
     eprintln!("harness: {total:?}");
     for e in &ends {
         eprintln!("limit: {e}");
     }
+    failures.truncate(60);
     assert!(failures.is_empty(), "{}", failures.join("\n"));
     // The committed goldens hold 13,191 + 13,191 + 13,203 frames (docs/validation/M5A.md).
     assert_eq!(total.frames, 13_191 + 13_191 + 13_203, "{total:?}");
+    // Every frame matches except M5SWTCH's parity-unknown frames (35 per configuration).
+    assert_eq!(total.non_comparable, 3 * 35, "{total:?}");
     assert_eq!(
-        total.frames,
-        total.matched + total.mismatched + total.non_comparable + total.refused
+        total.matched,
+        total.frames - total.non_comparable,
+        "{total:?}"
+    );
+    assert_eq!(
+        (total.mismatched, total.refused, total.flag_disagreements),
+        (0, 0, 0),
+        "{total:?}"
     );
     // VPLANES, OPENINGS and SOLIDSEGS at three configurations.
     assert_eq!(ends.len(), 9, "{ends:?}");
@@ -125,7 +124,7 @@ fn comparison_detects_a_changed_pixel() {
     );
     changed.pixels_mut()[77 * 320 + 124] = 1;
     assert_eq!(compare(&flagged, &ok, &changed), Outcome::Mismatch);
-    let refused = Err(RenderRefusal::NotImplemented("test"));
+    let refused = Err(RenderRefusal::PlayerTranslation);
     assert!(matches!(
         compare(&full, &refused, &zero),
         Outcome::Refused(_)

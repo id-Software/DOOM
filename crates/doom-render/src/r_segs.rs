@@ -1,5 +1,6 @@
 //! r_segs.c: `R_StoreWallRange`, `R_RenderSegLoop`, `R_RenderMaskedSegRange`, drawsegs and
 //! the openings they allocate, with `R_ScaleFromGlobalAngle` (r_main.c:453-502).
+use crate::r_data::MaskedPosts;
 use crate::r_draw::ColumnDraw;
 use crate::r_main::{
     ANG90, ANG180, ANGLETOFINESHIFT, LIGHTLEVELS, LIGHTSCALESHIFT, MAXLIGHTSCALE, finesine,
@@ -42,6 +43,10 @@ pub(crate) enum Clip {
     NegOne,
     /// `openings + base` (indexed by screen x).
     Openings(i32),
+    /// `R_DrawSprite`'s local `clipbot` (r_things.c:845), as `mfloorclip`.
+    SpriteBottom,
+    /// `R_DrawSprite`'s local `cliptop` (r_things.c:846), as `mceilingclip`.
+    SpriteTop,
 }
 
 /// `drawseg_t` (r_defs.h:322-345).
@@ -51,7 +56,6 @@ pub(crate) struct DrawSeg {
     pub x1: i32,
     pub x2: i32,
     pub scale1: i32,
-    #[expect(dead_code, reason = "read by R_DrawSprite in step 2c")]
     pub scale2: i32,
     /// `scalestep`. For a single-column range the genuine field is not written
     /// (r_segs.c:443-446) and keeps an earlier value; every reader multiplies it by 0 there
@@ -626,6 +630,7 @@ impl FrameContext<'_> {
                 iscale = (0xffff_ffffu32 / self.segs.rw_scale as u32) as i32;
             }
             let texturecolumn = self.segs.texturecolumn;
+            let seg = self.bsp.curline as u32;
             let draw = |yl: i32, yh: i32, tex: usize, mid: i32| ColumnDraw {
                 x: rw_x,
                 yl,
@@ -635,7 +640,7 @@ impl FrameContext<'_> {
                 colormap,
                 source: res.get_column(tex, texturecolumn),
                 origin: tex as u32 + 1,
-                feature: Feature::Wall,
+                feature: Feature::Wall { seg },
             };
             // Draw the wall tiers (r_segs.c:280-358).
             if self.segs.midtexture != 0 {
@@ -761,18 +766,28 @@ impl FrameContext<'_> {
                     return Err(RenderRefusal::RangeCheck("dc_iscale division by zero"));
                 }
                 let iscale = (0xffff_ffffu32 / spryscale as u32) as i32;
+                // `R_GetColumn (texnum, col) - 3` (r_segs.c:181-182).
+                let (bytes, at) = match self.res.masked_posts(texnum, i32::from(col)) {
+                    MaskedPosts::Lump { bytes, at } => (bytes, at),
+                    MaskedPosts::Composite => return Err(RenderRefusal::MaskedCompositeColumn),
+                    MaskedPosts::Undefined => return Err(RenderRefusal::MaskedColumnUndefined),
+                };
                 self.draw_masked_column(&crate::r_things::MaskedColumn {
-                    tex: texnum,
-                    col: i32::from(col),
+                    bytes,
+                    at,
                     x: dc_x,
                     texturemid,
                     sprtopscreen,
                     spryscale,
                     iscale,
                     colormap,
+                    colfunc: crate::r_things::ColFunc::Base,
                     mfloorclip,
                     mceilingclip,
-                    feature: Feature::MaskedMid,
+                    origin: texnum as u32 + 1,
+                    feature: Feature::MaskedMid {
+                        seg: ds.curline as u32,
+                    },
                 })?;
                 self.write_opening(maskedtexturecol.wrapping_add(dc_x), MAXSHORT)?;
             }

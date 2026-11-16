@@ -1,6 +1,14 @@
 //! r_things.c: sprite definitions (`R_InitSprites`, `R_InitSpriteDefs`,
-//! `R_InstallSpriteLump`) and, from step 2c, vissprites, masked drawing and weapon sprites.
-use crate::r_data::{ResourceError, Resources, SpriteDef, SpriteFrame, name_text};
+//! `R_InstallSpriteLump`), vissprites (`R_AddSprites`, `R_ProjectSprite`, `R_NewVisSprite`,
+//! `R_SortVisSprites`), masked drawing (`R_DrawMasked`, `R_DrawSprite`, `R_DrawVisSprite`,
+//! `R_DrawMaskedColumn`) and the weapon sprites (`R_DrawPlayerSprites`, `R_DrawPSprite`).
+use crate::r_data::{
+    ResourceError, Resources, SpriteDef, SpriteFrame, name_text, patch_column_offset, patch_header,
+};
+use crate::r_main::{LIGHTLEVELS, LIGHTSCALESHIFT, MAXLIGHTSCALE, SCREENWIDTH};
+use crate::r_segs::{Clip, LIGHTSEGSHIFT, SIL_BOTTOM, SIL_TOP};
+use crate::{Feature, RenderRefusal};
+use doom_sim::PlayerSlot;
 use doom_sim::identity::OriginalSprite;
 
 /// `sprtemp` entry state (`spriteframe_t` after `memset(-1)`: `rotate` is -1).
@@ -157,17 +165,53 @@ fn install(
 pub const MAXVISSPRITES: usize = 128;
 /// `MINZ` (r_things.c:46).
 const MINZ: i32 = 4 << 16;
+/// `BASEYCENTER` (r_things.c:47).
+const BASEYCENTER: i32 = 100;
+/// `FF_FULLBRIGHT` (p_pspr.h:50).
+const FF_FULLBRIGHT: u32 = 0x8000;
 /// `FF_FRAMEMASK` (p_pspr.h:51).
 const FF_FRAMEMASK: u32 = 0x7fff;
+/// `MF_SHADOW` (p_mobj.h:167).
+const MF_SHADOW: u32 = 0x40000;
+/// `MF_TRANSLATION` (p_mobj.h:199).
+const MF_TRANSLATION: u32 = 0xc00_0000;
+/// `pw_invisibility` (doomdef.h:229-236: invulnerability, strength, invisibility, ...).
+const PW_INVISIBILITY: usize = 2;
 /// `ANG45` (tables.h:68).
 const ANG45: u32 = 0x2000_0000;
 
-/// The screen extent of a vissprite or weapon sprite (`vis->x1`, `vis->x2`). Step 2c adds the
-/// rest of `vissprite_t` and the drawing.
+/// `vissprite_t` (r_defs.h:375-409) without the sort links, plus the sprite and frame for
+/// first-difference reports.
 #[derive(Clone, Copy, Debug)]
 pub(crate) struct VisSprite {
     pub x1: i32,
     pub x2: i32,
+    pub gx: i32,
+    pub gy: i32,
+    pub gz: i32,
+    pub gzt: i32,
+    pub startfrac: i32,
+    pub scale: i32,
+    pub xiscale: i32,
+    pub texturemid: i32,
+    /// `patch`, relative to `firstspritelump`.
+    pub patch: i16,
+    /// `colormap` as a colour-map number; None is the NULL colormap (shadow draw).
+    pub colormap: Option<u8>,
+    pub mobjflags: u32,
+    sprite: u16,
+    frame: u16,
+}
+
+/// `colfunc` as `R_DrawVisSprite` selects it (r_things.c:410-422).
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(crate) enum ColFunc {
+    /// `basecolfunc` (`R_DrawColumn`).
+    Base,
+    /// `fuzzcolfunc` (`R_DrawFuzzColumn`).
+    Fuzz,
+    /// `R_DrawTranslatedColumn`: refused (player translation, decision R1).
+    Translated,
 }
 
 /// The r_things.c globals of one frame.
@@ -179,8 +223,11 @@ pub(crate) struct ThingState {
     pub vissprite_drop: bool,
     /// `sec->validcount == validcount` for this frame (r_things.c:622-626).
     added: Vec<bool>,
-    /// The weapon sprites' extents (`R_DrawPSprite`, r_things.c:676-698).
-    psprites: Vec<VisSprite>,
+    /// `spritelights` as a `scalelight` row (r_things.c:630-635, 757-762).
+    spritelights: usize,
+    /// `R_DrawSprite`'s locals `clipbot` and `cliptop` (r_things.c:845-846).
+    clipbot: [i16; SCREENWIDTH],
+    cliptop: [i16; SCREENWIDTH],
 }
 
 impl ThingState {
@@ -189,29 +236,19 @@ impl ThingState {
             vissprites: Vec::with_capacity(MAXVISSPRITES),
             vissprite_drop: false,
             added: vec![false; sectors],
-            psprites: Vec::new(),
+            spritelights: 0,
+            clipbot: [0; SCREENWIDTH],
+            cliptop: [0; SCREENWIDTH],
         }
-    }
-    /// The screen columns the frame's vissprites and weapon sprites span (step 2c draws them).
-    pub(crate) fn pending_columns(&self, view: &crate::r_main::ViewSize) -> Vec<u16> {
-        let mut cols = vec![false; crate::SCREENWIDTH];
-        for v in self.vissprites.iter().chain(&self.psprites) {
-            for x in v.x1..=v.x2 {
-                cols[(x + view.viewwindowx) as usize] = true;
-            }
-        }
-        (0..crate::SCREENWIDTH)
-            .filter(|x| cols[*x])
-            .map(|x| x as u16)
-            .collect()
     }
 }
 
 /// One `R_DrawMaskedColumn` call's inputs (the `dc_*` and sprite globals, r_things.c:345-349).
-pub(crate) struct MaskedColumn {
-    /// The texture (`R_GetColumn (texnum, col)`).
-    pub tex: usize,
-    pub col: i32,
+pub(crate) struct MaskedColumn<'r> {
+    /// The block holding the column's posts (a patch lump).
+    pub bytes: &'r [u8],
+    /// The offset of the first post header in `bytes`.
+    pub at: usize,
     /// `dc_x`.
     pub x: i32,
     /// `dc_texturemid` on entry.
@@ -220,50 +257,58 @@ pub(crate) struct MaskedColumn {
     pub spryscale: i32,
     /// `dc_iscale`.
     pub iscale: i32,
-    /// `dc_colormap`.
+    /// `dc_colormap` (unused by the fuzz drawer).
     pub colormap: u8,
-    pub mfloorclip: crate::r_segs::Clip,
-    pub mceilingclip: crate::r_segs::Clip,
-    pub feature: crate::Feature,
+    /// `colfunc`.
+    pub colfunc: ColFunc,
+    pub mfloorclip: Clip,
+    pub mceilingclip: Clip,
+    /// The taint origin of an undefined texel read (nonzero; decision R4).
+    pub origin: u32,
+    /// The stage, for first-difference reports.
+    pub feature: Feature,
+}
+
+/// The `scalelight` row of a sector light plus `extralight`, clamped (r_things.c:628-635,
+/// 753-762).
+fn light_row(lightlevel: i32, extralight: i32) -> usize {
+    ((lightlevel >> LIGHTSEGSHIFT) + extralight).clamp(0, LIGHTLEVELS as i32 - 1) as usize
 }
 
 impl crate::FrameContext<'_> {
-    /// A clip array entry `clip[x]` (`screenheightarray`, `negonearray` or openings).
-    fn clip_at(&self, clip: crate::r_segs::Clip, x: i32) -> Result<i32, crate::RenderRefusal> {
-        use crate::r_segs::Clip;
+    /// A clip array entry `clip[x]` (`screenheightarray`, `negonearray`, openings, or
+    /// `R_DrawSprite`'s `clipbot`/`cliptop`).
+    pub(crate) fn clip_at(&self, clip: Clip, x: i32) -> Result<i32, RenderRefusal> {
+        let local = |a: &[i16; SCREENWIDTH]| {
+            usize::try_from(x)
+                .ok()
+                .and_then(|i| a.get(i))
+                .map(|v| i32::from(*v))
+                .ok_or(RenderRefusal::RangeCheck("R_DrawSprite clip array"))
+        };
         match clip {
             Clip::ScreenHeight => Ok(self.view.viewheight),
             Clip::NegOne => Ok(-1),
             Clip::Openings(base) => self.read_opening(base.wrapping_add(x)).map(i32::from),
-            Clip::None => Err(crate::RenderRefusal::RangeCheck("NULL clip array")),
+            Clip::SpriteBottom => local(&self.things.clipbot),
+            Clip::SpriteTop => local(&self.things.cliptop),
+            Clip::None => Err(RenderRefusal::RangeCheck("NULL clip array")),
         }
     }
 
-    /// `R_DrawMaskedColumn` (r_things.c:351-388) for a masked midtexture column: every post of
-    /// the patch column, clipped to `mceilingclip`/`mfloorclip`, through `R_DrawColumn`.
-    pub(crate) fn draw_masked_column(
-        &mut self,
-        m: &MaskedColumn,
-    ) -> Result<(), crate::RenderRefusal> {
-        use crate::r_data::MaskedPosts;
-        let res = self.res;
-        let (bytes, mut at) = match res.masked_posts(m.tex, m.col) {
-            MaskedPosts::Lump { bytes, at } => (bytes, at),
-            MaskedPosts::Composite => return Err(crate::RenderRefusal::MaskedCompositeColumn),
-            MaskedPosts::Undefined => return Err(crate::RenderRefusal::MaskedColumnUndefined),
-        };
-        let floor = self.clip_at(m.mfloorclip, m.x)?;
-        let ceiling = self.clip_at(m.mceilingclip, m.x)?;
+    /// `R_DrawMaskedColumn` (r_things.c:351-388): every post of the column, clipped to
+    /// `mceilingclip[dc_x]`/`mfloorclip[dc_x]`, through `colfunc`.
+    pub(crate) fn draw_masked_column(&mut self, m: &MaskedColumn<'_>) -> Result<(), RenderRefusal> {
+        let bytes = m.bytes;
+        let mut at = m.at;
         loop {
-            let topdelta = *bytes
-                .get(at)
-                .ok_or(crate::RenderRefusal::MaskedColumnUndefined)?;
+            let topdelta = *bytes.get(at).ok_or(RenderRefusal::MaskedColumnUndefined)?;
             if topdelta == 0xff {
                 break;
             }
             let length = *bytes
                 .get(at + 1)
-                .ok_or(crate::RenderRefusal::MaskedColumnUndefined)?;
+                .ok_or(RenderRefusal::MaskedColumnUndefined)?;
             // Unclipped screen coordinates of the post (r_things.c:363-367).
             let topscreen = m
                 .sprtopscreen
@@ -271,99 +316,112 @@ impl crate::FrameContext<'_> {
             let bottomscreen = topscreen.wrapping_add(m.spryscale.wrapping_mul(i32::from(length)));
             let mut yl = topscreen.wrapping_add((1 << 16) - 1) >> 16;
             let mut yh = bottomscreen.wrapping_sub(1) >> 16;
+            // r_things.c:369-372
+            let floor = self.clip_at(m.mfloorclip, m.x)?;
             if yh >= floor {
                 yh = floor - 1;
             }
+            let ceiling = self.clip_at(m.mceilingclip, m.x)?;
             if yl <= ceiling {
                 yl = ceiling + 1;
             }
             if yl <= yh {
-                self.draw_column(&crate::r_draw::ColumnDraw {
-                    x: m.x,
-                    yl,
-                    yh,
-                    iscale: m.iscale,
-                    texturemid: m.texturemid.wrapping_sub(i32::from(topdelta) << 16),
-                    colormap: m.colormap,
-                    source: Resources::lump_source(bytes, at + 3),
-                    origin: m.tex as u32 + 1,
-                    feature: m.feature,
-                })?;
+                match m.colfunc {
+                    ColFunc::Base => self.draw_column(&crate::r_draw::ColumnDraw {
+                        x: m.x,
+                        yl,
+                        yh,
+                        iscale: m.iscale,
+                        texturemid: m.texturemid.wrapping_sub(i32::from(topdelta) << 16),
+                        colormap: m.colormap,
+                        source: Resources::lump_source(bytes, at + 3),
+                        origin: m.origin,
+                        feature: m.feature,
+                    })?,
+                    ColFunc::Fuzz => self.draw_fuzz_column(m.x, yl, yh, m.feature)?,
+                    // The genuine runner aborts at the call (decision R1).
+                    ColFunc::Translated => return Err(RenderRefusal::PlayerTranslation),
+                }
             }
             at += usize::from(length) + 4;
         }
         Ok(())
     }
 
-    /// `R_AddSprites` (r_things.c:613-640) with `R_ProjectSprite` (r_things.c:452-604) up to
-    /// the vissprite's extent; the light and drawing fields are step 2c.
-    pub(crate) fn add_sprites(&mut self, sector: usize) -> Result<(), crate::RenderRefusal> {
+    /// `R_AddSprites` (r_things.c:613-640): each sector's things once per frame, on the first
+    /// of its subsectors the BSP traversal reaches, in thinglist order (most recently linked
+    /// first, `P_SetThingPosition` p_maputl.c:414-420).
+    pub(crate) fn add_sprites(&mut self, sector: usize) -> Result<(), RenderRefusal> {
         if self.things.added[sector] {
             return Ok(());
         }
         self.things.added[sector] = true;
+        self.things.spritelights =
+            light_row(self.sectors[sector].lightlevel, self.frame.extralight);
         let sim = self.sim;
-        let order = sim.sector_actor_order(sector as u16).map_err(|e| {
-            crate::RenderRefusal::Snapshot(format!("sector {sector} things: {e:?}"))
-        })?;
+        let order = sim
+            .sector_actor_order(sector as u16)
+            .map_err(|e| RenderRefusal::Snapshot(format!("sector {sector} things: {e:?}")))?;
         for id in order {
             let actor = sim
                 .actor(id)
-                .ok_or_else(|| crate::RenderRefusal::Snapshot("sector thing".into()))?;
+                .ok_or_else(|| RenderRefusal::Snapshot("sector thing".into()))?;
             let life = actor
                 .life()
-                .ok_or_else(|| crate::RenderRefusal::Snapshot("thing without a state".into()))?;
+                .ok_or_else(|| RenderRefusal::Snapshot("thing without a state".into()))?;
             let [x, y] = actor.position().map(|f| f.bits());
-            self.project_sprite(x, y, actor.angle(), life.sprite, life.frame)?;
+            self.project_sprite(&Thing {
+                x,
+                y,
+                z: actor.z().bits(),
+                angle: actor.angle(),
+                sprite: life.sprite,
+                frame: life.frame,
+                flags: life.flags,
+            })?;
         }
         Ok(())
     }
 
     /// The sprite frame `sprites[sprite].spriteframes[frame & FF_FRAMEMASK]` with the RANGECHECK
     /// of r_things.c:506-516 (and 659-669 for weapon sprites).
-    fn sprite_frame(&self, sprite: u16, frame: u32) -> Result<SpriteFrame, crate::RenderRefusal> {
-        let def =
-            self.res
-                .sprites
-                .get(usize::from(sprite))
-                .ok_or(crate::RenderRefusal::RangeCheck(
-                    "R_ProjectSprite: invalid sprite number",
-                ))?;
+    fn sprite_frame(&self, sprite: u16, frame: u32) -> Result<SpriteFrame, RenderRefusal> {
+        let def = self
+            .res
+            .sprites
+            .get(usize::from(sprite))
+            .ok_or(RenderRefusal::RangeCheck(
+                "R_ProjectSprite: invalid sprite number",
+            ))?;
         def.frames
             .get((frame & FF_FRAMEMASK) as usize)
             .copied()
-            .ok_or(crate::RenderRefusal::RangeCheck(
+            .ok_or(RenderRefusal::RangeCheck(
                 "R_ProjectSprite: invalid sprite frame",
             ))
     }
 
-    /// `spritewidth`, `spriteoffset` of sprite lump `lump` (relative to `firstspritelump`).
-    fn sprite_lump(&self, lump: i16) -> Result<[i32; 3], crate::RenderRefusal> {
+    /// `spritewidth`, `spriteoffset`, `spritetopoffset` of sprite lump `lump` (relative to
+    /// `firstspritelump`).
+    fn sprite_lump(&self, lump: i16) -> Result<[i32; 3], RenderRefusal> {
         usize::try_from(lump)
             .ok()
             .and_then(|l| self.res.sprite_lumps.get(l))
             .copied()
-            .ok_or(crate::RenderRefusal::RangeCheck("sprite lump"))
+            .ok_or(RenderRefusal::RangeCheck("sprite lump"))
     }
 
-    /// `R_ProjectSprite` (r_things.c:452-604) through `R_NewVisSprite` (r_things.c:326-335).
-    fn project_sprite(
-        &mut self,
-        x: i32,
-        y: i32,
-        angle: u32,
-        sprite: u16,
-        frame: u32,
-    ) -> Result<(), crate::RenderRefusal> {
+    /// `R_ProjectSprite` (r_things.c:452-604) with `R_NewVisSprite` (r_things.c:326-335).
+    fn project_sprite(&mut self, thing: &Thing) -> Result<(), RenderRefusal> {
         use crate::r_main::{fixed_div, fixed_mul, point_to_angle};
         let f = self.frame;
-        // Transform the origin point (r_things.c:484-488).
-        let tr_x = x.wrapping_sub(f.viewx);
-        let tr_y = y.wrapping_sub(f.viewy);
+        // Transform the origin point (r_things.c:483-489).
+        let tr_x = thing.x.wrapping_sub(f.viewx);
+        let tr_y = thing.y.wrapping_sub(f.viewy);
         let gxt = fixed_mul(tr_x, f.viewcos);
         let gyt = fixed_mul(tr_y, f.viewsin).wrapping_neg();
         let tz = gxt.wrapping_sub(gyt);
-        // Thing is behind view plane? (r_things.c:491-493)
+        // Thing is behind view plane? (r_things.c:492-493)
         if tz < MINZ {
             return Ok(());
         }
@@ -371,24 +429,24 @@ impl crate::FrameContext<'_> {
         let gxt = fixed_mul(tr_x, f.viewsin).wrapping_neg();
         let gyt = fixed_mul(tr_y, f.viewcos);
         let mut tx = gyt.wrapping_add(gxt).wrapping_neg();
-        // Too far off the side? (r_things.c:500-502)
+        // Too far off the side? (r_things.c:502-503; `tz<<2` wraps as in the strict build)
         if tx.wrapping_abs() > tz.wrapping_shl(2) {
             return Ok(());
         }
-        let sprframe = self.sprite_frame(sprite, frame)?;
-        let lump = if sprframe.rotate {
+        let sprframe = self.sprite_frame(thing.sprite, thing.frame)?;
+        let (lump, flip) = if sprframe.rotate {
             // Choose a rotation based on the player view (r_things.c:519-526).
-            let ang = point_to_angle(x, y, f.viewx, f.viewy);
+            let ang = point_to_angle(thing.x, thing.y, f.viewx, f.viewy);
             let rot = (ang
-                .wrapping_sub(angle)
+                .wrapping_sub(thing.angle)
                 .wrapping_add((ANG45 / 2).wrapping_mul(9))
                 >> 29) as usize;
-            sprframe.lump[rot]
+            (sprframe.lump[rot], sprframe.flip[rot])
         } else {
-            sprframe.lump[0]
+            (sprframe.lump[0], sprframe.flip[0])
         };
-        let [width, offset, _top] = self.sprite_lump(lump)?;
-        // Edges of the shape (r_things.c:535-548).
+        let [width, offset, topoffset] = self.sprite_lump(lump)?;
+        // Edges of the shape (r_things.c:535-547).
         tx = tx.wrapping_sub(offset);
         let x1 = self.view.centerxfrac.wrapping_add(fixed_mul(tx, xscale)) >> 16;
         if x1 > self.view.viewwidth {
@@ -399,39 +457,273 @@ impl crate::FrameContext<'_> {
         if x2 < 0 {
             return Ok(());
         }
-        // `iscale = FixedDiv (FRACUNIT, xscale)` (r_things.c:561) can refuse.
-        fixed_div(1 << 16, xscale)?;
-        // R_NewVisSprite: the 129th and later write `overflowsprite` (r_things.c:330-331).
-        if self.things.vissprites.len() == MAXVISSPRITES {
+        // R_NewVisSprite: the 129th and later write `overflowsprite`, which is never sorted
+        // or drawn (r_things.c:330-331; a silent drop, decision R3).
+        let full = self.things.vissprites.len() == MAXVISSPRITES;
+        let gzt = thing.z.wrapping_add(topoffset);
+        let vx1 = x1.max(0);
+        let iscale = fixed_div(1 << 16, xscale)?;
+        let (mut startfrac, xiscale) = if flip {
+            (width - 1, iscale.wrapping_neg())
+        } else {
+            (0, iscale)
+        };
+        if vx1 > x1 {
+            startfrac = startfrac.wrapping_add(xiscale.wrapping_mul(vx1 - x1));
+        }
+        // Light level (r_things.c:578-603), first match wins.
+        let colormap = if thing.flags & MF_SHADOW != 0 {
+            None
+        } else if f.fixedcolormap != 0 {
+            Some(f.fixedcolormap as u8)
+        } else if thing.frame & FF_FULLBRIGHT != 0 {
+            Some(0)
+        } else {
+            let index = xscale >> (LIGHTSCALESHIFT - self.view.detailshift);
+            let index = usize::try_from(index)
+                .map_err(|_| RenderRefusal::TableRead("spritelights (negative index)"))?
+                .min(MAXLIGHTSCALE - 1);
+            Some(self.view.scalelight[self.things.spritelights][index])
+        };
+        if full {
             self.things.vissprite_drop = true;
             return Ok(());
         }
         self.things.vissprites.push(VisSprite {
-            x1: x1.max(0),
+            x1: vx1,
             x2: x2.min(self.view.viewwidth - 1),
+            gx: thing.x,
+            gy: thing.y,
+            gz: thing.z,
+            gzt,
+            startfrac,
+            scale: xscale << self.view.detailshift,
+            xiscale,
+            texturemid: gzt.wrapping_sub(f.viewz),
+            patch: lump,
+            colormap,
+            mobjflags: thing.flags,
+            sprite: thing.sprite,
+            frame: (thing.frame & FF_FRAMEMASK) as u16,
         });
         Ok(())
     }
 
-    /// The extent of each weapon sprite `R_DrawPlayerSprites` would draw (r_things.c:744-776,
-    /// `R_DrawPSprite` r_things.c:643-698): psprites with a state, weapon then flash.
-    fn project_psprites(
+    /// `R_SortVisSprites` (r_things.c:784-835): `count` passes, each taking the first
+    /// remaining vissprite (in `vissprites[]` order) whose scale is strictly below the best so
+    /// far and appending it at the tail of the sorted list. Returns the `vissprites[]` indices
+    /// far to near; equal scales keep projection order.
+    fn sort_vis_sprites(&self) -> Result<Vec<usize>, RenderRefusal> {
+        let count = self.things.vissprites.len();
+        let mut unsorted: Vec<usize> = (0..count).collect();
+        let mut sorted = Vec::with_capacity(count);
+        for _ in 0..count {
+            let mut bestscale = i32::MAX;
+            let mut best = None;
+            for (pos, &ds) in unsorted.iter().enumerate() {
+                if self.things.vissprites[ds].scale < bestscale {
+                    bestscale = self.things.vissprites[ds].scale;
+                    best = Some(pos);
+                }
+            }
+            // No scale below MAXINT: the genuine `best` is uninitialised or stale
+            // (r_things.c:815) and the list is corrupted.
+            let pos = best.ok_or(RenderRefusal::StaleGlobal("R_SortVisSprites best"))?;
+            sorted.push(unsorted.remove(pos));
+        }
+        Ok(sorted)
+    }
+
+    /// `R_DrawSprite` (r_things.c:842-950) for `vissprites[v]`: clip against every drawseg
+    /// from the last emitted backwards, drawing the masked midtextures of segs behind the
+    /// sprite first, then `R_DrawVisSprite`.
+    fn draw_sprite(&mut self, v: usize) -> Result<(), RenderRefusal> {
+        use crate::r_main::point_on_side;
+        let spr = self.things.vissprites[v];
+        for x in spr.x1..=spr.x2 {
+            self.things.clipbot[x as usize] = -2;
+            self.things.cliptop[x as usize] = -2;
+        }
+        // Scan drawsegs from end to start for obscuring segs (r_things.c:860-933).
+        for i in (0..self.bsp.drawsegs.len()).rev() {
+            let ds = self.bsp.drawsegs[i];
+            if ds.x1 > spr.x2
+                || ds.x2 < spr.x1
+                || (ds.silhouette == 0 && ds.maskedtexturecol.is_none())
+            {
+                continue;
+            }
+            let r1 = if ds.x1 < spr.x1 { spr.x1 } else { ds.x1 };
+            let r2 = if ds.x2 > spr.x2 { spr.x2 } else { ds.x2 };
+            let (lowscale, scale) = if ds.scale1 > ds.scale2 {
+                (ds.scale2, ds.scale1)
+            } else {
+                (ds.scale1, ds.scale2)
+            };
+            let behind = scale < spr.scale
+                || (lowscale < spr.scale && {
+                    // R_PointOnSegSide (r_main.c:217-273) is R_PointOnSide on the seg.
+                    let seg = &self.level.geometry.segs[ds.curline];
+                    let node = [
+                        seg.v1[0],
+                        seg.v1[1],
+                        seg.v2[0].wrapping_sub(seg.v1[0]),
+                        seg.v2[1].wrapping_sub(seg.v1[1]),
+                    ];
+                    point_on_side(spr.gx, spr.gy, node) == 0
+                });
+            if behind {
+                // Masked mid texture of a seg behind the sprite (r_things.c:891-893).
+                if ds.maskedtexturecol.is_some() {
+                    self.render_masked_seg_range(i, r1, r2)?;
+                }
+                continue;
+            }
+            // Clip this piece of the sprite (r_things.c:898-931).
+            let mut silhouette = ds.silhouette;
+            if spr.gz >= ds.bsilheight {
+                silhouette &= !SIL_BOTTOM;
+            }
+            if spr.gzt <= ds.tsilheight {
+                silhouette &= !SIL_TOP;
+            }
+            let bottom = silhouette == 1 || silhouette == 3;
+            let top = silhouette == 2 || silhouette == 3;
+            for x in r1..=r2 {
+                if bottom && self.things.clipbot[x as usize] == -2 {
+                    self.things.clipbot[x as usize] = self.clip_at(ds.sprbottomclip, x)? as i16;
+                }
+                if top && self.things.cliptop[x as usize] == -2 {
+                    self.things.cliptop[x as usize] = self.clip_at(ds.sprtopclip, x)? as i16;
+                }
+            }
+        }
+        // Unclipped columns (r_things.c:938-945).
+        for x in spr.x1..=spr.x2 {
+            let x = x as usize;
+            if self.things.clipbot[x] == -2 {
+                self.things.clipbot[x] = self.view.viewheight as i16;
+            }
+            if self.things.cliptop[x] == -2 {
+                self.things.cliptop[x] = -1;
+            }
+        }
+        let feature = if spr.colormap.is_none() {
+            Feature::Fuzz {
+                psprite: false,
+                vissprite: v as u16,
+            }
+        } else {
+            Feature::Sprite {
+                vissprite: v as u16,
+                sprite: spr.sprite,
+                frame: spr.frame,
+            }
+        };
+        self.draw_vis_sprite(&spr, Clip::SpriteBottom, Clip::SpriteTop, feature)
+    }
+
+    /// `R_DrawVisSprite (vis, vis->x1, vis->x2)` (r_things.c:396-443) with `mfloorclip` and
+    /// `mceilingclip` set by the caller.
+    fn draw_vis_sprite(
+        &mut self,
+        vis: &VisSprite,
+        mfloorclip: Clip,
+        mceilingclip: Clip,
+        feature: Feature,
+    ) -> Result<(), RenderRefusal> {
+        use crate::r_main::fixed_mul;
+        let res = self.res;
+        let lump = res.firstspritelump + vis.patch as usize;
+        let patch = res.lump(lump);
+        let width = patch_header(patch)
+            .ok_or(RenderRefusal::RangeCheck("sprite patch header"))?
+            .width;
+        let colfunc = match vis.colormap {
+            None => ColFunc::Fuzz,
+            Some(_) if vis.mobjflags & MF_TRANSLATION != 0 => ColFunc::Translated,
+            Some(_) => ColFunc::Base,
+        };
+        let iscale = vis.xiscale.wrapping_abs() >> self.view.detailshift;
+        let texturemid = vis.texturemid;
+        let mut frac = vis.startfrac;
+        let spryscale = vis.scale;
+        let sprtopscreen = self
+            .view
+            .centeryfrac
+            .wrapping_sub(fixed_mul(texturemid, spryscale));
+        for x in vis.x1..=vis.x2 {
+            let texturecolumn = frac >> 16;
+            // RANGECHECK (r_things.c:432-436).
+            if texturecolumn < 0 || texturecolumn >= i32::from(width) {
+                return Err(RenderRefusal::RangeCheck(
+                    "R_DrawSpriteRange: bad texturecolumn",
+                ));
+            }
+            let at = patch_column_offset(patch, texturecolumn)
+                .and_then(|o| usize::try_from(o).ok())
+                .ok_or(RenderRefusal::MaskedColumnUndefined)?;
+            self.draw_masked_column(&MaskedColumn {
+                bytes: patch,
+                at,
+                x,
+                texturemid,
+                sprtopscreen,
+                spryscale,
+                iscale,
+                colormap: vis.colormap.unwrap_or(0),
+                colfunc,
+                mfloorclip,
+                mceilingclip,
+                origin: lump as u32 | 0x4000_0000,
+                feature,
+            })?;
+            frac = frac.wrapping_add(vis.xiscale);
+        }
+        Ok(())
+    }
+
+    /// `R_DrawPlayerSprites` (r_things.c:744-776) with `R_DrawPSprite` (r_things.c:643-739):
+    /// the weapon, then the flash, each with a state.
+    fn draw_player_sprites(
         &mut self,
         weapons: &doom_sim::PlayerWeaponState,
-    ) -> Result<(), crate::RenderRefusal> {
+    ) -> Result<(), RenderRefusal> {
         use crate::r_main::fixed_mul;
-        let registry = self
-            .sim
+        let sim = self.sim;
+        let player = sim
+            .original_player(PlayerSlot::One)
+            .map_err(|_| RenderRefusal::NoPlayer)?;
+        let mo = player
+            .mo
+            .and_then(|id| sim.actor(id))
+            .ok_or(RenderRefusal::NoPlayer)?;
+        let sector = usize::from(mo.location().ok_or(RenderRefusal::NoPlayer)?.sector);
+        let lightlevel = self
+            .sectors
+            .get(sector)
+            .ok_or(RenderRefusal::NoPlayer)?
+            .lightlevel;
+        // Light level (r_things.c:753-762).
+        self.things.spritelights = light_row(lightlevel, self.frame.extralight);
+        let invisibility = sim
+            .original_player_powers(PlayerSlot::One)
+            .map(|p| p.powers[PW_INVISIBILITY])
+            .unwrap_or(0);
+        let registry = sim
             .actor_registry()
-            .ok_or_else(|| crate::RenderRefusal::Snapshot("actor registry".into()))?;
-        for psp in &weapons.psprites {
+            .ok_or_else(|| RenderRefusal::Snapshot("actor registry".into()))?;
+        for (i, psp) in weapons.psprites.iter().enumerate() {
             let Some(state) = psp.state else { continue };
             let def = registry
                 .state(state)
-                .ok_or_else(|| crate::RenderRefusal::Snapshot("psprite state".into()))?;
+                .ok_or_else(|| RenderRefusal::Snapshot("psprite state".into()))?;
             let sprframe = self.sprite_frame(def.sprite, def.frame)?;
-            let [width, offset, _top] = self.sprite_lump(sprframe.lump[0])?;
-            let mut tx = psp.position[0].bits().wrapping_sub(160 << 16);
+            let (lump, flip) = (sprframe.lump[0], sprframe.flip[0]);
+            let [width, offset, topoffset] = self.sprite_lump(lump)?;
+            // Calculate edges of the shape (r_things.c:676-690).
+            let [sx, sy] = psp.position.map(|p| p.bits());
+            let mut tx = sx.wrapping_sub(160 << 16);
             tx = tx.wrapping_sub(offset);
             let x1 = self
                 .view
@@ -451,27 +743,89 @@ impl crate::FrameContext<'_> {
             if x2 < 0 {
                 continue;
             }
-            self.things.psprites.push(VisSprite {
-                x1: x1.max(0),
+            // The local `avis` (r_things.c:693-714).
+            let vx1 = x1.max(0);
+            let (mut startfrac, xiscale) = if flip {
+                (width - 1, self.view.pspriteiscale.wrapping_neg())
+            } else {
+                (0, self.view.pspriteiscale)
+            };
+            if vx1 > x1 {
+                startfrac = startfrac.wrapping_add(xiscale.wrapping_mul(vx1 - x1));
+            }
+            // r_things.c:716-736, first match wins.
+            let colormap = if invisibility > 4 * 32 || invisibility & 8 != 0 {
+                None
+            } else if self.frame.fixedcolormap != 0 {
+                Some(self.frame.fixedcolormap as u8)
+            } else if def.frame & FF_FULLBRIGHT != 0 {
+                Some(0)
+            } else {
+                Some(self.view.scalelight[self.things.spritelights][MAXLIGHTSCALE - 1])
+            };
+            let vis = VisSprite {
+                x1: vx1,
                 x2: x2.min(self.view.viewwidth - 1),
-            });
+                gx: 0,
+                gy: 0,
+                gz: 0,
+                gzt: 0,
+                startfrac,
+                scale: self.view.pspritescale << self.view.detailshift,
+                xiscale,
+                texturemid: ((BASEYCENTER << 16) + (1 << 15))
+                    .wrapping_sub(sy.wrapping_sub(topoffset)),
+                patch: lump,
+                colormap,
+                mobjflags: 0,
+                sprite: def.sprite,
+                frame: (def.frame & FF_FRAMEMASK) as u16,
+            };
+            let feature = if colormap.is_none() {
+                Feature::Fuzz {
+                    psprite: true,
+                    vissprite: i as u16,
+                }
+            } else {
+                Feature::PSprite {
+                    psprite: i as u8,
+                    sprite: vis.sprite,
+                    frame: vis.frame,
+                }
+            };
+            // mfloorclip = screenheightarray, mceilingclip = negonearray (r_things.c:765-766).
+            self.draw_vis_sprite(&vis, Clip::ScreenHeight, Clip::NegOne, feature)?;
         }
         Ok(())
     }
 
-    /// `R_DrawMasked` (r_things.c:958-987): the vissprites back to front (step 2c), every
-    /// remaining masked midtexture from the last drawseg down, then the weapon sprites (step
-    /// 2c; only their extents are computed here).
+    /// `R_DrawMasked` (r_things.c:958-987): the vissprites back to front, every remaining
+    /// masked midtexture from the last drawseg down, then the weapon sprites
+    /// (`viewangleoffset` is always 0, investigation §2.1.3).
     pub(crate) fn draw_masked(
         &mut self,
         weapons: &doom_sim::PlayerWeaponState,
-    ) -> Result<(), crate::RenderRefusal> {
+    ) -> Result<(), RenderRefusal> {
+        for v in self.sort_vis_sprites()? {
+            self.draw_sprite(v)?;
+        }
         for i in (0..self.bsp.drawsegs.len()).rev() {
             let ds = self.bsp.drawsegs[i];
             if ds.maskedtexturecol.is_some() {
                 self.render_masked_seg_range(i, ds.x1, ds.x2)?;
             }
         }
-        self.project_psprites(weapons)
+        self.draw_player_sprites(weapons)
     }
+}
+
+/// What `R_ProjectSprite` reads of a thing (r_things.c:483-603).
+struct Thing {
+    x: i32,
+    y: i32,
+    z: i32,
+    angle: u32,
+    sprite: u16,
+    frame: u32,
+    flags: u32,
 }

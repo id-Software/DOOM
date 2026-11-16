@@ -1,5 +1,5 @@
-//! Shared support for the M5a renderer tests and the comparison example: the 42 items (the
-//! 20 M5a rooms and the 22 M4b synthetic scripts), the genuine global lump list of each run
+//! Shared support for the M5a renderer tests and the comparison example: the 45 items (the
+//! 23 M5a rooms and the 22 M4b synthetic scripts), the genuine global lump list of each run
 //! (map WAD, `m5a_gfx.wad`, the demo as a single lump: the M5a runner's `--wad` order,
 //! `tools/reference/m5a_reference.py` `run`), the simulation set-up of the existing M4b script
 //! runner (`crates/doom-sim/tests/episode1v2_mechanism_goldens.rs`), and readers of the
@@ -395,10 +395,8 @@ pub struct Counts {
     pub refused: usize,
     /// Genuine frames after the Rust run ended (simulation refusal or demo end).
     pub not_reached: usize,
-    /// Rendered frames whose counters or newly mapped lines differ from the F row.
+    /// Rendered frames whose counters, `fuzzpos` or newly mapped lines differ from the F row.
     pub counter_mismatches: usize,
-    /// Rendered frames with columns pending step 2c (sprites, weapon sprites).
-    pub pending_frames: usize,
     /// The genuine run's end after its last frame, when it ends at a renderer limit: the tic
     /// after the last F row, the genuine ending (`m5a_results.json`) and the Rust result there.
     pub end: Option<(i64, String, Result<(), doom_render::RenderRefusal>)>,
@@ -541,10 +539,12 @@ pub fn harness(
                 }
             }
             if let Ok(report) = &result {
-                if report.counters != row.counters || report.newly_mapped != row.mapped {
+                if report.counters != row.counters
+                    || report.fuzzpos != row.fuzzpos
+                    || report.newly_mapped != row.mapped
+                {
                     c.counter_mismatches += 1;
                 }
-                c.pending_frames += usize::from(!report.pending_columns.is_empty());
             }
             seen(&Seen {
                 item,

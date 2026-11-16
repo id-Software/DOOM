@@ -13,9 +13,10 @@
 //! configuration, call [`Renderer::begin_level`] at tic 0, then after every committed
 //! `Simulation::advance` call [`Renderer::observe`] and [`Renderer::render`].
 //!
-//! Status (M5a step 2b): the world is drawn (BSP, solid and two-sided walls, visplanes, sky,
-//! lighting, masked midtextures). Sprites, weapon sprites and fuzz are step 2c: their screen
-//! columns are reported in [`FrameReport::pending_columns`] and left undrawn.
+//! Status (M5a step 2c): the whole of `R_RenderPlayerView` at high detail is drawn (BSP,
+//! solid and two-sided walls, visplanes, sky, lighting and fixed colour maps, masked
+//! midtextures, sprites with drawseg clipping, weapon sprites and fuzz); low detail and
+//! player colour translation are refused (decisions R1, R2).
 use std::fmt;
 use std::sync::Arc;
 
@@ -75,8 +76,9 @@ impl std::error::Error for ConfigError {}
 /// A refused frame. The render state is unchanged by a refused frame.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum RenderRefusal {
-    /// A renderer stage not implemented yet; never a silent no-op.
-    NotImplemented(&'static str),
+    /// `R_DrawTranslatedColumn` reached: player colour translation (`MF_TRANSLATION`,
+    /// r_things.c:417-422) belongs to players 2-4 only and is refused (decision R1).
+    PlayerTranslation,
     /// `FixedDiv2`'s `I_Error` (m_fixed.c:83-84).
     FixedDiv,
     /// The renderer has not observed the simulation's current tic.
@@ -176,13 +178,10 @@ pub struct FrameReport {
     pub switch_parity_unknown: bool,
     /// Lines newly marked mapped by this frame (`ML_MAPPED`, decision R5), ascending.
     pub newly_mapped: Vec<u16>,
-    /// `fuzzpos` after the frame.
+    /// `fuzzpos` after the frame (r_draw.c:274, 361-362).
     pub fuzzpos: u32,
     /// The frame's renderer counters, as the genuine runner reports them per frame.
     pub counters: FrameCounters,
-    /// Screen columns a vissprite (`R_ProjectSprite`) or weapon sprite (`R_DrawPSprite`) spans:
-    /// sprite drawing is step 2c, so these columns are not drawn by this renderer yet.
-    pub pending_columns: Vec<u16>,
 }
 
 /// The per-frame counters of the genuine M5a runner's F rows (`tools/reference/m5a_driver.c`).
@@ -206,27 +205,61 @@ pub struct FrameCounters {
     pub vissprite_drop: bool,
 }
 
-/// The renderer stage that wrote a framebuffer pixel in the last frame (first-difference
-/// reporting only; never part of the comparison or the render state).
+/// The renderer stage, and the object of that stage, that wrote a framebuffer pixel in the
+/// last frame (first-difference reporting only; never part of the comparison or the render
+/// state).
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
 pub enum Feature {
     /// Not written by the last frame (the persistent framebuffer's earlier contents).
     #[default]
     Untouched,
-    /// A solid or two-sided wall column (r_segs.c).
-    Wall,
-    /// A floor or ceiling span (r_plane.c).
-    Plane,
-    /// A sky column (r_plane.c).
-    Sky,
-    /// A masked midtexture column (r_segs.c `R_RenderMaskedSegRange`).
-    MaskedMid,
-    /// A sprite column (r_things.c).
-    Sprite,
-    /// A weapon sprite column (r_things.c `R_DrawPSprite`).
-    PSprite,
-    /// A fuzz column (r_draw.c `R_DrawFuzzColumn`).
-    Fuzz,
+    /// A solid or two-sided wall column (r_segs.c `R_RenderSegLoop`) of seg `seg`.
+    Wall {
+        /// The seg (`segs[]` index).
+        seg: u32,
+    },
+    /// A floor or ceiling span (r_plane.c `R_MapPlane`) of visplane `visplane`.
+    Plane {
+        /// The visplane (`visplanes[]` index in the frame).
+        visplane: u16,
+    },
+    /// A sky column (r_plane.c `R_DrawPlanes`) of visplane `visplane`.
+    Sky {
+        /// The visplane.
+        visplane: u16,
+    },
+    /// A masked midtexture column (r_segs.c `R_RenderMaskedSegRange`) of seg `seg`.
+    MaskedMid {
+        /// The seg.
+        seg: u32,
+    },
+    /// A sprite column (r_things.c `R_DrawVisSprite` from `R_DrawSprite`).
+    Sprite {
+        /// The vissprite (`vissprites[]` index: projection order).
+        vissprite: u16,
+        /// Its sprite number (`sprnames` order).
+        sprite: u16,
+        /// Its frame (`frame & FF_FRAMEMASK`).
+        frame: u16,
+    },
+    /// A weapon sprite column (r_things.c `R_DrawPSprite`): 0 weapon, 1 flash.
+    PSprite {
+        /// `psprites[]` index.
+        psprite: u8,
+        /// Its sprite number.
+        sprite: u16,
+        /// Its frame.
+        frame: u16,
+    },
+    /// A fuzz column (r_draw.c `R_DrawFuzzColumn`) of a shadow sprite (`psprite` false:
+    /// `vissprite` is the `vissprites[]` index) or of the weapon sprites (`psprite` true:
+    /// `vissprite` is the `psprites[]` index).
+    Fuzz {
+        /// Whether it is a weapon sprite.
+        psprite: bool,
+        /// The vissprite or psprite index.
+        vissprite: u16,
+    },
 }
 
 /// The map-derived tables the renderer reads (`P_LoadSideDefs`, `P_LoadSectors`).
@@ -326,6 +359,8 @@ pub(crate) struct FrameContext<'a> {
     /// The mapped-line set (`ML_MAPPED`, decision R5), updated in place.
     pub mapped: &'a mut [bool],
     pub newly_mapped: Vec<u16>,
+    /// `fuzzpos` (r_draw.c:274), carried from frame to frame (decision R8).
+    pub fuzzpos: usize,
     pub sectors: Vec<SectorView>,
     /// Per sidedef `[top, mid, bottom]` after the tracked switch changes.
     pub sides: Vec<[usize; 3]>,
@@ -472,7 +507,6 @@ impl Renderer {
         let mut taint = state.taint.clone();
         let mut mapped = state.mapped.clone();
         let switch_parity_unknown = state.switches.parity_unknown();
-        let fuzzpos = state.fuzzpos;
         if let Some(t) = self.trace.as_mut() {
             t.fill(Feature::Untouched);
         }
@@ -488,6 +522,7 @@ impl Renderer {
             trace: self.trace.as_deref_mut(),
             mapped: &mut mapped,
             newly_mapped: Vec::new(),
+            fuzzpos: state.fuzzpos as usize,
             sectors,
             sides,
             textureoffset,
@@ -511,7 +546,7 @@ impl Renderer {
         };
         let mut newly_mapped = std::mem::take(&mut ctx.newly_mapped);
         newly_mapped.sort_unstable();
-        let pending_columns = ctx.things.pending_columns(ctx.view);
+        let fuzzpos = ctx.fuzzpos as u32;
         drop(ctx);
         let flagged_columns: Vec<u16> = (0..SCREENWIDTH)
             .filter(|x| (0..SCREENHEIGHT).any(|y| taint[y * SCREENWIDTH + x] != 0))
@@ -521,13 +556,13 @@ impl Renderer {
         state.screen.copy_from_slice(&out.pixels);
         state.taint = taint;
         state.mapped = mapped;
+        state.fuzzpos = fuzzpos;
         Ok(FrameReport {
             flagged_columns,
             switch_parity_unknown,
             newly_mapped,
             fuzzpos,
             counters,
-            pending_columns,
         })
     }
 }
