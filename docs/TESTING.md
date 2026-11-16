@@ -1989,6 +1989,32 @@ What each asserts:
   in M5VIEW's frame of tic 20 and requires the comparison to report that tic and that pixel.
 - Low detail is refused (decision R2): `--detail 1` exits with status 8 and no comparison is built.
 
+The Rust renderer (`crates/doom-render`, Phase 2 step 2) and its comparison with those goldens:
+
+```sh
+python3 tools/reference/generate_m5a_tables.py --check     # crates/doom-render/src/tables.rs from linuxdoom-1.10/tables.c
+cargo test -p doom-render                                   # unit tests, the view-shadow validation and the frame harness
+cargo test -p doom-render --release --test view_shadow -- --nocapture   # per-field counts against tests/reference/m5a_views
+cargo test -p doom-render --release --test frames -- --nocapture        # frames compared, matched, refused per configuration
+# local first-difference reporter: counts, the first non-matching frame per item and configuration,
+# and with --c-runner a PNG pair (genuine raw frame, Rust frame) in ~/scratch/m5a/diff
+python3 tools/reference/m5a_build.py --variant strict --out ~/scratch/m5a/build
+cargo run -p doom-render --release --example m5a_compare -- --c-runner ~/scratch/m5a/build/strict/crunner [--only M5PEG,TELE1] [--screenblocks 11,10,9] [--diff DIR]
+```
+
+- `generate_m5a_tables.py --check` regenerates `finetangent` followed by `finesine` (one array, the
+  genuine contiguous layout) and `tantoangle` from the preserved source text and requires the
+  committed bytes.
+- `tests/view_shadow.rs` replays every item through the simulation's public API and requires every
+  field of every genuine view record (`viewx` .. `lightlevel` and the A rows) to equal the Rust
+  renderer's view inputs: the view shadow (`viewz`, `viewheight`, `deltaviewheight`, `onground`,
+  `fixedcolormap`) and the simulation values it reads.
+- `tests/frames.rs` runs every item once with three renderers (screenblocks 11, 10, 9) observing
+  after every committed `advance` and compares every frame with the committed SHA-256 (the masked
+  digest where the genuine tracker flagged columns). Its self-test plants a one-pixel change and
+  requires a mismatch. Until steps 2b and 2c every frame is refused with
+  `RenderRefusal::NotImplemented`.
+
 ## Mutation testing
 
 M4a used cargo-mutants 27.1.0 with cargo-nextest 0.9.151. These are separate

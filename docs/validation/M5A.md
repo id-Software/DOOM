@@ -7,8 +7,9 @@ linuxdoom-1.10's `R_RenderPlayerView`). Only observations appear here. The
 owns the commands. Exact review state and CI belong to GitHub.
 
 **Scope of the record.** Phase 2 step 1 (2026-11-15, America/Los_Angeles): the synthetic graphics,
-the synthetic rooms, the M5a genuine runner and the genuine goldens. No Rust renderer exists yet
-(Phase 2 step 2). No IWAD was read in this step. Address-checked runs used
+the synthetic rooms, the M5a genuine runner and the genuine goldens. Phase 2 step 2a (2026-11-16):
+the Rust renderer's foundation (tables, view setup, resources, render state, view shadow) and the
+comparison harness ([below](#rust-renderer-step-2a)). No IWAD was read in this step. Address-checked runs used
 `ASAN_OPTIONS=detect_leaks=0`: LeakSanitizer was disabled, not passed. No timing or benchmark was
 measured.
 
@@ -113,6 +114,35 @@ write (tic 19) is not settled by R3 and is left open (see the investigation's st
 11 and 10 the first access past the array is the write at tic 15 in every build. The strict OPENINGS frame then reaches the `R_DrawPlanes` I_Error "opening overflow" with a
 count that depends on the overwritten memory (it differed between builds during authoring), so only
 the witness is recorded.
+
+## Rust renderer, step 2a
+
+Observed 2026-11-16 (America/Los_Angeles) on the synthetic items only; no IWAD was read. Commands
+are in [testing](../TESTING.md#m5a-synthetic-renderer-rooms).
+
+- **Tables.** `generate_m5a_tables.py --check` passed: `crates/doom-render/src/tables.rs` holds
+  `finetangent[4096]` then `finesine[10240]` in one array (the genuine contiguous layout) and
+  `tantoangle[2049]`, copied from linuxdoom-1.10/tables.c.
+- **Resources.** For all 42 items the genuine global lump list (map WAD, `m5a_gfx.wad`, the demo
+  lump) loads: textures, composites, flats, sprite lumps, the 138 sprite definitions, the
+  registered-mode switch list, the animations, `SKY1` and `F_SKY1`; every map's side textures and
+  sector flats resolve.
+- **View shadow (decision R6).** `tests/view_shadow.rs`: 8,238 genuine view records (every record
+  of the 42 items, the load included) compared; every field matched in every record: `viewx`,
+  `viewy`, `viewz`, `viewangle`, `viewheight`, `deltaviewheight`, `bob`, `onground`, `extralight`,
+  `fixedcolormap`, `invisibility`, `ps0state`, `ps0tics`, `ps0sx`, `ps0sy`, `ps1state`, `ps1tics`,
+  `ps1sx`, `ps1sy`, `sector`, `lightlevel` and the flat/texture translations (A rows): 8,238 of
+  8,238 each. No Rust run ended before its record. Coverage limit: in these records `viewheight`
+  never differs from `VIEWHEIGHT`, `deltaviewheight` is always 0 and `onground` is 0 only at the
+  load, so the step-up, hard-landing and death paths are not yet compared (investigation §7, item 33).
+- **Harness.** `tests/frames.rs`: 24,552 genuine frames (8,180 at screenblocks 11, 8,180 at 10,
+  8,192 at 9) reached and compared; 0 matched, 0 mismatched, 0 non-comparable, 24,552 refused with
+  `NotImplemented("R_RenderBSPNode")` (no drawing code yet). The self-test (planted pixel; change
+  inside and outside a flagged column; whole-frame fallback) passed.
+- **Reporter.** `m5a_compare --only M5PEG,TELE1` with the strict runner wrote the genuine and Rust
+  PNG pair of each first non-matching frame (tic 0 in every configuration) to `~/scratch/m5a/diff`
+  (local only); a PNG re-read with Python's `zlib` passed every chunk CRC and inflated to the
+  expected 64,200 bytes.
 
 ## Findings
 
