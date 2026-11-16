@@ -20,6 +20,7 @@
 use std::fmt;
 use std::sync::Arc;
 
+pub mod gif;
 pub mod p_spec;
 pub mod png;
 pub mod r_bsp;
