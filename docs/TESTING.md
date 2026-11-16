@@ -1971,7 +1971,8 @@ What each asserts:
   re-parses it without importing the generator (rules in its docstring).
 - `m5a_wad.py --check` regenerates every room WAD, script text and `.lmp`, and the manifest's
   generated fields (WAD digest and counts, script digest and tic count, `png` frames and the
-  `must_show` expressions). The observed tics in the manifest come from `m5a_reference.py
+  `must_show` expressions; a frame or view expression may end in `from N`, the first tic at or
+  after N where it holds). The observed tics in the manifest come from `m5a_reference.py
   --update-events` and are held fixed by `--check`.
 - `m5a_build.py --check` regenerates the runner contract: sources and their adapted digests, the
   inherited and the renderer adapters (each with file, line, original, adapted text and reason; the
@@ -1996,6 +1997,7 @@ python3 tools/reference/m5a_tables.py --check     # crates/doom-render/src/table
 cargo test -p doom-render                                   # unit tests, the view-shadow validation and the frame harness
 cargo test -p doom-render --release --test view_shadow -- --nocapture   # per-field counts against tests/reference/m5a_views
 cargo test -p doom-render --release --test frames -- --nocapture        # frames compared, matched, refused per configuration
+cargo test -p doom-render --release --test switches                     # the switch tracker against M5SWTCH's genuine switch textures
 # local first-difference reporter: counts, the first non-matching frame per item and configuration,
 # and with --c-runner a PNG pair (genuine raw frame, Rust frame) in ~/scratch/m5a/diff
 python3 tools/reference/m5a_build.py --variant strict --out ~/scratch/m5a/build
@@ -2014,6 +2016,10 @@ cargo run -p doom-render --release --example m5a_compare -- --c-runner ~/scratch
   digest where the genuine tracker flagged columns). Its self-test plants a one-pixel change and
   requires a mismatch. Until steps 2b and 2c every frame is refused with
   `RenderRefusal::NotImplemented`.
+- `tests/switches.rs` replays M5SWTCH and requires the switch tracker's side textures to equal the
+  genuine `s0mid` of its four switch lines at every tic where the parity is known (the expected
+  values are the strict runner's dump rows, recorded in the evidence record), and the parity to be
+  unknown exactly at the tics after a re-press until the button expires (decision R7).
 
 ## Mutation testing
 

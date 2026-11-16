@@ -14,7 +14,7 @@ The behavioural authority is the original id Software Linux DOOM 1.10 at
 to `docs/validation/M5A.md`, created in Phase 2. This note records only counts, pass/fail facts and digests from
 runs against the IWAD: no lump content, no IWAD-derived names, coordinates or geometry.
 
-**Status / next step (2026-11-16 01:50 PST).** Phase 2 step 2a is done: the `crates/doom-render` foundation (generated tables from `tools/reference/m5a_tables.py`, view setup for screenblocks 9-11 high detail, the r_data resources and sprite, switch and animation tables, the saveable `RenderState` (`DRST` v1, [STATE_FORMAT](STATE_FORMAT.md#render-state-drst-version-1-m5a)) with the view shadow, the switch tracker, the mapped set, `fuzzpos` and the persistent framebuffer), the view shadow matched on all 8,238 genuine view records of the 42 items, and the frame comparison harness with the local first-difference reporter ([evidence](validation/M5A.md#rust-renderer-step-2a)). Last commits: `dca47bd` (foundation), `3b5230e` (harness), `c1bf332` (generator renamed to `m5a_tables.py` after CI's source suite failed on `3b5230e`: the frozen M3f3 harness copies `tools/reference/generate*.py`; exact-head CI on `c1bf332` passed on Linux, Windows, macOS and MSRV), then this status line. Next step: 2b (BSP, walls, planes, sky, lighting, masked midtextures) adds drawing code behind `r_bsp::render_bsp_node`, which now refuses every frame with `RenderRefusal::NotImplemented` (24,552 frames refused, 0 matched). Half-done work: none; open: the step-up, landing and death paths of the view shadow have no genuine record yet (§7 item 33), and `m5a_tables.py --check` is not yet in CI (step 6). Failing checks: none (local build, fmt incl. fuzz, Clippy, workspace tests, rustdoc, `cargo +1.85.0 test -p doom-render`; the full local source suite was not completed: it was stopped for low memory, and CI ran it on `c1bf332`). Resume: `git checkout feat/m5a-renderer && git pull`; `cargo test -p doom-render --release -- --nocapture`; `cargo run -p doom-render --release --example m5a_compare -- --c-runner ~/scratch/m5a/build/strict/crunner --only M5PEG`. /mnt/c free: 47G available.
+**Status / next step (2026-11-16 02:45 PST).** Phase 2 step 2a is done ([evidence](validation/M5A.md#rust-renderer-step-2a)), and three rooms were added after it with genuine goldens in the strict, overflow and address variants (strict32 identical locally) at screenblocks 11, 10 and 9: AMPFLICK (the light-amplification end-of-power flicker), VIEWZ (step-ups, a hard landing, the death descent and camera) and SWITCH (S1, SR, an SR re-press and a GR re-shot); the earlier rooms, scripts and goldens are byte-identical ([evidence](validation/M5A.md#rooms-added-after-step-2a)). The view shadow matched all 13,252 genuine view records (§7 item 33 settled) and `tests/switches.rs` matches the switch tracker to M5SWTCH's genuine switch textures with the parity unknown at exactly 35 tics. Not reached: a committed Medusa room (§7 item 34: the genuine post walk runs off the composite; every reported frame whole-frame, run time layout-dependent) and a patchless column (§7 item 32); both need a new texture in `m5a_gfx.wad`, which would change every earlier room WAD (owner decision). Last commits: `4751e95` (rooms and goldens), `13298a7` (switch test), then this status line. Next step: 2b (BSP, walls, planes, sky, lighting, masked midtextures) behind `r_bsp::render_bsp_node`, which refuses every frame with `RenderRefusal::NotImplemented` (39,585 frames refused). Half-done work: none; open: `m5a_tables.py --check` is not yet in CI (step 6). Failing checks: none locally (build, fmt incl. fuzz, Clippy, 1,416 workspace tests, rustdoc, `m5a_gfx.py`, `m5a_wad.py`, `m5a_build.py`, `m5a_tables.py` and `m5a_reference.py --check --pngs`). Resume: `git checkout feat/m5a-renderer && git pull`; `cargo test -p doom-render --release -- --nocapture`; `python3 tools/reference/m5a_reference.py --work ~/scratch/m5a/ref --check --pngs`. /mnt/c free: 47G available.
 
 ## Summary
 
@@ -2540,9 +2540,27 @@ settles it or "open".
     and offset, as the early `return` leaves them (step 2a, `ColumnEntry::Undefined`). No synthetic
     texture has such a column; whether the genuine tracker flags the same columns is open until a
     texture with one is rendered (step 4 census, open question 9).
+    After step 2a this was still not reached: a texture with a patchless column must be appended to
+    `TEXTURE1`, which changes `m5a_gfx.wad` and the directory every earlier room WAD carries, so no
+    room could add one without changing existing outputs
+    ([evidence](validation/M5A.md#rooms-added-after-step-2a)); open, for an owner decision or the step-4
+    census.
 33. **The view records exercise only part of the view shadow** (step 2a). Over the 8,238 records of
     the 42 items, `viewheight` is always `VIEWHEIGHT` and `deltaviewheight` always 0 (no step-up,
     hard landing or death changes them), `onground` is 0 only in the 42 load records,
     `fixedcolormap` is nonzero in 93 and the invisibility power in 86. Teleports are covered. The
     step-up, landing and death paths of the shadow are matched against the C source only until the
     real maps (step 4) or a room exercising them supply genuine records.
+    **Settled after step 2a:** the VIEWZ room supplies genuine records of five step-ups (the dip reaching
+    the `VIEWHEIGHT/2` clamp), the airborne path, a hard landing reaching the clamp and the death descent
+    to `6*FRACUNIT` with the camera turning toward the attacker; AMPFLICK supplies the end-of-power
+    flicker. The view shadow matched all 13,252 records, every field
+    ([evidence](validation/M5A.md#rooms-added-after-step-2a)).
+34. **Multi-patch masked midtextures (the Medusa effect) cannot have genuine goldens with the current
+    graphics set** (after step 2a). `R_RenderMaskedSegRange` reads a composite column as posts
+    (r_segs.c:181-184, r_things.c:351-388); no composite of `m5a_gfx.wad` holds palette index 255, so the
+    post walk leaves the composite and runs through zone memory: every reported frame was a whole-frame
+    fallback of the tracker, and whether the run finishes depends on the memory layout
+    ([evidence](validation/M5A.md#rooms-added-after-step-2a)). The Rust renderer must refuse or mark such
+    frames non-comparable as a whole (decision R4); a room with terminating composite bytes needs a new
+    texture and so an owner decision on changing the graphics PWAD (open).

@@ -9,7 +9,8 @@ owns the commands. Exact review state and CI belong to GitHub.
 **Scope of the record.** Phase 2 step 1 (2026-11-15, America/Los_Angeles): the synthetic graphics,
 the synthetic rooms, the M5a genuine runner and the genuine goldens. Phase 2 step 2a (2026-11-16):
 the Rust renderer's foundation (tables, view setup, resources, render state, view shadow) and the
-comparison harness ([below](#rust-renderer-step-2a)). No IWAD was read in this step. Address-checked runs used
+comparison harness ([below](#rust-renderer-step-2a)), then three more rooms with their genuine goldens
+([below](#rooms-added-after-step-2a)). No IWAD was read in this step. Address-checked runs used
 `ASAN_OPTIONS=detect_leaks=0`: LeakSanitizer was disabled, not passed. No timing or benchmark was
 measured.
 
@@ -144,6 +145,59 @@ are in [testing](../TESTING.md#m5a-synthetic-renderer-rooms).
   (local only); a PNG re-read with Python's `zlib` passed every chunk CRC and inflated to the
   expected 64,200 bytes.
 
+## Rooms added after step 2a
+
+Observed 2026-11-16 (America/Los_Angeles). Three rooms were appended to `tools/reference/m5a_wad.py`
+after the twenty of step 1; the twenty earlier room WADs, scripts and manifest entries, every earlier
+frame and view golden and every earlier PNG stayed byte-identical (`m5a_wad.py --check`; `git status`
+showed only additions apart from the manifest, which gained three entries, and
+`tests/reference/m5a_results.json`, whose `manifest_sha256`, frame totals and three new items changed).
+
+| Room | Script | Tics | What the genuine records show |
+| --- | --- | --- | --- |
+| AMPFLICK | M5AMPFL | 4,230 | light amplification picked up at tic 14 (`fixedcolormap` 1); the end-of-power flicker of `P_PlayerThink` (p_user.c:371-380) from tic 4,085: 0 at 4,085, then 1 and 0 alternating in runs of 8 tics, 0 from tic 4,206 |
+| VIEWZ | M5VIEWZ | 568 | five 24-unit step-ups (the first `deltaviewheight` > 0 at tic 38; the step-up dip reaches the `VIEWHEIGHT/2` clamp, p_user.c:121-126, at tic 39), airborne from tic 66 (`onground` 0), the hard landing after a 568-unit fall at tic 98 (`deltaviewheight` = `momz>>3`, p_mobj.c:306) reaching the clamp again at tic 104, the player killed by a shotgun sergeant, the death descent reaching `6*FRACUNIT` at tic 367 and the death camera turning by `ANG5` per tic toward the attacker at tics 333-344 (p_user.c:186-230) |
+| SWITCH | M5SWTCH | 213 | from the strict runner's game dumps (`L` and `B` rows): line 12 (SR, special 70) pressed at tic 2 (`s0mid` 19 to 20, button until tic 35) and again at tic 12, which flips it back to 19 with no new button (p_switch.c:155-170); line 16 (SR 70) pressed once at tic 59 and restored at tic 93; line 20 (S1, special 103) changed for good at tic 107; line 24 (GR, special 46) shot at tic 123 (9 to 10) and again at tic 146 (back to 9 while its button runs until tic 156) |
+
+- **Proofs (a) and (b) on the new items.** `m5a_reference.py --update-events --pngs --selftest` (all 45
+  items): for the three rooms the never-render dump set equals the frozen M4b runner's, and at
+  screenblocks 11, 10 and 9 the strict, overflow and address frame streams, view records and masked dump
+  sets are identical; every run ends at the demo marker. No frame of the three rooms has a
+  tracker-flagged column or a whole-frame fallback. Frames per configuration now: 13,191 at screenblocks
+  11, 13,191 at 10 and 13,203 at 9 (5,011 more each). Goldens: 135 frame files, 45 view files, 32 PNGs
+  (six new: AMPFLICK tics 60 and 4,096, VIEWZ 100 and 450, SWITCH 13 and 130, all at screenblocks 10).
+  The selftest passed, and `m5a_reference.py --check --pngs` then passed on all 45 items (results,
+  180 golden files, 32 PNGs). strict32 (local, `--variants strict --strict32 --only
+  M5AMPFL,M5VIEWZ,M5SWTCH`): strict and strict32 frame streams, view records and dump sets identical on
+  the three rooms at the three configurations (5,011 frames each).
+- **View shadow.** `tests/view_shadow.rs`: 13,252 genuine view records (the 8,238 of step 2a and 5,014
+  new) compared; every field matched in every record (each of the 21 fields and the translations
+  13,252 of 13,252); no Rust run ended before its record. The step-up, airborne, landing, clamp and
+  death paths of the shadow (investigation §7, item 33) now have genuine records and match.
+- **Frame harness.** `tests/frames.rs`: 39,585 frames reached (13,191 + 13,191 + 13,203), all refused
+  with `NotImplemented` (no drawing code yet); the switch tracker observed every tic of M5SWTCH without
+  `SwitchInconsistency`.
+- **Switch tracker.** `tests/switches.rs`: at the 189 tics where the parity is known the tracker's side
+  textures equal the genuine `s0mid` of the four switch lines; the parity is unknown at exactly the 35
+  tics 12-35 and 146-156, after each re-press until its button expires (decision R7). These are the
+  frames the `SwitchParityUnknown` witness will skip in M5SWTCH.
+- **Not reached: MEDUSA.** A room with M5COMP and M5GAP as masked midtextures was built and run but not
+  committed. `R_RenderMaskedSegRange` reads a composite column as posts (r_segs.c:181-184,
+  `R_DrawMaskedColumn` r_things.c:351-388), and no composite texture of `m5a_gfx.wad` contains palette
+  index 255, so the post walk never finds a terminator inside the composite and runs on into zone memory.
+  The tracker classified every frame it reported as a whole-frame fallback (origin `W:unknown`): the
+  frame file of the strict run at screenblocks 10 held 160 F rows, every one flagged whole, with 21,001
+  U rows, while its process was still inside `R_DrawMaskedColumn` after more than three minutes and was
+  stopped; the strict run at screenblocks 11 before it had finished; under gdb (no address
+  randomisation) the run stopped progressing in `R_DrawMaskedColumn` after 14 frames, also all whole.
+  So whether and when a run finishes depends on the memory layout. No genuine golden can be
+  made from that. A Medusa room whose composite bytes terminate needs a new composite texture, which
+  would change `m5a_gfx.wad`'s `TEXTURE1` and so every earlier room WAD (they carry the same
+  directory) and every earlier golden's graphics input.
+- **Not reached: a patchless column (investigation §7, item 32).** For the same reason: a texture with
+  a column no patch covers must be appended to `TEXTURE1`, which changes `m5a_gfx.wad` and all twenty
+  earlier room WADs.
+
 ## Findings
 
 - **Step 2a: a new `tools/reference/generate*.py` breaks a frozen check.** The first push of step 2a
@@ -161,7 +215,7 @@ are in [testing](../TESTING.md#m5a-synthetic-renderer-rooms).
   the THINGS loop, not a skip). An early SPRITES room with a chaingunner lost every later THING; the room
   uses no 65. Whether wire 23/24 spawns a 65 on a registered map was not checked in this step.
 - **Low detail** is refused (status 8); no comparison was built for it.
-- **Invulnerability** (DoomEd 2022, `INVERSECOLORMAP`) is not admitted by the simulation, so no room
+- **Invulnerability** (DoomEd 2022, `INVERSECOLORMAP`) stays out of M5a's scope: it is not admitted by the simulation, so no room
   reaches fixed colour map 32.
 - The light-amplification flicker at the end of the power (4,200 tics) is not in AMP; the room shows
-  `fixedcolormap` 0 and 1.
+  `fixedcolormap` 0 and 1. AMPFLICK covers it ([above](#rooms-added-after-step-2a)).
