@@ -1853,6 +1853,90 @@
   },
   {
    "map": "E1M5",
+   "script": "M5DEMO1.lmp",
+   "skill": 3,
+   "lmp_sha256": "92e4f162f5db252a028876e9498f0cfeeb69214d7811bbcf4a6c98c27e5000fb",
+   "views": {
+    "11": {
+     "frames": 1710,
+     "end": "marker",
+     "end_tic": 1710,
+     "tics": 1710,
+     "genuine_stream_sha256": "644f660f76d6d883cda9dc8f90839521affa993be5dd79bceeaaeeb3183564bc",
+     "flagged_frames": 6,
+     "flagged_columns": 19,
+     "flagged_origins": 6,
+     "whole_frames": 0,
+     "variants": [
+      "strict",
+      "address",
+      "overflow"
+     ],
+     "variant_endings": {
+      "strict": "marker",
+      "address": "marker",
+      "overflow": "marker"
+     },
+     "compared_through_tic": 1709,
+     "variants_identical": true,
+     "rust_frames": 1710,
+     "matched": 1710,
+     "mismatched": 0,
+     "non_comparable": 0,
+     "parity_unknown": 0,
+     "whole": 0,
+     "refused": 0,
+     "refusals": {},
+     "not_reached": 0,
+     "counter_mismatches": 0,
+     "flag_disagreements": 0,
+     "rust_stream_sha256": "644f660f76d6d883cda9dc8f90839521affa993be5dd79bceeaaeeb3183564bc",
+     "observe_error": false,
+     "rust_end": null,
+     "streams_equal": true
+    },
+    "10": {
+     "frames": 1710,
+     "end": "marker",
+     "end_tic": 1710,
+     "tics": 1710,
+     "genuine_stream_sha256": "c2e7a40ecce83cb54b4288a9435940173ae2b1b44326a4a642a3660ed236028d",
+     "flagged_frames": 6,
+     "flagged_columns": 19,
+     "flagged_origins": 6,
+     "whole_frames": 0,
+     "variants": [
+      "strict",
+      "address",
+      "overflow"
+     ],
+     "variant_endings": {
+      "strict": "marker",
+      "address": "marker",
+      "overflow": "marker"
+     },
+     "compared_through_tic": 1709,
+     "variants_identical": true,
+     "rust_frames": 1710,
+     "matched": 1710,
+     "mismatched": 0,
+     "non_comparable": 0,
+     "parity_unknown": 0,
+     "whole": 0,
+     "refused": 0,
+     "refusals": {},
+     "not_reached": 0,
+     "counter_mismatches": 0,
+     "flag_disagreements": 0,
+     "rust_stream_sha256": "c2e7a40ecce83cb54b4288a9435940173ae2b1b44326a4a642a3660ed236028d",
+     "observe_error": false,
+     "rust_end": null,
+     "streams_equal": true
+    }
+   }
+  },
+  {
+   "map": "E1M5",
    "script": "M5DIE.lmp",
    "skill": 2,
    "lmp_sha256": "31b9924709a3b2aea72cb13cd43f78961790930930548a2b351ba0a7f3a2c8fd",
