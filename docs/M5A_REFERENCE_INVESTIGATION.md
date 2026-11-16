@@ -14,7 +14,7 @@ The behavioural authority is the original id Software Linux DOOM 1.10 at
 to `docs/validation/M5A.md`, created in Phase 2. This note records only counts, pass/fail facts and digests from
 runs against the IWAD: no lump content, no IWAD-derived names, coordinates or geometry.
 
-**Status / next step (2026-11-15 22:29 PST).** Phase 1 is done and stopped at the owner gate under the unattended rule (§5 "Why Phase 1 stopped"): R1–R16 await the owner. Last step: this note (commit on `feat/m5a-renderer`). Next step: on the owner's rulings, Phase 2 step 1 (synthetic graphics generator, rooms and the M5a runner). Half-done work: the scratch prototype of the M5a runner and graphics PWAD in `~/scratch/m5a/proto` (not committed; it holds an IWAD copy in `~/scratch/m5a/iwad`). Failing checks: none. Resume: `git checkout feat/m5a-renderer && git pull`; read §5 and §6. /mnt/c free: 47G available.
+**Status / next step (2026-11-15 22:55 PST).** Phase 1 is done; the owner confirmed R1–R16 on 2026-11-15 with the notes in §5 ("Owner rulings"). Last step: the rulings recorded (this commit). Next step: Phase 2 step 1 (synthetic graphics generator, rooms, the M5a runner with every renderer adapter declared and the column-level read tracker, genuine goldens in the strict, overflow and address variants). Half-done work: the scratch prototype of the M5a runner and graphics PWAD in `~/scratch/m5a/proto` (not committed; it holds an IWAD copy in `~/scratch/m5a/iwad`). Failing checks: none. Resume: `git checkout feat/m5a-renderer && git pull`; read §5 and §6. /mnt/c free: 47G available.
 
 ## Summary
 
@@ -2385,7 +2385,7 @@ side, not estimated here).
 
 ## 5. Owner decisions (R1–R16) with recommendations
 
-Each is tested against four questions: (a) consistent with prior owner decisions (E1–E9, F1–F11, G1–G13, H1–H12, I1–I13, P1–P9) and the M5a brief? (b) no silent divergence? (c) no new kind of fidelity gap beyond declared refuse-the-frame render witnesses? (d) bounded stores and work? Status: **all open, awaiting the owner** (Phase 1 stopped under the unattended rule; see "Why Phase 1 stopped").
+Each is tested against four questions: (a) consistent with prior owner decisions (E1–E9, F1–F11, G1–G13, H1–H12, I1–I13, P1–P9) and the M5a brief? (b) no silent divergence? (c) no new kind of fidelity gap beyond declared refuse-the-frame render witnesses? (d) bounded stores and work? Status: **R1–R16 confirmed by the owner on 2026-11-15** as recommended, with the notes under "Owner rulings" below (Phase 1 had stopped under the unattended rule; see "Why Phase 1 stopped").
 
 **R1. Scope.** As the brief: R_RenderPlayerView's framebuffer (BSP, walls with pegging and offsets, masked midtextures, visplanes, sky, sector and distance light, fake contrast, extralight, fixed colormaps, sprites, psprites with bob and flash, fuzz). Out of scope (M5b): status bar, HUD, automap, menus, palette flashes, window, input, sound. Player colour translation (players 2–4 only) is not reachable in single player and is refused if met. (a)–(d) yes. **Recommendation:** as stated.
 
@@ -2425,6 +2425,15 @@ The genuine C after an `I_Error` exits; the run's frame stream ends there, so th
 **R15. CI.** Synthetic rooms' frames against goldens on Linux, Windows and macOS (Rust side); the genuine renderer runs on Linux in the three variants; existing check names preserved. Performance is recorded locally, not gated, when the owner says the machine is idle. **Recommendation:** as stated.
 
 **R16. Local viewer.** An example renders a script run to an animated GIF (hand-written encoder) in `/mnt/d/DoomRenders`, never committed; first run: E1M1 walk_to_exit. **Recommendation:** as stated.
+
+### Owner rulings (2026-11-15)
+
+R1–R16 were confirmed by the owner on 2026-11-15 as recommended, with these notes, which bind Phase 2:
+
+- **R4.** Where the C read tracker can identify the affected columns, every other pixel of the frame is compared and only the undefined columns count as non-comparable; the whole frame is non-comparable only where the tracker cannot identify the columns. Non-comparable counts are reported per map and per texture.
+- **R7.** The number of frames the `SwitchParityUnknown` witness skips is reported per map. If it is more than a handful on any real map, work stops and the owner is told.
+- **R5, R6, R7.** The renderer's own history (the view shadow, the switch parity and the mapped-line set) is a self-contained render state that can be saved and restored next to a simulation snapshot, so that a later rewind can render any tic directly. A test renders tic N straight through and, separately, restores the snapshot and render state at tic N−k and continues; the frames must be identical.
+- **R12.** Every renderer wrapping adapter is declared in the sanitizer builds as in I3, including the two real-map overflows (r_segs.c:603-604) the prototype had not yet adapted.
 
 ### Why Phase 1 stopped
 
