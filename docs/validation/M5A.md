@@ -460,6 +460,27 @@ says nothing about the DOS 1.9 executable that recorded it. The patchless-column
 §7 item 32) was not identified separately on the real textures. Raw frames, PNGs, per-frame digest
 lists and the genuine frame streams stayed in scratch.
 
+## Local viewer and CI, steps 5 and 6
+
+**Viewer (step 5, decision R16).** `m5a_view` replays a script through the Rust simulation and renderer
+and writes a GIF in palette 0 ([commands](../TESTING.md#m5a-synthetic-renderer-rooms)). The encoder's
+five unit tests decode its own output with an independent test decoder (flat, ramp, noise that refills the
+code table many times, runs, one- and two-pixel frames, a three-frame file's structure and delays, the
+delay rounding, the scaling). E1M1's `WALK.lmp` rendered at screenblocks 11 from the IWAD copy: 766
+frames (every tic of the script), 320x200, 15,431,508 bytes, written to `/mnt/d/DoomRenders/`
+(IWAD-derived, never committed); a `--scale 2 --from 100 --to 140` run gave 41 frames of 640x400. The
+synthetic room M5AMP (no IWAD): 124 frames, 1,246,781 bytes, in scratch. Binaries were built and run
+from the Linux disk. No external GIF decoder was available on the machine, so no third-party viewer
+check was made; the files were not opened in a viewer by the agent.
+
+**CI (step 6, decision R15).** `tests/frames.rs`, `view_shadow.rs`, `switches.rs` and `rewind.rs` already
+run in the `Stable` job's `cargo test --workspace` on Linux, Windows and macOS, so nothing was added for
+them. The new Linux job `M5a genuine renderer` runs `m5a_gfx.py`, `m5a_check_gfx.py` (which has no
+`--check` flag), `m5a_wad.py`, `m5a_build.py` and `m5a_tables.py` with `--check`, then `m5a_reference.py
+--check --pngs --selftest --jobs 4` with `ASAN_OPTIONS=detect_leaks=0` (leak detection disabled) on the
+runner's default gcc. On head `ac2792e` the job passed in under 3 minutes (the runner's gcc, not the local 15.2.0), and so did
+every other job of that run (Stable on Linux, Windows and macOS, MSRV 1.85.0, instruction counts).
+
 ## Findings
 
 - **Step 2a: a new `tools/reference/generate*.py` breaks a frozen check.** The first push of step 2a

@@ -2067,6 +2067,41 @@ cargo run -p doom-render --release --example m5a_real -- --iwad ~/scratch/m5a/iw
   per-texture report (`~/scratch/m5a/reports/real_textures.json`) are IWAD-derived and stay in
   scratch; delete them once the counts are recorded.
 
+Local viewer (M5a step 5, decision R16; a developer aid, not a comparison). `m5a_view` replays a demo
+script through the Rust simulation and renderer and writes an animated GIF of the 3D view in palette 0 of
+the WAD in use (palette flashes are M5b), using the hand-written encoder `doom_render::gif` (GIF89a, LZW,
+no dependency; unit-tested by decoding its own output with an independent test decoder). Build and run it
+from the Linux disk; IWAD-derived output must never be committed (write it to `/mnt/d/DoomRenders/`):
+
+```sh
+cargo run -p doom-render --release --example m5a_view -- --iwad ~/scratch/m5a/iwad/DOOM.WAD \
+  --lmp tests/reference/e1m1_scripts/WALK.lmp --out /mnt/d/DoomRenders/e1m1_walk.gif \
+  [--screenblocks 11] [--from TIC] [--to TIC] [--scale 2] [--fps 35]
+cargo run -p doom-render --release --example m5a_view -- --room M5AMP --out ~/scratch/m5a/m5amp.gif   # a committed synthetic room, no IWAD
+```
+
+GIF delays are whole hundredths of a second, so 35 tics/second is written as 2, 3, 3, 3, 3, 3, 3 cs
+repeating (20 cs per 7 tics; every `n * 100 / fps` cs total is exact), never as a uniform 3 cs.
+`--scale` is an integer nearest-neighbour enlargement (1-8). The replay ends at the end of the script, at
+`--to`, when the simulation stops advancing, or at a renderer refusal (reported).
+
+CI (M5a step 6, decision R15). The Rust renderer's synthetic-room frames against the committed goldens
+(`tests/frames.rs`, `view_shadow.rs`, `switches.rs`, `rewind.rs`) are ordinary workspace tests, so the
+`Stable` job already runs them on Linux, Windows and macOS (`cargo test --workspace`); nothing further is
+needed there. The genuine renderer (C, Linux only, as M4b's genuine runs) is the separate job
+`M5a genuine renderer`, which runs on the runner's default gcc:
+
+```sh
+python3 tools/reference/m5a_gfx.py --check && python3 tools/reference/m5a_check_gfx.py
+python3 tools/reference/m5a_wad.py --check && python3 tools/reference/m5a_build.py --check
+python3 tools/reference/m5a_tables.py --check
+ASAN_OPTIONS=detect_leaks=0 python3 tools/reference/m5a_reference.py --check --pngs --selftest --jobs 4 --work DIR
+```
+
+The last command builds the strict, overflow and address runners (leak detection disabled in the address
+variant) and the frozen M4b runner; locally keep `--jobs` at 2 or below on the owner's machine. The real-map
+tool stays local (it reads the IWAD).
+
 ## Mutation testing
 
 M4a used cargo-mutants 27.1.0 with cargo-nextest 0.9.151. These are separate
