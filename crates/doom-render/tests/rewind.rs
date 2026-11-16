@@ -193,7 +193,8 @@ fn a_changed_render_state_is_detected() {
     changed.fuzzpos = (changed.fuzzpos + 1) % 50;
     let mut r = renderer(&run, 10);
     r.restore(changed);
-    b.advance(commands(run.commands[index - 1])).expect("advance");
+    b.advance(commands(run.commands[index - 1]))
+        .expect("advance");
     r.observe(&b).expect("observe");
     let mut other = Frame::new();
     r.render(&b, &mut other).expect("render");
