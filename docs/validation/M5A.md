@@ -17,8 +17,9 @@ owns the commands. Exact review state and CI belong to GitHub.
 | 4 | 2026-11-16 | The real maps, compared locally ([below](#real-maps-step-4)) |
 | 5 and 6 | 2026-11-16 | The local GIF viewer and the CI job ([below](#local-viewer-and-ci-steps-5-and-6)) |
 | 7a | 2026-11-16 | Renderer tests and fuzz targets ([below](#renderer-tests-and-fuzz-targets-step-7a)) |
+| Review | 2026-11-16 | The independent review's findings and their resolution ([below](#independent-review)) |
 
-The [findings](#findings) at the end are cross-cutting. Mutation results, the independent review, fuzz
+The [findings](#findings) at the end are cross-cutting. Mutation results, fuzz
 campaigns, timings and the final gates are not yet recorded here. No IWAD was read in steps 1-3; step 4 read
 a scratch copy locally and committed only counts, pass/fail facts and digests. Address-checked runs used
 `ASAN_OPTIONS=detect_leaks=0`: LeakSanitizer was disabled, not passed. No benchmark or timing was
@@ -532,6 +533,37 @@ Observed 2026-11-16 (America/Los_Angeles) on the branch head after this step's c
   the `DRST` round trip and the canonical-bytes comparison run on tic 0, every fourth tic and the last,
   to bound an input's cost. It reaches the
   limit refusals only through the committed limit rooms.
+
+## Independent review
+
+An independent reviewer read the diff at `1fa1674` against linuxdoom-1.10 (2026-11-16) and reported ten
+findings: one major (documentation), four minor, five notes. The C facts and dispositions are in the
+[investigation, §7 items 40-48](../M5A_REFERENCE_INVESTIGATION.md#7-open-questions-and-where-each-is-decided).
+
+| Finding | Resolution |
+| --- | --- |
+| 1 (major). COMPATIBILITY said no frame had an unknown switch parity | Corrected: M5SWTCH has 35 per configuration (105), the real maps none. |
+| 2. The README and COMPATIBILITY claims did not state the exclusions | Both now name the tracker-flagged columns (R4) and the 105 non-comparable frames (R7). |
+| 3. A decoded `DRST` state from another level panicked in `render` | `Renderer::restore` validates the state against the level (`RestoreError`); the decoder refuses negative powers. Both reproduced panics (mapped set of the wrong length; `powers[0] = i32::MIN`) are typed errors in `tests/rewind.rs`. |
+| 4. `R_GenerateLookup`'s byte-wide patch count | Ported (item 40); 255, 256, 257 and 258 patches tested. |
+| 5. Load refusals where the C startup is well defined | Ported: zero width (draw refused, `UnallocatedColumn`), zero or negative height (negative-height composites refused at draw), no patches, empty flat or sprite ranges, an out-of-range sky flat, nonnegative texture totals with a negative count, two-sided lines without segs (doom-map refuses those first). Kept as refusals (undefined C): negative width or patch count, markers in the wrong order, a negative or overflowing texture total (item 41). |
+| 6. `StaleGlobal(pixhigh/pixlow)`; the `MaskedCompositeColumn` wording | The stale globals are ported and persist in the render state (`DRST` version 2, item 42); the masked composite refusal is reworded and declared for the owner (item 43). |
+| 7. Powers assumed zero when unavailable | Refused (`NoPlayer`, item 46). |
+| 8. The bob-angle `int` overflow panicked in debug | Refused at the overflow (`LevelTimeOverflow`, item 44). |
+| 9. The sky fixed at `SKY1` | `Level::load` takes the episode and refuses any other than 1 (`SkyEpisode`, item 45). |
+| 10. A gap in the goldens could pass the harness | Every item and configuration is checked for one row per tic and its recorded frame count (item 48). |
+
+**Re-checks after the fixes (observed).** `cargo test --workspace --locked`: 1,470 passed, 0 failed, 4
+ignored (before the last added harness self-test). The synthetic harness (`tests/frames.rs`) still compares
+all 45 items at screenblocks 11, 10 and 9: 39,585 frames, every comparable frame matching, the 105 M5SWTCH
+frames non-comparable, none refused, the nine limit endings refused as before, and now every item's stream
+gap-free with its recorded count. `cargo +1.85.0 test -p doom-render`: 69 passed. Clippy (warnings denied),
+rustfmt (workspace and fuzz), warnings-denied rustdoc and `cargo +nightly fuzz build` of `render_frames` and
+`render_data` passed; the fuzz targets were built, not run. Real maps, local
+(`python3 tools/local/m5a_real.py --maps E1M1,E1M5 --jobs 2 --check`): the 16 runs of E1M1 and E1M5 matched
+on every frame (48,522 per configuration at screenblocks 11 and 10, none refused or non-comparable) and their
+16 records equal the committed `tests/reference/m5a_real_results.json`. E1M2-E1M4 and E1M6-E1M9 were not
+re-run.
 
 ## Findings
 

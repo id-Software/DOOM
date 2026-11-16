@@ -2616,11 +2616,11 @@ changes it or the gameplay RNG, and nothing in the simulation, DSIM or any froze
 The facts are in the [investigation note](M5A_REFERENCE_INVESTIGATION.md) (decisions R1-R16, §5, owner
 rulings 2026-11-15), the observations in the [evidence record](validation/M5A.md) and the commands in
 [TESTING](TESTING.md#m5a-synthetic-renderer-rooms). The render state is saved in
-[`DRST`](STATE_FORMAT.md#render-state-drst-version-1-m5a), not in DSIM.
+[`DRST`](STATE_FORMAT.md#render-state-drst-version-2-m5a), not in DSIM.
 
 | Claim | What is and is not shown |
 | --- | --- |
-| Source equivalence of the frame | The Rust frame equals the genuine renderer's frame, byte for byte, on every synthetic frame in CI (the committed rooms at screenblocks 9, 10 and 11) and on every frame of the 61 scripted Episode 1 runs at screenblocks 11 and 10 (local only; frame counts in the evidence record; DEMO1 as run by the original code, not the DOS 1.9 executable). It is not a claim for other maps, scripts or settings. |
+| Source equivalence of the frame | The Rust frame equals the genuine renderer's frame, byte for byte, on every comparable synthetic frame in CI (the committed rooms at screenblocks 9, 10 and 11) and on every frame of the 61 scripted Episode 1 runs at screenblocks 11 and 10 (local only; frame counts in the evidence record; DEMO1 as run by the original code, not the DOS 1.9 executable). Two exclusions apply (below): screen columns the genuine read tracker flags as reading undefined memory (R4) are left out of a frame's comparison, and frames with an unknown switch parity (R7) are not compared at all; those are 105 synthetic frames (M5SWTCH, 35 per configuration) and no real-map frame. It is not a claim for other maps, scripts or settings. |
 | Configurations (R2) | Screenblocks 9 (synthetic rooms only), 10 and 11, **high detail**. **Low detail is refused** (the original's `R_DrawColumnLow` is broken in this source); other screenblocks are refused. |
 | Out of scope (R1, M5b) | Status bar, HUD, automap, menus, palette flashes (the palette is chosen by the caller), window, input, sound; the border is never drawn. Player colour translation (players 2-4) is refused (`PlayerTranslation`). |
 | Invulnerability | Not admitted by the simulation (DoomEd 2022, `INVERSECOLORMAP`), so no frame uses fixed colour map 32; it is out of M5a. Light amplification (fixed colour map 1) is covered. |
@@ -2631,10 +2631,14 @@ original writes past an array before any error or its result depends on memory l
 `VisplaneOverflow` (`MAXVISPLANES` 128), `OpeningOverflow` (`MAXOPENINGS` 20,480), `SolidSegOverflow`
 (`MAXSEGS` 32; the refusal can come one frame before the genuine write, as the owner accepted), the
 `RANGECHECK` errors (`RangeCheck`), `FixedDiv`, `TableRead` (a table read outside the genuine contiguous
-tables, R12), `StaleGlobal` (a `pixhigh` or `pixlow` left over from an earlier wall) and, by the
-orchestrator's application of R3 (2026-11-16), `MaskedCompositeColumn` (a masked midtexture column that is a
-multi-patch composite, whose post walk leaves the composite) and `MaskedColumnUndefined` (a post walk that
-leaves its patch lump). A refusal is typed, repeatable and leaves the render state unchanged. Only the limit
+tables, R12), `StaleGlobal` (the uninitialised `best` of `R_SortVisSprites`), `UnallocatedColumn` (a column
+of a zero-width texture, or a composite column of a negative-height texture, whose genuine read is outside
+any allocation) and, by the orchestrator's application of R3 (2026-11-16), `MaskedCompositeColumn` (a
+masked midtexture column that is a multi-patch composite: the genuine post walk reads composite texels as
+post headers, so its end depends on texel values and, once it leaves the composite, on memory layout; a
+declared refusal awaiting the owner, [investigation §7](M5A_REFERENCE_INVESTIGATION.md#7-open-questions-and-where-each-is-decided)
+item 43) and `MaskedColumnUndefined` (a post walk that leaves its patch lump). A `pixhigh` or `pixlow` left
+over from an earlier wall is reproduced, not refused: the render state carries it (item 42). A refusal is typed, repeatable and leaves the render state unchanged. Only the limit
 refusals are reached by committed rooms; the others are guards, covered by unit tests where the evidence
 record says so and not reached by any real or synthetic frame.
 
@@ -2657,8 +2661,10 @@ tic against the genuine runner. It means `Renderer::observe` must see every tic 
 (a gap is refused, `NotObserved`).
 
 **Reusable switches (R7).** After a re-press of a reusable (SR/GR) switch line, no canonical field records
-which texture shows. The renderer reports `switch_parity_unknown` for such frames instead of guessing. None
-occurred on any real or synthetic frame.
+which texture shows. The renderer reports `switch_parity_unknown` for such frames instead of guessing, and
+they are not compared. The synthetic room M5SWTCH, built to reach the case, has 35 such frames per
+configuration (105 over screenblocks 9, 10 and 11); no frame of the 61 real-map runs has one (counts in the
+evidence record).
 
 **Frame sequence (R8).** `fuzzpos` is never reset and the view rectangle is never cleared in the original, so
 spectre pixels and uncovered pixels depend on every earlier frame. The contract: start at level load with a

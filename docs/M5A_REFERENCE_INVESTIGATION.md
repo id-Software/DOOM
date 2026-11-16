@@ -14,7 +14,7 @@ The behavioural authority is the original id Software Linux DOOM 1.10 at
 in `docs/validation/M5A.md`. This note records only counts, pass/fail facts and digests from
 runs against the IWAD: no lump content, no IWAD-derived names, coordinates or geometry.
 
-**Status / next step (2026-11-16 11:43 PST).** Phase 2 steps 1-7a are done and the documentation of step 7b is written ([evidence](validation/M5A.md); [support](COMPATIBILITY.md#software-renderer-m5a); [ROADMAP](ROADMAP.md)). The renderer matches the genuine engine on every synthetic frame and on every frame of the 61 scripted real-map runs (local). Next step: mutation results (the `Mutants` workflow now also mutates `doom-render`), the independent review, fuzz campaigns (so far only seed replays under AddressSanitizer, leak detection disabled), timings, the final gates and the PR ready for the owner. Half-done work: none. Open: the patchless column (§7 item 32) and a Medusa room (item 34) still need an owner decision on the graphics PWAD; the THING-loading truncation outside commercial mode is a recorded gap with a proposed follow-up ([COMPATIBILITY](COMPATIBILITY.md#known-gap-thing-loading-stops-at-the-first-doom-ii-type-outside-commercial-mode)). Resume: `git checkout feat/m5a-renderer && git pull`; commands in [TESTING](TESTING.md#m5a-synthetic-renderer-rooms).
+**Status / next step (2026-11-16 13:02 PST).** Phase 2 steps 1-7a are done, step 7b's documentation is written and the independent review's findings are resolved (§7 items 40-48; [evidence](validation/M5A.md#independent-review); [support](COMPATIBILITY.md#software-renderer-m5a); [ROADMAP](ROADMAP.md)). The renderer matches the genuine engine on every comparable synthetic frame and on every frame of the 61 scripted real-map runs (local). Next step: mutation results (the `Mutants` workflow now also mutates `doom-render`), fuzz campaigns (so far only seed replays under AddressSanitizer, leak detection disabled), timings, the final gates and the PR ready for the owner. Half-done work: none. Open: the declared refusals listed after §7 item 48 await the owner's acceptance; the patchless column (§7 item 32) and a Medusa room (item 34) still need an owner decision on the graphics PWAD; the THING-loading truncation outside commercial mode is a recorded gap with a proposed follow-up ([COMPATIBILITY](COMPATIBILITY.md#known-gap-thing-loading-stops-at-the-first-doom-ii-type-outside-commercial-mode)). Resume: `git checkout feat/m5a-renderer && git pull`; commands in [TESTING](TESTING.md#m5a-synthetic-renderer-rooms).
 
 ## Summary
 
@@ -2652,7 +2652,9 @@ behaviour is undefined, and none admits a silent divergence).
     - A two-sided line with no back side and no seg: `P_LoadLineDefs` sets `backsector = 0`
       (p_setup.c:425-428) and only `P_LoadSegs` reads `sides[ldef->sidenum[side^1]]`
       (p_setup.c:189-190). **Ported:** `Level::load` no longer refuses the line; a seg of such a line
-      reads `sides[-1]` and is still refused.
+      reads `sides[-1]` and is still refused. In practice doom-map's parser (outside M5a's scope,
+      crates/doom-map/src/parse.rs:252) refuses every two-sided line without a back side first, so
+      such a map never reaches the renderer; recorded for the owner, not acted on.
     - A negative TEXTURE1 or TEXTURE2 count: `numtextures = numtextures1 + numtextures2`
       (r_data.c:480) sizes seven `Z_Malloc`s (r_data.c:482-488), and the directory switches to
       TEXTURE2 only at `i == numtextures1` (r_data.c:509-515). A nonnegative total is **ported**:
@@ -2699,3 +2701,14 @@ behaviour is undefined, and none admits a silent divergence).
     one of its tracked switch lines, the framebuffer and taint cover the screen and every bounded value
     is in range; the decoder also refuses negative powers (the simulation keeps them nonnegative,
     p_user.c:339-353).
+48. **The harness checks every item's goldens for gaps.** The comparison loop stopped at the first tic
+    without a genuine row, so later rows were neither compared nor counted (only the global frame total
+    caught it). **Fixed:** every item and configuration must have one row per tic from 0 and the frame
+    count of `m5a_results.json`, every row is compared or counted as not reached, and a tic without a row
+    while later rows exist is counted as missing (`tests/frames.rs`; `m5a_real` exits 1 on either).
+
+Declared refusals awaiting the owner's acceptance after the review: `MaskedCompositeColumn` (item 43;
+also items 34-35) and the whole-run refusals kept where the C startup is undefined (item 41: negative
+width or patch count, markers in the wrong order, a negative or overflowing texture total). The other
+refusals of items 41-47 follow from undefined C behaviour (signed overflow, reads outside an
+allocation) or from the Episode 1 scope.

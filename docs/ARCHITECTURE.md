@@ -267,8 +267,9 @@ line specials and button slots the simulation keeps only in its canonical snapsh
   everything else is a typed `RenderRefusal`, which leaves state unchanged.
 - **`RenderState` and `DRST`.** What the original renderer carries between tics and the
   simulation does not keep (the view shadow that re-derives `viewz`, the switch tracker,
-  the mapped-line set, `fuzzpos`, the persistent framebuffer and the undefined-read taint)
-  lives in one self-contained value that serializes as [`DRST`](STATE_FORMAT.md#render-state-drst-version-1-m5a),
+  the mapped-line set, `fuzzpos`, the r_segs.c wall-step globals, the persistent framebuffer
+  and the undefined-read taint)
+  lives in one self-contained value that serializes as [`DRST`](STATE_FORMAT.md#render-state-drst-version-2-m5a),
   separate from DSIM. Saved next to a DSIM snapshot, it lets a rewind render any tic directly.
 - **Layout.** One module per C file, named for it: `r_main`, `r_bsp`, `r_segs`, `r_plane`,
   `r_sky`, `r_things`, `r_draw`, `r_data` and `p_spec` (the switch list and scrolling-wall offset, from p_spec.c and p_switch.c), plus
