@@ -2102,6 +2102,37 @@ The last command builds the strict, overflow and address runners (leak detection
 variant) and the frozen M4b runner; locally keep `--jobs` at 2 or below on the owner's machine. The real-map
 tool stays local (it reads the IWAD).
 
+Renderer guard tests and fuzz targets (M5a step 7a). The unit tests below the public API (`r_draw`,
+`r_things`, `r_main`, `r_data`, `state`) name the guard they pin and why `Renderer::render` cannot reach it;
+`crates/doom-render/src/test_support.rs` builds a frame context over the committed `amp.wad` room for them.
+`tests/contract.rs` covers the public contract (configuration refusals, call order, the limit refusals are
+typed, repeatable and change nothing, and rendering never changes the simulation, compared with a bare run
+tic by tic). All run in `cargo test -p doom-render` and the workspace tests; no IWAD. Two fuzz targets
+(no IWAD, no id art) and one seed tool:
+
+```sh
+python3 tools/seed_render_fuzz.py frames DIR   # render_frames seeds (max_len 516): the 45 committed scripts at three view sizes plus variants
+python3 tools/seed_render_fuzz.py data DIR     # render_data seeds (max_len 2048): edits of the synthetic graphics WAD and raw tails
+cargo +nightly fuzz build --sanitizer address render_frames   # also render_data; or build every target as above
+# seed replay (not a campaign); ASAN_OPTIONS=detect_leaks=0 means LeakSanitizer is disabled, not passed
+ASAN_OPTIONS=detect_leaks=0 cargo +nightly fuzz run render_frames --sanitizer address CORPUS -- -runs=0 -max_len=516 -timeout=300 -rss_limit_mb=2048
+cargo +nightly fuzz run render_data --sanitizer address CORPUS -- -runs=0 -max_len=2048 -timeout=60 -rss_limit_mb=2048
+# add -max_total_time=1800 -seed=N for a coverage-guided campaign
+```
+
+- `render_frames` loads one of the 23 M5a rooms or 18 M4b WADs with the synthetic graphics set, runs the
+  byte-derived commands (clamped into the simulation's admitted domain), and observes and renders every tic
+  at screenblocks 9, 10 or 11: no panic; a refusal is a typed `RenderRefusal` that leaves the render state
+  unchanged; a cloned renderer and simulation render the identical frame, report and state; the render state
+  round-trips through `DRST` and a mutated or truncated copy never panics; the simulation digest is the same
+  before and after every frame. It compares no pixels (the committed goldens do).
+- `render_data` edits lumps of the synthetic graphics WAD in memory (counts, offsets, sizes, deletions) and
+  loads the result with `Resources::load`, walks every column, flat and sprite of a successful load, and
+  feeds the raw tail to `RenderState::decode` and the patch readers. Its seeds cannot reach a valid `DRST`
+  (64,000-byte framebuffer): `render_frames` covers the deep decoder paths with real states.
+- `seed_render_fuzz.py` is deterministic (fixed-seed generator, committed inputs only) and has no `--check`
+  flag, as the other `seed_*_fuzz.py` tools have none.
+
 ## Mutation testing
 
 M4a used cargo-mutants 27.1.0 with cargo-nextest 0.9.151. These are separate

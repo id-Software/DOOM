@@ -481,6 +481,48 @@ them. The new Linux job `M5a genuine renderer` runs `m5a_gfx.py`, `m5a_check_gfx
 runner's default gcc. On head `ac2792e` the job passed in under 3 minutes (the runner's gcc, not the local 15.2.0), and so did
 every other job of that run (Stable on Linux, Windows and macOS, MSRV 1.85.0, instruction counts).
 
+## Renderer tests and fuzz targets, step 7a
+
+Observed 2026-11-16 (America/Los_Angeles) on the branch head after this step's commits. No IWAD was read.
+
+- **Tests added: 36** (the crate had 22 `#[test]`s; 58 now). Workspace tests: 1,459 passed, 0 failed
+  (1,423 before the step). `cargo +1.85.0 test -p doom-render` passed (48 unit tests, 4 contract tests and
+  the four existing targets). Every expectation comes from a C citation or admission rule already in the
+  [investigation](../M5A_REFERENCE_INVESTIGATION.md) or in the code's own documentation; none from Rust output.
+  - 32 unit tests below the public API, each naming its guard and why `Renderer::render` cannot reach it:
+    `r_draw` 6 (`R_DrawColumn`, `R_DrawFuzzColumn` and `R_DrawSpan` `RangeCheck` inside and outside the
+    screen and the view window, the empty column, `fuzzpos` advance and wrap), `r_things` 5
+    (`PlayerTranslation`, `MaskedColumnUndefined` for a post walk leaving the lump, the clip-array
+    `RangeCheck`s, the vissprite sort order and its `StaleGlobal`), `r_main` 2 (`TableRead` for
+    `R_PointToDist` on the point, `FixedDiv`), `r_data` 10 (the startup lump order and every load refusal
+    reachable without a full resource set, `R_GenerateLookup` undefined, composite, lump-0 and `>64k`
+    columns, `masked_posts` for composite and undefined columns, the 32,768th lump), `state` 9 (every
+    `DRST` field the decoder validates, every proper prefix).
+  - 4 public-API tests (`tests/contract.rs`): configurations outside screenblocks 9-11 or at low detail,
+    the call order (`NotObserved`, a gap on observe), the three limit refusals typed, repeatable and
+    state-preserving at screenblocks 11, 10 and 9, and the renderer never writing the simulation (8 items
+    at three configurations compared with a bare run tic by tic, snapshot digest every tic and canonical
+    bytes at the end).
+  - **Not reached by a unit test:** `MaskedCompositeColumn` and `MaskedColumnUndefined` as returned by
+    `render_masked_seg_range` (the table entries that select them are tested in `masked_posts`; the
+    match in `r_segs.rs` is not driven), the `StaleGlobal("pixhigh"/"pixlow")` refusals of
+    `R_StoreWallRange`, the `TableRead` and `RangeCheck` refusals deep in the segment and plane code,
+    and `R_DrawFuzzColumn`'s read-outside-the-view guard (unreachable after its border clamps).
+    `ResourceError::DirectoryNameCase` keeps its existing unit test.
+- **Fuzz targets: two, compiled** (`render_frames`, `render_data`; the whole fuzz workspace built with
+  `cargo +nightly fuzz build --sanitizer address`, 53 binaries, nightly 1.101.0, cargo-fuzz 0.13.2).
+  **Seed replay** (not a campaign): `render_data` 409 seeds from `tools/seed_render_fuzz.py data` replayed
+  with `-runs=0` under AddressSanitizer: 411 runs, no finding. `render_frames` 342 seeds from
+  `... frames` (the 45 committed scripts at three view sizes plus variants, and short inputs for every
+  WAD) replayed with `-runs=0` under AddressSanitizer, `ASAN_OPTIONS=detect_leaks=0` (leak detection
+  disabled): 385 runs, no finding. **No coverage-guided campaign and no sanitizer campaign was run** in this step;
+  the replays execute only the seeds (and libFuzzer's corpus reduction). The seed generator ran twice and
+  produced identical files.
+- **Limits of `render_frames`:** it compares no pixels with the genuine renderer; the whole-clone render,
+  the `DRST` round trip and the canonical-bytes comparison run on tic 0, every fourth tic and the last,
+  to bound an input's cost. It reaches the
+  limit refusals only through the committed limit rooms.
+
 ## Findings
 
 - **Step 2a: a new `tools/reference/generate*.py` breaks a frozen check.** The first push of step 2a
