@@ -2564,7 +2564,8 @@ settles it or "open".
     fallback of the tracker, and whether the run finishes depends on the memory layout
     ([evidence](validation/M5A.md#rooms-added-after-step-2a)). The Rust renderer must refuse or mark such
     frames non-comparable as a whole (decision R4); a room with terminating composite bytes needs a new
-    texture and so an owner decision on changing the graphics PWAD (open).35. **A masked midtexture column that is a multi-patch composite is refused** (orchestrator application of
+    texture and so an owner decision on changing the graphics PWAD (open).
+35. **A masked midtexture column that is a multi-patch composite is refused** (orchestrator application of
     R3, 2026-11-16). The composite holds no post headers and no 0xff terminator, so the genuine
     `R_DrawMaskedColumn` walk (r_segs.c:181-184, r_things.c:359-385) runs into zone memory (item 34). The
     Rust renderer refuses any frame that would draw such a column with `RenderRefusal::MaskedCompositeColumn`
@@ -2578,3 +2579,17 @@ settles it or "open".
     unshifted heights whose `>>4` test fails, which would draw with an earlier wall's `pixhigh`/`pixlow`
     (`StaleGlobal`, hazard 8). Over the 39,585 synthetic frames none of them occurred; their reachability on
     the real maps is measured in step 4.
+37. **Step 2c refusals that no synthetic frame reaches** (applications of R1 and R3, step 2c): a sprite
+    whose `MF_TRANSLATION` bits are set reaches `R_DrawTranslatedColumn` (r_things.c:417-422), which the
+    genuine runner aborts on; the Rust renderer refuses the frame at that call with
+    `RenderRefusal::PlayerTranslation` (R1: players 2-4 only). The sprite `RANGECHECK`s (invalid sprite
+    number or frame, r_things.c:506-516 and 659-669; a texture column outside the patch,
+    r_things.c:432-436; `R_DrawFuzzColumn`, r_draw.c:307-314) refuse with `RangeCheck`, a sprite post walk
+    leaving its lump with `MaskedColumnUndefined`, and an `R_SortVisSprites` pass finding no scale below
+    `MAXINT` (the uninitialised `best`, r_things.c:815) with `StaleGlobal`. Over the 39,585 synthetic frames
+    none of them occurred ([evidence](validation/M5A.md#rust-renderer-step-2c)).
+38. **The rewind test uses a simulation clone** (owner ruling on R5-R7, step 2c). doom-sim has no API that
+    restores a simulation from its canonical snapshot, and M5a does not edit doom-sim; `Simulation`
+    implements `Clone`, so `tests/rewind.rs` takes a clone at tic N-k as the simulation's restore point
+    and restores the render state through its `DRST` encoding into a fresh renderer. A restore from the
+    canonical snapshot bytes would need a new doom-sim API (an owner decision; not needed by M5a).

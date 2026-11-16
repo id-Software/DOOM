@@ -1998,9 +1998,10 @@ cargo test -p doom-render                                   # unit tests, the vi
 cargo test -p doom-render --release --test view_shadow -- --nocapture   # per-field counts against tests/reference/m5a_views
 cargo test -p doom-render --release --test frames -- --nocapture        # frames compared, matched, refused; the limit refusals
 cargo test -p doom-render --release --test switches                     # the switch tracker against M5SWTCH's genuine switch textures
+cargo test -p doom-render --release --test rewind -- --nocapture        # restore the render state at tic N-k next to a simulation clone, continue to N
 # local first-difference reporter: counts, the first non-matching frame per item and configuration,
-# and with --c-runner the world-pixel comparison of every frame against the genuine raw frames,
-# with a PNG pair (genuine, Rust) of each first world difference in ~/scratch/m5a/diff
+# and with --c-runner the pixel comparison of every frame against the genuine raw frames, naming the
+# feature in play at the first differing pixel, with a PNG pair (genuine, Rust) in ~/scratch/m5a/diff
 python3 tools/reference/m5a_build.py --variant strict --out ~/scratch/m5a/build
 cargo run -p doom-render --release --example m5a_compare -- --c-runner ~/scratch/m5a/build/strict/crunner [--only M5PEG,TELE1] [--screenblocks 11,10,9] [--diff DIR]
 ```
@@ -2014,18 +2015,25 @@ cargo run -p doom-render --release --example m5a_compare -- --c-runner ~/scratch
   `fixedcolormap`) and the simulation values it reads.
 - `tests/frames.rs` runs every item once with three renderers (screenblocks 11, 10, 9) observing
   after every committed `advance` and compares every frame with the committed SHA-256 (the masked
-  digest where the genuine tracker flagged columns). From step 2b it requires, on every frame, the
-  genuine F row's counters (mapped lines, visplanes, drawsegs, vissprites, openings, the
-  solid-segment peak, dropped drawsegs, the vissprite overflow) and M row (newly mapped lines); no
-  refused frame; a full match for every frame with no column pending step 2c (sprites and weapon
-  sprites); and, where the genuine run ends at a renderer limit (`m5a_results.json`), the matching
-  refusal at the next tic (VPLANES, OPENINGS, SOLIDSEGS). Its self-test plants a one-pixel change
-  and requires a mismatch.
+  digest where the genuine tracker flagged columns). It requires every frame to match, with the
+  Rust flagged columns equal to the genuine U rows, except M5SWTCH's 35 parity-unknown frames per
+  configuration (decision R7); on every frame the genuine F row's counters (mapped lines,
+  visplanes, drawsegs, vissprites, openings, the solid-segment peak, dropped drawsegs, the
+  vissprite overflow), `fuzzpos` and M row (newly mapped lines); no refused frame; and, where the
+  genuine run ends at a renderer limit (`m5a_results.json`), the matching refusal at the next tic
+  (VPLANES, OPENINGS, SOLIDSEGS). Its self-test plants a one-pixel change and requires a mismatch.
+- `tests/rewind.rs` (owner ruling on R5-R7): for M5FUZZ, BINF1, M5SWTCH, M5VIEWZ and M5DSEG at
+  the three configurations it renders straight through to tic N, and separately restores, at tic
+  N-k, a clone of the simulation (doom-sim has no restore-from-snapshot API) and the render state
+  through its `DRST` encoding into a fresh renderer, then continues to N; every rewound frame and
+  report and the encoded render state at N must equal the uninterrupted run's, and every rewound
+  frame must match its golden. Its self-test restores a state with a changed `fuzzpos` and
+  requires a different frame.
 - `m5a_compare --c-runner` (local) reruns the genuine runner with `--frames-raw` per item and
-  configuration and compares every pixel except the genuine flagged columns, the columns pending
-  step 2c and the pixels those columns left behind and nothing later overwrote (the framebuffer
-  persists, decision R8). On the first compared frame of each item and configuration it plants a
-  one-pixel change and requires the comparison to detect it.
+  configuration and compares every pixel of every comparable frame except the genuine flagged
+  columns; the first difference names the stage and its object (seg, visplane, vissprite with
+  sprite and frame, weapon sprite, fuzz owner). On the first compared frame of each item and
+  configuration it plants a one-pixel change and requires the comparison to detect it.
 - `tests/switches.rs` replays M5SWTCH and requires the switch tracker's side textures to equal the
   genuine `s0mid` of its four switch lines at every tic where the parity is known (the expected
   values are the strict runner's dump rows, recorded in the evidence record), and the parity to be

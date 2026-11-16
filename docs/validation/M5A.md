@@ -10,7 +10,7 @@ owns the commands. Exact review state and CI belong to GitHub.
 the synthetic rooms, the M5a genuine runner and the genuine goldens. Phase 2 step 2a (2026-11-16):
 the Rust renderer's foundation (tables, view setup, resources, render state, view shadow) and the
 comparison harness ([below](#rust-renderer-step-2a)), then three more rooms with their genuine goldens
-([below](#rooms-added-after-step-2a)), then step 2b: the world renderer ([below](#rust-renderer-step-2b)). No IWAD was read in this step. Address-checked runs used
+([below](#rooms-added-after-step-2a)), then step 2b: the world renderer ([below](#rust-renderer-step-2b)), then step 2c: sprites, weapon sprites and fuzz, full-frame matching and the rewind test ([below](#rust-renderer-step-2c)). No IWAD was read in this step. Address-checked runs used
 `ASAN_OPTIONS=detect_leaks=0`: LeakSanitizer was disabled, not passed. No timing or benchmark was
 measured.
 
@@ -291,6 +291,117 @@ the comparison above):
 | TSLIDE | 170/170/170 | 3/5/6 | 170/170/170 | 0/0/0 |
 | TSPLIT | 65/65/65 | 3/5/6 | 65/65/65 | 0/0/0 |
 | Total | 13191/13191/13203 | 128/205/243 | 13156/13156/13168 | 35/35/35 |
+
+## Rust renderer, step 2c
+
+Observed 2026-11-16 (America/Los_Angeles) at commits `98bbc23` (renderer and harness) and `5426da5`
+(rewind test), on the 45 synthetic items (23 rooms, 22 M4b scripts) at screenblocks 11, 10 and 9; no
+IWAD was read, no timing was measured. Step 2c draws the vissprites (projection with rotations, mirror,
+fullbright, sector and distance light, `MF_SHADOW` fuzz and fixed colour maps; the `MAXVISSPRITES`
+silent drop; the exact selection sort; drawseg clipping with silhouettes and the masked midtextures of
+segs behind a sprite), the weapon sprites (bob position, flash after the weapon, the invisibility rule,
+fixed colour maps, fullbright) and `R_DrawFuzzColumn` with `fuzzpos` carried across frames in the render
+state (decision R8). `R_DrawTranslatedColumn` is refused (investigation §7 item 37).
+
+- **Full-frame matching (CI harness)** (`cargo test -p doom-render --release --test frames --
+  --nocapture`, also passing in debug): 39,585 frames rendered and compared; 39,480 match their golden
+  full digest (the masked digest on M5SHORT's tracker-flagged frames), with Rust's flagged columns equal
+  to the genuine U rows on every one; 0 mismatched, 0 refused; 105 non-comparable, exactly M5SWTCH's 35
+  parity-unknown frames per configuration (decision R7). On every rendered frame the counters, `fuzzpos`
+  after the frame and the newly mapped lines equal the genuine F and M rows (0 differing frames).
+  Fuzz is exercised by M5FUZZ (spectres; `fuzzpos` nonzero in 151 of its 156 frames at screenblocks 10)
+  and BINF1 (partial invisibility; 293 of 300); the `MAXVISSPRITES` drop by VSPRITES (128 vissprites and
+  `overflowsprite` written in 32 frames per configuration, matching on every frame); AMPFLICK's
+  end-of-power flicker of fixed colour map 1 matches on all 4,230 frames per configuration.
+
+  | Configuration | Frames | Full match | Non-comparable (R7) | Mismatched | Refused |
+  | --- | --- | --- | --- | --- | --- |
+  | screenblocks 11 | 13,191 | 13,156 | 35 | 0 | 0 |
+  | screenblocks 10 | 13,191 | 13,156 | 35 | 0 | 0 |
+  | screenblocks 9 | 13,203 | 13,168 | 35 | 0 | 0 |
+
+- **Refusals by kind.** Only the limit rooms refuse, each at the tic after the genuine run's last frame:
+  VPLANES `VisplaneOverflow` at tic 49 in all three configurations (genuine `R_FindPlane` I_Error at 49);
+  OPENINGS `OpeningOverflow` at 40, 40 and 49 (genuine first write past `openings[]` at the same tics);
+  SOLIDSEGS `SolidSegOverflow` at 15, 15 and 18 (the genuine write at 15, 15 and 19; at screenblocks 9 the
+  first access is the crunch loop's read at 18, item 29). DSEGS and VSPRITES reproduce the silent drops.
+  `PlayerTranslation`, `RangeCheck`, `MaskedCompositeColumn`, `MaskedColumnUndefined`, `TableRead`,
+  `StaleGlobal` and `FixedDiv`: 0 occurrences.
+- **Raw pixels** (local, `m5a_compare --c-runner` with the strict runner's raw frames): every pixel of
+  every comparable frame except the genuine flagged columns; compared frames 13,156, 13,156 and 13,168,
+  differing frames 0, differing pixels 0; pixels compared 99.9% of each frame's 64,000 (the rest are
+  M5SHORT's flagged columns). The planted one-pixel self-test was detected on all 45 items in each
+  configuration.
+- **The harness and the reporter can fail** (scratch mutation, reverted, not committed): with the
+  sort's strict `<` (r_things.c:822) changed to `<=` and the fuzz colour map 6 (r_draw.c:358) changed
+  to 5, `m5a_compare --c-runner --only M5VSPR,M5SPRIT,M5CLIP,M5FUZZ,BINF1 --screenblocks 10` reported
+  553 of 858 frames differing; the first differences were named "vissprite 1 (sprite TRED frame B)" in
+  M5CLIP (equal-scale sprites drawn in the other order) and "Fuzz { psprite: false, vissprite: 1 }" in
+  M5FUZZ.
+- **Rewind** (`cargo test -p doom-render --release --test rewind -- --nocapture`; owner ruling on
+  R5-R7). doom-sim has no restore-from-snapshot API (investigation §7 item 38), so the simulation's
+  restore point is a `Simulation` clone at tic N-k; the render state is encoded (`DRST` v1), decoded,
+  re-encoded identically and restored into a fresh renderer, which observes and renders tics
+  N-k+1..N. Cases (simulation tics N-k to N): M5FUZZ 40 to 120 (spectre fuzz), BINF1 150 to 260
+  (fuzzed weapon sprites), M5SWTCH 20 to 160 (restored inside a parity-unknown window), M5VIEWZ 39 to
+  380 (inside a step-up dip, then the landing and death), M5DSEG 30 to 82 (515 mapped lines and the
+  drawseg drop), each at screenblocks 11, 10 and 9: 2,169 rewound frames, every frame and report equal
+  to the uninterrupted run's and every one matching its golden (M5SWTCH's parity-unknown frames
+  excepted), and the encoded render state at tic N equal in all 15 runs. Its self-test restores a state
+  with `fuzzpos` changed by one and observed a different frame.
+
+No divergence needed a fix: every frame matched on the first full run of the step-2c renderer.
+
+Per item (sb11/sb10/sb9):
+
+| Item | Frames (sb11/10/9) | Full match | Non-comparable |
+| --- | --- | --- | --- |
+| M5AMP | 124/124/124 | 124/124/124 | 0/0/0 |
+| M5AMPFL | 4230/4230/4230 | 4230/4230/4230 | 0/0/0 |
+| M5CLIP | 184/184/184 | 184/184/184 | 0/0/0 |
+| M5CONTR | 128/128/128 | 128/128/128 | 0/0/0 |
+| M5DIST | 202/202/202 | 202/202/202 | 0/0/0 |
+| M5DSEG | 82/82/82 | 82/82/82 | 0/0/0 |
+| M5FUZZ | 156/156/156 | 156/156/156 | 0/0/0 |
+| M5HOM | 132/132/132 | 132/132/132 | 0/0/0 |
+| M5LIGHT | 208/208/208 | 208/208/208 | 0/0/0 |
+| M5MASK | 160/160/160 | 160/160/160 | 0/0/0 |
+| M5OPEN | 40/40/49 | 40/40/49 | 0/0/0 |
+| M5PEG | 219/219/219 | 219/219/219 | 0/0/0 |
+| M5PLANE | 168/168/168 | 168/168/168 | 0/0/0 |
+| M5SHORT | 136/136/136 | 136/136/136 | 0/0/0 |
+| M5SKY | 288/288/288 | 288/288/288 | 0/0/0 |
+| M5SPRIT | 136/136/136 | 136/136/136 | 0/0/0 |
+| M5SSEG | 15/15/18 | 15/15/18 | 0/0/0 |
+| M5SWTCH | 213/213/213 | 178/178/178 | 35/35/35 |
+| M5VIEW | 40/40/40 | 40/40/40 | 0/0/0 |
+| M5VIEWZ | 568/568/568 | 568/568/568 | 0/0/0 |
+| M5VPLAN | 49/49/49 | 49/49/49 | 0/0/0 |
+| M5VSPR | 82/82/82 | 82/82/82 | 0/0/0 |
+| M5WEAP | 396/396/396 | 396/396/396 | 0/0/0 |
+| BARON1 | 753/753/753 | 753/753/753 | 0/0/0 |
+| BINF1 | 300/300/300 | 300/300/300 | 0/0/0 |
+| BOSS1 | 545/545/545 | 545/545/545 | 0/0/0 |
+| BOSS2 | 364/364/364 | 364/364/364 | 0/0/0 |
+| BOSSM1 | 600/600/600 | 600/600/600 | 0/0/0 |
+| BTUNNEL | 190/190/190 | 190/190/190 | 0/0/0 |
+| BVB1 | 735/735/735 | 735/735/735 | 0/0/0 |
+| MTELE1 | 160/160/160 | 160/160/160 | 0/0/0 |
+| SAWBITE | 116/116/116 | 116/116/116 | 0/0/0 |
+| SKILL2 | 90/90/90 | 90/90/90 | 0/0/0 |
+| SKILL3 | 90/90/90 | 90/90/90 | 0/0/0 |
+| SLIDEB | 100/100/100 | 100/100/100 | 0/0/0 |
+| SLIDEC | 123/123/123 | 123/123/123 | 0/0/0 |
+| SPECH8 | 98/98/98 | 98/98/98 | 0/0/0 |
+| SPECH9 | 75/75/75 | 75/75/75 | 0/0/0 |
+| TELE1 | 173/173/173 | 173/173/173 | 0/0/0 |
+| TELE2 | 61/61/61 | 61/61/61 | 0/0/0 |
+| TELE2X | 65/65/65 | 65/65/65 | 0/0/0 |
+| TELEZ | 80/80/80 | 80/80/80 | 0/0/0 |
+| TFRAG1 | 282/282/282 | 282/282/282 | 0/0/0 |
+| TSLIDE | 170/170/170 | 170/170/170 | 0/0/0 |
+| TSPLIT | 65/65/65 | 65/65/65 | 0/0/0 |
+| Total | 13191/13191/13203 | 13156/13156/13168 | 35/35/35 |
 
 ## Findings
 
