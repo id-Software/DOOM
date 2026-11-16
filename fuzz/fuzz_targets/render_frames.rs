@@ -113,7 +113,7 @@ fn setup(index: usize) -> &'static Setup {
             .expect("a committed WAD loads with the committed graphics");
         let slot = format!("E1M{}", map_number(index));
         let map = doom_map::Map::from_wad(&wad, &slot, doom_map::MapLimits::default()).unwrap();
-        let level = Level::load(&res, &map).expect("a committed map resolves its textures");
+        let level = Level::load(&res, &map, 1).expect("a committed map resolves its textures");
         Setup {
             map,
             res: Arc::new(res),

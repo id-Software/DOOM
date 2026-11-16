@@ -37,7 +37,8 @@ pub enum ResourceError {
         /// Bytes present.
         length: usize,
     },
-    /// A PNAMES or TEXTURE count or directory entry is negative or exceeds the lump.
+    /// A PNAMES count is negative, the combined TEXTURE1 and TEXTURE2 count is negative or
+    /// overflows, or a count or directory entry exceeds its lump.
     BadTextureDirectory(String),
     /// A texture names a patch index outside PNAMES (unchecked read of `patchlookup`).
     PatchIndexOutOfRange {
@@ -48,7 +49,9 @@ pub enum ResourceError {
     },
     /// `R_InitTextures: Missing patch in texture %s` (r_data.c:544).
     MissingPatch(String),
-    /// A texture's width, height or patch count is not positive.
+    /// A texture's width or patch count is negative: `alloca` and `memset` of a negative
+    /// width (r_data.c:322-323), or a `texture_t` allocation smaller than the fields
+    /// `R_InitTextures` writes into it (r_data.c:524-531).
     BadTextureSize(String),
     /// A patch header or column directory entry lies outside its lump.
     PatchBounds {
@@ -57,7 +60,9 @@ pub enum ResourceError {
     },
     /// `R_GenerateLookup: texture %i is >64k` (r_data.c:367).
     CompositeTooLarge(usize),
-    /// The F_START/F_END or S_START/S_END markers do not enclose a positive range.
+    /// The F_START/F_END or S_START/S_END markers are in the wrong order: the genuine count
+    /// is negative and sizes a `Z_Malloc` with a negative byte count (r_data.c:585-590,
+    /// 608-614; z_zone.c:195-203). An empty range (count 0) is admitted.
     BadMarkerRange(&'static str),
     /// `R_TextureNumForName: %s not found` (r_data.c:724).
     TextureNotFound(String),
@@ -72,9 +77,12 @@ pub enum ResourceError {
     /// One of the `I_Error`s of `R_InstallSpriteLump`/`R_InitSpriteDefs` (r_things.c:115-151,
     /// 255-267).
     Sprite(String),
-    /// A map refers to something the renderer cannot resolve (`ML_TWOSIDED` without a back
-    /// side, `p_setup.c:189-192`, would read `sides[-1]`).
+    /// A map refers to something the renderer cannot resolve (a seg of an `ML_TWOSIDED` line
+    /// without a back side, which `P_LoadSegs` would read as `sides[-1]`, p_setup.c:189-192).
     Map(String),
+    /// The episode's sky is not `SKY1`: `G_InitNew` selects `SKY2`, `SKY3` or `SKY4` for
+    /// episodes 2-4 (g_game.c:1464-1478) and the renderer admits Episode 1 only.
+    SkyEpisode(u8),
     /// The configuration is outside the admitted domain (decision R2).
     Config(crate::ConfigError),
 }
@@ -267,6 +275,12 @@ pub enum ColumnEntry {
     /// (r_data.c:353-358): its lump and offset are undefined memory in the genuine engine,
     /// so every read from it is undefined.
     Undefined,
+    /// A column whose genuine `R_GetColumn` reads memory no allocation holds: a column of a
+    /// zero-width texture (its `texturecolumnlump`/`texturecolumnofs` tables are 0-byte
+    /// `Z_Malloc` blocks, r_data.c:548-549, read at r_data.c:391-392), or a composite column of
+    /// a texture with a negative height (`R_GenerateComposite` would `Z_Malloc` the negative
+    /// `texturecompositesize`, r_data.c:244 and 365-371). Drawing it is refused.
+    Unallocated,
 }
 
 /// A texture (`texture_t` plus its r_data.c side tables).
@@ -302,9 +316,15 @@ pub struct ColumnSource<'a> {
     defined: Option<&'a [bool]>,
     start: usize,
     undefined_column: bool,
+    unallocated: bool,
 }
 
 impl ColumnSource<'_> {
+    /// Whether the genuine `R_GetColumn` read of this column's tables or composite reads
+    /// memory no allocation holds (see [`ColumnEntry::Unallocated`]).
+    pub fn unallocated(&self) -> bool {
+        self.unallocated
+    }
     /// The byte at `start + index` of the source block, and whether reading it is defined
     /// (inside the lump, or a composite byte some patch wrote). An undefined read returns 0.
     pub fn texel(&self, index: usize) -> (u8, bool) {
@@ -375,8 +395,12 @@ pub struct Resources {
     pub anims: Vec<crate::p_spec::Anim>,
     /// `skytexture` (`R_TextureNumForName("SKY1")`, g_game.c:1457-1475; episode 1).
     pub skytexture: usize,
-    /// `skyflatnum` (`R_FlatNumForName(SKYFLATNAME)`, g_game.c:454).
-    pub skyflatnum: usize,
+    /// `skyflatnum` (`R_FlatNumForName(SKYFLATNAME)`, g_game.c:454), or `None` when the
+    /// lump lies outside F_START..F_END: the genuine `R_FlatNumForName` returns that
+    /// out-of-range number unchecked (r_data.c:672-687) and every reader only compares it
+    /// with a sector's pic (r_bsp.c:526, r_plane.c:225 and 396, r_segs.c:530-531 and 672),
+    /// which `Level::load` has resolved inside the range, so it never matches.
+    pub skyflatnum: Option<usize>,
 }
 
 impl Resources {
@@ -426,13 +450,17 @@ impl Resources {
             switchlist: Vec::new(),
             anims: Vec::new(),
             skytexture: 0,
-            skyflatnum: 0,
+            skyflatnum: None,
         };
         res.switchlist = crate::p_spec::init_switch_list(&res, mode)?;
         res.anims = crate::p_spec::init_pic_anims(&res)?;
         res.sprites = crate::r_things::init_sprite_defs(&res)?;
         res.skytexture = res.texture_num_for_name(b"SKY1")?;
-        res.skyflatnum = res.flat_num_for_name(crate::r_sky::SKYFLATNAME)?;
+        res.skyflatnum = match res.flat_num_for_name(crate::r_sky::SKYFLATNAME) {
+            Ok(n) => Some(n),
+            Err(ResourceError::FlatOutOfRange(_)) => None,
+            Err(e) => return Err(e),
+        };
         Ok(res)
     }
 
@@ -481,24 +509,37 @@ impl Resources {
     pub fn get_column(&self, tex: usize, col: i32) -> ColumnSource<'_> {
         let t = &self.textures[tex];
         let col = (col & t.widthmask) as usize;
-        match t.columns[col] {
+        let none = ColumnSource {
+            block: &[],
+            defined: None,
+            start: 0,
+            undefined_column: true,
+            unallocated: false,
+        };
+        match t
+            .columns
+            .get(col)
+            .copied()
+            .unwrap_or(ColumnEntry::Unallocated)
+        {
             ColumnEntry::Lump { lump, ofs } => ColumnSource {
                 block: self.dir.bytes(lump),
                 defined: None,
                 start: usize::from(ofs),
                 undefined_column: false,
+                unallocated: false,
             },
             ColumnEntry::Composite { ofs } | ColumnEntry::LumpZero { ofs } => ColumnSource {
                 block: &t.composite,
                 defined: Some(&t.defined),
                 start: usize::from(ofs),
                 undefined_column: false,
+                unallocated: false,
             },
-            ColumnEntry::Undefined => ColumnSource {
-                block: &[],
-                defined: None,
-                start: 0,
-                undefined_column: true,
+            ColumnEntry::Undefined => none,
+            ColumnEntry::Unallocated => ColumnSource {
+                unallocated: true,
+                ..none
             },
         }
     }
@@ -518,6 +559,8 @@ pub enum MaskedPosts<'a> {
     Composite,
     /// A column `R_GenerateLookup` left uninitialised, or an offset below 3.
     Undefined,
+    /// A column whose tables or composite no allocation holds ([`ColumnEntry::Unallocated`]).
+    Unallocated,
 }
 
 impl Resources {
@@ -525,7 +568,12 @@ impl Resources {
     pub fn masked_posts(&self, tex: usize, col: i32) -> MaskedPosts<'_> {
         let t = &self.textures[tex];
         let col = (col & t.widthmask) as usize;
-        match t.columns[col] {
+        match t
+            .columns
+            .get(col)
+            .copied()
+            .unwrap_or(ColumnEntry::Unallocated)
+        {
             ColumnEntry::Lump { lump, ofs } => match usize::from(ofs).checked_sub(3) {
                 Some(at) => MaskedPosts::Lump {
                     bytes: self.dir.bytes(lump),
@@ -535,6 +583,7 @@ impl Resources {
             },
             ColumnEntry::Composite { .. } | ColumnEntry::LumpZero { .. } => MaskedPosts::Composite,
             ColumnEntry::Undefined => MaskedPosts::Undefined,
+            ColumnEntry::Unallocated => MaskedPosts::Unallocated,
         }
     }
     /// A column source starting at byte `start` of lump `bytes` (a masked post's pixels).
@@ -544,6 +593,7 @@ impl Resources {
             defined: None,
             start,
             undefined_column: false,
+            unallocated: false,
         }
     }
 }
@@ -554,12 +604,14 @@ fn marker_range(
     end: &[u8],
     what: &'static str,
 ) -> Result<(usize, usize), ResourceError> {
+    // `first = W_GetNumForName(start) + 1`, `last = W_GetNumForName(end) - 1`,
+    // `count = last - first + 1` (r_data.c:585-587, 608-611): 0 when the markers are adjacent.
     let first = dir.get_num_for_name(start)? + 1;
-    let last = dir.get_num_for_name(end)?;
-    if last <= first {
-        return Err(ResourceError::BadMarkerRange(what));
-    }
-    Ok((first, last - first))
+    let end_lump = dir.get_num_for_name(end)?;
+    let count = end_lump
+        .checked_sub(first)
+        .ok_or(ResourceError::BadMarkerRange(what))?;
+    Ok((first, count))
 }
 
 /// `R_InitTextures` (r_data.c:411-574) and `R_GenerateLookup` (r_data.c:296-374) for every
@@ -582,18 +634,36 @@ fn init_textures(dir: &LumpDirectory) -> Result<Vec<Texture>, ResourceError> {
     let lookup: Vec<Option<usize>> = (0..count)
         .map(|i| dir.check_num_for_name(&pnames[4 + 8 * i..12 + 8 * i]))
         .collect();
-    let mut lists: Vec<(&[u8], &'static str)> =
-        vec![(dir.bytes(dir.get_num_for_name(b"TEXTURE1")?), "TEXTURE1")];
-    if let Some(t2) = dir.check_num_for_name(b"TEXTURE2") {
-        lists.push((dir.bytes(t2), "TEXTURE2"));
-    }
+    let maptex1 = dir.bytes(dir.get_num_for_name(b"TEXTURE1")?);
+    let numtextures1 = read_i32(maptex1, 0)
+        .ok_or_else(|| ResourceError::BadTextureDirectory("TEXTURE1".into()))?;
+    let maptex2 = dir.check_num_for_name(b"TEXTURE2").map(|l| dir.bytes(l));
+    let numtextures2 = match maptex2 {
+        Some(m) => {
+            read_i32(m, 0).ok_or_else(|| ResourceError::BadTextureDirectory("TEXTURE2".into()))?
+        }
+        None => 0,
+    };
+    // `numtextures = numtextures1 + numtextures2` (r_data.c:480) sizes seven `Z_Malloc`s
+    // (r_data.c:482-488): a negative total is a negative allocation (z_zone.c:195-203), and
+    // an overflowing sum is undefined.
+    let numtextures = numtextures1
+        .checked_add(numtextures2)
+        .and_then(|n| usize::try_from(n).ok())
+        .ok_or_else(|| ResourceError::BadTextureDirectory("TEXTURE1+TEXTURE2".into()))?;
     let mut textures = Vec::new();
-    for (lump, what) in lists {
-        let n = read_i32(lump, 0)
-            .filter(|n| *n >= 0)
-            .ok_or_else(|| ResourceError::BadTextureDirectory(what.into()))?;
-        for i in 0..n as usize {
-            let offset = read_i32(lump, 4 + 4 * i)
+    let (mut lump, mut what, mut base_index) = (maptex1, "TEXTURE1", 0usize);
+    for i in 0..numtextures {
+        // The directory switches to TEXTURE2 exactly at `i == numtextures1` (r_data.c:509-515):
+        // never when `numtextures1` is negative, so every entry is then read from TEXTURE1's
+        // directory, as it is when `numtextures2` is negative.
+        if i64::try_from(i).ok() == Some(i64::from(numtextures1)) {
+            if let Some(m) = maptex2 {
+                (lump, what, base_index) = (m, "TEXTURE2", i);
+            }
+        }
+        {
+            let offset = read_i32(lump, 4 + 4 * (i - base_index))
                 .ok_or_else(|| ResourceError::BadTextureDirectory(what.into()))?;
             // r_data.c:520 checks only `offset > maxoff`; any read outside the lump is refused.
             let base = usize::try_from(offset)
@@ -609,7 +679,9 @@ fn init_textures(dir: &LumpDirectory) -> Result<Vec<Texture>, ResourceError> {
             let width = read_i16(m, 12).unwrap_or(0);
             let height = read_i16(m, 14).unwrap_or(0);
             let patchcount = read_i16(m, 20).unwrap_or(0);
-            if width <= 0 || height <= 0 || patchcount <= 0 {
+            // A zero width, a zero patch count and any height are well defined at load
+            // (r_data.c:524-559, 322-323); a negative width or patch count is not.
+            if width < 0 || patchcount < 0 {
                 return Err(ResourceError::BadTextureSize(name_text(&name)));
             }
             let mut patches = Vec::with_capacity(patchcount as usize);
@@ -662,7 +734,10 @@ fn init_textures(dir: &LumpDirectory) -> Result<Vec<Texture>, ResourceError> {
 /// `R_GenerateLookup` (r_data.c:296-374).
 fn generate_lookup(dir: &LumpDirectory, num: usize, t: &mut Texture) -> Result<(), ResourceError> {
     let width = t.width as usize;
-    let mut patchcount = vec![0u32; width];
+    // `byte* patchcount` (r_data.c:299, 322-323): the count wraps modulo 256
+    // (`patchcount[x]++`, r_data.c:343), so 256 patches read as 0 ("column without a patch")
+    // and 257 as 1 (a single-patch column of the last patch).
+    let mut patchcount = vec![0u8; width];
     // The genuine tables are uninitialised Z_Malloc memory; a column no patch covers is never
     // assigned (see `ColumnEntry::Undefined`).
     let mut cols: Vec<Option<(usize, u16)>> = vec![None; width];
@@ -674,13 +749,13 @@ fn generate_lookup(dir: &LumpDirectory, num: usize, t: &mut Texture) -> Result<(
         for x in x1.max(0)..x2 {
             let ofs = patch_column_offset(bytes, x - x1)
                 .ok_or(ResourceError::PatchBounds { lump: p.patch })?;
-            patchcount[x as usize] += 1;
+            patchcount[x as usize] = patchcount[x as usize].wrapping_add(1);
             // `colofs[x] = LONG(columnofs[x-x1]) + 3`, stored as unsigned short.
             cols[x as usize] = Some((p.patch, ofs.wrapping_add(3) as u16));
         }
     }
     let mut entries = Vec::with_capacity(width);
-    let mut size = 0usize;
+    let mut size = 0i64;
     let mut stopped = false;
     for x in 0..width {
         if stopped {
@@ -693,23 +768,36 @@ fn generate_lookup(dir: &LumpDirectory, num: usize, t: &mut Texture) -> Result<(
             continue;
         }
         if patchcount[x] == 0 {
+            // "column without a patch" (r_data.c:350-356): the function returns, leaving this
+            // and every later column with what the first loop stored (a column covered by a
+            // multiple of 256 patches keeps its last patch's lump and offset).
             stopped = true;
-            entries.push(ColumnEntry::Undefined);
+            entries.push(match cols[x] {
+                Some((lump, ofs)) => lump_entry(lump, ofs),
+                None => ColumnEntry::Undefined,
+            });
             continue;
         }
         if patchcount[x] > 1 {
-            if size > 0x10000 - t.height as usize {
+            // `texturecompositesize > 0x10000 - height` (r_data.c:365-371), in `int`.
+            if size > 0x10000 - i64::from(t.height) {
                 return Err(ResourceError::CompositeTooLarge(num));
             }
-            entries.push(ColumnEntry::Composite { ofs: size as u16 });
-            size += t.height as usize;
+            if t.height < 0 {
+                // The composite would be `Z_Malloc`ed with the negative size (r_data.c:244).
+                entries.push(ColumnEntry::Unallocated);
+            } else {
+                entries.push(ColumnEntry::Composite { ofs: size as u16 });
+            }
+            size += i64::from(t.height);
         } else {
             let (lump, ofs) = cols[x].expect("covered column");
             entries.push(lump_entry(lump, ofs));
         }
     }
     t.columns = entries;
-    t.compositesize = size;
+    // A negative height leaves no composite column (they are all `Unallocated`).
+    t.compositesize = usize::try_from(size).unwrap_or(0);
     Ok(())
 }
 
@@ -927,8 +1015,9 @@ mod tests {
         assert_eq!(err(&textures_only()), nf("F_START"));
         let mut l = textures_only();
         l.extend([("F_START", vec![]), ("F_END", vec![])]);
-        // F_START immediately followed by F_END encloses no flat.
-        assert_eq!(err(&l), ResourceError::BadMarkerRange("F_START/F_END"));
+        // F_START immediately followed by F_END encloses no flat: `numflats` 0 is well
+        // defined (r_data.c:581-594), so the load goes on to the sprite markers.
+        assert_eq!(err(&l), nf("S_START"));
         let mut l = textures_only();
         l.extend([
             ("F_START", vec![]),
@@ -937,6 +1026,16 @@ mod tests {
         ]);
         assert_eq!(err(&l), nf("S_START"));
         l.extend([("S_START", vec![]), ("S_END", vec![])]);
+        // No sprite lump: `numspritelumps` 0 is well defined too (r_data.c:603-626).
+        assert_eq!(err(&l), nf("COLORMAP"));
+        let mut l = textures_only();
+        l.extend([
+            ("F_START", vec![]),
+            ("FLAT", vec![0; 4096]),
+            ("F_END", vec![]),
+            ("S_END", vec![]),
+            ("S_START", vec![]),
+        ]);
         assert_eq!(err(&l), ResourceError::BadMarkerRange("S_START/S_END"));
         // F_END before F_START: the range is negative.
         let mut l = textures_only();
@@ -1037,7 +1136,10 @@ mod tests {
         // A negative count, or an entry offset outside the lump (r_data.c:520 checks only
         // `offset > maxoff`; the renderer refuses every read outside the lump).
         let t = |lump: Vec<u8>| vec![("PNAMES", pnames(&[])), ("TEXTURE1", lump)];
-        assert_eq!(err(&t((-3i32).to_le_bytes().to_vec())), bad("TEXTURE1"));
+        assert_eq!(
+            err(&t((-3i32).to_le_bytes().to_vec())),
+            bad("TEXTURE1+TEXTURE2")
+        );
         assert_eq!(err(&t(vec![])), bad("TEXTURE1"));
         let mut lump = 1i32.to_le_bytes().to_vec();
         lump.extend(1000i32.to_le_bytes());
@@ -1068,19 +1170,21 @@ mod tests {
                 ("TEXTURE1", texture_lump(&[("WALL", w, h, patches)])),
             ]
         };
-        // `texture->width/height/patchcount` must be positive (a zero or negative value would
-        // size the column tables with a wrapped count).
-        for (w, h, p) in [(0, 8, 1), (8, 0, 1), (-8, 8, 1), (8, -8, 1)] {
+        // A negative width is refused (`alloca`/`memset` of a negative size, r_data.c:322-323);
+        // a zero width, a zero or negative height and no patch at all load (the next lump
+        // the load needs, F_START, is then missing).
+        assert_eq!(
+            err(&one(-8, 8, &[(0, 0, 0)])),
+            ResourceError::BadTextureSize("WALL".into())
+        );
+        for (w, h, p) in [(0, 8, 1), (8, 0, 1), (8, -8, 1), (8, 8, 0)] {
             let patches: &[(i16, i16, i16)] = &[(0, 0, 0)][..p];
             assert_eq!(
                 err(&one(w, h, patches)),
-                ResourceError::BadTextureSize("WALL".into())
+                ResourceError::LumpNotFound("F_START".into()),
+                "{w} {h} {p}"
             );
         }
-        assert_eq!(
-            err(&one(8, 8, &[])),
-            ResourceError::BadTextureSize("WALL".into())
-        );
         // A `patch` index outside PNAMES: the genuine `patchlookup[patch]` read is unchecked.
         for index in [2, 100, -1] {
             assert_eq!(
@@ -1214,7 +1318,7 @@ mod tests {
             switchlist: vec![],
             anims: vec![],
             skytexture: 0,
-            skyflatnum: 0,
+            skyflatnum: None,
         };
         assert!(
             matches!(res.masked_posts(0, 0), MaskedPosts::Lump { at: 17, bytes } if bytes.len() == 40)

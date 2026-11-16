@@ -8,7 +8,7 @@
 //! `Simulation::snapshot` is a read-only projection), and this milestone does not edit
 //! doom-sim. `Simulation` implements `Clone`, so the simulation's restore point is a clone
 //! taken at tic N-k. The render state goes through its byte encoding: at tic N-k the
-//! uninterrupted renderer's state is encoded (`DRST` v1, docs/STATE_FORMAT.md), decoded and
+//! uninterrupted renderer's state is encoded (`DRST` v2, docs/STATE_FORMAT.md), decoded and
 //! restored into a fresh renderer, which then observes and renders tics N-k+1..=N from the
 //! cloned simulation. Every one of those frames and reports, and the encoded render state at
 //! tic N, must equal the uninterrupted run's; every rewound frame must also match its genuine
@@ -124,7 +124,7 @@ fn restored_render_state_renders_like_an_uninterrupted_run() {
             assert_eq!(state.encode(), bytes, "{}: re-encoding", case.lump);
             assert_eq!(state.tic, case.restore);
             let mut rewound = renderer(&run, screenblocks);
-            rewound.restore(state);
+            rewound.restore(state).expect("restore");
             let mut frame = Frame::new();
             for (k, index) in (case.restore as usize..case.target as usize).enumerate() {
                 sim.advance(commands(run.commands[index])).expect("advance");
@@ -192,7 +192,7 @@ fn a_changed_render_state_is_detected() {
     let mut changed = before;
     changed.fuzzpos = (changed.fuzzpos + 1) % 50;
     let mut r = renderer(&run, 10);
-    r.restore(changed);
+    r.restore(changed).expect("restore");
     b.advance(commands(run.commands[index - 1]))
         .expect("advance");
     r.observe(&b).expect("observe");

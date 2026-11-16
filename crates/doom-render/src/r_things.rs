@@ -708,8 +708,8 @@ impl crate::FrameContext<'_> {
         self.things.spritelights = light_row(lightlevel, self.frame.extralight);
         let invisibility = sim
             .original_player_powers(PlayerSlot::One)
-            .map(|p| p.powers[PW_INVISIBILITY])
-            .unwrap_or(0);
+            .map_err(|_| RenderRefusal::NoPlayer)?
+            .powers[PW_INVISIBILITY];
         let registry = sim
             .actor_registry()
             .ok_or_else(|| RenderRefusal::Snapshot("actor registry".into()))?;

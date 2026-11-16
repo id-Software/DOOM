@@ -127,7 +127,8 @@ pub fn load(item: &Item) -> Run {
     let (episode, map_number) = (lmp[2], lmp[3]);
     let slot = format!("E{episode}M{map_number}");
     let map = doom_map::Map::from_wad(&wad, &slot, doom_map::MapLimits::default()).expect("map");
-    let level = Level::load(&res, &map).unwrap_or_else(|e| panic!("{}: level: {e:?}", item.lump));
+    let level =
+        Level::load(&res, &map, episode).unwrap_or_else(|e| panic!("{}: level: {e:?}", item.lump));
     let (header, demo) = parse_demo_episode1_v2(&lmp, map_number).expect("demo");
     let skill = match header.skill {
         0 => Skill::Baby,

@@ -2395,7 +2395,7 @@ Reader limitations, as for v39: the reader does not re-run the load rules or rep
 So it cannot tell whether a teleport, a stomp or an `A_BossDeath` outcome matches the map. Those
 are replay and C-comparison facts, not per-capture invariants.
 
-## Render state (`DRST` version 1, M5a)
+## Render state (`DRST` version 2, M5a)
 
 Not a DSIM version and not part of any simulation schema: the frozen DSIM 1-40 formats above
 are unchanged. `DRST` is the M5a renderer's own history (`doom_render::RenderState`, owner
@@ -2408,24 +2408,28 @@ run, so a rewind can render any tic directly. All integers are little endian.
 | Field | Encoding | Meaning |
 | --- | --- | --- |
 | magic | 4 bytes `DRST` | |
-| version | u32 = 1 | |
+| version | u32 = 2 | version 1, which never left the unmerged M5a branch, lacked the wall steps; the decoder refuses it |
 | tic | u64 | the last observed simulation tic (`Simulation::tic()`) |
 | viewheight, deltaviewheight, viewz | 3 x i32 (16.16) | the view shadow (decision R6): `player_t` fields the simulation does not keep |
 | onground | u8 (0/1) | the `onground` global (p_user.c:51) |
 | fixedcolormap | i32, 0..=32 | `player->fixedcolormap` |
 | z, floorz, ceilingz, reactiontime | 4 x i32 | the player mobj after the last tic, as the next `P_PlayerThink` reads it |
 | dead | u8 (0/1) | `playerstate == PST_DEAD` after the last tic |
-| powers | 6 x i32 | `player->powers` after the last tic |
+| powers | 6 x i32, each >= 0 | `player->powers` after the last tic |
 | sector floor count n, floors | u32, n x i32 | every sector's floor after the last tic (the teleport landing height) |
 | buttons | 16 x (i32 btimer 0..=35, u16 line) | the `buttonlist` slots after the last tic (switch tracker, decision R7) |
 | cleared count n, lines | u32, n x u16 ascending | non-reusable switch lines (with a switch texture) whose runtime special is 0 |
 | unknown count n, lines | u32, n x u16 ascending | lines whose switch-texture parity is unknown (`SwitchParityUnknown`) |
 | line count n, mapped bits | u32, ceil(n/8) bytes | the renderer's `ML_MAPPED` set (decision R5), bit i of byte i/8; padding bits 0 |
 | fuzzpos | u32, 0..50 | `fuzzpos` (r_draw.c:274; decision R8) |
+| pixhigh, pixhighstep, pixlow, pixlowstep | 4 x i32 | the r_segs.c wall-step globals after the last frame (r_segs.c:81-84): never reset, so a wall whose shifted height test fails draws with the values an earlier wall left ([investigation §7](M5A_REFERENCE_INVESTIGATION.md#7-open-questions-and-where-each-is-decided) item 42) |
 | screen | 64,000 bytes | the persistent framebuffer (`screens[0]`, never cleared; decision R8) |
 | taint run count n, runs | u32, n x (u32 count > 0, u32 origin) | per pixel, run-length coded, the origin of an undefined source read (0: defined; decision R4); counts sum to 64,000 |
 
 The decoder rejects a wrong magic or version, truncation, trailing bytes, counts above 2^20,
-flags other than 0/1, `fixedcolormap` outside 0..=32, `btimer` outside 0..=35, unsorted line
-lists, nonzero mapped padding, `fuzzpos` >= 50 and taint runs that do not cover the screen
-exactly.
+flags other than 0/1, `fixedcolormap` outside 0..=32, a negative power, `btimer` outside 0..=35,
+unsorted line lists, nonzero mapped padding, `fuzzpos` >= 50 and taint runs that do not cover the
+screen exactly. `Renderer::restore` then checks the state against the renderer's level
+(`RestoreError`): the mapped set and sector floors must have the level's line and sector counts,
+every running button's line and every unknown-parity line must be a line of the level, every
+cleared line one of its tracked switch lines, and every bounded value in range.

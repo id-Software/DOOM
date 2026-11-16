@@ -17,6 +17,8 @@ use doom_types::Fixed;
 pub const VIEWHEIGHT: i32 = 41 << 16;
 /// `GRAVITY` (p_local.h:53).
 pub const GRAVITY: i32 = 1 << 16;
+/// `FINEANGLES` (tables.h:50).
+const FINEANGLES: i32 = 8192;
 /// `INVERSECOLORMAP` (p_user.c:41).
 pub const INVERSECOLORMAP: i32 = 32;
 
@@ -36,6 +38,14 @@ pub enum ShadowError {
     NoPlayer,
     /// A teleport landing is missing or has no sector.
     Landing,
+    /// `FINEANGLES/20*leveltime` (p_user.c:108, evaluated on the tics `P_CalcHeight` finds
+    /// the player on the ground) overflows `int` (signed overflow, undefined in C) from
+    /// `leveltime` 5,250,572 on (about 41.7 hours), or `leveltime` itself would pass `INT_MAX`
+    /// (`leveltime++`, p_tick.c:157).
+    LevelTimeOverflow {
+        /// The simulation's tic.
+        tic: u64,
+    },
 }
 
 /// The view state of one tic and what the next tic's player think reads.
@@ -88,8 +98,8 @@ fn player_now(sim: &Simulation) -> Result<PlayerNow, ShadowError> {
     let life = actor.life().ok_or(ShadowError::NoPlayer)?;
     let powers = sim
         .original_player_powers(PlayerSlot::One)
-        .map(|p| p.powers)
-        .unwrap_or([0; 6]);
+        .map_err(|_| ShadowError::NoPlayer)?
+        .powers;
     let weapons = sim
         .original_player_weapons(PlayerSlot::One)
         .ok()
@@ -162,7 +172,14 @@ impl ViewShadow {
     /// previous tic). Pure: `self` is unchanged.
     pub fn next(&self, sim: &Simulation) -> Result<Self, ShadowError> {
         let now = player_now(sim)?;
-        let leveltime = sim.tic().wrapping_sub(1) as i32;
+        // `leveltime` during the tic's player think is the tic count before it (P_Ticker
+        // increments it after the thinkers, p_tick.c:157); `FINEANGLES/20*leveltime` must fit `int`.
+        let overflow = ShadowError::LevelTimeOverflow { tic: sim.tic() };
+        let leveltime = sim
+            .tic()
+            .checked_sub(1)
+            .and_then(|t| i32::try_from(t).ok())
+            .ok_or(overflow.clone())?;
         let mut s = self.clone();
         let bob = now.weapons.bob.bits();
         // P_PlayerThink (p_user.c:249-272).
@@ -181,7 +198,7 @@ impl ViewShadow {
             // P_MovePlayer (p_user.c:157); skipped while reactiontime counts down.
             s.onground = self.z <= self.floorz;
         }
-        s.calc_height(bob, leveltime, live);
+        s.calc_height(bob, leveltime, live).ok_or(overflow)?;
         if live {
             s.fixedcolormap = fixed_colormap(countdown(self.powers));
         }
@@ -228,13 +245,14 @@ impl ViewShadow {
 
     /// `P_CalcHeight` (p_user.c:77-141) with `player->bob` as the simulation stored it, the
     /// mobj's pre-tic `z` and `ceilingz`, and `CF_NOMOMENTUM` clear (no cheat input path).
-    fn calc_height(&mut self, bob: i32, leveltime: i32, live: bool) {
+    /// `None` when `FINEANGLES/20*leveltime` overflows `int`; the caller refuses the tic.
+    fn calc_height(&mut self, bob: i32, leveltime: i32, live: bool) -> Option<()> {
         if !self.onground {
             // The clamp of p_user.c:99-102 is overwritten at once (p_user.c:104).
             self.viewz = self.z.wrapping_add(self.viewheight);
-            return;
+            return Some(());
         }
-        let angle = (8192 / 20 * leveltime) & 8191;
+        let angle = (FINEANGLES / 20).checked_mul(leveltime)? & (FINEANGLES - 1);
         let b = Fixed::from_bits(bob / 2)
             .fixed_mul(Fixed::from_bits(finesine(angle).unwrap_or(0)))
             .bits();
@@ -262,6 +280,7 @@ impl ViewShadow {
         if self.viewz > limit {
             self.viewz = limit;
         }
+        Some(())
     }
 }
 

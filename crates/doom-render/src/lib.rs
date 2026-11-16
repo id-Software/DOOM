@@ -13,10 +13,13 @@
 //! configuration, call [`Renderer::begin_level`] at tic 0, then after every committed
 //! `Simulation::advance` call [`Renderer::observe`] and [`Renderer::render`].
 //!
-//! Status (M5a step 2c): the whole of `R_RenderPlayerView` at high detail is drawn (BSP,
-//! solid and two-sided walls, visplanes, sky, lighting and fixed colour maps, masked
-//! midtextures, sprites with drawseg clipping, weapon sprites and fuzz); low detail and
-//! player colour translation are refused (decisions R1, R2).
+//! Coverage: the whole of `R_RenderPlayerView` at high detail (BSP, solid and two-sided walls,
+//! visplanes, sky, lighting and fixed colour maps, masked midtextures, sprites with drawseg
+//! clipping, weapon sprites and fuzz), for Episode 1 levels at screenblocks 9, 10 and 11. Low
+//! detail, player colour translation and other episodes' skies are refused (decisions R1,
+//! R2), and so is every frame whose genuine pixels would depend on memory layout
+//! ([`RenderRefusal`]); pixels read from undefined memory are flagged per column (decision
+//! R4). Support and known gaps are listed in `docs/COMPATIBILITY.md`.
 use std::fmt;
 use std::sync::Arc;
 
@@ -39,7 +42,7 @@ pub mod view;
 
 pub use r_data::{GameMode, LumpDirectory, ResourceError, Resources};
 pub use r_main::{SCREENHEIGHT, SCREENWIDTH};
-pub use state::{RenderState, StateDecodeError};
+pub use state::{RenderState, RestoreError, StateDecodeError, WallSteps};
 
 use doom_sim::{PlayerSlot, Simulation};
 
@@ -91,7 +94,8 @@ pub enum RenderRefusal {
         /// The simulation's tic.
         simulation: u64,
     },
-    /// The simulation has no player view (a profile the renderer does not admit).
+    /// The simulation has no player view, or its player powers are unavailable (a profile
+    /// the renderer does not admit).
     NoPlayer,
     /// More than `MAXVISPLANES` visplanes: `R_FindPlane`'s `I_Error` (r_plane.c:245-246) or
     /// `R_CheckPlane`'s unchecked write past `visplanes[]` (r_plane.c:313-317) (decision R3).
@@ -101,9 +105,13 @@ pub enum RenderRefusal {
     /// The first access, read or write, past `solidsegs[MAXSEGS]` (r_bsp.c:122-133, 178-182;
     /// decision R3 as applied by the orchestrator and accepted by the owner on 2026-11-15).
     SolidSegOverflow,
-    /// A masked midtexture column that is a multi-patch composite: the genuine post walk
-    /// (r_segs.c:181-184, r_things.c:359-385) finds no 0xff terminator inside the composite and
-    /// runs into zone memory (orchestrator application of R3, 2026-11-16).
+    /// A masked midtexture column that is a multi-patch composite (orchestrator application
+    /// of R3, 2026-11-16; a declared refusal awaiting the owner, investigation §7). The genuine
+    /// post walk starts 3 bytes before the column (r_segs.c:181-184, r_things.c:359-385), so
+    /// it reads the previous composite column's texels (or, for the first composite column,
+    /// the zone memory before the block) as a post header and continues through texels until
+    /// one reads as 0xff. Whether and where it ends depends on texel values and, once it
+    /// leaves the composite, on the memory layout; the renderer does not follow the walk.
     MaskedCompositeColumn,
     /// A masked midtexture column whose post walk would leave its patch lump, or whose lump and
     /// offset `R_GenerateLookup` left uninitialised (r_data.c:353-358): layout-dependent.
@@ -111,12 +119,17 @@ pub enum RenderRefusal {
     /// One of the genuine `RANGECHECK` `I_Error`s (named by function), or a draw outside the
     /// view rectangle that the genuine check lets through (decision R3).
     RangeCheck(&'static str),
+    /// A column whose genuine `R_GetColumn` reads memory no allocation holds: a column of a
+    /// zero-width texture (0-byte column tables, r_data.c:548-549 and 391-392), or a
+    /// composite column of a texture with a negative height (r_data.c:244, 365-371).
+    UnallocatedColumn,
     /// A table read outside the genuine contiguous tables (decision R12), such as
     /// `tantoangle[FixedDiv(0,0)>>DBITS]` for a viewer exactly on a seg's start vertex
     /// (r_main.c:412).
     TableRead(&'static str),
-    /// The genuine frame would read a renderer global left over from an earlier wall or frame
-    /// (`pixhigh`/`pixlow`, r_segs.c:694-704; investigation §1.11 hazard 8).
+    /// The genuine frame would read an uninitialised local (`best` in `R_SortVisSprites`,
+    /// r_things.c:815). (The stale `pixhigh`/`pixlow` globals of r_segs.c:694-704 are
+    /// reproduced: they persist in [`RenderState::wall_steps`].)
     StaleGlobal(&'static str),
     /// A canonical field the renderer reads is missing or malformed.
     Snapshot(String),
@@ -284,8 +297,12 @@ pub struct Level {
 
 impl Level {
     /// Resolves the map's names as `P_SetupLevel` does, refusing what the genuine load would
-    /// `I_Error` on or read out of bounds.
-    pub fn load(res: &Resources, map: &doom_map::Map) -> Result<Self, ResourceError> {
+    /// `I_Error` on or read out of bounds. `episode` is the game's episode (`G_InitNew`):
+    /// only Episode 1 is admitted, whose sky is `SKY1` (g_game.c:1464-1478).
+    pub fn load(res: &Resources, map: &doom_map::Map, episode: u8) -> Result<Self, ResourceError> {
+        if episode != 1 {
+            return Err(ResourceError::SkyEpisode(episode));
+        }
         let mut side_textures = Vec::with_capacity(map.sidedefs().len());
         for s in map.sidedefs() {
             // doom-map keeps the lump order upper, lower, middle (p_setup.c:438-440).
@@ -306,11 +323,6 @@ impl Level {
         let mut scrollers = 0;
         let mut switch_lines = Vec::new();
         for (i, l) in map.linedefs().iter().enumerate() {
-            if l.flags & 4 != 0 && l.sides[1].is_none() {
-                return Err(ResourceError::Map(format!(
-                    "line {i} is two-sided without a back side (sides[-1], p_setup.c:189-192)"
-                )));
-            }
             if l.special == 48 {
                 scrollers += 1;
             }
@@ -436,9 +448,13 @@ impl Renderer {
         self.state.as_ref()
     }
     /// Replaces the render state (a rewind: restore it next to the simulation snapshot of
-    /// the same tic).
-    pub fn restore(&mut self, state: RenderState) {
+    /// the same tic). The state is first validated against this renderer's level (counts,
+    /// line indices and value ranges, [`RenderState::check_level`]); on an error the current
+    /// state is kept.
+    pub fn restore(&mut self, state: RenderState) -> Result<(), RestoreError> {
+        state.check_level(&self.level)?;
         self.state = Some(state);
+        Ok(())
     }
     /// Starts the level at tic 0 (decision R8: zeroed framebuffer, `fuzzpos` 0).
     pub fn begin_level(&mut self, sim: &Simulation) -> Result<(), ObserveError> {
@@ -532,11 +548,17 @@ impl Renderer {
             flattranslation,
             texturetranslation,
             bsp: r_bsp::BspState::default(),
-            segs: r_segs::SegState::new(frame.fixedcolormap),
+            segs: r_segs::SegState::new(frame.fixedcolormap, state.wall_steps),
             planes: r_plane::PlaneState::default(),
             things: r_things::ThingState::new(nsectors),
         };
         r_main::render_player_view(&mut ctx, &weapons)?;
+        let wall_steps = WallSteps {
+            pixhigh: ctx.segs.pixhigh,
+            pixhighstep: ctx.segs.pixhighstep,
+            pixlow: ctx.segs.pixlow,
+            pixlowstep: ctx.segs.pixlowstep,
+        };
         let counters = FrameCounters {
             mapped: ctx.mapped.iter().filter(|m| **m).count() as u32,
             visplanes: ctx.planes.visplanes.len() as u32,
@@ -560,6 +582,7 @@ impl Renderer {
         state.taint = taint;
         state.mapped = mapped;
         state.fuzzpos = fuzzpos;
+        state.wall_steps = wall_steps;
         Ok(FrameReport {
             flagged_columns,
             switch_parity_unknown,

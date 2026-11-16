@@ -122,8 +122,10 @@ pub(crate) struct SegState {
 impl SegState {
     /// The globals at the start of a frame: `R_SetupFrame` sets `walllights =
     /// scalelightfixed` when a fixed colour map is active (r_main.c:853-856); otherwise every
-    /// textured seg sets it before use (r_segs.c:642-657).
-    pub(crate) fn new(fixedcolormap: i32) -> Self {
+    /// textured seg sets it before use (r_segs.c:642-657). `pixhigh`, `pixlow` and their
+    /// steps are file-scope globals that are never reset (r_segs.c:81-84): they carry over
+    /// from the previous frame (`carry`).
+    pub(crate) fn new(fixedcolormap: i32, carry: crate::WallSteps) -> Self {
         Self {
             segtextured: false,
             markfloor: false,
@@ -148,10 +150,10 @@ impl SegState {
             worldbottom: 0,
             worldhigh: 0,
             worldlow: 0,
-            pixhigh: 0,
-            pixlow: 0,
-            pixhighstep: 0,
-            pixlowstep: 0,
+            pixhigh: carry.pixhigh,
+            pixlow: carry.pixlow,
+            pixhighstep: carry.pixhighstep,
+            pixlowstep: carry.pixlowstep,
             topfrac: 0,
             topstep: 0,
             bottomfrac: 0,
@@ -379,7 +381,7 @@ impl FrameContext<'_> {
                 self.segs.worldlow = back.floorheight.wrapping_sub(viewz);
                 // Hack to allow height changes in outdoor areas (r_segs.c:530-534).
                 let sky = self.res.skyflatnum;
-                if frontsector.ceilingpic == sky && back.ceilingpic == sky {
+                if sky == Some(frontsector.ceilingpic) && sky == Some(back.ceilingpic) {
                     self.segs.worldtop = self.segs.worldhigh;
                 }
                 // r_segs.c:537-560
@@ -470,7 +472,8 @@ impl FrameContext<'_> {
         if frontsector.floorheight >= viewz {
             self.segs.markfloor = false;
         }
-        if frontsector.ceilingheight <= viewz && frontsector.ceilingpic != self.res.skyflatnum {
+        if frontsector.ceilingheight <= viewz && self.res.skyflatnum != Some(frontsector.ceilingpic)
+        {
             self.segs.markceiling = false;
         }
         // Incremental stepping values for texture edges (r_segs.c:680-704).
@@ -496,14 +499,9 @@ impl FrameContext<'_> {
                 s.pixlowstep = fixed_mul(s.rw_scalestep, s.worldlow).wrapping_neg();
             }
             // The textures were chosen on the unshifted heights (r_segs.c:570, 589): a top or
-            // bottom texture whose shifted test fails would draw with an earlier seg's
-            // pixhigh/pixlow (hazard 8 of investigation §1.11).
-            if s.toptexture != 0 && !high {
-                return Err(RenderRefusal::StaleGlobal("pixhigh"));
-            }
-            if s.bottomtexture != 0 && !low {
-                return Err(RenderRefusal::StaleGlobal("pixlow"));
-            }
+            // bottom texture whose shifted test fails draws with the pixhigh/pixlow an earlier
+            // seg (of this frame or an earlier one) left, as the genuine globals do (hazard 8
+            // of investigation §1.11; carried in the render state).
         }
         // Render it (r_segs.c:708-714).
         let (rw_x, rw_stopx) = (self.segs.rw_x, self.segs.rw_stopx);
@@ -771,6 +769,7 @@ impl FrameContext<'_> {
                     MaskedPosts::Lump { bytes, at } => (bytes, at),
                     MaskedPosts::Composite => return Err(RenderRefusal::MaskedCompositeColumn),
                     MaskedPosts::Undefined => return Err(RenderRefusal::MaskedColumnUndefined),
+                    MaskedPosts::Unallocated => return Err(RenderRefusal::UnallocatedColumn),
                 };
                 self.draw_masked_column(&crate::r_things::MaskedColumn {
                     bytes,

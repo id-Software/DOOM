@@ -148,7 +148,7 @@ impl FrameContext<'_> {
         picnum: usize,
         mut lightlevel: i32,
     ) -> Result<usize, RenderRefusal> {
-        if picnum == self.res.skyflatnum {
+        if self.res.skyflatnum == Some(picnum) {
             // All skies map together.
             height = 0;
             lightlevel = 0;
@@ -336,7 +336,7 @@ impl FrameContext<'_> {
             if minx > maxx {
                 continue;
             }
-            if picnum == res.skyflatnum {
+            if res.skyflatnum == Some(picnum) {
                 // Sky flat (r_plane.c:396-420): colour map 0, unaffected by light and by the
                 // fixed colour maps.
                 let iscale = self.view.pspriteiscale >> self.view.detailshift;

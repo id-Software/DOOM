@@ -82,6 +82,12 @@ impl FrameContext<'_> {
     /// `dc_source[(frac>>FRACBITS)&127]` through `dc_colormap`. A texel read outside the source
     /// block or on an unwritten composite byte taints its pixel (decision R4).
     pub(crate) fn draw_column(&mut self, c: &ColumnDraw<'_>) -> Result<(), RenderRefusal> {
+        // Every caller sets `dc_source = R_GetColumn(..)` just before `colfunc ()`
+        // (r_segs.c:286, 308, 337; r_plane.c:415), so a column whose tables or
+        // composite no allocation holds is read whatever the count.
+        if c.source.unallocated() {
+            return Err(RenderRefusal::UnallocatedColumn);
+        }
         let count = c.yh.wrapping_sub(c.yl);
         if count < 0 {
             return Ok(());

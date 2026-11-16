@@ -1,7 +1,7 @@
 //! The render state (owner ruling on R5, R6 and R7, 2026-11-15): everything the renderer
 //! carries from one tic or frame to the next, self-contained, so that a saved render state
 //! restored next to a simulation snapshot of the same tic renders the following tics exactly
-//! as an uninterrupted run. Its byte encoding (`DRST` version 1) is documented in
+//! as an uninterrupted run. Its byte encoding (`DRST` version 2) is documented in
 //! `docs/STATE_FORMAT.md` ("Render state"), separate from the frozen simulation schemas.
 use crate::p_spec::{ButtonSlot, SwitchInputs, SwitchTracker};
 use crate::view::{ShadowError, ViewShadow};
@@ -11,11 +11,29 @@ use std::fmt;
 
 /// Encoding magic.
 pub const MAGIC: &[u8; 4] = b"DRST";
-/// Encoding version.
-pub const VERSION: u32 = 1;
+/// Encoding version (2: version 1, which never left the unmerged M5a branch, lacked
+/// [`RenderState::wall_steps`]).
+pub const VERSION: u32 = 2;
 const PIXELS: usize = SCREENWIDTH * SCREENHEIGHT;
 /// Bound on the decoded sector and line counts (doom-map's own bounds are lower).
 const MAX_ITEMS: u32 = 1 << 20;
+
+/// The r_segs.c globals `pixhigh`, `pixhighstep`, `pixlow` and `pixlowstep` (r_segs.c:81-84):
+/// file-scope, never reset, so a two-sided wall whose top or bottom texture was chosen on the
+/// unshifted heights (r_segs.c:570, 589) but whose shifted test fails (r_segs.c:693-704)
+/// draws with the values an earlier wall left, in this frame or an earlier one. Zero in a
+/// freshly started process (decision R8).
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub struct WallSteps {
+    /// `pixhigh`.
+    pub pixhigh: i32,
+    /// `pixhighstep`.
+    pub pixhighstep: i32,
+    /// `pixlow`.
+    pub pixlow: i32,
+    /// `pixlowstep`.
+    pub pixlowstep: i32,
+}
 
 /// The renderer's own history.
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -30,6 +48,8 @@ pub struct RenderState {
     pub mapped: Vec<bool>,
     /// `fuzzpos` (r_draw.c:274; decision R8), 0..50.
     pub fuzzpos: u32,
+    /// The r_segs.c wall-step globals after the last frame.
+    pub wall_steps: WallSteps,
     /// The persistent framebuffer (`screens[0]`, never cleared; decision R8).
     pub screen: Vec<u8>,
     /// Per framebuffer pixel, the origin of an undefined source read that produced it (0:
@@ -57,6 +77,64 @@ impl fmt::Display for StateDecodeError {
     }
 }
 impl std::error::Error for StateDecodeError {}
+
+/// A render state that does not fit the renderer's level, or holds a value the simulation
+/// and renderer never produce ([`RenderState::check_level`]). The renderer keeps its state.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub enum RestoreError {
+    /// A per-line or per-sector table, or the framebuffer, has the wrong length.
+    Count {
+        /// The table.
+        field: &'static str,
+        /// The level's (or the screen's) count.
+        expected: usize,
+        /// The state's count.
+        got: usize,
+    },
+    /// A line index is outside the level's lines (or not a tracked switch line).
+    Line {
+        /// The table.
+        field: &'static str,
+        /// The index.
+        line: u16,
+    },
+    /// A value outside the range the simulation and the renderer produce.
+    Value(&'static str),
+}
+impl fmt::Display for RestoreError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "render state does not fit the level: {self:?}")
+    }
+}
+impl std::error::Error for RestoreError {}
+
+/// Every value the decoder and [`RenderState::check_level`] bound outside the level: the
+/// `player->powers` are counters the simulation keeps nonnegative (p_user.c:339-353 counts
+/// them down to 0, `pw_strength` up from 1), so `P_PlayerThink`'s countdown never underflows.
+fn value_error(s: &RenderState) -> Option<&'static str> {
+    if !(0..=crate::view::INVERSECOLORMAP).contains(&s.view.fixedcolormap) {
+        return Some("fixedcolormap");
+    }
+    if s.view.powers.iter().any(|p| *p < 0) {
+        return Some("powers");
+    }
+    if s.switches
+        .buttons
+        .iter()
+        .any(|b| !(0..=35).contains(&b.timer))
+    {
+        return Some("btimer");
+    }
+    for list in [&s.switches.cleared, &s.switches.unknown] {
+        if list.windows(2).any(|w| w[0] >= w[1]) {
+            return Some("line list order");
+        }
+    }
+    if s.fuzzpos as usize >= crate::r_draw::FUZZTABLE {
+        return Some("fuzzpos");
+    }
+    None
+}
 
 /// The canonical switch facts after a tic: the button slots and the cleared switch lines from
 /// the snapshot (`button.{k}.*`, `line.{i}.special`), and the tic's `sfx_swtchn` requests.
@@ -122,6 +200,7 @@ impl RenderState {
             },
             mapped: vec![false; level.map.linedefs().len()],
             fuzzpos: 0,
+            wall_steps: WallSteps::default(),
             screen: vec![0; PIXELS],
             taint: vec![0; PIXELS],
         })
@@ -129,9 +208,10 @@ impl RenderState {
 
     /// The state after observing the simulation's next tic.
     pub fn next(&self, sim: &Simulation, level: &Level) -> Result<Self, ObserveError> {
-        if sim.tic() != self.tic + 1 {
+        let expected = self.tic.checked_add(1);
+        if Some(sim.tic()) != expected {
             return Err(ObserveError::Shadow(ShadowError::Gap {
-                expected: self.tic + 1,
+                expected: expected.unwrap_or(u64::MAX),
                 got: sim.tic(),
             }));
         }
@@ -148,7 +228,56 @@ impl RenderState {
         })
     }
 
-    /// The `DRST` version 1 encoding (docs/STATE_FORMAT.md, "Render state").
+    /// Checks the state against `level` before a restore: the mapped-line set and the sector
+    /// floors have the level's counts, every line a running button, a cleared switch or an
+    /// unknown parity names is one of the level's lines (cleared ones among its tracked switch
+    /// lines), the framebuffer and taint cover the screen, and every bounded value is in
+    /// range (the bounds the decoder applies, and nonnegative powers).
+    pub fn check_level(&self, level: &Level) -> Result<(), RestoreError> {
+        let count = |field, expected: usize, got: usize| {
+            if expected == got {
+                Ok(())
+            } else {
+                Err(RestoreError::Count {
+                    field,
+                    expected,
+                    got,
+                })
+            }
+        };
+        let lines = level.map.linedefs().len();
+        count("mapped", lines, self.mapped.len())?;
+        count(
+            "sector_floors",
+            level.map.sectors().len(),
+            self.view.sector_floors.len(),
+        )?;
+        count("screen", PIXELS, self.screen.len())?;
+        count("taint", PIXELS, self.taint.len())?;
+        if let Some(v) = value_error(self) {
+            return Err(RestoreError::Value(v));
+        }
+        let running = self.switches.buttons.iter().filter(|b| b.timer != 0);
+        for (field, line) in running
+            .map(|b| ("button", b.line))
+            .chain(self.switches.unknown.iter().map(|l| ("unknown", *l)))
+        {
+            if usize::from(line) >= lines {
+                return Err(RestoreError::Line { field, line });
+            }
+        }
+        for line in &self.switches.cleared {
+            if level.switch_lines.binary_search(line).is_err() {
+                return Err(RestoreError::Line {
+                    field: "cleared",
+                    line: *line,
+                });
+            }
+        }
+        Ok(())
+    }
+
+    /// The `DRST` version 2 encoding (docs/STATE_FORMAT.md, "Render state").
     pub fn encode(&self) -> Vec<u8> {
         let mut o = Vec::with_capacity(PIXELS + 4096);
         o.extend_from_slice(MAGIC);
@@ -190,6 +319,10 @@ impl RenderState {
             );
         }
         o.extend(self.fuzzpos.to_le_bytes());
+        let w = &self.wall_steps;
+        for x in [w.pixhigh, w.pixhighstep, w.pixlow, w.pixlowstep] {
+            o.extend(x.to_le_bytes());
+        }
         o.extend_from_slice(&self.screen);
         let mut runs: Vec<(u32, u32)> = Vec::new();
         for t in &self.taint {
@@ -206,7 +339,8 @@ impl RenderState {
         o
     }
 
-    /// Decodes a `DRST` version 1 encoding, validating every count and value.
+    /// Decodes a `DRST` version 2 encoding, validating every count and value that does not
+    /// depend on the level ([`Self::check_level`] checks the rest before a restore).
     pub fn decode(bytes: &[u8]) -> Result<Self, StateDecodeError> {
         let mut r = Reader { b: bytes, at: 0 };
         if r.take(4)? != MAGIC {
@@ -233,6 +367,9 @@ impl RenderState {
         let mut powers = [0; 6];
         for p in &mut powers {
             *p = r.i32()?;
+            if *p < 0 {
+                return Err(StateDecodeError::Invalid("powers"));
+            }
         }
         let n = r.count()?;
         let sector_floors = (0..n).map(|_| r.i32()).collect::<Result<_, _>>()?;
@@ -267,6 +404,12 @@ impl RenderState {
         if fuzzpos as usize >= crate::r_draw::FUZZTABLE {
             return Err(StateDecodeError::Invalid("fuzzpos"));
         }
+        let wall_steps = WallSteps {
+            pixhigh: r.i32()?,
+            pixhighstep: r.i32()?,
+            pixlow: r.i32()?,
+            pixlowstep: r.i32()?,
+        };
         let screen = r.take(PIXELS)?.to_vec();
         let runs = r.count()?;
         let mut taint = Vec::with_capacity(PIXELS);
@@ -307,6 +450,7 @@ impl RenderState {
             },
             mapped,
             fuzzpos,
+            wall_steps,
             screen,
             taint,
         })
@@ -396,6 +540,12 @@ mod tests {
             },
             mapped: vec![true, false, true, true, false, false, false, false, true],
             fuzzpos: 49,
+            wall_steps: WallSteps {
+                pixhigh: 1,
+                pixhighstep: -2,
+                pixlow: 3,
+                pixlowstep: i32::MIN,
+            },
             screen,
             taint,
         }
@@ -417,8 +567,8 @@ mod tests {
         m[0] = b'X';
         assert_eq!(RenderState::decode(&m), Err(StateDecodeError::Magic));
         let mut v = e;
-        v[4] = 2;
-        assert_eq!(RenderState::decode(&v), Err(StateDecodeError::Version(2)));
+        v[4] = 1;
+        assert_eq!(RenderState::decode(&v), Err(StateDecodeError::Version(1)));
     }
 
     // ---- DRST decoder rejections (docs/STATE_FORMAT.md, "Render state"). Each test pins one

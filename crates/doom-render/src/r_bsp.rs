@@ -101,8 +101,17 @@ impl Geometry {
                 linedef: usize::from(s.linedef),
                 sidedef: usize::from(sidedef),
                 frontsector: side_sector(line.sides[side])?,
+                // `sides[ldef->sidenum[side^1]]` (p_setup.c:189-190): a two-sided line without
+                // that side reads `sides[-1]`, outside the array. Only a seg reads it, so a
+                // two-sided line without a back side and without segs loads.
                 backsector: if line.flags & ML_TWOSIDED != 0 {
-                    Some(side_sector(line.sides[side ^ 1])?)
+                    let back = line.sides[side ^ 1].ok_or_else(|| {
+                        ResourceError::Map(format!(
+                            "seg of two-sided line {} reads sides[-1] (p_setup.c:189-190)",
+                            s.linedef
+                        ))
+                    })?;
+                    Some(side_sector(Some(back))?)
                 } else {
                     None
                 },
@@ -519,7 +528,7 @@ impl FrameContext<'_> {
         };
         // r_bsp.c:525-533
         self.planes.ceilingplane =
-            if front.ceilingheight > viewz || front.ceilingpic == self.res.skyflatnum {
+            if front.ceilingheight > viewz || self.res.skyflatnum == Some(front.ceilingpic) {
                 Some(self.find_plane(front.ceilingheight, front.ceilingpic, front.lightlevel)?)
             } else {
                 None

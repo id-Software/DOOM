@@ -22,7 +22,7 @@ pub(crate) fn with_ctx<R>(screenblocks: u8, f: impl FnOnce(&mut FrameContext<'_>
     dir.add_wad(&gfx).expect("graphics directory");
     let res = Resources::load(dir, GameMode::Registered).expect("resources");
     let map = doom_map::Map::from_wad(&wad, "E1M1", doom_map::MapLimits::default()).expect("map");
-    let level = Level::load(&res, &map).expect("level");
+    let level = Level::load(&res, &map, 1).expect("level");
     let mut sim = Simulation::original_player_episode1_v2_map(
         map,
         1,
@@ -73,7 +73,7 @@ pub(crate) fn with_ctx<R>(screenblocks: u8, f: impl FnOnce(&mut FrameContext<'_>
         flattranslation,
         texturetranslation,
         bsp: r_bsp::BspState::default(),
-        segs: r_segs::SegState::new(frame.fixedcolormap),
+        segs: r_segs::SegState::new(frame.fixedcolormap, crate::WallSteps::default()),
         planes: r_plane::PlaneState::default(),
         things: r_things::ThingState::new(nsectors),
     };
