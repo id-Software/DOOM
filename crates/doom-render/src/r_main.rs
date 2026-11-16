@@ -493,4 +493,30 @@ mod tests {
         assert_eq!(point_to_angle(-(1 << 16), 0, 0, 0), 0x8000_0000 - 1);
         assert_eq!(point_to_angle(0, 0, 0, 0), 0);
     }
+
+    #[test]
+    fn point_to_dist_on_the_point_is_a_table_read_refusal() {
+        // Investigation §1.11 hazard 2: with the viewpoint exactly on the point,
+        // `FixedDiv(0,0) = MAXINT` (m_fixed.c:62-63) and `tantoangle[MAXINT>>5]` reads outside
+        // the table (r_main.c:412); the renderer refuses it (decision R12). The golden frames
+        // never put the viewer on a seg's start vertex, so the public API does not reach it.
+        assert_eq!(
+            point_to_dist(5 << 16, -7 << 16, 5 << 16, -7 << 16),
+            Err(RenderRefusal::TableRead("tantoangle (R_PointToDist)"))
+        );
+    }
+
+    #[test]
+    fn fixed_div_refuses_the_i_error_overflow_guard() {
+        // `FixedDiv2`'s `I_Error` (m_fixed.c:83-84) on a quotient outside the int range: the
+        // strict build's `abs(INT_MIN)` is INT_MIN, so the overflow guard of m_fixed.c:62-63
+        // (`(abs(a) >> 14) >= abs(b)`, which returns MAXINT/MININT) does not fire for
+        // `a = INT_MIN`.
+        assert_eq!(fixed_div(i32::MIN, 1), Err(RenderRefusal::FixedDiv));
+        assert_eq!(fixed_div(i32::MIN, 2), Err(RenderRefusal::FixedDiv));
+        assert_eq!(fixed_div(i32::MAX, 1 << 16), Ok(i32::MAX));
+        // The guard path: |a| >> 14 >= |b| (m_fixed.c:62-63).
+        assert_eq!(fixed_div(1 << 30, 1 << 15), Ok(i32::MAX));
+        assert_eq!(fixed_div(-(1 << 30), 1 << 15), Ok(i32::MIN));
+    }
 }

@@ -829,3 +829,152 @@ struct Thing {
     frame: u32,
     flags: u32,
 }
+
+/// Guard tests below the public API: the post walk, clip arrays and vissprite sort are reached
+/// by `Renderer::render` only with data the projection and the BSP have already validated (every
+/// committed golden frame passes these guards), so the refusals are exercised by calling the
+/// crate-private functions directly on the `amp.wad` fixture (`test_support::with_ctx`).
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::test_support::with_ctx;
+
+    /// One post (topdelta 0, length 4, pad, four texels, pad) and the 0xff terminator
+    /// (the patch column format, investigation §2.6).
+    const COLUMN: [u8; 9] = [0, 4, 0, 1, 2, 3, 4, 0, 0xff];
+
+    fn masked<'a>(bytes: &'a [u8], colfunc: ColFunc) -> MaskedColumn<'a> {
+        MaskedColumn {
+            bytes,
+            at: 0,
+            x: 10,
+            texturemid: 0,
+            // The post's rows are 10..=13: `topscreen = sprtopscreen + spryscale * topdelta`,
+            // `yl = (topscreen + FRACUNIT - 1) >> 16`, `yh = (bottomscreen - 1) >> 16`
+            // (r_things.c:363-367).
+            sprtopscreen: 10 << 16,
+            spryscale: 1 << 16,
+            iscale: 1 << 16,
+            colormap: 0,
+            colfunc,
+            mfloorclip: Clip::ScreenHeight,
+            mceilingclip: Clip::NegOne,
+            origin: 1,
+            feature: Feature::Untouched,
+        }
+    }
+
+    #[test]
+    fn translated_column_is_refused_as_player_translation() {
+        // Guard: R_DrawTranslatedColumn (r_draw.c:382-447) belongs to MF_TRANSLATION things,
+        // which only players 2-4 carry (p_mobj.c:668-669, investigation §2.2.5); decision R1
+        // refuses it. The public API cannot reach it: player 1 and every spawned thing have no
+        // translation bits.
+        with_ctx(11, |ctx| {
+            assert_eq!(
+                ctx.draw_masked_column(&masked(&COLUMN, ColFunc::Translated)),
+                Err(RenderRefusal::PlayerTranslation)
+            );
+            // The same column through the base drawer is drawn.
+            assert_eq!(
+                ctx.draw_masked_column(&masked(&COLUMN, ColFunc::Base)),
+                Ok(())
+            );
+        });
+    }
+
+    #[test]
+    fn post_walk_that_leaves_the_lump_is_refused_as_undefined() {
+        // Guard: r_things.c:359-385 walks `column->topdelta != 0xff` with no bound; a column
+        // whose terminator or length byte lies outside the patch lump reads zone memory
+        // (`MaskedColumnUndefined`, decision R3). The golden rooms' patches are well formed.
+        with_ctx(11, |ctx| {
+            for bytes in [&[][..], &[0][..], &COLUMN[..8]] {
+                assert_eq!(
+                    ctx.draw_masked_column(&masked(bytes, ColFunc::Base)),
+                    Err(RenderRefusal::MaskedColumnUndefined),
+                    "{bytes:?}"
+                );
+            }
+            // A post starting past the end of the lump.
+            let mut m = masked(&COLUMN, ColFunc::Base);
+            m.at = 50;
+            assert_eq!(
+                ctx.draw_masked_column(&m),
+                Err(RenderRefusal::MaskedColumnUndefined)
+            );
+        });
+    }
+
+    #[test]
+    fn clip_arrays_refuse_what_the_genuine_code_reads_outside() {
+        // Guard: `clipbot`/`cliptop` are stack arrays of SCREENWIDTH entries (r_things.c:845-846)
+        // and a NULL `mfloorclip`/`mceilingclip` is a null dereference (investigation §2.9).
+        with_ctx(11, |ctx| {
+            assert_eq!(
+                ctx.clip_at(Clip::None, 0),
+                Err(RenderRefusal::RangeCheck("NULL clip array"))
+            );
+            for clip in [Clip::SpriteBottom, Clip::SpriteTop] {
+                for x in [-1, 320] {
+                    assert_eq!(
+                        ctx.clip_at(clip, x),
+                        Err(RenderRefusal::RangeCheck("R_DrawSprite clip array")),
+                        "{clip:?} {x}"
+                    );
+                }
+                assert_eq!(ctx.clip_at(clip, 319), Ok(0));
+            }
+            // `screenheightarray` and `negonearray` (r_things.c:303-306).
+            assert_eq!(ctx.clip_at(Clip::ScreenHeight, 7), Ok(200));
+            assert_eq!(ctx.clip_at(Clip::NegOne, 7), Ok(-1));
+        });
+    }
+
+    fn sprite(scale: i32, x1: i32) -> VisSprite {
+        VisSprite {
+            x1,
+            x2: x1,
+            gx: 0,
+            gy: 0,
+            gz: 0,
+            gzt: 0,
+            startfrac: 0,
+            scale,
+            xiscale: 0,
+            texturemid: 0,
+            patch: 0,
+            colormap: Some(0),
+            mobjflags: 0,
+            sprite: 0,
+            frame: 0,
+        }
+    }
+
+    #[test]
+    fn sort_orders_far_to_near_with_projection_order_ties() {
+        // R_SortVisSprites (r_things.c:784-835), investigation §2.1.7 item 4: ascending scale
+        // (far to near); among equal scales the earliest projected is drawn first.
+        with_ctx(11, |ctx| {
+            for (scale, x1) in [(5, 0), (3, 1), (5, 2), (3, 3), (4, 4)] {
+                ctx.things.vissprites.push(sprite(scale, x1));
+            }
+            assert_eq!(ctx.sort_vis_sprites(), Ok(vec![1, 3, 4, 0, 2]));
+        });
+    }
+
+    #[test]
+    fn sort_with_no_scale_below_maxint_is_a_stale_global() {
+        // Guard: `best` is uninitialised before the first pass (r_things.c:815, investigation
+        // §2.1.7 item 5): a vissprite whose scale is not below MAXINT leaves the genuine list
+        // corrupted. `tz >= MINZ` bounds `xscale` (r_things.c:492-495), so projection
+        // never yields MAXINT and the public API cannot reach it.
+        with_ctx(11, |ctx| {
+            ctx.things.vissprites.push(sprite(i32::MAX, 0));
+            assert_eq!(
+                ctx.sort_vis_sprites(),
+                Err(RenderRefusal::StaleGlobal("R_SortVisSprites best"))
+            );
+        });
+    }
+}

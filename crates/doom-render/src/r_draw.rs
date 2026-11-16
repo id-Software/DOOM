@@ -194,3 +194,170 @@ impl FrameContext<'_> {
         Ok(())
     }
 }
+
+/// Guard tests below the public API. The public API (`Renderer::render`) reaches these drawers
+/// only with arguments the BSP, plane and sprite clipping have already kept inside the view
+/// (every committed golden frame passes the guards), so the refusals are exercised by calling
+/// the crate-private drawers directly on the `amp.wad` fixture (`test_support::with_ctx`).
+/// Each expectation is the genuine RANGECHECK of r_draw.c (investigation §2.2.8) or the
+/// view-rectangle refusal of decision R3 (`RenderRefusal::RangeCheck` documentation).
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::r_data::Resources;
+    use crate::test_support::with_ctx;
+
+    fn column<'a>(x: i32, yl: i32, yh: i32, texels: &'a [u8]) -> ColumnDraw<'a> {
+        ColumnDraw {
+            x,
+            yl,
+            yh,
+            iscale: 1 << 16,
+            texturemid: 0,
+            colormap: 0,
+            source: Resources::lump_source(texels, 0),
+            origin: 1,
+            feature: Feature::Untouched,
+        }
+    }
+
+    fn span(y: i32, x1: i32, x2: i32) -> SpanDraw {
+        SpanDraw {
+            y,
+            x1,
+            x2,
+            xfrac: 0,
+            yfrac: 0,
+            xstep: 1 << 16,
+            ystep: 0,
+            colormap: 0,
+            flat: 0,
+            feature: Feature::Untouched,
+        }
+    }
+
+    #[test]
+    fn draw_column_range_check_outside_the_screen() {
+        // Guard: r_draw.c:118-123 (`dc_x >= SCREENWIDTH`, `dc_yl < 0`, `dc_yh >= SCREENHEIGHT`).
+        let texels = [7u8; 128];
+        with_ctx(11, |ctx| {
+            for (x, yl, yh) in [(320, 10, 20), (-1, 10, 20), (5, -1, 20), (5, 10, 200)] {
+                assert_eq!(
+                    ctx.draw_column(&column(x, yl, yh, &texels)),
+                    Err(RenderRefusal::RangeCheck("R_DrawColumn")),
+                    "{x} {yl} {yh}"
+                );
+            }
+        });
+    }
+
+    #[test]
+    fn draw_column_refuses_rows_and_columns_outside_the_view_window() {
+        // Guard: decision R3's view-rectangle refusal. The genuine RANGECHECK passes a column
+        // inside the 320x200 screen but outside the 288x144 window of screenblocks 9
+        // (`viewwidth` 288, `viewheight` 144, investigation §2.2.1); its write lands in the
+        // border and is layout-dependent.
+        let texels = [7u8; 128];
+        with_ctx(9, |ctx| {
+            for (x, yl, yh) in [(288, 10, 20), (10, 10, 144), (10, 150, 160)] {
+                assert_eq!(
+                    ctx.draw_column(&column(x, yl, yh, &texels)),
+                    Err(RenderRefusal::RangeCheck("R_DrawColumn outside the view")),
+                    "{x} {yl} {yh}"
+                );
+            }
+            // The last view row and column are inside.
+            assert_eq!(ctx.draw_column(&column(287, 143, 143, &texels)), Ok(()));
+        });
+    }
+
+    #[test]
+    fn draw_column_with_a_negative_count_draws_nothing() {
+        // r_draw.c:112-114: `count = dc_yh - dc_yl; if (count < 0) return;` runs before the
+        // RANGECHECK, so even an out-of-screen coordinate draws and refuses nothing.
+        let texels = [7u8; 128];
+        with_ctx(11, |ctx| {
+            let before = ctx.screen.to_vec();
+            assert_eq!(ctx.draw_column(&column(999, 20, 10, &texels)), Ok(()));
+            assert_eq!(ctx.screen, &before[..]);
+        });
+    }
+
+    #[test]
+    fn draw_fuzz_column_range_check_outside_the_screen() {
+        // Guard: r_draw.c:307-314 after the border adjustment of r_draw.c:293-298 (only
+        // `dc_yl == 0` and `dc_yh == viewheight - 1` are adjusted).
+        with_ctx(11, |ctx| {
+            for (x, yl, yh) in [(320, 10, 20), (-1, 10, 20), (5, -1, 20), (5, 10, 200)] {
+                assert_eq!(
+                    ctx.draw_fuzz_column(x, yl, yh, Feature::Untouched),
+                    Err(RenderRefusal::RangeCheck("R_DrawFuzzColumn")),
+                    "{x} {yl} {yh}"
+                );
+            }
+        });
+        with_ctx(9, |ctx| {
+            assert_eq!(
+                ctx.draw_fuzz_column(288, 10, 20, Feature::Untouched),
+                Err(RenderRefusal::RangeCheck(
+                    "R_DrawFuzzColumn outside the view"
+                ))
+            );
+        });
+    }
+
+    #[test]
+    fn draw_fuzz_column_advances_fuzzpos_per_row_and_wraps_at_fuzztable() {
+        // r_draw.c:361-362: `fuzzpos` advances once per drawn row and wraps at FUZZTABLE (50);
+        // the border adjustment of r_draw.c:293-298 turns `dc_yl == 0` into 1, so rows 0..=2
+        // draw two rows.
+        with_ctx(11, |ctx| {
+            ctx.fuzzpos = 48;
+            assert_eq!(ctx.draw_fuzz_column(10, 0, 2, Feature::Untouched), Ok(()));
+            assert_eq!(ctx.fuzzpos, 0);
+            assert_eq!(ctx.draw_fuzz_column(10, 5, 7, Feature::Untouched), Ok(()));
+            assert_eq!(ctx.fuzzpos, 3);
+            // An empty range (after the adjustment) neither draws nor advances.
+            assert_eq!(ctx.draw_fuzz_column(10, 9, 8, Feature::Untouched), Ok(()));
+            assert_eq!(ctx.fuzzpos, 3);
+        });
+    }
+
+    #[test]
+    fn draw_span_range_check() {
+        // Guard: r_draw.c:528-538 (`ds_x2 < ds_x1 || ds_x1 < 0 || ds_x2 >= SCREENWIDTH ||
+        // (unsigned)ds_y > SCREENHEIGHT`: the genuine test is `>`, so row 200 passes it).
+        with_ctx(11, |ctx| {
+            for (y, x1, x2) in [
+                (10, 20, 19),
+                (10, -1, 5),
+                (10, 0, 320),
+                (201, 0, 5),
+                (-1, 0, 5),
+            ] {
+                assert_eq!(
+                    ctx.draw_span(&span(y, x1, x2)),
+                    Err(RenderRefusal::RangeCheck("R_DrawSpan")),
+                    "{y} {x1} {x2}"
+                );
+            }
+            // Row 200 passes the genuine test; it is outside the 200-row view, so the
+            // renderer refuses it as a layout-dependent write (decision R3).
+            assert_eq!(
+                ctx.draw_span(&span(200, 0, 5)),
+                Err(RenderRefusal::RangeCheck("R_DrawSpan outside the view"))
+            );
+        });
+        with_ctx(9, |ctx| {
+            assert_eq!(
+                ctx.draw_span(&span(10, 0, 287)),
+                Ok(()),
+                "the whole 288-column window is inside"
+            );
+            assert_eq!(
+                ctx.draw_span(&span(10, 0, 288)),
+                Err(RenderRefusal::RangeCheck("R_DrawSpan outside the view"))
+            );
+        });
+    }
+}

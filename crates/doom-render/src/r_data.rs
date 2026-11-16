@@ -845,4 +845,392 @@ mod tests {
         assert_eq!(&block[..3], &[10, 11, 0]);
         assert_eq!(&defined[..3], &[true, true, false]);
     }
+
+    // ---- Load-time refusals (investigation §2.3; each pins the genuine `I_Error` or the
+    // unchecked read named in `ResourceError`). The public `Resources::load` reaches every one
+    // of them; the committed graphics set is well formed, so the goldens reach none.
+
+    fn dir(lumps: &[(&str, Vec<u8>)]) -> LumpDirectory {
+        let mut d = LumpDirectory::new();
+        for (name, data) in lumps {
+            d.add_single_lump(name, data).unwrap();
+        }
+        d
+    }
+    fn pnames(names: &[&str]) -> Vec<u8> {
+        let mut o = (names.len() as i32).to_le_bytes().to_vec();
+        for n in names {
+            let mut b = [0u8; 8];
+            b[..n.len()].copy_from_slice(n.as_bytes());
+            o.extend(b);
+        }
+        o
+    }
+    type TextureDef<'a> = (&'a str, i16, i16, &'a [(i16, i16, i16)]);
+    /// A TEXTURE lump: `(name, width, height, [(originx, originy, pnames index)])` entries
+    /// (the `maptexture_t` layout of §2.3.1: name, masked, width, height, columndirectory,
+    /// patchcount, then 10-byte `mappatch_t`).
+    fn texture_lump(entries: &[TextureDef]) -> Vec<u8> {
+        let mut o = (entries.len() as i32).to_le_bytes().to_vec();
+        let mut body = Vec::new();
+        let base = 4 + 4 * entries.len();
+        for (name, w, h, patches) in entries {
+            o.extend(((base + body.len()) as i32).to_le_bytes());
+            let mut b = [0u8; 8];
+            b[..name.len()].copy_from_slice(name.as_bytes());
+            body.extend(b);
+            body.extend(0i32.to_le_bytes());
+            body.extend(w.to_le_bytes());
+            body.extend(h.to_le_bytes());
+            body.extend(0i32.to_le_bytes());
+            body.extend((patches.len() as i16).to_le_bytes());
+            for (ox, oy, idx) in *patches {
+                for v in [*ox, *oy, *idx, 1, 0] {
+                    body.extend(v.to_le_bytes());
+                }
+            }
+        }
+        o.extend(body);
+        o
+    }
+    /// A patch lump of `width` columns, every column an empty post list (`0xff`).
+    fn patch(width: i16, height: i16) -> Vec<u8> {
+        let mut o = Vec::new();
+        for v in [width, height, 0, 0] {
+            o.extend(v.to_le_bytes());
+        }
+        let first = 8 + 4 * width as usize;
+        for x in 0..width as usize {
+            o.extend(((first + x) as i32).to_le_bytes());
+        }
+        o.extend(vec![0xff; width as usize]);
+        o
+    }
+    fn load(lumps: &[(&str, Vec<u8>)]) -> Result<Resources, ResourceError> {
+        Resources::load(dir(lumps), GameMode::Registered)
+    }
+    fn err(lumps: &[(&str, Vec<u8>)]) -> ResourceError {
+        load(lumps).expect_err("a refusal")
+    }
+    /// The lumps up to `TEXTURE1`.
+    fn textures_only() -> Vec<(&'static str, Vec<u8>)> {
+        vec![("PNAMES", pnames(&[])), ("TEXTURE1", texture_lump(&[]))]
+    }
+
+    #[test]
+    fn startup_lumps_are_required_in_the_genuine_order() {
+        // R_InitData: PNAMES and TEXTURE1 (r_data.c:411-479), then the flat and sprite marker
+        // ranges, then COLORMAP; `W_GetNumForName` is an `I_Error` (w_wad.c).
+        let nf = |n: &str| ResourceError::LumpNotFound(n.into());
+        assert_eq!(err(&[]), nf("PNAMES"));
+        assert_eq!(err(&[("PNAMES", pnames(&[]))]), nf("TEXTURE1"));
+        assert_eq!(err(&textures_only()), nf("F_START"));
+        let mut l = textures_only();
+        l.extend([("F_START", vec![]), ("F_END", vec![])]);
+        // F_START immediately followed by F_END encloses no flat.
+        assert_eq!(err(&l), ResourceError::BadMarkerRange("F_START/F_END"));
+        let mut l = textures_only();
+        l.extend([
+            ("F_START", vec![]),
+            ("FLAT", vec![0; 4096]),
+            ("F_END", vec![]),
+        ]);
+        assert_eq!(err(&l), nf("S_START"));
+        l.extend([("S_START", vec![]), ("S_END", vec![])]);
+        assert_eq!(err(&l), ResourceError::BadMarkerRange("S_START/S_END"));
+        // F_END before F_START: the range is negative.
+        let mut l = textures_only();
+        l.extend([
+            ("F_END", vec![]),
+            ("F_START", vec![]),
+            ("FLAT", vec![0; 4096]),
+        ]);
+        assert_eq!(err(&l), ResourceError::BadMarkerRange("F_START/F_END"));
+    }
+
+    fn with_sprites(extra: &[(&'static str, Vec<u8>)]) -> Vec<(&'static str, Vec<u8>)> {
+        let mut l = textures_only();
+        l.extend([
+            ("F_START", vec![]),
+            ("FLAT", vec![0; 4096]),
+            ("F_END", vec![]),
+        ]);
+        l.extend([
+            ("S_START", vec![]),
+            ("TROOA1", patch(1, 1)),
+            ("S_END", vec![]),
+        ]);
+        l.extend(extra.iter().cloned());
+        l
+    }
+
+    #[test]
+    fn sprite_lump_shorter_than_its_header_is_refused() {
+        // R_InitSpriteLumps reads `patch->width/leftoffset/topoffset` (§2.3.6, 8-byte
+        // header) of every lump between S_START and S_END.
+        let mut l = textures_only();
+        l.extend([
+            ("F_START", vec![]),
+            ("FLAT", vec![0; 4096]),
+            ("F_END", vec![]),
+        ]);
+        l.extend([
+            ("S_START", vec![]),
+            ("SHORT", vec![1, 2, 3]),
+            ("S_END", vec![]),
+        ]);
+        assert_eq!(
+            err(&l),
+            ResourceError::LumpTooShort {
+                name: "SHORT".into(),
+                needed: 8,
+                length: 3
+            }
+        );
+    }
+
+    #[test]
+    fn colormap_is_required_and_holds_33_maps() {
+        // R_InitColormaps (§2.3.6): `W_GetNumForName("COLORMAP")`; the renderer reads
+        // maps 0..=32 (32 light maps and the inverse map, investigation §2.3.6).
+        assert_eq!(
+            err(&with_sprites(&[])),
+            ResourceError::LumpNotFound("COLORMAP".into())
+        );
+        assert_eq!(
+            err(&with_sprites(&[("COLORMAP", vec![0; 33 * 256 - 1])])),
+            ResourceError::LumpTooShort {
+                name: "COLORMAP".into(),
+                needed: 33 * 256,
+                length: 33 * 256 - 1
+            }
+        );
+    }
+
+    #[test]
+    fn lump_directory_holds_at_most_a_short_lump_number() {
+        // `texturecolumnlump` is a `short` array (r_data.c:140): a 32,768th lump cannot be
+        // numbered (`W_AddFile` would overflow it).
+        let mut d = LumpDirectory::new();
+        for _ in 0..i16::MAX {
+            d.add_single_lump("LUMP", &[]).unwrap();
+        }
+        assert_eq!(
+            d.add_single_lump("LUMP", &[]),
+            Err(ResourceError::TooManyLumps)
+        );
+    }
+
+    #[test]
+    fn pnames_and_texture_directories_are_validated() {
+        let bad = |what: &str| ResourceError::BadTextureDirectory(what.into());
+        // A negative or oversized PNAMES count (R_InitTextures reads `nummappatches` names, r_data.c:411-574).
+        assert_eq!(
+            err(&[("PNAMES", (-1i32).to_le_bytes().to_vec())]),
+            bad("PNAMES")
+        );
+        assert_eq!(
+            err(&[("PNAMES", 2i32.to_le_bytes().to_vec())]),
+            bad("PNAMES")
+        );
+        assert_eq!(err(&[("PNAMES", vec![1, 2])]), bad("PNAMES"));
+        // A negative count, or an entry offset outside the lump (r_data.c:520 checks only
+        // `offset > maxoff`; the renderer refuses every read outside the lump).
+        let t = |lump: Vec<u8>| vec![("PNAMES", pnames(&[])), ("TEXTURE1", lump)];
+        assert_eq!(err(&t((-3i32).to_le_bytes().to_vec())), bad("TEXTURE1"));
+        assert_eq!(err(&t(vec![])), bad("TEXTURE1"));
+        let mut lump = 1i32.to_le_bytes().to_vec();
+        lump.extend(1000i32.to_le_bytes());
+        assert_eq!(err(&t(lump)), bad("TEXTURE1"));
+        // An offset leaving fewer than the 22 header bytes of a `maptexture_t`.
+        let mut lump = 1i32.to_le_bytes().to_vec();
+        lump.extend(8i32.to_le_bytes());
+        lump.extend([0; 10]);
+        assert_eq!(err(&t(lump)), bad("TEXTURE1"));
+        // A truncated patch list (`patchcount` 2, one `mappatch_t` present).
+        let mut lump = texture_lump(&[("WALL", 8, 8, &[(0, 0, 0)])]);
+        let at = 4 + 4 + 20;
+        lump[at..at + 2].copy_from_slice(&2i16.to_le_bytes());
+        let l = vec![
+            ("PNAMES", pnames(&["P"])),
+            ("P", patch(8, 8)),
+            ("TEXTURE1", lump),
+        ];
+        assert_eq!(err(&l), bad("TEXTURE1"));
+    }
+
+    #[test]
+    fn texture_definitions_are_validated() {
+        let one = |w, h, patches: &[(i16, i16, i16)]| {
+            vec![
+                ("PNAMES", pnames(&["P", "ABSENT"])),
+                ("P", patch(8, 8)),
+                ("TEXTURE1", texture_lump(&[("WALL", w, h, patches)])),
+            ]
+        };
+        // `texture->width/height/patchcount` must be positive (a zero or negative value would
+        // size the column tables with a wrapped count).
+        for (w, h, p) in [(0, 8, 1), (8, 0, 1), (-8, 8, 1), (8, -8, 1)] {
+            let patches: &[(i16, i16, i16)] = &[(0, 0, 0)][..p];
+            assert_eq!(
+                err(&one(w, h, patches)),
+                ResourceError::BadTextureSize("WALL".into())
+            );
+        }
+        assert_eq!(
+            err(&one(8, 8, &[])),
+            ResourceError::BadTextureSize("WALL".into())
+        );
+        // A `patch` index outside PNAMES: the genuine `patchlookup[patch]` read is unchecked.
+        for index in [2, 100, -1] {
+            assert_eq!(
+                err(&one(8, 8, &[(0, 0, index)])),
+                ResourceError::PatchIndexOutOfRange {
+                    texture: "WALL".into(),
+                    index: i32::from(index)
+                }
+            );
+        }
+        // `R_InitTextures: Missing patch in texture %s` (r_data.c:544): PNAMES entry 1 names
+        // no lump.
+        assert_eq!(
+            err(&one(8, 8, &[(0, 0, 1)])),
+            ResourceError::MissingPatch("WALL".into())
+        );
+        // A patch lump shorter than its 8-byte header, and a column directory entry outside
+        // the lump (R_GenerateLookup reads `patch->columnofs[x - x1]`, r_data.c:296-374).
+        let mut l = one(8, 8, &[(0, 0, 0)]);
+        l[1].1 = vec![1, 2, 3];
+        assert_eq!(err(&l), ResourceError::PatchBounds { lump: 1 });
+        let mut l = one(8, 8, &[(0, 0, 0)]);
+        l[1].1 = patch(8, 8)[..8 + 4 * 3].to_vec();
+        assert_eq!(err(&l), ResourceError::PatchBounds { lump: 1 });
+    }
+
+    fn lookup(
+        name: &str,
+        w: i16,
+        h: i16,
+        patches: &[(i16, i16, i16)],
+        names: &[(&str, Vec<u8>)],
+    ) -> Result<Vec<Texture>, ResourceError> {
+        let mut l = vec![(
+            "PNAMES",
+            pnames(&names.iter().map(|n| n.0).collect::<Vec<_>>()),
+        )];
+        l.extend(names.iter().cloned());
+        l.push(("TEXTURE1", texture_lump(&[(name, w, h, patches)])));
+        init_textures(&dir(&l))
+    }
+
+    #[test]
+    fn column_without_a_patch_leaves_the_rest_undefined() {
+        // R_GenerateLookup (r_data.c:349-358): the first column no patch covers prints
+        // "R_GenerateLookup: column without a patch" and returns, leaving every later column's
+        // lump and offset uninitialised (`ColumnEntry::Undefined`); investigation §2.10 item 8.
+        let t = lookup("WALL", 6, 8, &[(0, 0, 0)], &[("P", patch(2, 8))]).unwrap();
+        let cols = &t[0].columns;
+        assert!(matches!(cols[0], ColumnEntry::Lump { lump: 1, .. }));
+        assert!(matches!(cols[1], ColumnEntry::Lump { lump: 1, .. }));
+        assert_eq!(&cols[2..], &[ColumnEntry::Undefined; 4]);
+    }
+
+    #[test]
+    fn column_covered_by_two_patches_is_composite_and_a_lump_zero_patch_is_not() {
+        // r_data.c:349-373: `patchcount[x] > 1` selects the composite (`collump[x] = -1`,
+        // `colofs[x] = texturecompositesize`, size += height); a single patch keeps its lump
+        // and `columnofs + 3`, and a single patch in lump 0 stays `collump == 0`, which
+        // `R_GetColumn` reads as a composite (r_data.c:270-272, `ColumnEntry::LumpZero`).
+        let p = ("P", patch(4, 8));
+        let t = lookup(
+            "WALL",
+            4,
+            8,
+            &[(0, 0, 0), (2, 0, 0)],
+            std::slice::from_ref(&p),
+        )
+        .unwrap();
+        let t = &t[0];
+        assert_eq!(t.compositesize, 2 * 8);
+        assert!(matches!(t.columns[0], ColumnEntry::Lump { lump: 1, ofs } if ofs == 8 + 16 + 3));
+        assert_eq!(t.columns[2], ColumnEntry::Composite { ofs: 0 });
+        assert_eq!(t.columns[3], ColumnEntry::Composite { ofs: 8 });
+        // Lump 0: the patch is the first lump of the directory.
+        let l = vec![
+            ("P", patch(4, 8)),
+            ("PNAMES", pnames(&["P"])),
+            ("TEXTURE1", texture_lump(&[("WALL", 4, 8, &[(0, 0, 0)])])),
+        ];
+        let t = init_textures(&dir(&l)).unwrap();
+        assert!(matches!(t[0].columns[0], ColumnEntry::LumpZero { .. }));
+    }
+
+    #[test]
+    fn composite_larger_than_64k_is_refused() {
+        // `R_GenerateLookup: texture %i is >64k` (r_data.c:367): the guard fires when the
+        // composite size so far exceeds 0x10000 - height. 300 doubly covered columns of 255 rows
+        // pass 65,281 at column 257.
+        let p = ("P", patch(300, 255));
+        let e = lookup("WALL", 300, 255, &[(0, 0, 0), (0, 0, 0)], &[p]).err();
+        assert_eq!(e, Some(ResourceError::CompositeTooLarge(0)));
+    }
+
+    #[test]
+    fn masked_posts_follow_r_get_column_minus_three() {
+        // `R_GetColumn (tex, col) - 3` (r_segs.c:181-182): a patch column starts at its stored
+        // offset (`columnofs + 3`) minus 3; an offset below 3 cannot be a patch column; a
+        // composite column (and lump 0's) has no post headers inside the block (r_segs.c:181-184,
+        // r_things.c:359-385 would run to the end of zone memory); an uninitialised column is
+        // undefined (r_data.c:353-358). Constructed with the table fields directly: the loader
+        // builds the same entries from patch geometry (the tests above).
+        let columns = vec![
+            ColumnEntry::Lump { lump: 1, ofs: 20 },
+            ColumnEntry::Lump { lump: 1, ofs: 2 },
+            ColumnEntry::Composite { ofs: 0 },
+            ColumnEntry::LumpZero { ofs: 0 },
+            ColumnEntry::Undefined,
+        ];
+        let res = Resources {
+            dir: dir(&[("A", vec![]), ("B", vec![9; 40])]),
+            colormaps: vec![],
+            palette: None,
+            textures: vec![Texture {
+                name: *b"WALL\0\0\0\0",
+                width: 5,
+                height: 8,
+                patches: vec![],
+                widthmask: 7,
+                textureheight: 8 << 16,
+                columns,
+                compositesize: 0,
+                composite: vec![],
+                defined: vec![],
+            }],
+            firstflat: 0,
+            numflats: 0,
+            firstspritelump: 0,
+            sprite_lumps: vec![],
+            sprites: vec![],
+            switchlist: vec![],
+            anims: vec![],
+            skytexture: 0,
+            skyflatnum: 0,
+        };
+        assert!(
+            matches!(res.masked_posts(0, 0), MaskedPosts::Lump { at: 17, bytes } if bytes.len() == 40)
+        );
+        assert!(matches!(res.masked_posts(0, 1), MaskedPosts::Undefined));
+        assert!(matches!(res.masked_posts(0, 2), MaskedPosts::Composite));
+        assert!(matches!(res.masked_posts(0, 3), MaskedPosts::Composite));
+        assert!(matches!(res.masked_posts(0, 4), MaskedPosts::Undefined));
+        // `col &= texturewidthmask` (r_data.c:382-401): column 8 is column 0.
+        assert!(matches!(
+            res.masked_posts(0, 8),
+            MaskedPosts::Lump { at: 17, .. }
+        ));
+        // An undefined column reads as undefined texels (decision R4).
+        assert_eq!(res.get_column(0, 4).texel(0), (0, false));
+        assert_eq!(res.get_column(0, 0).texel(0), (9, true));
+        assert_eq!(res.get_column(0, 0).texel(100), (0, false));
+    }
 }

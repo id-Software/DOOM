@@ -33,6 +33,8 @@ pub mod r_sky;
 pub mod r_things;
 pub mod state;
 mod tables;
+#[cfg(test)]
+mod test_support;
 pub mod view;
 
 pub use r_data::{GameMode, LumpDirectory, ResourceError, Resources};

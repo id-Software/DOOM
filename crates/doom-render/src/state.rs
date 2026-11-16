@@ -420,4 +420,202 @@ mod tests {
         v[4] = 2;
         assert_eq!(RenderState::decode(&v), Err(StateDecodeError::Version(2)));
     }
+
+    // ---- DRST decoder rejections (docs/STATE_FORMAT.md, "Render state"). Each test pins one
+    // validated field of `RenderState::decode`; the public decoder reaches all of them.
+
+    /// The offset of the first byte at which two encodings differ.
+    fn first_diff(a: &[u8], b: &[u8]) -> usize {
+        a.iter()
+            .zip(b)
+            .position(|(x, y)| x != y)
+            .expect("encodings differ")
+    }
+
+    #[test]
+    fn every_proper_prefix_is_truncated_or_invalid_never_a_panic() {
+        let e = sample().encode();
+        // Every prefix up to the end of the fixed header region, then a stride through the
+        // framebuffer and taint runs, then the last 20 bytes.
+        let cuts = (0..400)
+            .chain((400..e.len()).step_by(997))
+            .chain(e.len() - 20..e.len());
+        for n in cuts {
+            assert!(RenderState::decode(&e[..n]).is_err(), "prefix {n}");
+        }
+        assert!(RenderState::decode(&[]).is_err());
+    }
+
+    #[test]
+    fn flags_must_be_zero_or_one() {
+        let mut s = sample();
+        let on = s.encode();
+        s.view.onground = false;
+        let at = first_diff(&on, &s.encode());
+        let mut bad = on.clone();
+        bad[at] = 2;
+        assert_eq!(
+            RenderState::decode(&bad),
+            Err(StateDecodeError::Invalid("flag"))
+        );
+        let mut s = sample();
+        s.view.dead = true;
+        let at = first_diff(&on, &s.encode());
+        let mut bad = on;
+        bad[at] = 0xff;
+        assert_eq!(
+            RenderState::decode(&bad),
+            Err(StateDecodeError::Invalid("flag"))
+        );
+    }
+
+    #[test]
+    fn fixedcolormap_is_within_the_colour_maps_and_the_inverse_map() {
+        // STATE_FORMAT, "Render state": `player->fixedcolormap`, 0..=32 (INVERSECOLORMAP,
+        // p_user.c:41, is 32).
+        for bad in [-1, crate::view::INVERSECOLORMAP + 1, i32::MAX, i32::MIN] {
+            let mut s = sample();
+            s.view.fixedcolormap = bad;
+            assert_eq!(
+                RenderState::decode(&s.encode()),
+                Err(StateDecodeError::Invalid("fixedcolormap")),
+                "{bad}"
+            );
+        }
+        for good in [0, crate::view::INVERSECOLORMAP] {
+            let mut s = sample();
+            s.view.fixedcolormap = good;
+            assert_eq!(RenderState::decode(&s.encode()), Ok(s));
+        }
+    }
+
+    #[test]
+    fn button_timers_are_zero_to_buttontime() {
+        // STATE_FORMAT, "Render state": `btimer` 0..=35.
+        for bad in [-1, 36, i32::MAX] {
+            let mut s = sample();
+            s.switches.buttons[3].timer = bad;
+            assert_eq!(
+                RenderState::decode(&s.encode()),
+                Err(StateDecodeError::Invalid("btimer")),
+                "{bad}"
+            );
+        }
+        let mut s = sample();
+        s.switches.buttons[15].timer = 35;
+        assert_eq!(RenderState::decode(&s.encode()), Ok(s));
+    }
+
+    #[test]
+    fn line_lists_are_strictly_ascending() {
+        for (cleared, unknown) in [
+            (vec![5, 1], vec![]),
+            (vec![3, 3], vec![]),
+            (vec![], vec![9, 2]),
+            (vec![], vec![4, 4]),
+        ] {
+            let mut s = sample();
+            s.switches.cleared = cleared;
+            s.switches.unknown = unknown;
+            assert_eq!(
+                RenderState::decode(&s.encode()),
+                Err(StateDecodeError::Invalid("line list order"))
+            );
+        }
+        let mut s = sample();
+        s.switches.cleared = vec![];
+        s.switches.unknown = vec![0, 65535];
+        assert_eq!(RenderState::decode(&s.encode()), Ok(s));
+    }
+
+    #[test]
+    fn fuzzpos_is_below_fuzztable() {
+        for bad in [50, 51, u32::MAX] {
+            let mut s = sample();
+            s.fuzzpos = bad;
+            assert_eq!(
+                RenderState::decode(&s.encode()),
+                Err(StateDecodeError::Invalid("fuzzpos")),
+                "{bad}"
+            );
+        }
+    }
+
+    #[test]
+    fn counts_are_bounded_before_any_allocation() {
+        // The sector-floor count follows the 94-byte-or-so fixed prefix; find it as the first
+        // byte that differs between two states with 2 and 3 sector floors, then claim 2^20 + 1
+        // entries (the decoder must refuse the count itself, not run out of bytes first).
+        let mut a = sample();
+        let mut b = sample();
+        a.view.sector_floors = vec![0; 2];
+        b.view.sector_floors = vec![0; 3];
+        let at = first_diff(&a.encode(), &b.encode());
+        let mut bad = a.encode();
+        bad[at..at + 4].copy_from_slice(&((1u32 << 20) + 1).to_le_bytes());
+        assert_eq!(
+            RenderState::decode(&bad),
+            Err(StateDecodeError::Invalid("count"))
+        );
+        // The largest admitted count is then merely truncated.
+        bad[at..at + 4].copy_from_slice(&(1u32 << 20).to_le_bytes());
+        assert_eq!(RenderState::decode(&bad), Err(StateDecodeError::Truncated));
+        bad[at..at + 4].copy_from_slice(&u32::MAX.to_le_bytes());
+        assert_eq!(
+            RenderState::decode(&bad),
+            Err(StateDecodeError::Invalid("count"))
+        );
+    }
+
+    #[test]
+    fn mapped_set_padding_bits_must_be_zero() {
+        // 9 mapped lines occupy two bytes; bits 1-7 of the second are padding.
+        let mut a = sample();
+        let mut b = sample();
+        a.mapped[8] = false;
+        b.mapped[8] = true;
+        let ea = a.encode();
+        let at = first_diff(&ea, &b.encode());
+        for pad in [0x02, 0x80, 0xfe] {
+            let mut bad = ea.clone();
+            bad[at] |= pad;
+            assert_eq!(
+                RenderState::decode(&bad),
+                Err(StateDecodeError::Invalid("mapped padding")),
+                "{pad:#x}"
+            );
+        }
+    }
+
+    #[test]
+    fn taint_runs_must_tile_the_framebuffer_exactly() {
+        // The encoding ends `run count, (length, value)*`. The sample's taint has runs
+        // (5 x 0), (2 x 7), (63993 x 0): the last 28 bytes.
+        let e = sample().encode();
+        let tail = e.len() - 28;
+        assert_eq!(u32::from_le_bytes(e[tail..tail + 4].try_into().unwrap()), 3);
+        let run = |i: usize| tail + 4 + 8 * i;
+        let with = |i: usize, n: u32| {
+            let mut bad = e.clone();
+            bad[run(i)..run(i) + 4].copy_from_slice(&n.to_le_bytes());
+            bad
+        };
+        let invalid = Err(StateDecodeError::Invalid("taint runs"));
+        // A zero-length run, a run past the end, and runs that stop short.
+        assert_eq!(RenderState::decode(&with(1, 0)), invalid);
+        assert_eq!(RenderState::decode(&with(2, 63_994)), invalid);
+        assert_eq!(RenderState::decode(&with(2, 63_992)), invalid);
+        assert_eq!(RenderState::decode(&with(0, u32::MAX)), invalid);
+        // A run count past the bound.
+        let mut bad = e.clone();
+        bad[tail..tail + 4].copy_from_slice(&u32::MAX.to_le_bytes());
+        assert_eq!(
+            RenderState::decode(&bad),
+            Err(StateDecodeError::Invalid("count"))
+        );
+        // A run count of zero leaves the framebuffer untiled.
+        let mut bad = e[..tail + 4].to_vec();
+        bad[tail..].copy_from_slice(&0u32.to_le_bytes());
+        assert_eq!(RenderState::decode(&bad), invalid);
+    }
 }
