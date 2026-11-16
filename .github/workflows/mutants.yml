@@ -85,8 +85,10 @@ jobs:
           # missed, 3 timeouts, 4 the unmutated baseline failed. This job is
           # informational: 2 and 3 are findings, reported by the summary job, so
           # they do not fail the shard; any other nonzero status does.
+          # -p is repeated so a diff that touches only the renderer (M5a) is
+          # mutated too; --in-diff still limits mutation to the changed lines.
           set +e
-          cargo mutants -p doom-sim --test-tool nextest --jobs 2 \
+          cargo mutants -p doom-sim -p doom-render --test-tool nextest --jobs 2 \
             --timeout 300 --build-timeout 900 \
             --in-diff "$RUNNER_TEMP/mutants.patch" \
             --shard "$SHARD/8" \
