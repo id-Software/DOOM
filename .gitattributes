@@ -16,3 +16,4 @@
 
 # Standard zstd source traces are binary and must survive checkout exactly.
 /tests/reference/*.zst -text
+/crates/doom-render/src/tables.rs text eol=lf

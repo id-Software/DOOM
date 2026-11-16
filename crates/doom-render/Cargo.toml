@@ -1,0 +1,21 @@
+[package]
+name = "doom-render"
+description = "Faithful linuxdoom-1.10 software renderer for the 3D view (R_RenderPlayerView), reading the simulation through its public API"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+publish.workspace = true
+
+[dependencies]
+doom-types.workspace = true
+doom-wad = { path = "../doom-wad" }
+doom-map = { path = "../doom-map" }
+doom-sim = { path = "../doom-sim" }
+
+[dev-dependencies]
+doom-test-evidence = { path = "../doom-test-evidence" }
+
+[lints]
+workspace = true

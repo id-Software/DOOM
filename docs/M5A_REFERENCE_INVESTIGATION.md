@@ -2514,3 +2514,35 @@ settles it or "open".
 27. Q8, `Lump::is_named` normalisation of directory names: R14 (exact C lookup semantics, refuse differing
     names).
 28. S1 to S4 (stop-and-ask items): R6, R7, R8 and R4 respectively.
+
+**Phase 2 findings**
+
+29. **`SolidSegOverflow` refuses at the first out-of-bounds access, read or write** (orchestrator
+    application of R3, 2026-11-15; accepted by the owner 2026-11-15). In SOLIDSEGS at screenblocks 9
+    the genuine crunch loop `while (next++ != newend) *++start = *next;` (r_bsp.c:178-182) reads
+    `solidsegs[32]` in the frame of tic 18, one frame before the first write past the array at tic 19
+    ([evidence](validation/M5A.md#limit-rooms)). R3 refuses where the C's behaviour depends on memory
+    layout, so the Rust renderer must refuse that run at tic 18, the first access past `solidsegs[]`
+    (limits are implemented in step 2c).
+30. **Outside M5a's scope, reported to the owner and not acted on** (confirmed by the owner
+    2026-11-15): outside commercial mode `P_LoadThings` stops reading THINGS entirely at the first
+    DoomEd 65 (`break` out of the loop, linuxdoom-1.10/p_setup.c:317-337), while doom-sim's
+    `EPISODE1_MONSTERS` (crates/doom-sim/src/episode1.rs:21) admits 65. No Episode 1 IWAD map contains
+    a 65, so real-map results are unaffected, but a synthetic WAD with a 65 under the Episode 1 policy
+    would diverge from the genuine engine.
+31. **The frozen M4b WADs have seg angle 0 and offset 0** on every seg (`m3h6_geometry.room`). The
+    renderer reads both from the WAD as the C does (`P_LoadSegs`, p_setup.c:181-182), so the genuine
+    frames of the 22 M4b scripts are the output for those bytes; the M5a rooms rewrite them
+    (`m5a_wad.fix_segs`).
+32. **"Column without a patch" (r_data.c:353-358) leaves that column's lump and offset uninitialised**
+    (Z_Malloc memory; the M5a runner's declared ZeroFill makes them 0). The Rust renderer marks such a
+    column undefined (every read flagged, decision R4) and gives later columns the last patch's lump
+    and offset, as the early `return` leaves them (step 2a, `ColumnEntry::Undefined`). No synthetic
+    texture has such a column; whether the genuine tracker flags the same columns is open until a
+    texture with one is rendered (step 4 census, open question 9).
+33. **The view records exercise only part of the view shadow** (step 2a). Over the 8,238 records of
+    the 42 items, `viewheight` is always `VIEWHEIGHT` and `deltaviewheight` always 0 (no step-up,
+    hard landing or death changes them), `onground` is 0 only in the 42 load records,
+    `fixedcolormap` is nonzero in 93 and the invisibility power in 86. Teleports are covered. The
+    step-up, landing and death paths of the shadow are matched against the C source only until the
+    real maps (step 4) or a room exercising them supply genuine records.
