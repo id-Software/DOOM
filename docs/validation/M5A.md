@@ -492,6 +492,8 @@ them. The new Linux job `M5a genuine renderer` runs `m5a_gfx.py`, `m5a_check_gfx
 runner's default gcc. On head `ac2792e` the job passed in under 3 minutes (the runner's gcc, not the local 15.2.0), and so did
 every other job of that run (Stable on Linux, Windows and macOS, MSRV 1.85.0, instruction counts).
 
+The README's renderer animation (`docs/media/m5a-renderer-side-by-side.gif`, synthetic rooms only) is regenerated from genuine and Rust frames by `tools/media/m5a_readme_visual.py`, which requires every shown frame to be byte-identical and equal to its golden ([command](../TESTING.md#readme-animations)); it is an illustration, not additional evidence.
+
 ## Renderer tests and fuzz targets, step 7a
 
 Observed 2026-11-16 (America/Los_Angeles) on the branch head after this step's commits. No IWAD was read.

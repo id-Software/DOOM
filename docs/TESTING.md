@@ -1942,6 +1942,26 @@ the digests are recorded.
 - `level_compare_m4b.py` is `level_compare.py`'s method over the DSIM40 projection. It is a new
   tool, because `level_compare.py` is frozen and has no DSIM40 profile.
 
+## README animations
+
+The simulation recording is described under [M4b mechanism WADs](#m4b-synthetic-mechanism-wads). The renderer
+animation (`docs/media/m5a-renderer-side-by-side.gif`) is generated the same way, never captured:
+
+```sh
+python3 tools/media/m5a_readme_visual.py [--work DIR] [--cargo-target DIR] [--check]   # --work defaults to ~/scratch/m5a-readme-visual
+```
+
+It builds the strict genuine M5a runner (`m5a_build.py`, a C compiler), runs it with `--frames-raw` on the
+committed synthetic rooms SKY, SPRITES and FUZZ (their scripts and `tests/reference/m5a_gfx.wad`, no IWAD), and
+renders the same tics with `m5a_view --raw` (screenblocks 11). Every shown frame must be byte-identical between
+the two and equal to the golden digest in `tests/reference/m5a_frames/*.sb11.frames` (and not a non-comparable
+frame), or the script exits with an error. It shows every 5th tic at real speed, draws the genuine frame, the
+Rust frame and their per-pixel difference, and computes the caption's differing-pixel count from the frames; the
+lettering is the script's own 5x7 bitmap font. The GIF encoder is a Python port of `crates/doom-render/src/gif.rs`
+with frame deltas, and the script decodes its own output and compares every displayed frame. The file has no
+timestamp or path, so a rerun writes the same bytes. `--check` regenerates the animation and compares it with the
+committed file; it builds the C runner and runs cargo, so it is a local check and not part of CI.
+
 ## M5a synthetic renderer rooms
 
 The M5a [reference investigation](M5A_REFERENCE_INVESTIGATION.md) (decisions R1-R16, §5) compares

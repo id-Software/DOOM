@@ -16,6 +16,9 @@
 //! whole hundredths of a second, so the rounding alternates 2, 3, 3, 3, 3, 3, 3 cs at 35 fps
 //! and a second of tics lasts exactly a second). The replay stops at the end of the script,
 //! when the simulation stops advancing (the exit), or at a renderer refusal (reported).
+//! `--raw DIR` also writes each rendered frame as `DIR/frame_NNNNN.raw` (tic number NNNNN, the
+//! 64,000 palette indices row by row, the genuine runner's `--frames-raw` form); with `--raw`
+//! the GIF `--out` is optional. `tools/media/m5a_readme_visual.py` uses it.
 #[path = "../tests/common/mod.rs"]
 mod common;
 
@@ -24,12 +27,13 @@ use doom_render::{Detail, Frame, RenderConfig, Renderer, SCREENHEIGHT, SCREENWID
 use std::path::PathBuf;
 
 fn main() {
-    let (mut iwad, mut lmp, mut room, mut out): (
+    let (mut iwad, mut lmp, mut out, mut raw): (
         Option<PathBuf>,
         Option<PathBuf>,
-        Option<String>,
+        Option<PathBuf>,
         Option<PathBuf>,
     ) = (None, None, None, None);
+    let mut room: Option<String> = None;
     let (mut screenblocks, mut from, mut to, mut scale, mut fps) =
         (11u8, 0i64, i64::MAX, 1usize, 35u32);
     let mut args = std::env::args().skip(1);
@@ -40,6 +44,7 @@ fn main() {
             "--lmp" => lmp = Some(PathBuf::from(value())),
             "--room" => room = Some(value().to_uppercase()),
             "--out" => out = Some(PathBuf::from(value())),
+            "--raw" => raw = Some(PathBuf::from(value())),
             "--screenblocks" => screenblocks = value().parse().expect("screenblocks"),
             "--from" => from = value().parse().expect("from"),
             "--to" => to = value().parse().expect("to"),
@@ -48,7 +53,12 @@ fn main() {
             _ => usage(),
         }
     }
-    let Some(out) = out else { usage() };
+    if out.is_none() && raw.is_none() {
+        usage()
+    }
+    if let Some(dir) = &raw {
+        std::fs::create_dir_all(dir).expect("raw directory");
+    }
     if scale == 0 || fps == 0 || scale > 8 {
         eprintln!("--scale must be 1-8 and --fps at least 1");
         std::process::exit(2);
@@ -116,6 +126,10 @@ fn main() {
             stop = format!("the renderer refused tic {tic}: {e:?}");
             break;
         }
+        if let Some(dir) = &raw {
+            std::fs::write(dir.join(format!("frame_{tic:05}.raw")), frame.pixels())
+                .expect("write raw frame");
+        }
         let delay = delay_cs(written, fps);
         if scale == 1 {
             gif.frame(frame.pixels(), delay);
@@ -128,13 +142,18 @@ fn main() {
         written += 1;
     }
     let bytes = gif.finish();
-    if let Some(dir) = out.parent() {
-        std::fs::create_dir_all(dir).expect("output directory");
-    }
-    std::fs::write(&out, &bytes).expect("write GIF");
+    let name = out.as_ref().map_or_else(
+        || String::from("(no GIF)"),
+        |out| {
+            if let Some(dir) = out.parent() {
+                std::fs::create_dir_all(dir).expect("output directory");
+            }
+            std::fs::write(out, &bytes).expect("write GIF");
+            out.display().to_string()
+        },
+    );
     eprintln!(
-        "{}: {} frames, {w}x{h}, screenblocks {screenblocks}, {} bytes, stopped at {stop}",
-        out.display(),
+        "{name}: {} frames, {w}x{h}, screenblocks {screenblocks}, {} bytes, stopped at {stop}",
         written,
         bytes.len()
     );
@@ -142,7 +161,7 @@ fn main() {
 
 fn usage() -> ! {
     eprintln!(
-        "usage: m5a_view (--iwad WAD --lmp DEMO | --room NAME) --out FILE.gif [--screenblocks 9|10|11] [--from TIC] [--to TIC] [--scale 1-8] [--fps N]"
+        "usage: m5a_view (--iwad WAD --lmp DEMO | --room NAME) [--out FILE.gif] [--raw DIR] [--screenblocks 9|10|11] [--from TIC] [--to TIC] [--scale 1-8] [--fps N]"
     );
     std::process::exit(2);
 }
