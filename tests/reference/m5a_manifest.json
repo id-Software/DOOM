@@ -1249,6 +1249,253 @@
      ]
     }
    }
+  },
+  {
+   "name": "AMPFLICK",
+   "file": "tests/reference/m5a_wads/ampflick.wad",
+   "slot": "E1M1",
+   "sha256": "d77e06aa019ecda219be6bb8166ad5b54b707b32029bc31a0fd5d2ec6373917b",
+   "bytes": 86197,
+   "sectors": 1,
+   "lines": 4,
+   "things": {
+    "1": 1,
+    "48": 1,
+    "2028": 1,
+    "2045": 1
+   },
+   "png": [
+    [
+     10,
+     60
+    ],
+    [
+     10,
+     4096
+    ]
+   ],
+   "script": {
+    "lump": "M5AMPFL",
+    "txt": "tests/reference/m5a_scripts/M5AMPFL.txt",
+    "lmp": "tests/reference/m5a_scripts/M5AMPFL.lmp",
+    "what": "walk onto the light amplification visor and wait until it runs out",
+    "tics": 4230,
+    "lmp_sha256": "491c6c4614be20fba5195283397d7af271b70be007c0696debdebc97e0a94344",
+    "views": [
+     11,
+     10,
+     9
+    ],
+    "must_show": [
+     {
+      "what": "light amplification",
+      "expr": "view fixedcolormap == 1",
+      "tic": {
+       "11": 14,
+       "10": 14,
+       "9": 14
+      }
+     },
+     {
+      "what": "the end-of-power flicker (colour map 0 while the power still runs)",
+      "expr": "view fixedcolormap == 0 from 100",
+      "tic": {
+       "11": 4085,
+       "10": 4085,
+       "9": 4085
+      }
+     }
+    ],
+    "c_end": {
+     "11": [
+      "marker",
+      4230
+     ],
+     "10": [
+      "marker",
+      4230
+     ],
+     "9": [
+      "marker",
+      4230
+     ]
+    }
+   }
+  },
+  {
+   "name": "VIEWZ",
+   "file": "tests/reference/m5a_wads/viewz.wad",
+   "slot": "E1M1",
+   "sha256": "e3dca208318a4c74a748862b0f64eeba3ac479f90b01ecf9f4717ba0f55e3dc5",
+   "bytes": 88099,
+   "sectors": 7,
+   "lines": 24,
+   "things": {
+    "1": 1,
+    "9": 1
+   },
+   "png": [
+    [
+     10,
+     100
+    ],
+    [
+     10,
+     450
+    ]
+   ],
+   "script": {
+    "lump": "M5VIEWZ",
+    "txt": "tests/reference/m5a_scripts/M5VIEWZ.txt",
+    "lmp": "tests/reference/m5a_scripts/M5VIEWZ.lmp",
+    "what": "climb five steps, walk off into the pit and die there",
+    "tics": 568,
+    "lmp_sha256": "af196bb4e2b2f98374aabaf20eb81577bd3b9db91dac14aad5fdc8758c2e37b2",
+    "views": [
+     11,
+     10,
+     9
+    ],
+    "must_show": [
+     {
+      "what": "a step-up dip recovering",
+      "expr": "view deltaviewheight > 0",
+      "tic": {
+       "11": 38,
+       "10": 38,
+       "9": 38
+      }
+     },
+     {
+      "what": "in the air",
+      "expr": "view onground == 0",
+      "tic": {
+       "11": 66,
+       "10": 66,
+       "9": 66
+      }
+     },
+     {
+      "what": "the hard landing",
+      "expr": "view deltaviewheight < 0",
+      "tic": {
+       "11": 98,
+       "10": 98,
+       "9": 98
+      }
+     },
+     {
+      "what": "the VIEWHEIGHT/2 clamp (first on a 24-unit step-up)",
+      "expr": "view viewheight == 1343488",
+      "tic": {
+       "11": 39,
+       "10": 39,
+       "9": 39
+      }
+     },
+     {
+      "what": "the hard landing reaches the VIEWHEIGHT/2 clamp",
+      "expr": "view viewheight == 1343488 from 98",
+      "tic": {
+       "11": 104,
+       "10": 104,
+       "9": 104
+      }
+     },
+     {
+      "what": "the death descent at 6 units",
+      "expr": "view viewheight == 393216",
+      "tic": {
+       "11": 367,
+       "10": 367,
+       "9": 367
+      }
+     }
+    ],
+    "c_end": {
+     "11": [
+      "marker",
+      568
+     ],
+     "10": [
+      "marker",
+      568
+     ],
+     "9": [
+      "marker",
+      568
+     ]
+    }
+   }
+  },
+  {
+   "name": "SWITCH",
+   "file": "tests/reference/m5a_wads/switch.wad",
+   "slot": "E1M1",
+   "sha256": "4265e2657ecfcfb661eeef196efc0c7219951c01f749ba0eac68d6d300eed0de",
+   "bytes": 89437,
+   "sectors": 9,
+   "lines": 44,
+   "things": {
+    "1": 1
+   },
+   "png": [
+    [
+     10,
+     13
+    ],
+    [
+     10,
+     130
+    ]
+   ],
+   "script": {
+    "lump": "M5SWTCH",
+    "txt": "tests/reference/m5a_scripts/M5SWTCH.txt",
+    "lmp": "tests/reference/m5a_scripts/M5SWTCH.lmp",
+    "what": "press an SR switch twice within its button time, an SR switch once, an S1 switch, then shoot a GR switch twice",
+    "tics": 213,
+    "lmp_sha256": "fff4f49428768b760a8b3d50197b9f4dbc7f5c3736bbdade6d9d11e5ed39fd5a",
+    "views": [
+     11,
+     10,
+     9
+    ],
+    "must_show": [
+     {
+      "what": "the pistol fires at the GR switch (extralight)",
+      "expr": "view extralight > 0",
+      "tic": {
+       "11": 123,
+       "10": 123,
+       "9": 123
+      }
+     },
+     {
+      "what": "the S1 door opens: the lines beyond it mapped",
+      "expr": "frame mapped >= 25",
+      "tic": {
+       "11": 118,
+       "10": 118,
+       "9": 118
+      }
+     }
+    ],
+    "c_end": {
+     "11": [
+      "marker",
+      213
+     ],
+     "10": [
+      "marker",
+      213
+     ],
+     "9": [
+      "marker",
+      213
+     ]
+    }
+   }
   }
  ]
 }

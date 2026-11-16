@@ -46,11 +46,26 @@ also loads alone; the graphics PWAD supplies the pixels, the colour maps and the
     solidsegs a hundred thin pillars in a row: an attempt at more than MAXSEGS (32) disjoint solid ranges
               (R_ClipSolidWallSegment writes past solidsegs, r_bsp.c:122-133)
 
+Appended in Phase 2 (after the twenty rooms above, so their WADs, scripts and manifest entries stay
+byte-identical):
+
+    ampflick  the light amplification visor picked up and worn until it runs out: the end-of-power
+              flicker of P_PlayerThink (fixedcolormap 1 while powers[pw_infrared] > 4*32 or has bit 8,
+              p_user.c:371-380)
+    viewz     five step-ups (P_ZMovement's viewheight dip, p_mobj.c:251-257, and P_CalcHeight's
+              deltaviewheight recovery, p_user.c:113-136), a 568-unit fall into a pit (the hard landing,
+              p_mobj.c:298-308, and P_CalcHeight's VIEWHEIGHT/2 clamp, p_user.c:121-126) and the player
+              killed there by a shotgun sergeant (P_DeathThink's viewheight descent to 6 units and the turn toward the attacker, p_user.c:182-229)
+    switch    an S1 switch (103), an SR switch (70) pressed once and left to expire, an SR switch (70)
+              pressed again while its button runs (the re-press parity, decision R7), and a GR switch (46)
+              shot twice while its button runs (p_switch.c:201-262, 455-459, 592-595;
+              p_spec.c:988-991)
+
 The grid painter, the builder chain and the lump framing are the frozen generators' (m4b_wad.Plan,
 m4a_wad, m3h9b_geometry.room; imported read-only); contrast and dsegs give the builder explicit
 rings (non-axis walls; a subdivided wall). Line styles (textures, offsets, ML_DONTPEG* flags) and
 REJECT are applied after the build. Only specials and things the wire-24 simulation admits are used
-(docs/COMPATIBILITY.md): special 1 and the Episode 1 things (no invulnerability, so
+(docs/COMPATIBILITY.md): specials 1, 46, 70 and 103 and the Episode 1 things (no invulnerability, so
 INVERSECOLORMAP is not reachable here). tests/reference/m5a_manifest.json (schema
 DOOM-M5A-MANIFEST-v1) names each WAD with its SHA-256 and counts (written here with --manifest,
 checked by --check) and each script with its view configurations and genuine-renderer expectations
@@ -87,7 +102,8 @@ INVIS, LIGHTAMP, STIMPACK, MEDIKIT = 2024, 2045, 2011, 2012
 LAMP, PILLAR, CANDELABRA, GIBS, DEADPLAYER, CANDLE, FIRESTICK = 2028, 48, 35, 24, 15, 34, 46
 ALL = 7
 DR = 1                            # p_spec.c / p_doors.c EV_VerticalDoor, wire 22
-ROOM_SPECIALS = {DR}
+S1_OPEN, SR_TURBO, GR_OPEN = 103, 70, 46   # P_UseSpecialLine (p_switch.c), P_ShootSpecialLine (p_spec.c)
+ROOM_SPECIALS = {DR, S1_OPEN, SR_TURBO, GR_OPEN}
 VIEWS = [11, 10, 9]               # decision R2: 11 and 10 everywhere, 9 on synthetic rooms
 
 
@@ -445,10 +461,57 @@ def solidsegs():
     return p
 
 
+def ampflick():
+    p = Room('ampflick', wall='M5WALLE')
+    p.sector('DARK', [(-128, -128, 128, 256)], light=48, fpic='M5FLAT3', cpic='M5FLAT4')
+    p.thing(0, -96, NORTH, PLAYER1)
+    p.thing(0, -32, NORTH, LIGHTAMP)
+    p.thing(0, 192, SOUTH, LAMP)
+    p.thing(-64, 160, SOUTH, PILLAR)
+    return p
+
+
+def viewz():
+    p = Room('viewz', wall='M5WALLA')
+    hall = p.sector('HALL', [(-256, -64, 0, 64)], ceil=256, light=176, fpic='M5FLAT1', cpic='M5FLAT2')
+    steps = [p.sector(f'STEP{k}', [(32 * k, -64, 32 * k + 32, 64)], floor=24 * (k + 1), ceil=256, light=176,
+                      fpic='M5FLAT3', cpic='M5FLAT2') for k in range(4)]
+    top = p.sector('TOP', [(128, -64, 192, 64)], floor=120, ceil=256, light=176, fpic='M5FLAT4', cpic='M5FLAT2')
+    pit = p.sector('PIT', [(192, -128, 704, 128)], floor=-448, ceil=256, light=176, fpic='M5FLAT5', cpic='M5FLAT6')
+    for k in [hall, top] + steps: p.hide(pit, k)     # the sergeant sees the player only once he is over the pit
+    p.thing(-224, 0, EAST, PLAYER1)
+    p.thing(656, 0, WEST, SHOTGUY)                    # one shooter: no crossfire between monsters
+    return p
+
+
+def switch():
+    p = Room('switch', wall='M5WALLB')
+    hall = p.sector('HALL', [(-32, -32, 32, 32)], light=192, fpic='M5FLAT1', cpic='M5FLAT2')
+    north = p.sector('NORTH', [(-16, 32, 16, 48)], floor=24, light=192, tag=1, fpic='M5FLAT3', cpic='M5FLAT2')
+    east = p.sector('EAST', [(32, -16, 48, 16)], floor=24, light=192, tag=2, fpic='M5FLAT3', cpic='M5FLAT2')
+    west = p.sector('WEST', [(-48, -16, -32, 16)], light=192, fpic='M5FLAT3', cpic='M5FLAT2')
+    corr = p.sector('CORR', [(-16, -160, 16, -32)], light=192, fpic='M5FLAT1', cpic='M5FLAT2')
+    d1 = p.sector('DOOR1', [(16, -112, 32, -80)], ceil=0, light=192, tag=3, door=True)
+    p.sector('ROOM1', [(32, -128, 96, -64)], light=160, fpic='M5FLAT5', cpic='M5FLAT6')
+    d2 = p.sector('DOOR2', [(-32, -112, -16, -80)], ceil=0, light=192, tag=4, door=True)
+    p.sector('ROOM2', [(-96, -128, -32, -64)], light=160, fpic='M5FLAT5', cpic='M5FLAT6')
+    p.special(north, None, (0, 48), SR_TURBO, 1)      # pressed, then pressed again while its button runs
+    p.special(east, None, (48, 0), SR_TURBO, 2)       # pressed once, its button left to expire
+    p.special(west, None, (-48, 0), S1_OPEN, 3)
+    p.special(corr, None, (0, -160), GR_OPEN, 4)      # shot twice while its button runs
+    p.style(north, None, at=(0, 48), s0=dict(mid='SW1COMM'))
+    p.style(east, None, at=(48, 0), s0=dict(mid='SW1BRN1'))
+    p.style(west, None, at=(-48, 0), s0=dict(mid='SW1STARG'))
+    p.style(corr, None, at=(0, -160), s0=dict(mid='SW1BRCOM'))
+    for d in (d1, d2): p.style(d, None, flags=ML_DONTPEGBOTTOM, s0=dict(mid='DOORTRAK'))
+    p.thing(0, 0, NORTH, PLAYER1)
+    return p
+
+
 ROOMS = {'peg': peg, 'mask': mask, 'planes': planes, 'sky': sky, 'light': light, 'contrast': contrast, 'dist': dist,
          'sprites': sprites, 'clip': clip, 'weapon': weapon, 'fuzz': fuzz, 'amp': amp, 'hom': hom, 'short': short,
          'view': view, 'vplanes': vplanes, 'dsegs': dsegs, 'vsprites': vsprites, 'openings': openings,
-         'solidsegs': solidsegs}
+         'solidsegs': solidsegs, 'ampflick': ampflick, 'viewz': viewz, 'switch': switch}
 
 # Scripts (tools/reference/m4b_scripts.py format; turn is the angleturn high byte, 256 per full turn).
 SCRIPTS = {
@@ -481,6 +544,13 @@ SCRIPTS = {
     'vsprites': ('M5VSPR', 'turn from east to north toward the health bonuses', ['idle 2', 'cmd 80 0 0 1 0']),
     'openings': ('M5OPEN', 'turn from east to north toward the fences', ['idle 2', 'cmd 80 0 0 1 0']),
     'solidsegs': ('M5SSEG', 'turn from east to north toward the pillars', ['idle 2', 'cmd 80 0 0 1 0']),
+    'ampflick': ('M5AMPFL', 'walk onto the light amplification visor and wait until it runs out',
+                 ['idle 2', 'cmd 8 20 0 0 0', 'idle 4220']),
+    'viewz': ('M5VIEWZ', 'climb five steps, walk off into the pit and die there', ['idle 4', 'cmd 64 25 0 0 0', 'idle 500']),
+    'switch': ('M5SWTCH', 'press an SR switch twice within its button time, an SR switch once, an S1 switch, then shoot a GR '
+               'switch twice', ['idle 2', 'cmd 1 0 0 0 USE', 'idle 9', 'cmd 1 0 0 0 USE', 'idle 45', 'cmd 1 0 0 -64 0',
+                                'cmd 1 0 0 0 USE', 'idle 45', 'cmd 2 0 0 64 0', 'cmd 1 0 0 0 USE', 'idle 10', 'cmd 1 0 0 64 0',
+                                'cmd 1 0 0 0 ATTACK', 'idle 22', 'cmd 1 0 0 0 ATTACK', 'idle 70']),
 }
 
 
@@ -508,11 +578,19 @@ MUST_SHOW = {
     'vsprites': [('vissprites at the bound', 'frame vissprites == 128'), ('a vissprite dropped', 'frame vissprite_drop > 0')],
     'openings': [('openings near the bound', 'frame openings >= 19000'), ('written past openings', 'witness OpeningOverflow')],
     'solidsegs': [('solid ranges near the bound', 'frame solidsegs_peak >= 30'), ('written past solidsegs', 'witness SolidSegOverflow')],
+    'ampflick': [('light amplification', 'view fixedcolormap == 1'),
+                 ('the end-of-power flicker (colour map 0 while the power still runs)', 'view fixedcolormap == 0 from 100')],
+    'viewz': [('a step-up dip recovering', 'view deltaviewheight > 0'), ('in the air', 'view onground == 0'),
+              ('the hard landing', 'view deltaviewheight < 0'), ('the VIEWHEIGHT/2 clamp (first on a 24-unit step-up)', 'view viewheight == 1343488'),
+              ('the hard landing reaches the VIEWHEIGHT/2 clamp', 'view viewheight == 1343488 from 98'),
+              ('the death descent at 6 units', 'view viewheight == 393216')],
+    'switch': [('the pistol fires at the GR switch (extralight)', 'view extralight > 0'), ('the S1 door opens: the lines beyond it mapped', 'frame mapped >= 25')],
 }
 PNG = {'peg': [(10, 40), (10, 200)], 'mask': [(10, 60)], 'planes': [(10, 60)], 'sky': [(11, 100)], 'light': [(10, 60)],
        'contrast': [(10, 50)], 'dist': [(10, 120)], 'sprites': [(11, 0), (11, 100)], 'clip': [(10, 60)], 'weapon': [(10, 150), (10, 330)],
        'fuzz': [(10, 30), (10, 120)], 'amp': [(10, 60)], 'hom': [(10, 60)], 'short': [(10, 8)], 'view': [(9, 20), (10, 20), (11, 20)],
-       'vplanes': [(10, 40)], 'dsegs': [(10, 60)], 'vsprites': [(10, 60)], 'openings': [(10, 30)], 'solidsegs': [(10, 12)]}
+       'vplanes': [(10, 40)], 'dsegs': [(10, 60)], 'vsprites': [(10, 60)], 'openings': [(10, 30)], 'solidsegs': [(10, 12)],
+       'ampflick': [(10, 60), (10, 4096)], 'viewz': [(10, 100), (10, 450)], 'switch': [(10, 13), (10, 130)]}
 
 
 def framing():

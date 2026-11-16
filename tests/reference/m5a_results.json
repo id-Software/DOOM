@@ -2,7 +2,7 @@
  "schema": "DOOM-M5A-RESULTS-v1",
  "runner_contract_sha256": "9d235ab3d9e34f6114eb10036e70d86495bf77ab718a4b8e11ae6a415181027b",
  "gfx_sha256": "63af963513fce04e9ca98e430971053938c0c378964eb9379c52690b1022f903",
- "manifest_sha256": "61f14c43b2c8c04ea9a3339d5a78b555e8e959809319f1fdd701b234ee98e20f",
+ "manifest_sha256": "8aaf51308df94454d13057a89398d27787c6260a902ba2734676eb4150ec54ef",
  "variants": [
   "strict",
   "overflow",
@@ -15,9 +15,9 @@
  ],
  "asan_options": "detect_leaks=0 (leak detection disabled; not LeakSanitizer coverage)",
  "frames_per_configuration": {
-  "11": 8180,
-  "10": 8180,
-  "9": 8192
+  "11": 13191,
+  "10": 13191,
+  "9": 13203
  },
  "items": {
   "M5PEG": {
@@ -2152,6 +2152,342 @@
      "must_show": {
       "solid ranges near the bound": 15,
       "written past solidsegs": 19
+     }
+    }
+   }
+  },
+  "M5AMPFL": {
+   "kind": "room",
+   "wad": "tests/reference/m5a_wads/ampflick.wad",
+   "lmp_sha256": "491c6c4614be20fba5195283397d7af271b70be007c0696debdebc97e0a94344",
+   "dumps_never_sha256": "1703c14e0b28114a7d5f904bda43dbccdd1a3277c0c311b1a3118af05f6801ac",
+   "never_equals_frozen_m4b_runner": true,
+   "views": {
+    "11": {
+     "frames": 4230,
+     "flagged_frames": 0,
+     "flagged_columns": 0,
+     "whole_frames": 0,
+     "origins": [],
+     "mapped_lines": 3,
+     "max_visplanes": 2,
+     "max_drawsegs": 3,
+     "max_vissprites": 3,
+     "max_openings": 0,
+     "max_solidsegs_peak": 3,
+     "drawseg_drop_frames": 0,
+     "vissprite_drop_frames": 0,
+     "witness": null,
+     "error": null,
+     "end": "marker",
+     "end_tic": 4230,
+     "frames_sha256": "a02f8a7a385b54c2cc83e353e157f5febed961177753aeb675def852595cfdce",
+     "view_sha256": "3609b20fc0c3678f99355f579447aadf9a206f7eec345ccf4498e5b2932ae953",
+     "variant_endings": {
+      "strict": "marker",
+      "overflow": "marker",
+      "address": "marker"
+     },
+     "compared_through_tic": 4229,
+     "variants_identical": true,
+     "dumps_equal_never_through_snapshot": 4231,
+     "must_show": {
+      "light amplification": 14,
+      "the end-of-power flicker (colour map 0 while the power still runs)": 4085
+     }
+    },
+    "10": {
+     "frames": 4230,
+     "flagged_frames": 0,
+     "flagged_columns": 0,
+     "whole_frames": 0,
+     "origins": [],
+     "mapped_lines": 3,
+     "max_visplanes": 2,
+     "max_drawsegs": 3,
+     "max_vissprites": 3,
+     "max_openings": 0,
+     "max_solidsegs_peak": 3,
+     "drawseg_drop_frames": 0,
+     "vissprite_drop_frames": 0,
+     "witness": null,
+     "error": null,
+     "end": "marker",
+     "end_tic": 4230,
+     "frames_sha256": "ec399d96667255cfc650412898d82453974a8a3a0d5f47fa2c1871d8a87b2ddf",
+     "view_sha256": "3609b20fc0c3678f99355f579447aadf9a206f7eec345ccf4498e5b2932ae953",
+     "variant_endings": {
+      "strict": "marker",
+      "overflow": "marker",
+      "address": "marker"
+     },
+     "compared_through_tic": 4229,
+     "variants_identical": true,
+     "dumps_equal_never_through_snapshot": 4231,
+     "must_show": {
+      "light amplification": 14,
+      "the end-of-power flicker (colour map 0 while the power still runs)": 4085
+     }
+    },
+    "9": {
+     "frames": 4230,
+     "flagged_frames": 0,
+     "flagged_columns": 0,
+     "whole_frames": 0,
+     "origins": [],
+     "mapped_lines": 3,
+     "max_visplanes": 2,
+     "max_drawsegs": 3,
+     "max_vissprites": 3,
+     "max_openings": 0,
+     "max_solidsegs_peak": 3,
+     "drawseg_drop_frames": 0,
+     "vissprite_drop_frames": 0,
+     "witness": null,
+     "error": null,
+     "end": "marker",
+     "end_tic": 4230,
+     "frames_sha256": "83ab369c8acb5f9ef6118400e55566f60a626b9b219e862c05774e481ed77e30",
+     "view_sha256": "3609b20fc0c3678f99355f579447aadf9a206f7eec345ccf4498e5b2932ae953",
+     "variant_endings": {
+      "strict": "marker",
+      "overflow": "marker",
+      "address": "marker"
+     },
+     "compared_through_tic": 4229,
+     "variants_identical": true,
+     "dumps_equal_never_through_snapshot": 4231,
+     "must_show": {
+      "light amplification": 14,
+      "the end-of-power flicker (colour map 0 while the power still runs)": 4085
+     }
+    }
+   }
+  },
+  "M5VIEWZ": {
+   "kind": "room",
+   "wad": "tests/reference/m5a_wads/viewz.wad",
+   "lmp_sha256": "af196bb4e2b2f98374aabaf20eb81577bd3b9db91dac14aad5fdc8758c2e37b2",
+   "dumps_never_sha256": "767c9b3fc50be850c21ba3e9e3bddcfb8973e54d43b1a5b9b8172c2a3d1cbf33",
+   "never_equals_frozen_m4b_runner": true,
+   "views": {
+    "11": {
+     "frames": 568,
+     "flagged_frames": 0,
+     "flagged_columns": 0,
+     "whole_frames": 0,
+     "origins": [],
+     "mapped_lines": 21,
+     "max_visplanes": 6,
+     "max_drawsegs": 21,
+     "max_vissprites": 4,
+     "max_openings": 1144,
+     "max_solidsegs_peak": 2,
+     "drawseg_drop_frames": 0,
+     "vissprite_drop_frames": 0,
+     "witness": null,
+     "error": null,
+     "end": "marker",
+     "end_tic": 568,
+     "frames_sha256": "a1fea3c986ff68492bdd61272580210a7be4a201b3d026b5b49e019a737c392a",
+     "view_sha256": "e41bbc288566d7494c3694710f7455ee2f9ff6e863cc0cbed743c3b75a3f6033",
+     "variant_endings": {
+      "strict": "marker",
+      "overflow": "marker",
+      "address": "marker"
+     },
+     "compared_through_tic": 567,
+     "variants_identical": true,
+     "dumps_equal_never_through_snapshot": 569,
+     "must_show": {
+      "a step-up dip recovering": 38,
+      "in the air": 66,
+      "the hard landing": 98,
+      "the VIEWHEIGHT/2 clamp (first on a 24-unit step-up)": 39,
+      "the hard landing reaches the VIEWHEIGHT/2 clamp": 104,
+      "the death descent at 6 units": 367
+     }
+    },
+    "10": {
+     "frames": 568,
+     "flagged_frames": 0,
+     "flagged_columns": 0,
+     "whole_frames": 0,
+     "origins": [],
+     "mapped_lines": 21,
+     "max_visplanes": 6,
+     "max_drawsegs": 21,
+     "max_vissprites": 4,
+     "max_openings": 1144,
+     "max_solidsegs_peak": 2,
+     "drawseg_drop_frames": 0,
+     "vissprite_drop_frames": 0,
+     "witness": null,
+     "error": null,
+     "end": "marker",
+     "end_tic": 568,
+     "frames_sha256": "62fb188efe1db6771d2d1d8ce360831e74f27820d726f0776bc91f5563cc081d",
+     "view_sha256": "e41bbc288566d7494c3694710f7455ee2f9ff6e863cc0cbed743c3b75a3f6033",
+     "variant_endings": {
+      "strict": "marker",
+      "overflow": "marker",
+      "address": "marker"
+     },
+     "compared_through_tic": 567,
+     "variants_identical": true,
+     "dumps_equal_never_through_snapshot": 569,
+     "must_show": {
+      "a step-up dip recovering": 38,
+      "in the air": 66,
+      "the hard landing": 98,
+      "the VIEWHEIGHT/2 clamp (first on a 24-unit step-up)": 39,
+      "the hard landing reaches the VIEWHEIGHT/2 clamp": 104,
+      "the death descent at 6 units": 367
+     }
+    },
+    "9": {
+     "frames": 568,
+     "flagged_frames": 0,
+     "flagged_columns": 0,
+     "whole_frames": 0,
+     "origins": [],
+     "mapped_lines": 21,
+     "max_visplanes": 6,
+     "max_drawsegs": 21,
+     "max_vissprites": 4,
+     "max_openings": 1031,
+     "max_solidsegs_peak": 2,
+     "drawseg_drop_frames": 0,
+     "vissprite_drop_frames": 0,
+     "witness": null,
+     "error": null,
+     "end": "marker",
+     "end_tic": 568,
+     "frames_sha256": "34d115f1a693c87ee8115f3040d123bcad5f6d8f5ecfc1cb6d401d843ae498cd",
+     "view_sha256": "e41bbc288566d7494c3694710f7455ee2f9ff6e863cc0cbed743c3b75a3f6033",
+     "variant_endings": {
+      "strict": "marker",
+      "overflow": "marker",
+      "address": "marker"
+     },
+     "compared_through_tic": 567,
+     "variants_identical": true,
+     "dumps_equal_never_through_snapshot": 569,
+     "must_show": {
+      "a step-up dip recovering": 38,
+      "in the air": 66,
+      "the hard landing": 98,
+      "the VIEWHEIGHT/2 clamp (first on a 24-unit step-up)": 39,
+      "the hard landing reaches the VIEWHEIGHT/2 clamp": 104,
+      "the death descent at 6 units": 367
+     }
+    }
+   }
+  },
+  "M5SWTCH": {
+   "kind": "room",
+   "wad": "tests/reference/m5a_wads/switch.wad",
+   "lmp_sha256": "fff4f49428768b760a8b3d50197b9f4dbc7f5c3736bbdade6d9d11e5ed39fd5a",
+   "dumps_never_sha256": "cbe80e0bf8baa62bcd7a0c595808ab018e50433c835063e3f72445aab4600e7b",
+   "never_equals_frozen_m4b_runner": true,
+   "views": {
+    "11": {
+     "frames": 213,
+     "flagged_frames": 0,
+     "flagged_columns": 0,
+     "whole_frames": 0,
+     "origins": [],
+     "mapped_lines": 29,
+     "max_visplanes": 4,
+     "max_drawsegs": 12,
+     "max_vissprites": 1,
+     "max_openings": 18,
+     "max_solidsegs_peak": 4,
+     "drawseg_drop_frames": 0,
+     "vissprite_drop_frames": 0,
+     "witness": null,
+     "error": null,
+     "end": "marker",
+     "end_tic": 213,
+     "frames_sha256": "8d34a5067873e3a174596ef11c47e53bd7ed92c32332b03e9f6bb8c5fa14f88f",
+     "view_sha256": "8d08255995ed8bdd49baa4e3ef0b9b3f0a49a09f09056f26145945f6e38d4bc2",
+     "variant_endings": {
+      "strict": "marker",
+      "overflow": "marker",
+      "address": "marker"
+     },
+     "compared_through_tic": 212,
+     "variants_identical": true,
+     "dumps_equal_never_through_snapshot": 214,
+     "must_show": {
+      "the pistol fires at the GR switch (extralight)": 123,
+      "the S1 door opens: the lines beyond it mapped": 118
+     }
+    },
+    "10": {
+     "frames": 213,
+     "flagged_frames": 0,
+     "flagged_columns": 0,
+     "whole_frames": 0,
+     "origins": [],
+     "mapped_lines": 29,
+     "max_visplanes": 4,
+     "max_drawsegs": 12,
+     "max_vissprites": 1,
+     "max_openings": 18,
+     "max_solidsegs_peak": 4,
+     "drawseg_drop_frames": 0,
+     "vissprite_drop_frames": 0,
+     "witness": null,
+     "error": null,
+     "end": "marker",
+     "end_tic": 213,
+     "frames_sha256": "9f388fd779833679ee6f28d6d99e5f5aaf860f50e1912bd35d6985e29e27cafe",
+     "view_sha256": "8d08255995ed8bdd49baa4e3ef0b9b3f0a49a09f09056f26145945f6e38d4bc2",
+     "variant_endings": {
+      "strict": "marker",
+      "overflow": "marker",
+      "address": "marker"
+     },
+     "compared_through_tic": 212,
+     "variants_identical": true,
+     "dumps_equal_never_through_snapshot": 214,
+     "must_show": {
+      "the pistol fires at the GR switch (extralight)": 123,
+      "the S1 door opens: the lines beyond it mapped": 118
+     }
+    },
+    "9": {
+     "frames": 213,
+     "flagged_frames": 0,
+     "flagged_columns": 0,
+     "whole_frames": 0,
+     "origins": [],
+     "mapped_lines": 29,
+     "max_visplanes": 4,
+     "max_drawsegs": 12,
+     "max_vissprites": 1,
+     "max_openings": 16,
+     "max_solidsegs_peak": 4,
+     "drawseg_drop_frames": 0,
+     "vissprite_drop_frames": 0,
+     "witness": null,
+     "error": null,
+     "end": "marker",
+     "end_tic": 213,
+     "frames_sha256": "9e9ed9dbba9ba2c50e2fe8f2ef0d39027f24f678350e19ee0be39df95c3edb36",
+     "view_sha256": "8d08255995ed8bdd49baa4e3ef0b9b3f0a49a09f09056f26145945f6e38d4bc2",
+     "variant_endings": {
+      "strict": "marker",
+      "overflow": "marker",
+      "address": "marker"
+     },
+     "compared_through_tic": 212,
+     "variants_identical": true,
+     "dumps_equal_never_through_snapshot": 214,
+     "must_show": {
+      "the pistol fires at the GR switch (extralight)": 123,
+      "the S1 door opens: the lines beyond it mapped": 118
      }
     }
    }

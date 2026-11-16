@@ -32,7 +32,8 @@ the manifest's `png` frames of every room; --check compares their pixels.
 
   must_show expressions: "frame FIELD OP VALUE" (an F row column), "view FIELD OP VALUE" (a V row
   column), "witness NAME" (an O row), "error TEXT" (an E row containing TEXT); OP is one of
-  == != >= <= > <; the value is the first tic at which the expression holds (None: never).
+  == != >= <= > <; the value is the first tic at which the expression holds (None: never). A frame or
+  view expression may end with "from N": the first tic >= N at which it holds.
 
 --selftest plants a one-pixel change after R_RenderPlayerView of tic 20 of M5VIEW (strict,
 screenblocks 10; --selftest-pixel) and checks that the frame comparison reports exactly that tic and,
@@ -171,9 +172,12 @@ def event(expr, frows, vrows):
     if w[0] in ('frame', 'view'):
         cols, rows = (FCOLS, frows['F']) if w[0] == 'frame' else (VCOLS, vrows)
         i = cols.index(w[1]) + 1
+        start = 0
+        if len(w) == 6 and w[4] == 'from': start = int(w[5])
+        elif len(w) != 4: sys.exit(f'bad must_show expression {expr!r}')
         for l in rows:
             f = l.split(',')
-            if int(f[1]) >= 0 and ops[w[2]](int(f[i]), int(w[3])): return int(f[1])
+            if int(f[1]) >= start and ops[w[2]](int(f[i]), int(w[3])): return int(f[1])
         return None
     if w[0] == 'witness':
         for l in frows['O']:
