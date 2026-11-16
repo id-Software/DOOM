@@ -1,0 +1,428 @@
+{
+ "schema": "DOOM-M5A-REAL-RESULTS-v1",
+ "note": "M5a step 4 real-map frame comparison (local only): the genuine linuxdoom-1.10 renderer (M5a runner, strict/address/overflow) against the Rust renderer fed by the Rust simulation, every tic, screenblocks 11 and 10, high detail. Counts, pass/fail facts and stream digests only; see tools/local/m5a_real.py for the digest rule.",
+ "asan_options": "detect_leaks=0 (leak detection disabled; not LeakSanitizer coverage)",
+ "runs": [
+  {
+   "map": "E1M1",
+   "script": "BARRELS.lmp",
+   "skill": 2,
+   "lmp_sha256": "72382f3c4012560a2f9767796ca6cf2569f78d023f40d19b46f489650342aeea",
+   "views": {
+    "11": {
+     "frames": 882,
+     "end": "marker",
+     "end_tic": 882,
+     "tics": 882,
+     "genuine_stream_sha256": "0f7c68e305a4f6368b4a8e5e0fb1f62476b6de746effa59a241125c057288b90",
+     "flagged_frames": 3,
+     "flagged_columns": 5,
+     "flagged_origins": 3,
+     "whole_frames": 0,
+     "variants": [
+      "strict",
+      "address",
+      "overflow"
+     ],
+     "variant_endings": {
+      "strict": "marker",
+      "address": "marker",
+      "overflow": "marker"
+     },
+     "compared_through_tic": 881,
+     "variants_identical": true,
+     "rust_frames": 882,
+     "matched": 882,
+     "mismatched": 0,
+     "non_comparable": 0,
+     "parity_unknown": 0,
+     "whole": 0,
+     "refused": 0,
+     "refusals": {},
+     "not_reached": 0,
+     "counter_mismatches": 0,
+     "flag_disagreements": 0,
+     "rust_stream_sha256": "0f7c68e305a4f6368b4a8e5e0fb1f62476b6de746effa59a241125c057288b90",
+     "observe_error": false,
+     "rust_end": null,
+     "streams_equal": true
+    },
+    "10": {
+     "frames": 882,
+     "end": "marker",
+     "end_tic": 882,
+     "tics": 882,
+     "genuine_stream_sha256": "ffb6635e0fa11d0abcf866ba1e84a099258549db7134d37c8adc54751102e972",
+     "flagged_frames": 3,
+     "flagged_columns": 5,
+     "flagged_origins": 3,
+     "whole_frames": 0,
+     "variants": [
+      "strict",
+      "address",
+      "overflow"
+     ],
+     "variant_endings": {
+      "strict": "marker",
+      "address": "marker",
+      "overflow": "marker"
+     },
+     "compared_through_tic": 881,
+     "variants_identical": true,
+     "rust_frames": 882,
+     "matched": 882,
+     "mismatched": 0,
+     "non_comparable": 0,
+     "parity_unknown": 0,
+     "whole": 0,
+     "refused": 0,
+     "refusals": {},
+     "not_reached": 0,
+     "counter_mismatches": 0,
+     "flag_disagreements": 0,
+     "rust_stream_sha256": "ffb6635e0fa11d0abcf866ba1e84a099258549db7134d37c8adc54751102e972",
+     "observe_error": false,
+     "rust_end": null,
+     "streams_equal": true
+    }
+   }
+  },
+  {
+   "map": "E1M1",
+   "script": "CHAOS.lmp",
+   "skill": 2,
+   "lmp_sha256": "0895f4edc9352a3912237d155f2afb0d77d3e1ee2c7fd874ee5bc2e079ecd281",
+   "views": {
+    "11": {
+     "frames": 5000,
+     "end": "marker",
+     "end_tic": 5000,
+     "tics": 5000,
+     "genuine_stream_sha256": "0113dcbd306818013f356697892a1fe642ea214300b6a94311f10ffc633e03c2",
+     "flagged_frames": 24,
+     "flagged_columns": 32,
+     "flagged_origins": 8,
+     "whole_frames": 0,
+     "variants": [
+      "strict",
+      "address",
+      "overflow"
+     ],
+     "variant_endings": {
+      "strict": "marker",
+      "address": "marker",
+      "overflow": "marker"
+     },
+     "compared_through_tic": 4999,
+     "variants_identical": true,
+     "rust_frames": 5000,
+     "matched": 5000,
+     "mismatched": 0,
+     "non_comparable": 0,
+     "parity_unknown": 0,
+     "whole": 0,
+     "refused": 0,
+     "refusals": {},
+     "not_reached": 0,
+     "counter_mismatches": 0,
+     "flag_disagreements": 0,
+     "rust_stream_sha256": "0113dcbd306818013f356697892a1fe642ea214300b6a94311f10ffc633e03c2",
+     "observe_error": false,
+     "rust_end": null,
+     "streams_equal": true
+    },
+    "10": {
+     "frames": 5000,
+     "end": "marker",
+     "end_tic": 5000,
+     "tics": 5000,
+     "genuine_stream_sha256": "1885dea58bbdf893f389252b18a857b5021f3fad678021c7abaf6a00640e3c77",
+     "flagged_frames": 21,
+     "flagged_columns": 27,
+     "flagged_origins": 7,
+     "whole_frames": 0,
+     "variants": [
+      "strict",
+      "address",
+      "overflow"
+     ],
+     "variant_endings": {
+      "strict": "marker",
+      "address": "marker",
+      "overflow": "marker"
+     },
+     "compared_through_tic": 4999,
+     "variants_identical": true,
+     "rust_frames": 5000,
+     "matched": 5000,
+     "mismatched": 0,
+     "non_comparable": 0,
+     "parity_unknown": 0,
+     "whole": 0,
+     "refused": 0,
+     "refusals": {},
+     "not_reached": 0,
+     "counter_mismatches": 0,
+     "flag_disagreements": 0,
+     "rust_stream_sha256": "1885dea58bbdf893f389252b18a857b5021f3fad678021c7abaf6a00640e3c77",
+     "observe_error": false,
+     "rust_end": null,
+     "streams_equal": true
+    }
+   }
+  },
+  {
+   "map": "E1M1",
+   "script": "FIGHT.lmp",
+   "skill": 2,
+   "lmp_sha256": "d1e26c20c179d01e37948221d7763cd1291f464e498522deb5403c17ea73289f",
+   "views": {
+    "11": {
+     "frames": 1281,
+     "end": "marker",
+     "end_tic": 1281,
+     "tics": 1281,
+     "genuine_stream_sha256": "79e240f1cdda40513d93b0f8e0df2380318ae73ed82828ad1e232b0fc35870df",
+     "flagged_frames": 4,
+     "flagged_columns": 6,
+     "flagged_origins": 3,
+     "whole_frames": 0,
+     "variants": [
+      "strict",
+      "address",
+      "overflow"
+     ],
+     "variant_endings": {
+      "strict": "marker",
+      "address": "marker",
+      "overflow": "marker"
+     },
+     "compared_through_tic": 1280,
+     "variants_identical": true,
+     "rust_frames": 1281,
+     "matched": 1281,
+     "mismatched": 0,
+     "non_comparable": 0,
+     "parity_unknown": 0,
+     "whole": 0,
+     "refused": 0,
+     "refusals": {},
+     "not_reached": 0,
+     "counter_mismatches": 0,
+     "flag_disagreements": 0,
+     "rust_stream_sha256": "79e240f1cdda40513d93b0f8e0df2380318ae73ed82828ad1e232b0fc35870df",
+     "observe_error": false,
+     "rust_end": null,
+     "streams_equal": true
+    },
+    "10": {
+     "frames": 1281,
+     "end": "marker",
+     "end_tic": 1281,
+     "tics": 1281,
+     "genuine_stream_sha256": "76d8452570746ee8ee835c5fa9f96124677a24e664e387a1ee4f6c6b91f1df5d",
+     "flagged_frames": 2,
+     "flagged_columns": 2,
+     "flagged_origins": 1,
+     "whole_frames": 0,
+     "variants": [
+      "strict",
+      "address",
+      "overflow"
+     ],
+     "variant_endings": {
+      "strict": "marker",
+      "address": "marker",
+      "overflow": "marker"
+     },
+     "compared_through_tic": 1280,
+     "variants_identical": true,
+     "rust_frames": 1281,
+     "matched": 1281,
+     "mismatched": 0,
+     "non_comparable": 0,
+     "parity_unknown": 0,
+     "whole": 0,
+     "refused": 0,
+     "refusals": {},
+     "not_reached": 0,
+     "counter_mismatches": 0,
+     "flag_disagreements": 0,
+     "rust_stream_sha256": "76d8452570746ee8ee835c5fa9f96124677a24e664e387a1ee4f6c6b91f1df5d",
+     "observe_error": false,
+     "rust_end": null,
+     "streams_equal": true
+    }
+   }
+  },
+  {
+   "map": "E1M1",
+   "script": "WALK.lmp",
+   "skill": 2,
+   "lmp_sha256": "5ee2edbe3a38b3882858092a76a514565d31827ec541403489c3f25f85f6c8c7",
+   "views": {
+    "11": {
+     "frames": 766,
+     "end": "exit",
+     "end_tic": 765,
+     "tics": 766,
+     "genuine_stream_sha256": "4d3547645087aada222d8abbe2fbd62493b8624dc94a966e64461d3cf7a456bf",
+     "flagged_frames": 1,
+     "flagged_columns": 1,
+     "flagged_origins": 1,
+     "whole_frames": 0,
+     "variants": [
+      "strict",
+      "address",
+      "overflow"
+     ],
+     "variant_endings": {
+      "strict": "exit",
+      "address": "exit",
+      "overflow": "exit"
+     },
+     "compared_through_tic": 765,
+     "variants_identical": true,
+     "rust_frames": 766,
+     "matched": 766,
+     "mismatched": 0,
+     "non_comparable": 0,
+     "parity_unknown": 0,
+     "whole": 0,
+     "refused": 0,
+     "refusals": {},
+     "not_reached": 0,
+     "counter_mismatches": 0,
+     "flag_disagreements": 0,
+     "rust_stream_sha256": "4d3547645087aada222d8abbe2fbd62493b8624dc94a966e64461d3cf7a456bf",
+     "observe_error": false,
+     "rust_end": null,
+     "streams_equal": true
+    },
+    "10": {
+     "frames": 766,
+     "end": "exit",
+     "end_tic": 765,
+     "tics": 766,
+     "genuine_stream_sha256": "29821698e16d50ce39556c30619b443ab6f7bbd316a126e59ac594ef0e8dd7fd",
+     "flagged_frames": 1,
+     "flagged_columns": 1,
+     "flagged_origins": 1,
+     "whole_frames": 0,
+     "variants": [
+      "strict",
+      "address",
+      "overflow"
+     ],
+     "variant_endings": {
+      "strict": "exit",
+      "address": "exit",
+      "overflow": "exit"
+     },
+     "compared_through_tic": 765,
+     "variants_identical": true,
+     "rust_frames": 766,
+     "matched": 766,
+     "mismatched": 0,
+     "non_comparable": 0,
+     "parity_unknown": 0,
+     "whole": 0,
+     "refused": 0,
+     "refusals": {},
+     "not_reached": 0,
+     "counter_mismatches": 0,
+     "flag_disagreements": 0,
+     "rust_stream_sha256": "29821698e16d50ce39556c30619b443ab6f7bbd316a126e59ac594ef0e8dd7fd",
+     "observe_error": false,
+     "rust_end": null,
+     "streams_equal": true
+    }
+   }
+  },
+  {
+   "map": "E1M1",
+   "script": "idle.lmp",
+   "skill": 2,
+   "lmp_sha256": "a8730210d4c253c7d203dbf19dfa105a1d762811185339a36bc24fa038adb1f2",
+   "views": {
+    "11": {
+     "frames": 2100,
+     "end": "marker",
+     "end_tic": 2100,
+     "tics": 2100,
+     "genuine_stream_sha256": "a12cf6a09112febd85e6cfbd20e87cddda3237f344834bf4a1bbcbf30f04cb18",
+     "flagged_frames": 0,
+     "flagged_columns": 0,
+     "flagged_origins": 0,
+     "whole_frames": 0,
+     "variants": [
+      "strict",
+      "address",
+      "overflow"
+     ],
+     "variant_endings": {
+      "strict": "marker",
+      "address": "marker",
+      "overflow": "marker"
+     },
+     "compared_through_tic": 2099,
+     "variants_identical": true,
+     "rust_frames": 2100,
+     "matched": 2100,
+     "mismatched": 0,
+     "non_comparable": 0,
+     "parity_unknown": 0,
+     "whole": 0,
+     "refused": 0,
+     "refusals": {},
+     "not_reached": 0,
+     "counter_mismatches": 0,
+     "flag_disagreements": 0,
+     "rust_stream_sha256": "a12cf6a09112febd85e6cfbd20e87cddda3237f344834bf4a1bbcbf30f04cb18",
+     "observe_error": false,
+     "rust_end": null,
+     "streams_equal": true
+    },
+    "10": {
+     "frames": 2100,
+     "end": "marker",
+     "end_tic": 2100,
+     "tics": 2100,
+     "genuine_stream_sha256": "3784aaf218edcb97c3b47aa78831c673d1f47700fb1b93ca02cbb55af82e89a7",
+     "flagged_frames": 0,
+     "flagged_columns": 0,
+     "flagged_origins": 0,
+     "whole_frames": 0,
+     "variants": [
+      "strict",
+      "address",
+      "overflow"
+     ],
+     "variant_endings": {
+      "strict": "marker",
+      "address": "marker",
+      "overflow": "marker"
+     },
+     "compared_through_tic": 2099,
+     "variants_identical": true,
+     "rust_frames": 2100,
+     "matched": 2100,
+     "mismatched": 0,
+     "non_comparable": 0,
+     "parity_unknown": 0,
+     "whole": 0,
+     "refused": 0,
+     "refusals": {},
+     "not_reached": 0,
+     "counter_mismatches": 0,
+     "flag_disagreements": 0,
+     "rust_stream_sha256": "3784aaf218edcb97c3b47aa78831c673d1f47700fb1b93ca02cbb55af82e89a7",
+     "observe_error": false,
+     "rust_end": null,
+     "streams_equal": true
+    }
+   }
+  }
+ ],
+ "runner_contract_sha256": "9d235ab3d9e34f6114eb10036e70d86495bf77ab718a4b8e11ae6a415181027b"
+}
