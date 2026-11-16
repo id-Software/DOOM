@@ -1,5 +1,5 @@
 // Generated from preserved id Software Linux DOOM 1.10; GPL-2.0-only.
-// Reproduce with python3 tools/reference/generate_m5a_tables.py.
+// Reproduce with python3 tools/reference/m5a_tables.py.
 //
 // finetangent[4096] (tables.c:67) immediately followed by finesine[10240] (tables.c:584),
 // the contiguous layout of the genuine build (decision R12).

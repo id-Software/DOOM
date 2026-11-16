@@ -120,7 +120,7 @@ the witness is recorded.
 Observed 2026-11-16 (America/Los_Angeles) on the synthetic items only; no IWAD was read. Commands
 are in [testing](../TESTING.md#m5a-synthetic-renderer-rooms).
 
-- **Tables.** `generate_m5a_tables.py --check` passed: `crates/doom-render/src/tables.rs` holds
+- **Tables.** `m5a_tables.py --check` passed: `crates/doom-render/src/tables.rs` holds
   `finetangent[4096]` then `finesine[10240]` in one array (the genuine contiguous layout) and
   `tantoangle[2049]`, copied from linuxdoom-1.10/tables.c.
 - **Resources.** For all 42 items the genuine global lump list (map WAD, `m5a_gfx.wad`, the demo
@@ -145,6 +145,13 @@ are in [testing](../TESTING.md#m5a-synthetic-renderer-rooms).
   expected 64,200 bytes.
 
 ## Findings
+
+- **Step 2a: a new `tools/reference/generate*.py` breaks a frozen check.** The first push of step 2a
+  named the table generator `generate_m5a_tables.py`; CI's source suite then failed
+  `m3f5_reference.py --check` on `tests/reference/m3f5_provenance.json`, because the frozen M3f3
+  harness copies every `tools/reference/generate*.py` into its workspace (`m3f3_reference.py:72`).
+  Renamed to `m5a_tables.py`; the same check then passed locally through `run_reference.py`. New tools
+  must not use that prefix.
 
 - **The builder chain writes every seg with angle 0 and offset 0** (`m3h6_geometry.room`). Gameplay never
   reads them; the renderer does (`P_LoadSegs`, p_setup.c:181-182; r_segs.c:401, 635). The rooms rewrite

@@ -14,8 +14,8 @@ The values are copied literally from the preserved source text; nothing is recom
 table generators (generate.py, generate_m3a.py) and their outputs are untouched: doom-sim keeps its
 private copies, and the renderer does not edit the simulation crate.
 
-  python3 tools/reference/generate_m5a_tables.py           # write
-  python3 tools/reference/generate_m5a_tables.py --check   # require the committed bytes
+  python3 tools/reference/m5a_tables.py           # write
+  python3 tools/reference/m5a_tables.py --check   # require the committed bytes
 """
 from pathlib import Path
 import argparse
@@ -48,7 +48,7 @@ def generate():
     assert sine[0] == 25 and angles[0] == 0 and angles[2048] == 536870912
     lines = [
         "// Generated from preserved id Software Linux DOOM 1.10; GPL-2.0-only.",
-        "// Reproduce with python3 tools/reference/generate_m5a_tables.py.",
+        "// Reproduce with python3 tools/reference/m5a_tables.py.",
         "//",
         "// finetangent[4096] (tables.c:67) immediately followed by finesine[10240] (tables.c:584),",
         "// the contiguous layout of the genuine build (decision R12).",
