@@ -6,7 +6,9 @@ intentional format-version change and reviewed golden updates. All integers
 below are little endian, with explicit widths and two's-complement signed values.
 No Rust layout, padding, pointers, addresses, timestamps, paths, or GPU state is
 encoded. Shared immutable map storage uses Arc internally; reference counts and
-addresses are excluded.
+addresses are excluded. The M5a renderer's own, separate `DRST` format is at the
+[end of this page](#render-state-drst-version-1-m5a); it is not a DSIM version and no DSIM
+reader decodes it.
 
 M3f8's execution-scope brands and derived target availability are API observations,
 not persistent fields. V20/v21, profile/registry/context schema identifiers, stored

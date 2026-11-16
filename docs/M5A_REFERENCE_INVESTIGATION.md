@@ -10,14 +10,18 @@ owner decisions R1–R16 with one recommendation each, and the Phase 2 plan, siz
 The behavioural authority is the original id Software Linux DOOM 1.10 at
 `a77dfb96cb91780ca334d0d4cfd86957558007e0`. Milestone status lives in [ROADMAP](ROADMAP.md), support in
 [COMPATIBILITY](COMPATIBILITY.md), schemas in [STATE_FORMAT](STATE_FORMAT.md) and commands in [TESTING](TESTING.md)
-(see the [documentation authority map](README.md#documentation-authority)). Observations of this milestone will go
-to `docs/validation/M5A.md`, created in Phase 2. This note records only counts, pass/fail facts and digests from
+(see the [documentation authority map](README.md#documentation-authority)). Observations of this milestone are
+in `docs/validation/M5A.md`. This note records only counts, pass/fail facts and digests from
 runs against the IWAD: no lump content, no IWAD-derived names, coordinates or geometry.
 
-**Status / next step (2026-11-16 11:08 PST).** Phase 2 step 7a is done ([evidence](validation/M5A.md#renderer-tests-and-fuzz-targets-step-7a)): 36 tests added (guards below the public API, the typed refusals the goldens never reach, the `DRST` decoder's rejections, the call order, and a public-API test that rendering never changes the simulation; 1,459 workspace tests pass), two fuzz targets (`render_frames`, `render_data`) with `tools/seed_render_fuzz.py`, all 53 fuzz binaries compiled and the seeds replayed under AddressSanitizer (leak detection disabled, no finding); no coverage-guided or sanitizer campaign was run. Not unit-tested: `MaskedCompositeColumn`/`MaskedColumnUndefined` as returned from `render_masked_seg_range`, `StaleGlobal` pixhigh/pixlow and the deep `TableRead`/`RangeCheck` refusals. Earlier: steps 5 and 6 ([evidence](validation/M5A.md#local-viewer-and-ci-steps-5-and-6)). Next step: step 7b (documentation, then mutation testing, fuzz campaigns, review, gates, PR ready). Half-done work: none. Open: the patchless column (§7 item 32) and a Medusa room (item 34) still need an owner decision on the graphics PWAD. Failing checks: none locally (build, fmt incl. fuzz, Clippy, 1,459 workspace tests, rustdoc, `cargo +1.85.0 test -p doom-render`). Resume: `git checkout feat/m5a-renderer && git pull`; `python3 tools/seed_render_fuzz.py frames ~/scratch/m5a/seeds` ([TESTING](TESTING.md#m5a-synthetic-renderer-rooms)); `python3 tools/local/m5a_real.py --check` (local, needs the IWAD copy). /mnt/c free: 46G available.
+**Status / next step (2026-11-16 11:43 PST).** Phase 2 steps 1-7a are done and the documentation of step 7b is written ([evidence](validation/M5A.md); [support](COMPATIBILITY.md#software-renderer-m5a); [ROADMAP](ROADMAP.md)). The renderer matches the genuine engine on every synthetic frame and on every frame of the 61 scripted real-map runs (local). Next step: mutation results (the `Mutants` workflow now also mutates `doom-render`), the independent review, fuzz campaigns (so far only seed replays under AddressSanitizer, leak detection disabled), timings, the final gates and the PR ready for the owner. Half-done work: none. Open: the patchless column (§7 item 32) and a Medusa room (item 34) still need an owner decision on the graphics PWAD; the THING-loading truncation outside commercial mode is a recorded gap with a proposed follow-up ([COMPATIBILITY](COMPATIBILITY.md#known-gap-thing-loading-stops-at-the-first-doom-ii-type-outside-commercial-mode)). Resume: `git checkout feat/m5a-renderer && git pull`; commands in [TESTING](TESTING.md#m5a-synthetic-renderer-rooms).
 
 ## Summary
 
+- **Outcome of Phase 2 (2026-11-16).** The Rust renderer (`crates/doom-render`) implements R1-R16 as confirmed and
+  matches the genuine renderer on every synthetic frame and on every frame of the scripted real-map runs, with no
+  simulation change; observations are in [the evidence record](validation/M5A.md) and support in
+  [COMPATIBILITY](COMPATIBILITY.md#software-renderer-m5a). The bullets below are the Phase 1 findings.
 - **Limits.** Vanilla's renderer limits behave in three different ways (§1.8, §2.9): `MAXDRAWSEGS` (256) and
   `MAXVISSPRITES` (128) drop silently and deterministically; `MAXVISPLANES`, `MAXOPENINGS` and the solid-seg array
   are checked late or not at all (writes past the arrays happen before any `I_Error`). R3 reproduces the first two

@@ -375,7 +375,8 @@ door, lift, floor, switch and exit types of the
 [movers policy](#original-monsters-with-doors-lifts-floors-switches-and-the-exit) (with
 two-sided scrolling walls under the
 [E1M1 policy](#original-monsters-with-two-sided-scrolling-walls-and-static-decorations)), complete
-map/actor spawning, generalized monster interactions, demos and presentation remain
+map/actor spawning, generalized monster interactions, demos and presentation beyond the
+[M5a 3D-view renderer](#software-renderer-m5a) remain
 unsupported. Spectre metadata recognition is not Spectre gameplay compatibility.
 Source undefined behavior is not a compatibility target; checked Rust rejection
 and adapter-defined evaluation order are recorded separately.
@@ -2605,3 +2606,104 @@ genuine engine under wire 24, and the local real-map runs) are in
 `crates/doom-sim/src/player_episode1_v2_tests.rs`, `crates/doom-sim/src/teleport_tests.rs` and
 `crates/doom-sim/src/baron_tests.rs` and `crates/doom-sim/src/hard_skill_tests.rs`; `crates/doom-sim/tests/episode1v2_mechanism_goldens.rs` replays the admitted M4b scripts against
 the goldens and fixtures in `cargo test`.
+
+## Software renderer (M5a)
+
+Milestone status is in [ROADMAP](ROADMAP.md). The crate
+`doom-render` draws the 3D view that linuxdoom-1.10's `R_RenderPlayerView` draws, as a 320x200 buffer of
+palette indices, from a wire-24 simulation. It is a presentation layer: it reads the simulation and never
+changes it or the gameplay RNG, and nothing in the simulation, DSIM or any frozen fixture changed for it.
+The facts are in the [investigation note](M5A_REFERENCE_INVESTIGATION.md) (decisions R1-R16, §5, owner
+rulings 2026-11-15), the observations in the [evidence record](validation/M5A.md) and the commands in
+[TESTING](TESTING.md#m5a-synthetic-renderer-rooms). The render state is saved in
+[`DRST`](STATE_FORMAT.md#render-state-drst-version-1-m5a), not in DSIM.
+
+| Claim | What is and is not shown |
+| --- | --- |
+| Source equivalence of the frame | The Rust frame equals the genuine renderer's frame, byte for byte, on every synthetic frame in CI (the committed rooms at screenblocks 9, 10 and 11) and on every frame of the 61 scripted Episode 1 runs at screenblocks 11 and 10 (local only; frame counts in the evidence record; DEMO1 as run by the original code, not the DOS 1.9 executable). It is not a claim for other maps, scripts or settings. |
+| Configurations (R2) | Screenblocks 9 (synthetic rooms only), 10 and 11, **high detail**. **Low detail is refused** (the original's `R_DrawColumnLow` is broken in this source); other screenblocks are refused. |
+| Out of scope (R1, M5b) | Status bar, HUD, automap, menus, palette flashes (the palette is chosen by the caller), window, input, sound; the border is never drawn. Player colour translation (players 2-4) is refused (`PlayerTranslation`). |
+| Invulnerability | Not admitted by the simulation (DoomEd 2022, `INVERSECOLORMAP`), so no frame uses fixed colour map 32; it is out of M5a. Light amplification (fixed colour map 1) is covered. |
+
+**Vanilla limits (R3).** Reproduced exactly because they are deterministic: `MAXDRAWSEGS` (256) and
+`MAXVISSPRITES` (128) drop silently, as the original does. Refused with a named witness, because the
+original writes past an array before any error or its result depends on memory layout:
+`VisplaneOverflow` (`MAXVISPLANES` 128), `OpeningOverflow` (`MAXOPENINGS` 20,480), `SolidSegOverflow`
+(`MAXSEGS` 32; the refusal can come one frame before the genuine write, as the owner accepted), the
+`RANGECHECK` errors (`RangeCheck`), `FixedDiv`, `TableRead` (a table read outside the genuine contiguous
+tables, R12), `StaleGlobal` (a `pixhigh` or `pixlow` left over from an earlier wall) and, by the
+orchestrator's application of R3 (2026-11-16), `MaskedCompositeColumn` (a masked midtexture column that is a
+multi-patch composite, whose post walk leaves the composite) and `MaskedColumnUndefined` (a post walk that
+leaves its patch lump). A refusal is typed, repeatable and leaves the render state unchanged. Only the limit
+refusals are reached by committed rooms; the others are guards, covered by unit tests where the evidence
+record says so and not reached by any real or synthetic frame.
+
+**Undefined texels (R4).** Wall columns index `& 127` whatever the texture height and composites are never
+cleared, so some genuine pixels depend on memory layout. The Rust renderer renders them deterministically
+and reports the affected columns (`FrameReport::flagged_columns`); the genuine runner's read tracker names
+the same columns, and the comparison excludes only those columns. A frame is non-comparable as a whole only
+where the tracker cannot name the columns: none occurred on any real or synthetic frame. Flagged-column
+counts are in the evidence record. A flagged column is a statement about the original's undefined memory
+reads, not a Rust defect.
+
+**`ML_MAPPED` (R5).** The genuine renderer sets bit 256 of a line's flags
+(r_segs.c:398); the M5a runner masks that bit in its game dump (a projection of the new runner only,
+frozen runners untouched), and the renderer keeps its own mapped-line set as presentation state. The simulation
+never has the bit.
+
+**The view shadow (R6).** The simulation keeps no `viewz`, `viewheight` or `deltaviewheight`. A
+renderer-owned shadow observes every committed tic from level start and re-derives them; it was validated per
+tic against the genuine runner. It means `Renderer::observe` must see every tic in order, from `begin_level`
+(a gap is refused, `NotObserved`).
+
+**Reusable switches (R7).** After a re-press of a reusable (SR/GR) switch line, no canonical field records
+which texture shows. The renderer reports `switch_parity_unknown` for such frames instead of guessing. None
+occurred on any real or synthetic frame.
+
+**Frame sequence (R8).** `fuzzpos` is never reset and the view rectangle is never cleared in the original, so
+spectre pixels and uncovered pixels depend on every earlier frame. The contract: start at level load with a
+zeroed buffer and `fuzzpos` 0, render after every tic that is displayed, keep one persistent buffer. The
+render state (`DRST`) carries all of it, and a test restores a state at tic N-k and continues to the same
+frames as an uninterrupted run (rewind).
+
+Not claimed: any renderer or presentation behaviour beyond these, the DOS executable's picture, speed (no
+timing gate), or the M5b items (window, status bar, HUD, automap, input, sound, a modern renderer).
+
+## Known gap: THING loading stops at the first Doom II type outside commercial mode
+
+`P_LoadThings` (linuxdoom-1.10/p_setup.c:317-337) tests, when `gamemode != commercial`, each THING's type
+against ten Doom II types (64 Archvile, 65 Former Human Commando (the Chaingunner), 66 Revenant, 67 Mancubus,
+68 Arachnotron, 69 Hell Knight, 71 Pain Elemental, 84 Wolf SS, 88 Boss Brain, 89 Boss Shooter). A match sets
+`spawn = false`, and the `break` at line 337 then ends the **whole** loop: that THING and every later THING
+of the map are not loaded. It is a truncation, not a skip. Rust spawns every admitted THING in the lump.
+
+**Census (observed in the code; no IWAD read for it).**
+
+| Of the ten types | Admitted at load by |
+| --- | --- |
+| 65 | Wires 12-24 (every policy with former humans: `PlayerMonstersV1` to `PlayerMonstersEpisode1V2`; `EPISODE1_MONSTERS` in `episode1.rs`, `is_policy_monster` in `original_registry.rs`) |
+| 64, 66, 67, 68, 69, 71, 84, 88, 89 | No wire. They are not former humans, Imps, Demons or Spectres, pickups, decorations, barrels or the landing, so map loading refuses them with `MapSpawnError::UnsupportedType`. (Type 69 is not the Baron, which is 3003.) |
+
+Wires 1-11 admit no former human; the pre-wire profile 16 admits only the Demon. Other numbers in the table
+above (for example 2001 or 14) are not among the ten.
+
+**Game mode of each wire's genuine harness.** Wires 22, 23 and 24 are compared with the whole-engine
+runners (`m3h9c_driver.c`, `m4a_driver.c`, the latter reused by M4b), which set `gamemode = registered`
+(d_main.c:697-701, `doom.wad`) and load through `P_SetupLevel` and `P_LoadThings`: there the genuine engine
+**does** truncate at a type-65 THING, and Rust would not. The earlier wires' genuine harnesses
+(`m3c_driver.c` and the generators built on it, wires 1-21) default to `gamemode = commercial` and call
+`P_SpawnMapThing` per THING (or `P_LoadThings`, in M3d3j, M3g2 and M3g7, under commercial), where the check does not
+apply; their evidence therefore does not exercise the gap, and a registered or shareware engine would
+truncate where they spawn. I read the drivers and the harness generators' function lists, not every case of
+every earlier harness.
+
+**Status: unpatched by rule** for every affected frozen wire, 12-24 (the wires that admit type 65), because
+historical profiles keep their behaviour. **No Episode 1 IWAD map contains any of the ten types.** The M3h9 note
+([§2.2](M3H9_REFERENCE_INVESTIGATION.md#22-p_setuplevel-and-p_loadthings-p_setupc)) recorded the census for
+E1M1; for E1M2-E1M9 it follows from the wire 22-24 evidence rather than a new count: wires 23 and 24 refuse
+types 64, 66-69, 71, 84, 88 and 89 at load, wire 24 loads all nine maps, and every scripted real-map run matched the genuine
+registered engine tic for tic, which a truncation at a type-65 THING would have broken
+([M4a census](M4A_REFERENCE_INVESTIGATION.md#2-episode-1-census-medium-skill) for the admitted monsters). So no recorded
+comparison is affected. A map with a type-65 THING under a registered or shareware engine, for example a
+synthetic one, would diverge. The fix is
+planned as a new wire (see [ROADMAP](ROADMAP.md)).

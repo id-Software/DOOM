@@ -6,13 +6,23 @@ linuxdoom-1.10's `R_RenderPlayerView`). Only observations appear here. The
 (§5, confirmed by the owner on 2026-11-15) and the plan; [testing](../TESTING.md#m5a-synthetic-renderer-rooms)
 owns the commands. Exact review state and CI belong to GitHub.
 
-**Scope of the record.** Phase 2 step 1 (2026-11-15, America/Los_Angeles): the synthetic graphics,
-the synthetic rooms, the M5a genuine runner and the genuine goldens. Phase 2 step 2a (2026-11-16):
-the Rust renderer's foundation (tables, view setup, resources, render state, view shadow) and the
-comparison harness ([below](#rust-renderer-step-2a)), then three more rooms with their genuine goldens
-([below](#rooms-added-after-step-2a)), then step 2b: the world renderer ([below](#rust-renderer-step-2b)), then step 2c: sprites, weapon sprites and fuzz, full-frame matching and the rewind test ([below](#rust-renderer-step-2c)). No IWAD was read in steps 1-2c; step 4 compared the real maps locally ([below](#real-maps-step-4)). Address-checked runs used
-`ASAN_OPTIONS=detect_leaks=0`: LeakSanitizer was disabled, not passed. No timing or benchmark was
-measured.
+**Scope of the record.** All dates are America/Los_Angeles. One section per Phase 2 step, in order:
+
+| Step | Date | What the section records |
+| --- | --- | --- |
+| 1 | 2026-11-15 | The synthetic graphics, the synthetic rooms, the M5a genuine runner and the genuine goldens ([below](#synthetic-graphics-rooms-and-runner-ci-evidence)) |
+| 2a (with the step 3 reporter) and the rooms added after it | 2026-11-16 | The Rust renderer's foundation (tables, view setup, resources, render state, view shadow), the comparison harness and the first-difference reporter ([below](#rust-renderer-step-2a)); three more rooms and the switch tracker ([below](#rooms-added-after-step-2a)) |
+| 2b | 2026-11-16 | The world renderer ([below](#rust-renderer-step-2b)) |
+| 2c | 2026-11-16 | Sprites, weapon sprites and fuzz, full-frame matching and the rewind test ([below](#rust-renderer-step-2c)) |
+| 4 | 2026-11-16 | The real maps, compared locally ([below](#real-maps-step-4)) |
+| 5 and 6 | 2026-11-16 | The local GIF viewer and the CI job ([below](#local-viewer-and-ci-steps-5-and-6)) |
+| 7a | 2026-11-16 | Renderer tests and fuzz targets ([below](#renderer-tests-and-fuzz-targets-step-7a)) |
+
+The [findings](#findings) at the end are cross-cutting. Mutation results, the independent review, fuzz
+campaigns, timings and the final gates are not yet recorded here. No IWAD was read in steps 1-3; step 4 read
+a scratch copy locally and committed only counts, pass/fail facts and digests. Address-checked runs used
+`ASAN_OPTIONS=detect_leaks=0`: LeakSanitizer was disabled, not passed. No benchmark or timing was
+measured; the one debug test duration quoted in the step 2c section is incidental to a build-profile change.
 
 ## Synthetic graphics, rooms and runner (CI evidence)
 
@@ -538,7 +548,9 @@ Observed 2026-11-16 (America/Los_Angeles) on the branch head after this step's c
   renderer's output for those bytes, with walls mapped as if every seg faced east.
 - **`P_LoadThings` stops at the first DoomEd 65 outside commercial mode** (p_setup.c:317-337: `break` out of
   the THINGS loop, not a skip). An early SPRITES room with a chaingunner lost every later THING; the room
-  uses no 65. Whether wire 23/24 spawns a 65 on a registered map was not checked in this step.
+  uses no 65. Wires 12-24 do admit a type 65 at load, so a registered-mode map with one would diverge from the
+  genuine engine; no Episode 1 map has one (the census of the admitted types, the game mode of each wire's
+  genuine harness and the known gap are in [COMPATIBILITY](../COMPATIBILITY.md#known-gap-thing-loading-stops-at-the-first-doom-ii-type-outside-commercial-mode)).
 - **Low detail** is refused (status 8); no comparison was built for it.
 - **Invulnerability** (DoomEd 2022, `INVERSECOLORMAP`) stays out of M5a's scope: it is not admitted by the simulation, so no room
   reaches fixed colour map 32.

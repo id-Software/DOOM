@@ -41,7 +41,7 @@ this one needs your own game files, such as those from a copy of Doom you bought
 
 ## Where it stands
 
-The engine runs DOOM's game logic without graphics. It is driven by tests and small
+The engine runs DOOM's game logic, and can draw the 3D view into an image. It is driven by tests and small
 example programs, on small test maps built for this project and, locally, on all nine
 real Episode 1 maps. Today it can simulate:
 
@@ -63,13 +63,17 @@ real Episode 1 maps. Today it can simulate:
   E1M1) run in sync with the genuine engine (the original C code, built and run alongside
   the Rust code), tic for tic. This comparison uses your own game files and is local-only;
   see the [evidence record](docs/validation/M4B.md#real-maps-and-demo1).
+- a software renderer for the 3D view (walls, floors, sky, lighting, monsters and the held weapon)
+  that draws the same image as the original code, pixel for pixel, on the test maps and on every
+  frame of those scripted runs (local-only); it writes images and animations, with no window yet
+  ([support](docs/COMPATIBILITY.md#software-renderer-m5a));
 - on those maps, one tic of the simulation takes about 33–150 µs on a laptop CPU, 1.8 to 7 times
   faster than before the performance work, with every result unchanged
   ([measurements](docs/validation/M4P.md#matched-timing)).
 
 What it cannot do yet:
 
-- show graphics, play sound or offer menus, or play back the original's recorded demos
+- open a window, draw the status bar, HUD or automap, play sound or offer menus, or play back the original's recorded demos
   as the original program did (only the one local `DEMO1`, as run by the original code,
   is covered);
 - claim a tic-for-tic match of any map for every input: only the scripted runs recorded

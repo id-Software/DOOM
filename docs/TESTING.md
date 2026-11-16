@@ -2223,7 +2223,7 @@ cargo mutants -p doom-sim --test-tool nextest --jobs 2 \
 
 The [`Mutants` workflow](../.github/workflows/mutants.yml) runs cargo-mutants
 27.1.0 with cargo-nextest 0.9.151 (the M4a versions, installed pinned) over the
-diff of `crates/` against `master`, `-p doom-sim --test-tool nextest --in-diff`,
+diff of `crates/` against `master`, `-p doom-sim -p doom-render --test-tool nextest --in-diff`,
 in 8 matrix shards (`--shard k/8`). It is informational and not a required
 check. Start it by adding the `run-mutants` label to the pull request (the
 trigger that works before merge; a push does not re-run it, so remove and
@@ -2234,7 +2234,8 @@ tab once the file is on `master`. Each shard uploads `outcomes.json` and the
 missed and timed-out lists in the run's step summary. A shard fails only for a
 usage error or a failing baseline; missed mutants and timeouts are findings,
 triaged as above (the local procedure and the M4a rules for timeouts and
-equivalent mutants apply unchanged).
+equivalent mutants apply unchanged). Since M5a the run covers the `doom-render` lines of the diff too
+(`-p doom-render`), the crate whose diff M5a adds.
 
 ## Whole-level simulation-only timing
 
