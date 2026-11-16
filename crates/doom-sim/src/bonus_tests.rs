@@ -803,3 +803,52 @@ fn malformed_bonus_diagnostic_resources_statistics_and_events_reject() {
         }
     }
 }
+
+/// Pins the `validate_item` call of `Contacts::contacts` (`world_pickups.rs`, the touch path):
+/// an item within reach whose `health` is not 1000 must refuse the contact with
+/// `PlayerBodyError::Invariant` (the error `validate_item` gave before M4p O10 made it a wrapper
+/// of `validate_item_ref`) and give no pickup. A below-API guard: the tic-boundary
+/// `preflight_world_pickups` refuses the same corruption first, so the public API cannot reach
+/// this call with a bad item; the item is corrupted inside `checked_demon_operation`, after its
+/// preflight, and the contact component is called directly, as `touch_one` does.
+#[test]
+fn contact_refuses_a_corrupt_item_with_the_invariant_error() {
+    let (mut s, a, item) = component(2015, 100, 0, 0);
+    let mut result = None;
+    let outcome = s.checked_demon_operation(|host| {
+        // Corrupted after the operation's own preflight, which would refuse it first.
+        host.access
+            .get_mut(item)
+            .unwrap()
+            .life
+            .as_mut()
+            .unwrap()
+            .health = 999;
+        let mut body = *host.access.get(a.body).unwrap();
+        let attempt = movement::check(
+            host.world,
+            a.body,
+            &body,
+            [Fixed::from_map_units(1), Fixed::ZERO],
+            host.spatial,
+            &|id| host.access.get(id).copied(),
+        );
+        assert!(attempt.actors.contains(&item), "the item is in reach");
+        let mut events = Vec::new();
+        result = Some(
+            world_pickups::Contacts {
+                access: &mut host.access,
+                player: host.player.as_deref_mut().unwrap(),
+                sectors: host.sectors,
+                boundary: None,
+            }
+            .contacts(a.body, &mut body, &attempt, host.spatial, &mut events),
+        );
+        assert!(events.is_empty(), "no touch event before the refusal");
+    });
+    assert!(
+        outcome.is_ok(),
+        "the preflight passed the uncorrupted state"
+    );
+    assert_eq!(result, Some(Err(PlayerBodyError::Invariant.into())));
+}

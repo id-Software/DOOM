@@ -2079,3 +2079,51 @@ without capture work between tics, so its cache behaviour can differ from the
 full capture pipeline. Report both boundaries rather than calling process wall
 time simulation-only. The final FNV and comparator-stripped SHA-256 permit
 checking that observation changes did not change state. No timing threshold gates CI.
+
+## Advance benchmarks (M4p)
+
+`tools/bench_advance.py` (standard library only, run with `python3 -I`) has two modes. Both use the release
+examples; build them into a target directory on the Linux disk (ext4, for example `~/scratch`), never on
+`/mnt/*`, and use the pinned toolchain for instruction counts:
+
+```sh
+CARGO_TARGET_DIR=~/scratch/m4p/target cargo +1.85.0 build -p doom-sim --examples --release --locked
+```
+
+**`ir`** (CI-safe, no IWAD, needs `valgrind`). Runs nine fixed workloads under
+`valgrind --tool=callgrind --toggle-collect` on `Simulation::advance` and compares them with
+`tests/reference/m4p_ir_baseline.json`: instructions inside `advance` outside libc and ld.so, plus the
+`malloc`, `realloc` and `memcpy` call counts (total `advance` instructions are printed for information).
+A final-state digest or outcome that differs from the baseline also fails, so a behaviour change is caught. A gated
+count that falls to 0 from a nonzero baseline fails too (a renamed glibc symbol would otherwise stop the guard).
+It refuses examples built by a different rustc than the baseline's, also when rewriting the baseline
+(`--allow-toolchain-mismatch` overrides). These are instruction counts, not time.
+
+```sh
+export CARGO_TARGET_DIR=~/scratch/m4p/target
+python3 -I tools/bench_advance.py ir --check                  # fail above the threshold (default 3%)
+python3 -I tools/bench_advance.py ir --update-baseline        # rewrite the baseline after a reviewed change
+python3 -I tools/bench_advance.py ir --only TFRAG1_wire24     # one workload; --jobs N, --keep, --json-out PATH
+```
+
+CI runs `ir --check` in the Linux job **Simulation instruction counts** (`simulation-ir`): it installs the
+runner's `valgrind` package and Rust 1.85.0, builds the release examples with `cargo +1.85.0`, and uploads the
+measured counts as the `simulation-ir` artifact. It is not a required check unless the owner makes it one. After a
+reviewed change that lowers the counts, rewrite the baseline from a pinned build (`ir --update-baseline` refuses a
+build by another rustc) and commit it with the change.
+
+**`timing`** (local only, needs an IWAD copy in scratch). Times `player_level_advance --policy episode1v2`
+over the 61 real-map cases of `tests/reference/m4b_real_results.json` (DEMO1 is extracted from the IWAD copy
+and patched as M4b recorded, then checked against the recorded digest), in rotated order, behind an idle gate
+(no stray build/test/fuzz/Valgrind process, a quiet CPU, 1-minute load below a limit). Every final digest and
+admitted-tic count must equal the recorded one, or the exit status is non-zero. It refuses a binary, IWAD or
+output directory under `/mnt/*` or on a non-ext4 filesystem unless `--allow-slow-fs` is given, which marks the
+result as not performance evidence. Output: `bench_timing.json` and `bench_timing.md` (counts, microseconds
+per tic, digests) in `--out-dir`.
+
+```sh
+python3 -I tools/bench_advance.py timing --binary ~/scratch/m4p/target/release/examples/player_level_advance \
+  --iwad ~/scratch/m4p/iwad/DOOM.WAD --out-dir ~/scratch/m4p/harness --reps 5
+```
+
+Run timings alone on an idle machine. The recorded numbers are in [M4P validation](validation/M4P.md).

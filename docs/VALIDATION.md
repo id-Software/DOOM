@@ -13,6 +13,7 @@ savegame compatibility or vanilla demo synchronization.
 | Independent DSIM | Complete bytes/per-tic digests from C observations plus documented schema; no Rust expected-output generation | [State format](STATE_FORMAT.md), independent Python encoders |
 | Rust safety policies | Checked arithmetic, bounds, atomic rejection, stale handles and independent instances | Policy/unit tests, [compatibility](COMPATIBILITY.md) |
 | Platform/toolchain | Recorded checks execute on supported hosts and Rust versions | Exact-head GitHub Actions, [testing](TESTING.md) |
+| Instruction counts (M4p) | `Simulation::advance` did not get costlier, in Callgrind instructions and allocator/copy calls, on nine fixed synthetic workloads, and their final digests did not change. Not time, not real maps, not other hosts' speed | `simulation-ir` CI job, [M4p record](validation/M4P.md), [testing](TESTING.md#advance-benchmarks-m4p) |
 
 Compiled source-function inventory is not branch coverage. Setup fragments are
 reported separately from whole functions. Unadapted C, declared fixture projection,

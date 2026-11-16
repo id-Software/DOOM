@@ -430,3 +430,44 @@ jobs:
       - name: Documentation-only fast path
         if: env.DOCS_ONLY == 'true'
         run: echo "documentation-only change, so the build, test, evidence and example steps were skipped and the documentation check ran"
+
+  simulation-ir:
+    # M4p decision P6: an instruction-count regression guard for Simulation::advance.
+    # Callgrind counts, not time: the pinned toolchain keeps codegen fixed, and the
+    # gated metrics (instructions outside libc and ld.so, malloc/realloc/memcpy call
+    # counts) do not depend on the runner's CPU. Not a required check unless the owner
+    # makes it one; see docs/TESTING.md#advance-benchmarks-m4p.
+    name: Simulation instruction counts
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    needs: changes
+    if: ${{ !cancelled() }}
+    env:
+      DOCS_ONLY: ${{ needs.changes.outputs.docs_only }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - name: Install Valgrind and the pinned Rust
+        if: env.DOCS_ONLY != 'true'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends valgrind
+          rustup toolchain install 1.85.0 --profile minimal
+          valgrind --version
+      - name: Build the release examples with the pinned Rust
+        if: env.DOCS_ONLY != 'true'
+        run: cargo +1.85.0 build -p doom-sim --examples --release --locked
+      - name: Callgrind instruction counts against the committed baseline
+        if: env.DOCS_ONLY != 'true'
+        run: python3 -I tools/bench_advance.py ir --check --jobs 4 --json-out "$RUNNER_TEMP/simulation_ir.json"
+      - name: Instruction counts (JSON)
+        if: always() && env.DOCS_ONLY != 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: simulation-ir
+          path: ${{ runner.temp }}/simulation_ir.json
+          if-no-files-found: ignore
+      - name: Documentation-only fast path
+        if: env.DOCS_ONLY == 'true'
+        run: echo "documentation-only change, so the instruction counts were skipped"
