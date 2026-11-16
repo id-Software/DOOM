@@ -239,6 +239,8 @@ pub struct FrameRow {
     pub columns: Vec<u16>,
     /// Newly mapped lines (M row).
     pub mapped: Vec<u16>,
+    /// The F row's renderer counters.
+    pub counters: doom_render::FrameCounters,
 }
 
 /// A frame stream: per tic its F row, and the run's ending witness or error (O/E rows).
@@ -273,6 +275,16 @@ pub fn read_frames(lump: &str, screenblocks: u8) -> FrameStream {
                         masked_sha256: cols[3].to_string(),
                         fuzzpos: cols[4].parse().expect("fuzzpos"),
                         whole: cols[14] == "1",
+                        counters: doom_render::FrameCounters {
+                            mapped: cols[5].parse().expect("mapped"),
+                            visplanes: cols[7].parse().expect("visplanes"),
+                            drawsegs: cols[8].parse().expect("drawsegs"),
+                            vissprites: cols[9].parse().expect("vissprites"),
+                            openings: cols[10].parse().expect("openings"),
+                            solidsegs_peak: cols[11].parse().expect("solidsegs_peak"),
+                            drawseg_drops: cols[12].parse().expect("drawseg_drops"),
+                            vissprite_drop: cols[13] == "1",
+                        },
                         ..FrameRow::default()
                     },
                 );
@@ -383,6 +395,44 @@ pub struct Counts {
     pub refused: usize,
     /// Genuine frames after the Rust run ended (simulation refusal or demo end).
     pub not_reached: usize,
+    /// Rendered frames whose counters or newly mapped lines differ from the F row.
+    pub counter_mismatches: usize,
+    /// Rendered frames with columns pending step 2c (sprites, weapon sprites).
+    pub pending_frames: usize,
+    /// The genuine run's end after its last frame, when it ends at a renderer limit: the tic
+    /// after the last F row, the genuine ending (`m5a_results.json`) and the Rust result there.
+    pub end: Option<(i64, String, Result<(), doom_render::RenderRefusal>)>,
+    /// Refused frames by refusal (Debug form, without payload details).
+    pub refusals: BTreeMap<String, usize>,
+}
+
+/// The genuine ending of `lump` at `screenblocks` (`m5a_results.json`: `end`, e.g. `marker`,
+/// `refused:OpeningOverflow`, `error:R_FindPlane: no more visplanes`).
+pub fn genuine_end(lump: &str, screenblocks: u8) -> String {
+    let text = std::fs::read_to_string(reference("m5a_results.json")).expect("results");
+    let v: serde_json::Value = serde_json::from_str(&text).expect("results JSON");
+    v["items"][lump]["views"][screenblocks.to_string()]["end"]
+        .as_str()
+        .expect("end")
+        .to_string()
+}
+
+/// The refusal a genuine limit ending requires of the Rust renderer (decision R3).
+pub fn expected_refusal(end: &str) -> Option<doom_render::RenderRefusal> {
+    use doom_render::RenderRefusal as R;
+    match end {
+        "error:R_FindPlane: no more visplanes" | "refused:VisplaneOverflow" => {
+            Some(R::VisplaneOverflow)
+        }
+        "refused:OpeningOverflow" => Some(R::OpeningOverflow),
+        "refused:SolidSegOverflow" => Some(R::SolidSegOverflow),
+        _ => None,
+    }
+}
+
+/// The refusal as reported (its Debug form).
+pub fn refusal_kind(e: &doom_render::RenderRefusal) -> String {
+    format!("{e:?}")
 }
 
 /// One frame as the harness saw it, for reporters.
@@ -437,6 +487,17 @@ pub fn harness(
         .map(|&sb| read_frames(&item.lump, sb))
         .collect();
     let mut counts = vec![Counts::default(); configs.len()];
+    // A run that ends at a renderer limit: the Rust renderer must refuse the next tic.
+    let end_checks: Vec<Option<(i64, String)>> = configs
+        .iter()
+        .zip(&streams)
+        .map(|(&sb, s)| {
+            let end = genuine_end(&item.lump, sb);
+            expected_refusal(&end)?;
+            let last = s.frames.keys().next_back().copied().unwrap_or(-1);
+            Some((last + 1, end))
+        })
+        .collect();
     let mut frames: Vec<doom_render::Frame> =
         configs.iter().map(|_| doom_render::Frame::new()).collect();
     let mut tic: i64 = 0;
@@ -453,6 +514,13 @@ pub fn harness(
         for (k, r) in renderers.iter_mut().enumerate() {
             r.observe(&run.sim).expect("observe");
             let Some(row) = streams[k].frames.get(&tic) else {
+                if let Some((t, end)) = &end_checks[k] {
+                    if *t == tic {
+                        any = true;
+                        let result = r.render(&run.sim, &mut frames[k]).map(|_| ());
+                        counts[k].end = Some((tic, end.clone(), result));
+                    }
+                }
                 continue;
             };
             any = true;
@@ -467,7 +535,16 @@ pub fn harness(
                 }
                 Outcome::Mismatch => c.mismatched += 1,
                 Outcome::NonComparable => c.non_comparable += 1,
-                Outcome::Refused(_) => c.refused += 1,
+                Outcome::Refused(e) => {
+                    c.refused += 1;
+                    *c.refusals.entry(refusal_kind(e)).or_default() += 1;
+                }
+            }
+            if let Ok(report) = &result {
+                if report.counters != row.counters || report.newly_mapped != row.mapped {
+                    c.counter_mismatches += 1;
+                }
+                c.pending_frames += usize::from(!report.pending_columns.is_empty());
             }
             seen(&Seen {
                 item,

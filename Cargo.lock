@@ -75,6 +75,7 @@ dependencies = [
  "doom-test-evidence",
  "doom-types",
  "doom-wad",
+ "serde_json",
 ]
 
 [[package]]

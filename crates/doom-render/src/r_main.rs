@@ -128,6 +128,67 @@ pub fn point_to_angle(x: i32, y: i32, viewx: i32, viewy: i32) -> u32 {
     }
 }
 
+/// `ANG180` (tables.h:70).
+pub const ANG180: u32 = 0x8000_0000;
+/// `DBITS` (tables.h:76).
+pub const DBITS: u32 = 5;
+
+/// `R_PointOnSide` (r_main.c:161-211) for a node `(x, y, dx, dy)` in 16.16.
+pub fn point_on_side(x: i32, y: i32, node: [i32; 4]) -> usize {
+    let [nx, ny, ndx, ndy] = node;
+    if ndx == 0 {
+        // r_main.c:172-178
+        return usize::from(if x <= nx { ndy > 0 } else { ndy < 0 });
+    }
+    if ndy == 0 {
+        // r_main.c:179-185
+        return usize::from(if y <= ny { ndx < 0 } else { ndx > 0 });
+    }
+    let dx = x.wrapping_sub(nx);
+    let dy = y.wrapping_sub(ny);
+    // Sign fast path (r_main.c:191-199).
+    if (ndy ^ ndx ^ dx ^ dy) < 0 {
+        return usize::from((ndy ^ dx) < 0);
+    }
+    let left = fixed_mul(ndy >> 16, dx);
+    let right = fixed_mul(dy, ndx >> 16);
+    // r_main.c:204-210
+    usize::from(right >= left)
+}
+
+/// `R_PointToDist` (r_main.c:391-418). `abs` of `INT_MIN` is `INT_MIN` as in the strict build;
+/// a `tantoangle` index outside the table (the viewer exactly on the point gives
+/// `FixedDiv(0,0) = MAXINT`, hazard 2 of investigation §1.11) is a [`RenderRefusal::TableRead`].
+pub fn point_to_dist(x: i32, y: i32, viewx: i32, viewy: i32) -> Result<i32, RenderRefusal> {
+    let mut dx = x.wrapping_sub(viewx).wrapping_abs();
+    let mut dy = y.wrapping_sub(viewy).wrapping_abs();
+    if dy > dx {
+        std::mem::swap(&mut dx, &mut dy);
+    }
+    let k = fixed_div(dy, dx)? >> DBITS;
+    let t = u32::try_from(k)
+        .ok()
+        .and_then(tantoangle)
+        .ok_or(RenderRefusal::TableRead("tantoangle (R_PointToDist)"))?;
+    let angle = (t.wrapping_add(ANG90) >> ANGLETOFINESHIFT) as i32;
+    let sine = finesine(angle).ok_or(RenderRefusal::TableRead("finesine (R_PointToDist)"))?;
+    fixed_div(dx, sine)
+}
+
+/// `R_RenderPlayerView` (r_main.c:870-898) after `R_SetupFrame`: `R_ClearClipSegs`,
+/// `R_ClearDrawSegs`, `R_ClearPlanes`, `R_ClearSprites`, `R_RenderBSPNode (numnodes-1)`,
+/// `R_DrawPlanes` and `R_DrawMasked` (`NetUpdate` builds input commands only, §1.1).
+pub(crate) fn render_player_view(
+    ctx: &mut crate::FrameContext<'_>,
+    weapons: &doom_sim::PlayerWeaponState,
+) -> Result<(), RenderRefusal> {
+    ctx.clear_clip_segs();
+    ctx.clear_planes()?;
+    ctx.render_bsp()?;
+    ctx.draw_planes()?;
+    ctx.draw_masked(weapons)
+}
+
 /// The view-size tables of `R_ExecuteSetViewSize` (r_main.c:671-753), `R_InitBuffer` and
 /// `R_InitTextureMapping` (r_main.c:544-612), and `R_InitLightTables` (r_main.c:630-657).
 /// Light tables hold colour-map numbers (the genuine tables hold `colormaps + level*256`).

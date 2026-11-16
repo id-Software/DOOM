@@ -13,9 +13,9 @@
 //! configuration, call [`Renderer::begin_level`] at tic 0, then after every committed
 //! `Simulation::advance` call [`Renderer::observe`] and [`Renderer::render`].
 //!
-//! Status (M5a step 2a): the foundation (tables, view setup, resources, the render state and
-//! the view shadow) is complete; the BSP traversal and every drawer refuse the frame with
-//! [`RenderRefusal::NotImplemented`] until steps 2b and 2c.
+//! Status (M5a step 2b): the world is drawn (BSP, solid and two-sided walls, visplanes, sky,
+//! lighting, masked midtextures). Sprites, weapon sprites and fuzz are step 2c: their screen
+//! columns are reported in [`FrameReport::pending_columns`] and left undrawn.
 use std::fmt;
 use std::sync::Arc;
 
@@ -75,7 +75,7 @@ impl std::error::Error for ConfigError {}
 /// A refused frame. The render state is unchanged by a refused frame.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum RenderRefusal {
-    /// A renderer stage not implemented yet (M5a steps 2b/2c); never a silent no-op.
+    /// A renderer stage not implemented yet; never a silent no-op.
     NotImplemented(&'static str),
     /// `FixedDiv2`'s `I_Error` (m_fixed.c:83-84).
     FixedDiv,
@@ -88,6 +88,33 @@ pub enum RenderRefusal {
     },
     /// The simulation has no player view (a profile the renderer does not admit).
     NoPlayer,
+    /// More than `MAXVISPLANES` visplanes: `R_FindPlane`'s `I_Error` (r_plane.c:245-246) or
+    /// `R_CheckPlane`'s unchecked write past `visplanes[]` (r_plane.c:313-317) (decision R3).
+    VisplaneOverflow,
+    /// The first write past `openings[MAXOPENINGS]` (r_segs.c:356, 611-612, 721-731; decision R3).
+    OpeningOverflow,
+    /// The first access, read or write, past `solidsegs[MAXSEGS]` (r_bsp.c:122-133, 178-182;
+    /// decision R3 as applied by the orchestrator and accepted by the owner on 2026-11-15).
+    SolidSegOverflow,
+    /// A masked midtexture column that is a multi-patch composite: the genuine post walk
+    /// (r_segs.c:181-184, r_things.c:359-385) finds no 0xff terminator inside the composite and
+    /// runs into zone memory (orchestrator application of R3, 2026-11-16).
+    MaskedCompositeColumn,
+    /// A masked midtexture column whose post walk would leave its patch lump, or whose lump and
+    /// offset `R_GenerateLookup` left uninitialised (r_data.c:353-358): layout-dependent.
+    MaskedColumnUndefined,
+    /// One of the genuine `RANGECHECK` `I_Error`s (named by function), or a draw outside the
+    /// view rectangle that the genuine check lets through (decision R3).
+    RangeCheck(&'static str),
+    /// A table read outside the genuine contiguous tables (decision R12), such as
+    /// `tantoangle[FixedDiv(0,0)>>DBITS]` for a viewer exactly on a seg's start vertex
+    /// (r_main.c:412).
+    TableRead(&'static str),
+    /// The genuine frame would read a renderer global left over from an earlier wall or frame
+    /// (`pixhigh`/`pixlow`, r_segs.c:694-704; investigation §1.11 hazard 8).
+    StaleGlobal(&'static str),
+    /// A canonical field the renderer reads is missing or malformed.
+    Snapshot(String),
 }
 impl fmt::Display for RenderRefusal {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -147,10 +174,36 @@ pub struct FrameReport {
     pub flagged_columns: Vec<u16>,
     /// The switch-texture parity is unknown: the frame is non-comparable (decision R7).
     pub switch_parity_unknown: bool,
-    /// Lines newly marked mapped by this frame (`ML_MAPPED`, decision R5).
+    /// Lines newly marked mapped by this frame (`ML_MAPPED`, decision R5), ascending.
     pub newly_mapped: Vec<u16>,
     /// `fuzzpos` after the frame.
     pub fuzzpos: u32,
+    /// The frame's renderer counters, as the genuine runner reports them per frame.
+    pub counters: FrameCounters,
+    /// Screen columns a vissprite (`R_ProjectSprite`) or weapon sprite (`R_DrawPSprite`) spans:
+    /// sprite drawing is step 2c, so these columns are not drawn by this renderer yet.
+    pub pending_columns: Vec<u16>,
+}
+
+/// The per-frame counters of the genuine M5a runner's F rows (`tools/reference/m5a_driver.c`).
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub struct FrameCounters {
+    /// Lines with `ML_MAPPED` after the frame.
+    pub mapped: u32,
+    /// `lastvisplane - visplanes`.
+    pub visplanes: u32,
+    /// `ds_p - drawsegs`.
+    pub drawsegs: u32,
+    /// `vissprite_p - vissprites`.
+    pub vissprites: u32,
+    /// `lastopening - openings`.
+    pub openings: u32,
+    /// The largest `newend - solidsegs` seen at any `R_StoreWallRange` call or the frame end.
+    pub solidsegs_peak: u32,
+    /// `R_StoreWallRange` calls dropped at `MAXDRAWSEGS` (r_segs.c:385-387).
+    pub drawseg_drops: u32,
+    /// Whether `R_NewVisSprite` returned `overflowsprite` and it was written (r_things.c:330-331).
+    pub vissprite_drop: bool,
 }
 
 /// The renderer stage that wrote a framebuffer pixel in the last frame (first-difference
@@ -188,6 +241,9 @@ pub struct Level {
     /// Non-reusable switch lines (`p_spec::NONREUSABLE_SWITCH_SPECIALS`) whose front side has
     /// a switch texture, ascending.
     pub switch_lines: Vec<u16>,
+    /// The BSP geometry as `P_LoadVertexes`, `P_LoadSegs`, `P_LoadSubsectors` and
+    /// `P_LoadNodes` build it (16.16 coordinates, resolved references).
+    pub(crate) geometry: r_bsp::Geometry,
 }
 
 impl Level {
@@ -237,6 +293,7 @@ impl Level {
             ));
         }
         Ok(Self {
+            geometry: r_bsp::Geometry::load(map)?,
             map: map.clone(),
             side_textures,
             sector_flats,
@@ -245,22 +302,48 @@ impl Level {
     }
 }
 
-/// Per-frame context handed to the renderer stages.
+/// A sector as the renderer reads it in one frame (`sector_t` heights, pics and light).
+#[derive(Clone, Copy, Debug)]
+pub(crate) struct SectorView {
+    pub floorheight: i32,
+    pub ceilingheight: i32,
+    pub floorpic: usize,
+    pub ceilingpic: usize,
+    pub lightlevel: i32,
+}
+
+/// Per-frame context handed to the renderer stages: the frame's inputs and the renderer
+/// globals of r_bsp.c, r_segs.c, r_plane.c and r_things.c (one field group per C file).
 pub(crate) struct FrameContext<'a> {
-    #[expect(dead_code, reason = "read by the BSP and drawers of steps 2b/2c")]
     pub res: &'a Resources,
-    #[expect(dead_code, reason = "read by the BSP and drawers of steps 2b/2c")]
     pub level: &'a Level,
-    #[expect(dead_code, reason = "read by the BSP and drawers of steps 2b/2c")]
     pub view: &'a r_main::ViewSize,
-    #[expect(dead_code, reason = "read by the BSP and drawers of steps 2b/2c")]
     pub frame: r_main::FrameView,
-    #[expect(dead_code, reason = "written by the drawers of steps 2b/2c")]
+    pub sim: &'a Simulation,
     pub screen: &'a mut [u8],
-    #[expect(dead_code, reason = "written by the drawers of steps 2b/2c")]
     pub taint: &'a mut [u32],
-    #[expect(dead_code, reason = "written by the drawers of steps 2b/2c")]
     pub trace: Option<&'a mut [Feature]>,
+    /// The mapped-line set (`ML_MAPPED`, decision R5), updated in place.
+    pub mapped: &'a mut [bool],
+    pub newly_mapped: Vec<u16>,
+    pub sectors: Vec<SectorView>,
+    /// Per sidedef `[top, mid, bottom]` after the tracked switch changes.
+    pub sides: Vec<[usize; 3]>,
+    /// Per sidedef `textureoffset` (16.16) after the scrolling walls.
+    pub textureoffset: Vec<i32>,
+    pub flattranslation: Vec<usize>,
+    pub texturetranslation: Vec<usize>,
+    pub bsp: r_bsp::BspState,
+    pub segs: r_segs::SegState,
+    pub planes: r_plane::PlaneState,
+    pub things: r_things::ThingState,
+}
+
+impl FrameContext<'_> {
+    /// The colour-map byte `colormaps[map*256 + index]`.
+    pub(crate) fn colormap(&self, map: u8, index: u8) -> u8 {
+        self.res.colormaps[usize::from(map) * 256 + usize::from(index)]
+    }
 }
 
 /// The renderer for one view configuration.
@@ -376,22 +459,135 @@ impl Renderer {
             state.view.viewz,
             state.view.fixedcolormap,
         );
+        let sectors = sector_views(sim, &self.res, &self.level)?;
+        let (flattranslation, texturetranslation) = p_spec::translations(&self.res, sim.tic());
+        let sides = p_spec::side_textures(
+            &self.res,
+            &self.level.side_textures,
+            self.level.map.linedefs(),
+            &state.switches,
+        );
+        let textureoffset = p_spec::texture_offsets(&self.level.map, sim.tic());
         out.pixels.copy_from_slice(&state.screen);
         let mut taint = state.taint.clone();
+        let mut mapped = state.mapped.clone();
+        let switch_parity_unknown = state.switches.parity_unknown();
+        let fuzzpos = state.fuzzpos;
         if let Some(t) = self.trace.as_mut() {
             t.fill(Feature::Untouched);
         }
+        let nsectors = sectors.len();
         let mut ctx = FrameContext {
             res: &self.res,
             level: &self.level,
             view: &self.view,
             frame,
+            sim,
             screen: &mut out.pixels,
             taint: &mut taint,
             trace: self.trace.as_deref_mut(),
+            mapped: &mut mapped,
+            newly_mapped: Vec::new(),
+            sectors,
+            sides,
+            textureoffset,
+            flattranslation,
+            texturetranslation,
+            bsp: r_bsp::BspState::default(),
+            segs: r_segs::SegState::new(frame.fixedcolormap),
+            planes: r_plane::PlaneState::default(),
+            things: r_things::ThingState::new(nsectors),
         };
-        r_bsp::render_bsp_node(&mut ctx)?;
-        // Steps 2b/2c: R_DrawPlanes, R_DrawMasked, then commit the frame state.
-        Err(RenderRefusal::NotImplemented("R_DrawPlanes"))
+        r_main::render_player_view(&mut ctx, &weapons)?;
+        let counters = FrameCounters {
+            mapped: ctx.mapped.iter().filter(|m| **m).count() as u32,
+            visplanes: ctx.planes.visplanes.len() as u32,
+            drawsegs: ctx.bsp.drawsegs.len() as u32,
+            vissprites: ctx.things.vissprites.len() as u32,
+            openings: ctx.planes.lastopening as u32,
+            solidsegs_peak: ctx.bsp.solid_peak as u32,
+            drawseg_drops: ctx.bsp.drawseg_drops,
+            vissprite_drop: ctx.things.vissprite_drop,
+        };
+        let mut newly_mapped = std::mem::take(&mut ctx.newly_mapped);
+        newly_mapped.sort_unstable();
+        let pending_columns = ctx.things.pending_columns(ctx.view);
+        drop(ctx);
+        let flagged_columns: Vec<u16> = (0..SCREENWIDTH)
+            .filter(|x| (0..SCREENHEIGHT).any(|y| taint[y * SCREENWIDTH + x] != 0))
+            .map(|x| x as u16)
+            .collect();
+        let state = self.state.as_mut().expect("checked above");
+        state.screen.copy_from_slice(&out.pixels);
+        state.taint = taint;
+        state.mapped = mapped;
+        Ok(FrameReport {
+            flagged_columns,
+            switch_parity_unknown,
+            newly_mapped,
+            fuzzpos,
+            counters,
+            pending_columns,
+        })
     }
+}
+
+/// Every sector as `R_Subsector` and `R_DrawPlanes` read it after the simulation's tic: the
+/// runtime heights, the runtime `floorpic` (`sector.{i}.floorpic` of the snapshot, decision
+/// D2's normalized name resolved with `R_FlatNumForName`), the map `ceilingpic` (no admitted
+/// special writes it, investigation §4.1.5) and the runtime light level.
+fn sector_views(
+    sim: &Simulation,
+    res: &Resources,
+    level: &Level,
+) -> Result<Vec<SectorView>, RenderRefusal> {
+    let map_sectors = level.map.sectors();
+    let runtime = sim.sectors();
+    if runtime.len() != map_sectors.len() {
+        return Err(RenderRefusal::Snapshot("sector count".into()));
+    }
+    let mut floorpics: Vec<Option<[u8; 8]>> = vec![None; map_sectors.len()];
+    for f in sim.snapshot().fields() {
+        let Some(rest) = f.path().strip_prefix("sector.") else {
+            continue;
+        };
+        let Some(i) = rest.strip_suffix(".floorpic") else {
+            continue;
+        };
+        let i: usize = i
+            .parse()
+            .map_err(|_| RenderRefusal::Snapshot(f.path().into()))?;
+        let name: [u8; 8] = f
+            .value()
+            .try_into()
+            .map_err(|_| RenderRefusal::Snapshot(f.path().into()))?;
+        *floorpics
+            .get_mut(i)
+            .ok_or_else(|| RenderRefusal::Snapshot(f.path().into()))? = Some(name);
+    }
+    let lights: Vec<i32> = match sim.sector_lights_and_specials() {
+        Some(it) => it.map(|(l, _)| i32::from(l)).collect(),
+        None => map_sectors.iter().map(|s| i32::from(s.light)).collect(),
+    };
+    if lights.len() != map_sectors.len() {
+        return Err(RenderRefusal::Snapshot("sector lights".into()));
+    }
+    let mut out = Vec::with_capacity(map_sectors.len());
+    for (i, s) in map_sectors.iter().enumerate() {
+        let floorpic = match floorpics[i] {
+            Some(name) if r_data::c_name(&name) != r_data::c_name(s.flats[0].as_bytes()) => res
+                .flat_num_for_name(&name)
+                .map_err(|e| RenderRefusal::Snapshot(format!("sector.{i}.floorpic: {e:?}")))?,
+            Some(_) => level.sector_flats[i][0],
+            None => return Err(RenderRefusal::Snapshot(format!("sector.{i}.floorpic"))),
+        };
+        out.push(SectorView {
+            floorheight: runtime[i].floor.bits(),
+            ceilingheight: runtime[i].ceiling.bits(),
+            floorpic,
+            ceilingpic: level.sector_flats[i][1],
+            lightlevel: lights[i],
+        });
+    }
+    Ok(out)
 }

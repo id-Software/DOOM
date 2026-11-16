@@ -16,6 +16,7 @@ doom-sim = { path = "../doom-sim" }
 
 [dev-dependencies]
 doom-test-evidence = { path = "../doom-test-evidence" }
+serde_json = "=1.0.150"
 
 [lints]
 workspace = true

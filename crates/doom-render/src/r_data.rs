@@ -504,6 +504,50 @@ impl Resources {
     }
 }
 
+/// Where a masked column's posts start (`R_GetColumn (tex, col) - 3`, r_segs.c:181-182).
+#[derive(Clone, Copy, Debug)]
+pub enum MaskedPosts<'a> {
+    /// A patch column: the patch lump and the offset of its first post header.
+    Lump {
+        /// The patch lump's bytes.
+        bytes: &'a [u8],
+        /// `texturecolumnofs - 3`.
+        at: usize,
+    },
+    /// A composite column (or lump 0's): no post headers inside the block.
+    Composite,
+    /// A column `R_GenerateLookup` left uninitialised, or an offset below 3.
+    Undefined,
+}
+
+impl Resources {
+    /// The posts a masked midtexture column walks (`R_GetColumn` then `- 3`, r_segs.c:181-182).
+    pub fn masked_posts(&self, tex: usize, col: i32) -> MaskedPosts<'_> {
+        let t = &self.textures[tex];
+        let col = (col & t.widthmask) as usize;
+        match t.columns[col] {
+            ColumnEntry::Lump { lump, ofs } => match usize::from(ofs).checked_sub(3) {
+                Some(at) => MaskedPosts::Lump {
+                    bytes: self.dir.bytes(lump),
+                    at,
+                },
+                None => MaskedPosts::Undefined,
+            },
+            ColumnEntry::Composite { .. } | ColumnEntry::LumpZero { .. } => MaskedPosts::Composite,
+            ColumnEntry::Undefined => MaskedPosts::Undefined,
+        }
+    }
+    /// A column source starting at byte `start` of lump `bytes` (a masked post's pixels).
+    pub fn lump_source(bytes: &[u8], start: usize) -> ColumnSource<'_> {
+        ColumnSource {
+            block: bytes,
+            defined: None,
+            start,
+            undefined_column: false,
+        }
+    }
+}
+
 fn marker_range(
     dir: &LumpDirectory,
     start: &[u8],
