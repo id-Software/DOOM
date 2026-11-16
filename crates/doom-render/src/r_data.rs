@@ -1337,4 +1337,191 @@ mod tests {
         assert_eq!(res.get_column(0, 0).texel(0), (9, true));
         assert_eq!(res.get_column(0, 0).texel(100), (0, false));
     }
+
+    // ---- Review findings (investigation §7 items 40 and 41).
+
+    /// A `Resources` holding `textures` only (the accessors under test read nothing else).
+    fn with_textures(textures: Vec<Texture>) -> Resources {
+        // Lump 1 is the 4-column patch the tests' `lookup` directories also hold at 1.
+        Resources {
+            dir: dir(&[("A", vec![]), ("P", patch(4, 8))]),
+            colormaps: vec![],
+            palette: None,
+            textures,
+            firstflat: 0,
+            numflats: 0,
+            firstspritelump: 0,
+            sprite_lumps: vec![],
+            sprites: vec![],
+            switchlist: vec![],
+            anims: vec![],
+            skytexture: 0,
+            skyflatnum: None,
+        }
+    }
+
+    #[test]
+    fn patch_counts_wrap_in_a_byte() {
+        // `byte* patchcount` (r_data.c:299, 322-323, 343): column 0 is covered by n patches,
+        // the last of them Q (lump 2, two columns, column directory at 16, so `ofs` 19 and 20);
+        // column 1 by Q alone. 255 is a composite; 256 wraps to 0, "column without a patch"
+        // (r_data.c:350-356) returns and leaves Q's lump and offset in both columns; 257 wraps
+        // to 1, a single-patch column of Q.
+        let names = [("P", patch(1, 8)), ("Q", patch(2, 8))];
+        for (n, col0, size) in [
+            (255usize, ColumnEntry::Composite { ofs: 0 }, 8),
+            (256, ColumnEntry::Lump { lump: 2, ofs: 19 }, 0),
+            (257, ColumnEntry::Lump { lump: 2, ofs: 19 }, 0),
+        ] {
+            let mut patches = vec![(0i16, 0i16, 0i16); n - 1];
+            patches.push((0, 0, 1));
+            let t = &lookup("WALL", 2, 8, &patches, &names).unwrap()[0];
+            assert_eq!(t.columns[0], col0, "{n}");
+            assert_eq!(t.columns[1], ColumnEntry::Lump { lump: 2, ofs: 20 }, "{n}");
+            assert_eq!(t.compositesize, size, "{n}");
+        }
+        // 258 wraps to 2: a composite again.
+        let mut patches = vec![(0i16, 0i16, 0i16); 257];
+        patches.push((0, 0, 1));
+        let t = &lookup("WALL", 2, 8, &patches, &names).unwrap()[0];
+        assert_eq!(t.columns[0], ColumnEntry::Composite { ofs: 0 });
+    }
+
+    #[test]
+    fn a_texture_without_patches_loads_with_undefined_columns() {
+        // `patchcount` 0: the `texture_t` allocation is exactly its header (r_data.c:524-527)
+        // and R_GenerateLookup stops at column 0 (r_data.c:350-356).
+        let t = &lookup("WALL", 4, 8, &[], &[]).unwrap()[0];
+        assert_eq!(t.columns, vec![ColumnEntry::Undefined; 4]);
+        assert_eq!(t.compositesize, 0);
+    }
+
+    #[test]
+    fn a_zero_width_texture_loads_and_its_columns_are_unallocated() {
+        // Width 0: `alloca(0)` and 0-byte column tables (r_data.c:322-323, 548-549), width mask
+        // 0 (r_data.c:551-555); every `R_GetColumn` reads past the tables (r_data.c:391-392).
+        let t = lookup("WALL", 0, 8, &[(0, 0, 0)], &[("P", patch(4, 8))]).unwrap();
+        assert!(t[0].columns.is_empty());
+        assert_eq!(t[0].widthmask, 0);
+        let res = with_textures(t);
+        for col in [0, 1, -1, 1000] {
+            assert!(res.get_column(0, col).unallocated(), "{col}");
+            assert!(matches!(res.masked_posts(0, col), MaskedPosts::Unallocated));
+        }
+    }
+
+    #[test]
+    fn heights_of_zero_and_below_load() {
+        // Height 0: composite columns add nothing to the composite size (r_data.c:371) and every
+        // composite read is outside the empty block (undefined, decision R4).
+        let p = ("P", patch(4, 8));
+        let t = lookup(
+            "WALL",
+            4,
+            0,
+            &[(0, 0, 0), (2, 0, 0)],
+            std::slice::from_ref(&p),
+        )
+        .unwrap();
+        assert_eq!(t[0].columns[2], ColumnEntry::Composite { ofs: 0 });
+        assert_eq!(t[0].columns[3], ColumnEntry::Composite { ofs: 0 });
+        assert_eq!(t[0].compositesize, 0);
+        assert_eq!(t[0].textureheight, 0);
+        let res = with_textures(t);
+        assert_eq!(res.get_column(0, 2).texel(0), (0, false));
+        assert!(!res.get_column(0, 2).unallocated());
+        // A negative height: `textureheight = height<<FRACBITS` (r_data.c:556); a composite
+        // column would be built in a negative-size `Z_Malloc` (r_data.c:244, 365-371), so it is
+        // unallocated, while a single-patch column reads its lump as usual.
+        let t = lookup("WALL", 4, -8, &[(0, 0, 0), (2, 0, 0)], &[p]).unwrap();
+        assert_eq!(t[0].textureheight, -8 << 16);
+        assert!(matches!(t[0].columns[0], ColumnEntry::Lump { lump: 1, .. }));
+        assert_eq!(t[0].columns[2], ColumnEntry::Unallocated);
+        assert_eq!(t[0].columns[3], ColumnEntry::Unallocated);
+        assert_eq!(t[0].compositesize, 0);
+        let res = with_textures(t);
+        assert!(!res.get_column(0, 0).unallocated());
+        assert!(res.get_column(0, 2).unallocated());
+        assert!(matches!(res.masked_posts(0, 3), MaskedPosts::Unallocated));
+    }
+
+    #[test]
+    fn negative_patch_counts_are_refused() {
+        // `Z_Malloc(sizeof(texture_t) + sizeof(texpatch_t)*(patchcount-1))` is smaller than the
+        // fields R_InitTextures writes for a negative count (r_data.c:524-531).
+        let mut lump = texture_lump(&[("WALL", 8, 8, &[])]);
+        let at = 4 + 4 + 20;
+        lump[at..at + 2].copy_from_slice(&(-1i16).to_le_bytes());
+        let l = vec![("PNAMES", pnames(&[])), ("TEXTURE1", lump)];
+        assert_eq!(
+            init_textures(&dir(&l)).err(),
+            Some(ResourceError::BadTextureSize("WALL".into()))
+        );
+    }
+
+    #[test]
+    fn texture_counts_combine_as_the_genuine_directory_walk() {
+        // `numtextures = numtextures1 + numtextures2` (r_data.c:480); the directory switches
+        // to TEXTURE2 only at `i == numtextures1` (r_data.c:509-515).
+        let with_count = |entries: &[TextureDef], count: i32| {
+            let mut lump = texture_lump(entries);
+            lump[..4].copy_from_slice(&count.to_le_bytes());
+            lump
+        };
+        let names = |l: &[(&str, Vec<u8>)]| -> Result<Vec<String>, ResourceError> {
+            Ok(init_textures(&dir(l))?
+                .iter()
+                .map(|t| name_text(&t.name))
+                .collect())
+        };
+        let a: TextureDef = ("A", 8, 8, &[]);
+        let b: TextureDef = ("B", 8, 8, &[]);
+        let c: TextureDef = ("C", 8, 8, &[]);
+        let d: TextureDef = ("D", 8, 8, &[]);
+        let base = |t1: Vec<u8>, t2: Vec<u8>| {
+            vec![("PNAMES", pnames(&[])), ("TEXTURE1", t1), ("TEXTURE2", t2)]
+        };
+        // The ordinary case: TEXTURE1's entries, then TEXTURE2's.
+        assert_eq!(
+            names(&base(texture_lump(&[a, b]), texture_lump(&[c, d]))),
+            Ok(vec!["A".into(), "B".into(), "C".into(), "D".into()])
+        );
+        // numtextures1 -1, numtextures2 2: one texture, read from TEXTURE1's directory.
+        assert_eq!(
+            names(&base(with_count(&[a, b], -1), texture_lump(&[c, d]))),
+            Ok(vec!["A".into()])
+        );
+        // numtextures1 3, numtextures2 -1: TEXTURE1's first two entries; TEXTURE2 unread.
+        assert_eq!(
+            names(&base(with_count(&[a, b, c], 3), with_count(&[d], -1))),
+            Ok(vec!["A".into(), "B".into()])
+        );
+        // A negative total sizes negative allocations (r_data.c:482-488), and the sum may not
+        // overflow.
+        let bad = Err(ResourceError::BadTextureDirectory(
+            "TEXTURE1+TEXTURE2".into(),
+        ));
+        assert_eq!(names(&base(with_count(&[a], -2), texture_lump(&[c]))), bad);
+        assert_eq!(
+            names(&base(with_count(&[a], i32::MAX), texture_lump(&[c]))),
+            bad
+        );
+    }
+
+    #[test]
+    fn a_sky_flat_outside_the_flat_range_never_matches() {
+        // R_FlatNumForName returns an out-of-range number unchecked (r_data.c:672-687) and
+        // `skyflatnum` is only compared with sector pics; a later F_SKY1 outside
+        // F_START..F_END (the last match wins, w_wad.c) loads with no sky flat number.
+        let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../tests/reference");
+        let gfx_bytes = std::fs::read(root.join("m5a_gfx.wad")).expect("graphics WAD");
+        let gfx = doom_wad::Wad::parse(&gfx_bytes, doom_wad::Limits::default()).expect("gfx");
+        let mut d = LumpDirectory::new();
+        d.add_wad(&gfx).unwrap();
+        let res = Resources::load(d.clone(), GameMode::Registered).unwrap();
+        assert!(res.skyflatnum.is_some());
+        d.add_single_lump("F_SKY1", &[0; 4096]).unwrap();
+        let res = Resources::load(d, GameMode::Registered).unwrap();
+        assert_eq!(res.skyflatnum, None);
+    }
 }

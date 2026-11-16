@@ -423,6 +423,35 @@ pub struct Counts {
     /// The first tic the renderer could not observe, and why; later genuine frames count as
     /// not reached.
     pub observe_error: Option<(i64, String)>,
+    /// Tics the Rust run rendered past that have no genuine F row while the genuine stream
+    /// has later rows (a gap in the goldens; every such tic is a failure).
+    pub missing: usize,
+}
+
+/// Checks that a genuine frame stream has one F row for every tic from 0 to its last, and
+/// `expected` rows in all (the per-item count of `m5a_results.json`, or the stream's own
+/// length where no separate record exists). Returns the problem, if any.
+pub fn stream_gaps(stream: &FrameStream, expected: usize) -> Option<String> {
+    let n = stream.frames.len();
+    if n != expected {
+        return Some(format!("{n} F rows, expected {expected}"));
+    }
+    let first_gap = stream
+        .frames
+        .keys()
+        .zip(0i64..)
+        .find(|(tic, k)| **tic != *k)
+        .map(|(_, k)| k);
+    first_gap.map(|k| format!("no F row for tic {k}"))
+}
+
+/// The genuine frame count of `lump` at `screenblocks` (`m5a_results.json`).
+pub fn genuine_frames(lump: &str, screenblocks: u8) -> usize {
+    let text = std::fs::read_to_string(reference("m5a_results.json")).expect("results");
+    let v: serde_json::Value = serde_json::from_str(&text).expect("results JSON");
+    v["items"][lump]["views"][screenblocks.to_string()]["frames"]
+        .as_u64()
+        .expect("frames") as usize
 }
 
 /// The genuine ending of `lump` at `screenblocks` (`m5a_results.json`: `end`, e.g. `marker`,
@@ -572,6 +601,11 @@ pub fn harness_streams(
                         counts[k].end = Some((tic, end.clone(), result));
                     }
                 }
+                if streams[k].frames.range(tic..).next().is_some() {
+                    // A gap: the genuine stream goes on after this tic.
+                    any = true;
+                    counts[k].missing += 1;
+                }
                 continue;
             };
             any = true;
@@ -618,6 +652,11 @@ pub fn harness_streams(
             });
         }
         if !any {
+            for (c, s) in counts.iter_mut().zip(streams) {
+                if c.observe_error.is_none() {
+                    c.not_reached += s.frames.range(tic..).count();
+                }
+            }
             break;
         }
         tic += 1;

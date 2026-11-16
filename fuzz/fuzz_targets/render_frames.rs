@@ -25,7 +25,8 @@
 //! repeats on a cloned renderer and simulation; every drawn frame is deterministic (a cloned
 //! renderer and simulation produce the identical frame, report and render state); the render
 //! state round-trips through its `DRST` encoding (decode then encode gives the same bytes),
-//! and a mutated or truncated encoding never panics; rendering never changes the simulation
+//! and a mutated or truncated encoding never panics (a mutation that decodes is restored into a
+//! cloned renderer, which refuses it typed or renders a typed result); rendering never changes the simulation
 //! (its snapshot digest is the same before and after every frame, and the clone's canonical bytes
 //! equal the original's). The clone, the `DRST` round trip and the canonical-bytes comparison run
 //! on tic 0, every fourth tic and the last, to keep an input's cost bounded. No
@@ -221,7 +222,15 @@ fn frame(renderer: &mut Renderer, sim: &Simulation, flip: [u8; 3], full: bool) -
             let at = usize::from(u16::from_le_bytes([flip[0], flip[1]])) % bytes.len();
             let mut mutated = bytes.clone();
             mutated[at] ^= flip[2] | 1;
-            let _ = RenderState::decode(&mutated);
+            // A decoded mutation either fails the level check or restores into a clone of the
+            // renderer whose next frame is a typed result, never a panic.
+            if let Ok(m) = RenderState::decode(&mutated) {
+                let mut other = renderer.clone();
+                if other.restore(m).is_ok() {
+                    let mut frame = Frame::new();
+                    let _ = other.render(sim, &mut frame);
+                }
+            }
             let _ = RenderState::decode(&bytes[..at]);
             true
         }

@@ -310,4 +310,34 @@ mod tests {
         assert_eq!(fixed_colormap([7, 0, 0, 0, 0, 200]), 0);
         assert_eq!(countdown([1, 1, 0, 0, 0, 0]), [0, 1, 0, 0, 0, 0]);
     }
+
+    fn shadow(onground: bool) -> ViewShadow {
+        ViewShadow {
+            viewheight: VIEWHEIGHT,
+            deltaviewheight: 0,
+            viewz: 0,
+            onground,
+            fixedcolormap: 0,
+            z: 0,
+            floorz: 0,
+            ceilingz: 128 << 16,
+            reactiontime: 0,
+            dead: false,
+            powers: [0; 6],
+            sector_floors: vec![],
+        }
+    }
+
+    #[test]
+    fn the_bob_angle_overflow_is_refused_on_the_ground_only() {
+        // `FINEANGLES/20*leveltime` (p_user.c:108): 409 * 5,250,571 = 2,147,483,539 fits
+        // `int`, 409 * 5,250,572 does not. The product is evaluated only past the
+        // `!onground` return (p_user.c:97-105).
+        assert_eq!(shadow(true).calc_height(0, 5_250_571, true), Some(()));
+        assert_eq!(shadow(true).calc_height(0, 5_250_572, true), None);
+        assert_eq!(shadow(true).calc_height(0, i32::MAX, false), None);
+        let mut air = shadow(false);
+        assert_eq!(air.calc_height(0, i32::MAX, true), Some(()));
+        assert_eq!(air.viewz, VIEWHEIGHT);
+    }
 }

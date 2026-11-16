@@ -153,6 +153,11 @@ fn main() {
         if let Some((t, _)) = &end {
             s.frames.retain(|tic, _| tic < t);
         }
+        // Every tic from 0 to the last genuine frame must have its F row.
+        if let Some(problem) = common::stream_gaps(&s, s.frames.len()) {
+            eprintln!("{lump} sb{sb}: genuine frame stream: {problem}");
+            std::process::exit(1);
+        }
         end_checks.push(end);
         streams.push(s);
     }
@@ -244,7 +249,18 @@ fn main() {
         }
     });
     let mut out = serde_json::Map::new();
-    for ((sb, c), side) in counts.into_iter().zip(sides) {
+    for (((sb, c), side), stream) in counts.into_iter().zip(sides).zip(&streams) {
+        // Per configuration, every genuine frame was compared or counted as not reached.
+        if c.missing != 0 || c.frames + c.not_reached != stream.frames.len() {
+            eprintln!(
+                "{lump} sb{sb}: {} frames compared and {} not reached of {} genuine frames ({} tics without a row)",
+                c.frames,
+                c.not_reached,
+                stream.frames.len(),
+                c.missing
+            );
+            std::process::exit(1);
+        }
         if let Some(p) = digests.get(&sb) {
             std::fs::write(p, &side.lines).expect("digest list");
         }

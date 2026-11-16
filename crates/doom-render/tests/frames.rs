@@ -33,15 +33,40 @@ fn harness_runs_every_item_and_configuration() {
     let mut failures = Vec::new();
     for item in items() {
         let configs: &[u8] = &[11, 10, 9];
-        for (sb, c) in harness(&item, configs, false, |s| match &s.outcome {
+        // Per item and configuration: the golden stream has a row for every tic from 0 and
+        // the frame count `m5a_results.json` records, so a gap or a short golden cannot pass.
+        let expected: Vec<usize> = configs
+            .iter()
+            .map(|&sb| {
+                let want = common::genuine_frames(&item.lump, sb);
+                let stream = common::read_frames(&item.lump, sb);
+                assert_eq!(
+                    common::stream_gaps(&stream, want),
+                    None,
+                    "{} sb{sb}",
+                    item.lump
+                );
+                want
+            })
+            .collect();
+        for ((sb, c), want) in harness(&item, configs, false, |s| match &s.outcome {
             Outcome::Match { flags_agree: true } => {}
             Outcome::NonComparable if s.item.lump == "M5SWTCH" => {}
             other => failures.push(format!(
                 "{} sb{} tic {}: {other:?}",
                 s.item.lump, s.screenblocks, s.tic
             )),
-        }) {
+        })
+        .into_iter()
+        .zip(expected)
+        {
             assert_eq!(c.not_reached, 0, "{} sb{sb}: frames not reached", item.lump);
+            assert_eq!(
+                c.missing, 0,
+                "{} sb{sb}: tics without a golden row",
+                item.lump
+            );
+            assert_eq!(c.frames, want, "{} sb{sb}: frames compared", item.lump);
             if c.counter_mismatches != 0 {
                 failures.push(format!(
                     "{} sb{sb}: {} frames with differing counters or mapped lines",
@@ -134,4 +159,24 @@ fn comparison_detects_a_changed_pixel() {
         ..full
     };
     assert_eq!(compare(&whole, &ok, &changed), Outcome::NonComparable);
+}
+
+/// The per-item gap check can fail: a stream missing a tic, or holding fewer rows than the
+/// results record, is reported.
+#[test]
+fn a_gap_in_the_goldens_is_detected() {
+    let mut s = common::FrameStream::default();
+    for tic in [0, 1, 3] {
+        s.frames.insert(tic, FrameRow::default());
+    }
+    assert_eq!(
+        common::stream_gaps(&s, 3),
+        Some("no F row for tic 2".into())
+    );
+    assert_eq!(
+        common::stream_gaps(&s, 4),
+        Some("3 F rows, expected 4".into())
+    );
+    s.frames.insert(2, FrameRow::default());
+    assert_eq!(common::stream_gaps(&s, 4), None);
 }

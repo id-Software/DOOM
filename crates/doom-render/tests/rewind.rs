@@ -200,3 +200,124 @@ fn a_changed_render_state_is_detected() {
     r.render(&b, &mut other).expect("render");
     assert_ne!(other.pixels(), frame.pixels());
 }
+
+/// A restored render state must fit the renderer's level (Rust-only safety, investigation §7
+/// item 47). The independent review reproduced two panics with states the decoder accepted:
+/// a mapped-line set of the wrong length (an out-of-bounds index in `R_StoreWallRange`'s
+/// `ML_MAPPED` write) and `powers[0] = i32::MIN` (an overflow in the view shadow's
+/// countdown). Both are now typed errors, the renderer keeps its state, and the good state
+/// still restores and continues exactly.
+#[test]
+fn a_restored_state_must_fit_the_level() {
+    use doom_render::{RenderRefusal, RestoreError, StateDecodeError};
+    let item = items()
+        .into_iter()
+        .find(|i| i.lump == "M5DSEG")
+        .expect("M5DSEG");
+    let mut run = load(&item);
+    let mut a = renderer(&run, 11);
+    a.begin_level(&run.sim).expect("level start");
+    let mut frame = Frame::new();
+    common::advance(&mut run, 0).expect("advance");
+    a.observe(&run.sim).expect("observe");
+    a.render(&run.sim, &mut frame).expect("render");
+    let good = a.state().expect("state").clone();
+    let lines = run.level.map.linedefs().len();
+    let sectors = run.level.map.sectors().len();
+
+    let mut fresh = renderer(&run, 11);
+    // The reviewer's first case: the mapped set cleared; the level-independent decoder
+    // accepts it, the restore does not.
+    let mut bad = good.clone();
+    bad.mapped.clear();
+    let decoded = RenderState::decode(&bad.encode()).expect("the decoder does not know the level");
+    assert_eq!(
+        fresh.restore(decoded),
+        Err(RestoreError::Count {
+            field: "mapped",
+            expected: lines,
+            got: 0
+        })
+    );
+    assert!(fresh.state().is_none(), "a refused restore keeps the state");
+    assert!(matches!(
+        fresh.render(&run.sim, &mut frame),
+        Err(RenderRefusal::NotObserved { observed: None, .. })
+    ));
+    // The reviewer's second case: powers[0] = i32::MIN, refused by the decoder and by the
+    // restore of a state built by hand.
+    let mut bad = good.clone();
+    bad.view.powers[0] = i32::MIN;
+    assert_eq!(
+        RenderState::decode(&bad.encode()),
+        Err(StateDecodeError::Invalid("powers"))
+    );
+    assert_eq!(fresh.restore(bad), Err(RestoreError::Value("powers")));
+    // The other level checks.
+    let mut bad = good.clone();
+    bad.view.sector_floors.push(0);
+    assert_eq!(
+        fresh.restore(bad),
+        Err(RestoreError::Count {
+            field: "sector_floors",
+            expected: sectors,
+            got: sectors + 1
+        })
+    );
+    let mut bad = good.clone();
+    bad.screen.pop();
+    assert!(matches!(
+        fresh.restore(bad),
+        Err(RestoreError::Count {
+            field: "screen",
+            ..
+        })
+    ));
+    let mut bad = good.clone();
+    bad.switches.buttons[0] = doom_render::p_spec::ButtonSlot {
+        timer: 5,
+        line: lines as u16,
+    };
+    assert_eq!(
+        fresh.restore(bad),
+        Err(RestoreError::Line {
+            field: "button",
+            line: lines as u16
+        })
+    );
+    let mut bad = good.clone();
+    bad.switches.unknown = vec![u16::MAX];
+    assert_eq!(
+        fresh.restore(bad),
+        Err(RestoreError::Line {
+            field: "unknown",
+            line: u16::MAX
+        })
+    );
+    let mut bad = good.clone();
+    bad.switches.cleared = vec![u16::MAX];
+    assert_eq!(
+        fresh.restore(bad),
+        Err(RestoreError::Line {
+            field: "cleared",
+            line: u16::MAX
+        })
+    );
+    let mut bad = good.clone();
+    bad.fuzzpos = 50;
+    assert_eq!(fresh.restore(bad), Err(RestoreError::Value("fuzzpos")));
+    assert!(fresh.state().is_none());
+
+    // The good state restores and continues as the uninterrupted renderer.
+    fresh.restore(good).expect("restore");
+    common::advance(&mut run, 1).expect("advance");
+    a.observe(&run.sim).expect("observe");
+    fresh.observe(&run.sim).expect("observe");
+    let mut other = Frame::new();
+    assert_eq!(
+        a.render(&run.sim, &mut frame),
+        fresh.render(&run.sim, &mut other)
+    );
+    assert_eq!(frame, other);
+    assert_eq!(a.state(), fresh.state());
+}
