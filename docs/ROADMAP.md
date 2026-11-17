@@ -519,8 +519,9 @@ monster/player behavior. Further stages require separate owner direction.
     detail (screenblocks 9-11) and matches linuxdoom-1.10 on every synthetic frame in CI and on every
     frame of the scripted real Episode 1 runs (local-only); a local GIF viewer, a CI job for the
     genuine renderer, unit and contract tests and two fuzz targets are in. Owner decisions R1-R16 were
-    confirmed 2026-11-15. Pending: mutation results, independent review, fuzz campaigns, timings, final
-    gates and the owner's review; see the [investigation note](M5A_REFERENCE_INVESTIGATION.md) status
+    confirmed 2026-11-15. Mutation testing (with an independent review of its dispositions), the
+    independent code review, fuzz campaigns and timings are recorded. Pending: the final gates from clean
+    and the owner's review; see the [investigation note](M5A_REFERENCE_INVESTIGATION.md) status
     line, [support](COMPATIBILITY.md#software-renderer-m5a) and the
     [evidence record](validation/M5A.md). Not part of M5a (M5b and later): status bar, HUD, automap,
     menus, palette flashes, window, input, sound, low detail, a modern renderer.

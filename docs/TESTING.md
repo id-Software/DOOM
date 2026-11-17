@@ -2135,7 +2135,7 @@ tic by tic). All run in `cargo test -p doom-render` and the workspace tests; no 
 (no IWAD, no id art) and one seed tool:
 
 ```sh
-python3 tools/seed_render_fuzz.py frames DIR   # render_frames seeds (max_len 516): the 45 committed scripts at three view sizes plus variants
+python3 tools/seed_render_fuzz.py frames DIR   # render_frames seeds (max_len 516): the 45 scripts of the target's 41 WADs at three view sizes plus variants
 python3 tools/seed_render_fuzz.py data DIR     # render_data seeds (max_len 2048): edits of the synthetic graphics WAD and raw tails
 cargo +nightly fuzz build --sanitizer address render_frames   # also render_data; or build every target as above
 # seed replay (not a campaign); ASAN_OPTIONS=detect_leaks=0 means LeakSanitizer is disabled, not passed
@@ -2266,13 +2266,17 @@ equivalent mutants apply unchanged). Since M5a the run covers the `doom-render` 
 
 A shard that the hosted runner killed (its job log ends "The runner has received a shutdown signal")
 is re-run from the same patch and shard number, at the head the workflow tested, in a scratch worktree
-and a scratch target directory on the Linux disk (never `/mnt/*`):
+on the Linux disk (never `/mnt/*`), with `TMPDIR` in scratch (cargo-mutants copies the tree there for each
+job) and **no** `CARGO_TARGET_DIR`: a shared target directory makes concurrent jobs build into one
+directory, and outcomes come out wrong (M5a, [evidence](validation/M5A.md#mutation-testing)):
 
 ```sh
 git worktree add --detach ~/scratch/<milestone>/wt <head-sha>
 git diff --no-ext-diff origin/master...<head-sha> -- crates/ > ~/scratch/<milestone>/mutants.patch
 cd ~/scratch/<milestone>/wt
-export CARGO_PROFILE_DEV_OPT_LEVEL=1 CARGO_PROFILE_DEV_DEBUG=0 CARGO_TARGET_DIR=~/scratch/<milestone>/target
+unset CARGO_TARGET_DIR
+export CARGO_PROFILE_DEV_OPT_LEVEL=1 CARGO_PROFILE_DEV_DEBUG=0 TMPDIR=~/scratch/<milestone>/tmp
+mkdir -p "$TMPDIR"
 cargo mutants -p doom-sim -p doom-render --test-tool nextest --jobs 2 --timeout 300 --build-timeout 900 \
   --in-diff ~/scratch/<milestone>/mutants.patch --shard 0/8 --output ~/scratch/<milestone>/out
 ```
@@ -2280,8 +2284,11 @@ cargo mutants -p doom-sim -p doom-render --test-tool nextest --jobs 2 --timeout 
 Run it detached and wait on its PID with a timeout. To check the new tests against the survivors, list
 every `missed.txt` and `timeout.txt` line, give each a `--re '^<regex-escaped line>$'` (no `--in-diff`, so a
 later source diff cannot drop a target) and run `cargo mutants -p doom-render --test-tool nextest` with
-those arguments from the branch tree. A mutant that runs a loop forever (`+=` to `*=` on its counter) ends as
-`TIMEOUT`, which counts as killed once the loop is explained.
+those arguments from a scratch worktree of the branch head, with the same `TMPDIR` and no `CARGO_TARGET_DIR`.
+First run the same command with `--list`: cargo-mutants 27.1.0 also matches some struct-field deletions
+outside the name filters (two expressions matched six mutants in M5a), so report which mutants ran. A
+mutant that runs a loop forever (`+=` to `*=` on its counter) ends as `TIMEOUT`, which counts as killed
+once the loop is explained.
 
 ## Whole-level simulation-only timing
 
