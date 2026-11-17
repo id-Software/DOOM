@@ -5232,6 +5232,6 @@ If the projection passes the cap, the modern bindings preset (S7) and the Window
 | 6 | Whether mouse capture works under WSLg, and how the game feels | Phase 2 step 8, by the owner at the keyboard; no agent can observe it |
 | 7 | Whether any status bar, font or attacker refusal of S17 is reached on a real map | Phase 2 step 5; if one fires, work stops and the owner is told |
 | 8 | Whether the simulation's sound events are complete enough for a later sound model | Not needed under S15 (i); a question for the sound milestone |
-| 9 | Whether the local 2-job limit on the C reference suite (AGENTS.md) is lifted by the brief's "no job limits" | Kept at 2 for the reference suite in Phase 1; the owner may lift it |
+| 9 | Whether AGENTS.md's limit of 2 parallel jobs for the C reference suite still applies under the brief's "no CPU caps or job limits" | The owner. In Phase 1 the reference suite itself was not run, and the full-frame prototype ran its genuine runner with 6 parallel jobs (§2.1.2, §2.1.8) under the brief's wording. Phase 2 holds every genuine C run to 2 parallel jobs until the owner answers |
 | 10 | Whether the new CI job becomes a required check | The owner, after Phase 2 step 9 |
 | 11 | Whether the first-frame palette upload and gamma table of linuxdoom are worth imitating beyond S13 | S13; presentation only |
