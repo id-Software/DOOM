@@ -37,6 +37,11 @@ __pycache__/
 !/tests/reference/m5a_gfx.wad
 !/tests/reference/m5a_wads/*.wad
 !/tests/reference/m5a_scripts/*.lmp
+# The M5b synthetic status bar, face and font PWAD (tools/reference/m5b_gfx.py), room WADs (tools/reference/m5b_wad.py)
+# and room demo inputs (no commercial data).
+!/tests/reference/m5b_gfx.wad
+!/tests/reference/m5b_wads/*.wad
+!/tests/reference/m5b_scripts/*.lmp
 
 # Local Claude Code settings are per-machine.
 .claude/settings.local.json
