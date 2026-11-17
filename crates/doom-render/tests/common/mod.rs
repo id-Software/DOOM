@@ -1,5 +1,5 @@
-//! Shared support for the M5a renderer tests and the comparison example: the 45 items (the
-//! 23 M5a rooms and the 22 M4b synthetic scripts), the genuine global lump list of each run
+//! Shared support for the M5a renderer tests and the comparison example: the 48 items (the
+//! 26 M5a rooms and the 22 M4b synthetic scripts), the genuine global lump list of each run
 //! (map WAD, `m5a_gfx.wad`, the demo as a single lump: the M5a runner's `--wad` order,
 //! `tools/reference/m5a_reference.py` `run`), the simulation set-up of the existing M4b script
 //! runner (`crates/doom-sim/tests/episode1v2_mechanism_goldens.rs`), and readers of the

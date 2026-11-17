@@ -1,4 +1,4 @@
-//! M5a: the pixel comparison harness. Every item (the 23 M5a rooms and the 22 M4b synthetic
+//! M5a: the pixel comparison harness. Every item (the 26 M5a rooms and the 22 M4b synthetic
 //! scripts) runs through the simulation once, tic by tic; after every committed `advance`
 //! three renderers (screenblocks 11, 10, 9) observe the tic and render, and every frame is
 //! compared with the genuine per-frame SHA-256 of `tests/reference/m5a_frames/` (decisions R2,
@@ -101,8 +101,8 @@ fn harness_runs_every_item_and_configuration() {
     }
     failures.truncate(60);
     assert!(failures.is_empty(), "{}", failures.join("\n"));
-    // The committed goldens hold 13,191 + 13,191 + 13,203 frames (docs/validation/M5A.md).
-    assert_eq!(total.frames, 13_191 + 13_191 + 13_203, "{total:?}");
+    // The committed goldens hold 13,391 + 13,391 + 13,403 frames (docs/validation/M5A.md).
+    assert_eq!(total.frames, 13_391 + 13_391 + 13_403, "{total:?}");
     // Every frame matches except M5SWTCH's parity-unknown frames (35 per configuration).
     assert_eq!(total.non_comparable, 3 * 35, "{total:?}");
     assert_eq!(

@@ -1496,6 +1496,228 @@
      ]
     }
    }
+  },
+  {
+   "name": "LANDING",
+   "file": "tests/reference/m5a_wads/landing.wad",
+   "slot": "E1M1",
+   "sha256": "518d96d5715f50a650e46aa5f1479cc7ed6acad37941f9508230ff236f1338e3",
+   "bytes": 88021,
+   "sectors": 7,
+   "lines": 22,
+   "things": {
+    "1": 1
+   },
+   "png": [
+    [
+     10,
+     44
+    ]
+   ],
+   "script": {
+    "lump": "M5LAND",
+    "txt": "tests/reference/m5a_scripts/M5LAND.txt",
+    "lmp": "tests/reference/m5a_scripts/M5LAND.lmp",
+    "what": "run east up a step, over a one-tic gap, then off ledges of 8, 24 and 32 units",
+    "tics": 144,
+    "lmp_sha256": "c4f07bacae3f4be9b8a16ebeb5b01e3c569038bdf8cbce5b803b11f4bee134fd",
+    "views": [
+     11,
+     10,
+     9
+    ],
+    "must_show": [
+     {
+      "what": "the step-up dip recovering",
+      "expr": "view deltaviewheight > 0",
+      "tic": {
+       "11": 39,
+       "10": 39,
+       "9": 39
+      }
+     },
+     {
+      "what": "one tic in the air over the gap",
+      "expr": "view onground == 0",
+      "tic": {
+       "11": 44,
+       "10": 44,
+       "9": 44
+      }
+     },
+     {
+      "what": "the gap landing at z == floorz kept deltaviewheight (4.0, then 4.25)",
+      "expr": "view deltaviewheight == 278528",
+      "tic": {
+       "11": 45,
+       "10": 45,
+       "9": 45
+      }
+     },
+     {
+      "what": "in the air after the 8-unit walk-off",
+      "expr": "view onground == 0 from 50",
+      "tic": {
+       "11": 62,
+       "10": 62,
+       "9": 62
+      }
+     },
+     {
+      "what": "in the air after the 24-unit walk-off",
+      "expr": "view onground == 0 from 70",
+      "tic": {
+       "11": 77,
+       "10": 77,
+       "9": 77
+      }
+     },
+     {
+      "what": "in the air after the 32-unit walk-off",
+      "expr": "view onground == 0 from 85",
+      "tic": {
+       "11": 91,
+       "10": 91,
+       "9": 91
+      }
+     },
+     {
+      "what": "no landing squats: momz -2, -4, -7 and -8 are not below -GRAVITY*8 (never)",
+      "expr": "view deltaviewheight < 0",
+      "tic": {
+       "11": null,
+       "10": null,
+       "9": null
+      }
+     }
+    ],
+    "c_end": {
+     "11": [
+      "marker",
+      144
+     ],
+     "10": [
+      "marker",
+      144
+     ],
+     "9": [
+      "marker",
+      144
+     ]
+    }
+   }
+  },
+  {
+   "name": "SEGANGLE",
+   "file": "tests/reference/m5a_wads/segangle.wad",
+   "slot": "E1M1",
+   "sha256": "1b791a77822b44068e8a7e982b6811849666f5dec0fa9505f3398b1fb1cf813b",
+   "bytes": 86409,
+   "sectors": 2,
+   "lines": 7,
+   "things": {
+    "1": 1
+   },
+   "png": [
+    [
+     10,
+     4
+    ]
+   ],
+   "script": {
+    "lump": "M5SEGANG",
+    "txt": "tests/reference/m5a_scripts/M5SEGANG.txt",
+    "lmp": "tests/reference/m5a_scripts/M5SEGANG.lmp",
+    "what": "stand facing the wall whose stored angle disagrees with its vertices, turn a little",
+    "tics": 40,
+    "lmp_sha256": "7ff07434ae577e485a6f3efd42e28ec2700e65bea7446db258789ff71fac2425",
+    "views": [
+     11,
+     10,
+     9
+    ],
+    "must_show": [
+     {
+      "what": "the wall with the disagreeing SEGS angle in view",
+      "expr": "frame drawsegs >= 2",
+      "tic": {
+       "11": 0,
+       "10": 0,
+       "9": 0
+      }
+     }
+    ],
+    "c_end": {
+     "11": [
+      "marker",
+      40
+     ],
+     "10": [
+      "marker",
+      40
+     ],
+     "9": [
+      "marker",
+      40
+     ]
+    }
+   }
+  },
+  {
+   "name": "MASKPAD",
+   "file": "tests/reference/m5a_wads/maskpad.wad",
+   "slot": "E1M1",
+   "sha256": "92c65d62eb0f73a91fe728fc698022c873fb696d18bbe4f4df24e55d579698b4",
+   "bytes": 86758,
+   "sectors": 3,
+   "lines": 10,
+   "things": {
+    "1": 1
+   },
+   "png": [
+    [
+     10,
+     4
+    ]
+   ],
+   "script": {
+    "lump": "M5MSKPAD",
+    "txt": "tests/reference/m5a_scripts/M5MSKPAD.txt",
+    "lmp": "tests/reference/m5a_scripts/M5MSKPAD.lmp",
+    "what": "stand facing the unpadded masked midtexture head-on",
+    "tics": 16,
+    "lmp_sha256": "706e1fe1d1a8738401b265c33e10d5080d370319ec2f891db34b7c3f24bc7816",
+    "views": [
+     11,
+     10,
+     9
+    ],
+    "must_show": [
+     {
+      "what": "the masked reads past the unpadded patch (tracker-flagged columns)",
+      "expr": "frame columns > 0",
+      "tic": {
+       "11": 0,
+       "10": 0,
+       "9": 0
+      }
+     }
+    ],
+    "c_end": {
+     "11": [
+      "marker",
+      16
+     ],
+     "10": [
+      "marker",
+      16
+     ],
+     "9": [
+      "marker",
+      16
+     ]
+    }
+   }
   }
  ]
 }

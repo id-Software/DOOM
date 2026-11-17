@@ -42,6 +42,8 @@ def scripts():
     manifest = json.loads((REFERENCE / 'm5a_manifest.json').read_text())
     for room in manifest['rooms']:
         wad = Path(room['file']).stem
+        if wad not in ROOMS:
+            continue  # rooms appended after the fuzz target's frozen 23-room list (byte 0 indexes WADS)
         out.append((WADS.index(wad), REFERENCE / 'm5a_scripts' / (room['script']['lump'] + '.lmp')))
     for name in ('m4b_manifest.json', 'm4b_manifest2.json'):
         for wad in json.loads((REFERENCE / name).read_text())['wads']:

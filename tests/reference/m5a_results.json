@@ -2,7 +2,7 @@
  "schema": "DOOM-M5A-RESULTS-v1",
  "runner_contract_sha256": "9d235ab3d9e34f6114eb10036e70d86495bf77ab718a4b8e11ae6a415181027b",
  "gfx_sha256": "63af963513fce04e9ca98e430971053938c0c378964eb9379c52690b1022f903",
- "manifest_sha256": "8aaf51308df94454d13057a89398d27787c6260a902ba2734676eb4150ec54ef",
+ "manifest_sha256": "be71031d4822433f5d4ce422d11f41d0cbd2d1de12d582a1d1f1db689e5f580d",
  "variants": [
   "strict",
   "overflow",
@@ -15,9 +15,9 @@
  ],
  "asan_options": "detect_leaks=0 (leak detection disabled; not LeakSanitizer coverage)",
  "frames_per_configuration": {
-  "11": 13191,
-  "10": 13191,
-  "9": 13203
+  "11": 13391,
+  "10": 13391,
+  "9": 13403
  },
  "items": {
   "M5PEG": {
@@ -2488,6 +2488,345 @@
      "must_show": {
       "the pistol fires at the GR switch (extralight)": 123,
       "the S1 door opens: the lines beyond it mapped": 118
+     }
+    }
+   }
+  },
+  "M5LAND": {
+   "kind": "room",
+   "wad": "tests/reference/m5a_wads/landing.wad",
+   "lmp_sha256": "c4f07bacae3f4be9b8a16ebeb5b01e3c569038bdf8cbce5b803b11f4bee134fd",
+   "dumps_never_sha256": "0582d79e106165dc2e5ba1934f9fe843258696f0a8042ef27c2b8d792486f178",
+   "never_equals_frozen_m4b_runner": true,
+   "views": {
+    "11": {
+     "frames": 144,
+     "flagged_frames": 0,
+     "flagged_columns": 0,
+     "whole_frames": 0,
+     "origins": [],
+     "mapped_lines": 21,
+     "max_visplanes": 8,
+     "max_drawsegs": 21,
+     "max_vissprites": 0,
+     "max_openings": 449,
+     "max_solidsegs_peak": 2,
+     "drawseg_drop_frames": 0,
+     "vissprite_drop_frames": 0,
+     "witness": null,
+     "error": null,
+     "end": "marker",
+     "end_tic": 144,
+     "frames_sha256": "a677dd10397e546e746b077954305e0c7f0fd8bacf021590484a96927b16d89c",
+     "view_sha256": "e02e197ba4d3ffa16506aa26e0ca125c45e8158609d0bbd9c7432110e93943f1",
+     "variant_endings": {
+      "strict": "marker",
+      "overflow": "marker",
+      "address": "marker"
+     },
+     "compared_through_tic": 143,
+     "variants_identical": true,
+     "dumps_equal_never_through_snapshot": 145,
+     "must_show": {
+      "the step-up dip recovering": 39,
+      "one tic in the air over the gap": 44,
+      "the gap landing at z == floorz kept deltaviewheight (4.0, then 4.25)": 45,
+      "in the air after the 8-unit walk-off": 62,
+      "in the air after the 24-unit walk-off": 77,
+      "in the air after the 32-unit walk-off": 91,
+      "no landing squats: momz -2, -4, -7 and -8 are not below -GRAVITY*8 (never)": null
+     }
+    },
+    "10": {
+     "frames": 144,
+     "flagged_frames": 0,
+     "flagged_columns": 0,
+     "whole_frames": 0,
+     "origins": [],
+     "mapped_lines": 21,
+     "max_visplanes": 8,
+     "max_drawsegs": 21,
+     "max_vissprites": 0,
+     "max_openings": 449,
+     "max_solidsegs_peak": 2,
+     "drawseg_drop_frames": 0,
+     "vissprite_drop_frames": 0,
+     "witness": null,
+     "error": null,
+     "end": "marker",
+     "end_tic": 144,
+     "frames_sha256": "738196bfb9b0e13badb53ff061ce448d6ef2622a1d8fcdae0ee4f8e5224a1a01",
+     "view_sha256": "e02e197ba4d3ffa16506aa26e0ca125c45e8158609d0bbd9c7432110e93943f1",
+     "variant_endings": {
+      "strict": "marker",
+      "overflow": "marker",
+      "address": "marker"
+     },
+     "compared_through_tic": 143,
+     "variants_identical": true,
+     "dumps_equal_never_through_snapshot": 145,
+     "must_show": {
+      "the step-up dip recovering": 39,
+      "one tic in the air over the gap": 44,
+      "the gap landing at z == floorz kept deltaviewheight (4.0, then 4.25)": 45,
+      "in the air after the 8-unit walk-off": 62,
+      "in the air after the 24-unit walk-off": 77,
+      "in the air after the 32-unit walk-off": 91,
+      "no landing squats: momz -2, -4, -7 and -8 are not below -GRAVITY*8 (never)": null
+     }
+    },
+    "9": {
+     "frames": 144,
+     "flagged_frames": 0,
+     "flagged_columns": 0,
+     "whole_frames": 0,
+     "origins": [],
+     "mapped_lines": 21,
+     "max_visplanes": 8,
+     "max_drawsegs": 21,
+     "max_vissprites": 0,
+     "max_openings": 403,
+     "max_solidsegs_peak": 2,
+     "drawseg_drop_frames": 0,
+     "vissprite_drop_frames": 0,
+     "witness": null,
+     "error": null,
+     "end": "marker",
+     "end_tic": 144,
+     "frames_sha256": "75af2e14299b4b600204730612d85a7ddec872bbd157495e6d0f2feb7e152c8b",
+     "view_sha256": "e02e197ba4d3ffa16506aa26e0ca125c45e8158609d0bbd9c7432110e93943f1",
+     "variant_endings": {
+      "strict": "marker",
+      "overflow": "marker",
+      "address": "marker"
+     },
+     "compared_through_tic": 143,
+     "variants_identical": true,
+     "dumps_equal_never_through_snapshot": 145,
+     "must_show": {
+      "the step-up dip recovering": 39,
+      "one tic in the air over the gap": 44,
+      "the gap landing at z == floorz kept deltaviewheight (4.0, then 4.25)": 45,
+      "in the air after the 8-unit walk-off": 62,
+      "in the air after the 24-unit walk-off": 77,
+      "in the air after the 32-unit walk-off": 91,
+      "no landing squats: momz -2, -4, -7 and -8 are not below -GRAVITY*8 (never)": null
+     }
+    }
+   }
+  },
+  "M5SEGANG": {
+   "kind": "room",
+   "wad": "tests/reference/m5a_wads/segangle.wad",
+   "lmp_sha256": "7ff07434ae577e485a6f3efd42e28ec2700e65bea7446db258789ff71fac2425",
+   "dumps_never_sha256": "d95a85ed7b898a643539e7af6097c57e8b32914c2a13a57bc108e835e0a18825",
+   "never_equals_frozen_m4b_runner": true,
+   "views": {
+    "11": {
+     "frames": 40,
+     "flagged_frames": 0,
+     "flagged_columns": 0,
+     "whole_frames": 0,
+     "origins": [],
+     "mapped_lines": 3,
+     "max_visplanes": 2,
+     "max_drawsegs": 3,
+     "max_vissprites": 0,
+     "max_openings": 0,
+     "max_solidsegs_peak": 2,
+     "drawseg_drop_frames": 0,
+     "vissprite_drop_frames": 0,
+     "witness": null,
+     "error": null,
+     "end": "marker",
+     "end_tic": 40,
+     "frames_sha256": "89055b7ccf9b25c2501353c58fa5958079147164c886855c4d1a80180136242d",
+     "view_sha256": "1504f63ff004437910482f351c7e10de5c32eca39b589f815c97cee95d8dab6c",
+     "variant_endings": {
+      "strict": "marker",
+      "overflow": "marker",
+      "address": "marker"
+     },
+     "compared_through_tic": 39,
+     "variants_identical": true,
+     "dumps_equal_never_through_snapshot": 41,
+     "must_show": {
+      "the wall with the disagreeing SEGS angle in view": 0
+     }
+    },
+    "10": {
+     "frames": 40,
+     "flagged_frames": 0,
+     "flagged_columns": 0,
+     "whole_frames": 0,
+     "origins": [],
+     "mapped_lines": 3,
+     "max_visplanes": 2,
+     "max_drawsegs": 3,
+     "max_vissprites": 0,
+     "max_openings": 0,
+     "max_solidsegs_peak": 2,
+     "drawseg_drop_frames": 0,
+     "vissprite_drop_frames": 0,
+     "witness": null,
+     "error": null,
+     "end": "marker",
+     "end_tic": 40,
+     "frames_sha256": "bbe06f1bbe52db7d873bcfdf4e1bb5c7dd637aa927c8e055f4d6413e87f0b973",
+     "view_sha256": "1504f63ff004437910482f351c7e10de5c32eca39b589f815c97cee95d8dab6c",
+     "variant_endings": {
+      "strict": "marker",
+      "overflow": "marker",
+      "address": "marker"
+     },
+     "compared_through_tic": 39,
+     "variants_identical": true,
+     "dumps_equal_never_through_snapshot": 41,
+     "must_show": {
+      "the wall with the disagreeing SEGS angle in view": 0
+     }
+    },
+    "9": {
+     "frames": 40,
+     "flagged_frames": 0,
+     "flagged_columns": 0,
+     "whole_frames": 0,
+     "origins": [],
+     "mapped_lines": 3,
+     "max_visplanes": 2,
+     "max_drawsegs": 3,
+     "max_vissprites": 0,
+     "max_openings": 0,
+     "max_solidsegs_peak": 2,
+     "drawseg_drop_frames": 0,
+     "vissprite_drop_frames": 0,
+     "witness": null,
+     "error": null,
+     "end": "marker",
+     "end_tic": 40,
+     "frames_sha256": "f90a9037fc449b71509a2a714540c8ea8df67b5944c0ff7571a12b317d8ff280",
+     "view_sha256": "1504f63ff004437910482f351c7e10de5c32eca39b589f815c97cee95d8dab6c",
+     "variant_endings": {
+      "strict": "marker",
+      "overflow": "marker",
+      "address": "marker"
+     },
+     "compared_through_tic": 39,
+     "variants_identical": true,
+     "dumps_equal_never_through_snapshot": 41,
+     "must_show": {
+      "the wall with the disagreeing SEGS angle in view": 0
+     }
+    }
+   }
+  },
+  "M5MSKPAD": {
+   "kind": "room",
+   "wad": "tests/reference/m5a_wads/maskpad.wad",
+   "lmp_sha256": "706e1fe1d1a8738401b265c33e10d5080d370319ec2f891db34b7c3f24bc7816",
+   "dumps_never_sha256": "ba79dbd6832638477e4bbe5562250e606bb469ce63adbf4f2685bf677b3d83a5",
+   "never_equals_frozen_m4b_runner": true,
+   "views": {
+    "11": {
+     "frames": 16,
+     "flagged_frames": 16,
+     "flagged_columns": 160,
+     "whole_frames": 0,
+     "origins": [
+      "T:M5W72"
+     ],
+     "mapped_lines": 5,
+     "max_visplanes": 2,
+     "max_drawsegs": 5,
+     "max_vissprites": 0,
+     "max_openings": 480,
+     "max_solidsegs_peak": 3,
+     "drawseg_drop_frames": 0,
+     "vissprite_drop_frames": 0,
+     "witness": null,
+     "error": null,
+     "end": "marker",
+     "end_tic": 16,
+     "frames_sha256": "9aa39c4041bd7dfa6adb3713c6494e3a6b0a100d5457358dd9d8603cd093f767",
+     "view_sha256": "9f413ef1d6e0f2dca0e1cdcf5d502b56117d32c5a524a5a8d8cadb3e352b3222",
+     "variant_endings": {
+      "strict": "marker",
+      "overflow": "marker",
+      "address": "marker"
+     },
+     "compared_through_tic": 15,
+     "variants_identical": true,
+     "dumps_equal_never_through_snapshot": 17,
+     "must_show": {
+      "the masked reads past the unpadded patch (tracker-flagged columns)": 0
+     }
+    },
+    "10": {
+     "frames": 16,
+     "flagged_frames": 16,
+     "flagged_columns": 160,
+     "whole_frames": 0,
+     "origins": [
+      "T:M5W72"
+     ],
+     "mapped_lines": 5,
+     "max_visplanes": 2,
+     "max_drawsegs": 5,
+     "max_vissprites": 0,
+     "max_openings": 480,
+     "max_solidsegs_peak": 3,
+     "drawseg_drop_frames": 0,
+     "vissprite_drop_frames": 0,
+     "witness": null,
+     "error": null,
+     "end": "marker",
+     "end_tic": 16,
+     "frames_sha256": "e22de781b71c5e9179db207ff835d0afee128a51e56a476911aed442f3f7cac8",
+     "view_sha256": "9f413ef1d6e0f2dca0e1cdcf5d502b56117d32c5a524a5a8d8cadb3e352b3222",
+     "variant_endings": {
+      "strict": "marker",
+      "overflow": "marker",
+      "address": "marker"
+     },
+     "compared_through_tic": 15,
+     "variants_identical": true,
+     "dumps_equal_never_through_snapshot": 17,
+     "must_show": {
+      "the masked reads past the unpadded patch (tracker-flagged columns)": 0
+     }
+    },
+    "9": {
+     "frames": 16,
+     "flagged_frames": 16,
+     "flagged_columns": 144,
+     "whole_frames": 0,
+     "origins": [
+      "T:M5W72"
+     ],
+     "mapped_lines": 5,
+     "max_visplanes": 2,
+     "max_drawsegs": 5,
+     "max_vissprites": 0,
+     "max_openings": 432,
+     "max_solidsegs_peak": 3,
+     "drawseg_drop_frames": 0,
+     "vissprite_drop_frames": 0,
+     "witness": null,
+     "error": null,
+     "end": "marker",
+     "end_tic": 16,
+     "frames_sha256": "5f51c77f8fb0a799b15fabd040f9e156b80256fe721eddc8fa6ad07c72620185",
+     "view_sha256": "9f413ef1d6e0f2dca0e1cdcf5d502b56117d32c5a524a5a8d8cadb3e352b3222",
+     "variant_endings": {
+      "strict": "marker",
+      "overflow": "marker",
+      "address": "marker"
+     },
+     "compared_through_tic": 15,
+     "variants_identical": true,
+     "dumps_equal_never_through_snapshot": 17,
+     "must_show": {
+      "the masked reads past the unpadded patch (tracker-flagged columns)": 0
      }
     }
    }

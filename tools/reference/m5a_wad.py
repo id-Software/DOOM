@@ -61,6 +61,21 @@ byte-identical):
               shot twice while its button runs (p_switch.c:201-262, 455-459, 592-595;
               p_spec.c:988-991)
 
+Appended after the independent review of the mutation survivors (after the twenty-three rooms above, so their WADs,
+scripts and manifest entries stay byte-identical):
+
+    landing   a step-up, then one tic over a 48-unit gap back to the step's height: the player lands with
+              z == floorz and momz != 0, because P_TryMove raises floorz (p_map.c:492) before P_ZMovement runs in
+              the same P_MobjThinker (p_mobj.c:416-431), so the smooth-step test `z < floorz` (p_mobj.c:252) is
+              false while the step-up recovery is still under way; then walk-offs of 8, 24 and 32 units, which land
+              at momz -4, -7 and exactly -8 units per tic, none of them below -GRAVITY*8 (p_mobj.c:299-307)
+    segangle  a wall whose SEGS angle (0) disagrees with its vertices (it runs west): with its v1 due south of the
+              viewer, rw_normalangle - rw_angle1 == ANG180 exactly (p_setup.c:181, r_bsp.c:267-277), so rw_offset
+              keeps its sign (r_segs.c:632-633)
+    maskpad   the unpadded M5W72 as a masked midtexture 16 units in front of the viewer, seen head-on at the exact
+              scales 10.0 and 9.0: the top row of each post reads texel 127 (`&127` of a slightly negative frac,
+              r_draw.c:105-148), past the end of the patch lump in its last column (decision R4)
+
 The grid painter, the builder chain and the lump framing are the frozen generators' (m4b_wad.Plan,
 m4a_wad, m3h9b_geometry.room; imported read-only); contrast and dsegs give the builder explicit
 rings (non-axis walls; a subdivided wall). Line styles (textures, offsets, ML_DONTPEG* flags) and
@@ -114,6 +129,7 @@ class Room(B.Plan):
         super().__init__(name)
         self.wall, self.upper, self.lower = wall, upper, lower
         self.styles, self.reject, self.rings_override = [], [], None
+        self.seg_angles = []
 
     def sector(self, label, rects, fpic='M5FLAT1', cpic='M5FLAT2', **kw):
         """Plan.sector; the builder chain accepts only its own flat names, so it gets placeholders and the
@@ -134,6 +150,11 @@ class Room(B.Plan):
 
     def hide(self, a, b):
         self.reject.append((a, b))
+
+    def seg_angle(self, v1, v2, angle):
+        """Store `angle` (the SEGS field, BAM >> 16) in the one seg from vertex v1 to v2 after fix_segs, so that the
+        seg's stored angle disagrees with its vertices (the renderer reads it, p_setup.c:181; nothing checks it)."""
+        self.seg_angles.append((v1, v2, angle))
 
 
 def build(room):
@@ -221,6 +242,14 @@ def apply_styles(room, m):
         sec[26 * k + 4:26 * k + 20] = X.name8(s['flats'][0]) + X.name8(s['flats'][1])
     m['lumps']['SECTORS'] = bytes(sec)
     fix_segs(m)
+    if room.seg_angles:
+        seg, vb = bytearray(m['lumps']['SEGS']), m['lumps']['VERTEXES']
+        V = [struct.unpack_from('<hh', vb, 4 * i) for i in range(len(vb) // 4)]
+        for v1, v2, angle in room.seg_angles:
+            at = [k for k in range(len(seg) // 12) if (V[struct.unpack_from('<h', seg, 12 * k)[0]], V[struct.unpack_from('<h', seg, 12 * k + 2)[0]]) == (v1, v2)]
+            assert len(at) == 1, (v1, v2, at)
+            struct.pack_into('<h', seg, 12 * at[0] + 4, angle)
+        m['lumps']['SEGS'] = bytes(seg)
     n = len(room.sectors)
     rej = bytearray((n * n + 7) // 8)
     for x, y in room.reject:
@@ -508,10 +537,46 @@ def switch():
     return p
 
 
+def landing():
+    p = Room('landing', wall='M5WALLA')
+    p.sector('HALL', [(-512, -64, 0, 64)], ceil=128, light=176, fpic='M5FLAT1', cpic='M5FLAT2')
+    p.sector('STEP', [(0, -64, 32, 64)], floor=24, ceil=128, light=176, fpic='M5FLAT3', cpic='M5FLAT2')
+    p.sector('GAP', [(32, -64, 80, 64)], floor=-64, ceil=128, light=176, fpic='M5FLAT5', cpic='M5FLAT2')
+    p.sector('LEDGE', [(80, -64, 336, 64)], floor=24, ceil=128, light=176, fpic='M5FLAT3', cpic='M5FLAT2')
+    p.sector('DROP8', [(336, -64, 592, 64)], floor=16, ceil=128, light=176, fpic='M5FLAT4', cpic='M5FLAT2')
+    p.sector('DROP24', [(592, -64, 848, 64)], floor=-8, ceil=128, light=176, fpic='M5FLAT6', cpic='M5FLAT2')
+    p.sector('DROP32', [(848, -64, 1360, 64)], floor=-40, ceil=128, light=176, fpic='M5FLAT7', cpic='M5FLAT2')
+    p.thing(-448, 0, EAST, PLAYER1)
+    return p
+
+
+def segangle():
+    p = Room('segangle', wall='M5WALLA')
+    p.sector('WEST', [(-128, -48, 0, 128)], ceil=128, light=176, fpic='M5FLAT1', cpic='M5FLAT2')
+    p.sector('EAST', [(0, -48, 128, 128)], ceil=128, light=176, fpic='M5FLAT1', cpic='M5FLAT2')
+    p.style(0, None, at=(-64, -48), s0=dict(mid='M5WALLA', x=13))
+    p.seg_angle((0, -48), (-128, -48), 0)            # runs west (fix_segs: -32768); stored as east
+    p.thing(0, 4, SOUTH, PLAYER1)                     # v1 (0, -48) due south, 52 units away
+    return p
+
+
+def maskpad():
+    p = Room('maskpad', wall='M5WALLE')
+    north = p.sector('NORTH', [(-128, 0, 128, 128)], ceil=128, light=176, fpic='M5FLAT1', cpic='M5FLAT2')
+    sw = p.sector('SW', [(-128, -128, 0, 0)], ceil=128, light=176, fpic='M5FLAT1', cpic='M5FLAT2')
+    p.sector('SE', [(0, -128, 128, 0)], ceil=128, light=176, fpic='M5FLAT1', cpic='M5FLAT2')
+    fence = dict(mid='M5W72', x=56, y=-32)            # pegged to the floor: its top 1 unit below the eye
+    p.style(north, sw, flags=ML_DONTPEGBOTTOM, s0=fence)
+    p.style(sw, north, flags=ML_DONTPEGBOTTOM, s1=fence)
+    p.thing(0, 16, SOUTH, PLAYER1)                    # the fence's v1 (0, 0) due south, 16 units away
+    return p
+
+
 ROOMS = {'peg': peg, 'mask': mask, 'planes': planes, 'sky': sky, 'light': light, 'contrast': contrast, 'dist': dist,
          'sprites': sprites, 'clip': clip, 'weapon': weapon, 'fuzz': fuzz, 'amp': amp, 'hom': hom, 'short': short,
          'view': view, 'vplanes': vplanes, 'dsegs': dsegs, 'vsprites': vsprites, 'openings': openings,
-         'solidsegs': solidsegs, 'ampflick': ampflick, 'viewz': viewz, 'switch': switch}
+         'solidsegs': solidsegs, 'ampflick': ampflick, 'viewz': viewz, 'switch': switch, 'landing': landing,
+         'segangle': segangle, 'maskpad': maskpad}
 
 # Scripts (tools/reference/m4b_scripts.py format; turn is the angleturn high byte, 256 per full turn).
 SCRIPTS = {
@@ -551,6 +616,11 @@ SCRIPTS = {
                'switch twice', ['idle 2', 'cmd 1 0 0 0 USE', 'idle 9', 'cmd 1 0 0 0 USE', 'idle 45', 'cmd 1 0 0 -64 0',
                                 'cmd 1 0 0 0 USE', 'idle 45', 'cmd 2 0 0 64 0', 'cmd 1 0 0 0 USE', 'idle 10', 'cmd 1 0 0 64 0',
                                 'cmd 1 0 0 0 ATTACK', 'idle 22', 'cmd 1 0 0 0 ATTACK', 'idle 70']),
+    'landing': ('M5LAND', 'run east up a step, over a one-tic gap, then off ledges of 8, 24 and 32 units',
+                ['idle 4', 'cmd 100 50 0 0 0', 'idle 40']),
+    'segangle': ('M5SEGANG', 'stand facing the wall whose stored angle disagrees with its vertices, turn a little',
+                 ['idle 8', 'cmd 24 0 0 1 0', 'idle 8']),
+    'maskpad': ('M5MSKPAD', 'stand facing the unpadded masked midtexture head-on', ['idle 16']),
 }
 
 
@@ -585,12 +655,21 @@ MUST_SHOW = {
               ('the hard landing reaches the VIEWHEIGHT/2 clamp', 'view viewheight == 1343488 from 98'),
               ('the death descent at 6 units', 'view viewheight == 393216')],
     'switch': [('the pistol fires at the GR switch (extralight)', 'view extralight > 0'), ('the S1 door opens: the lines beyond it mapped', 'frame mapped >= 25')],
+    'landing': [('the step-up dip recovering', 'view deltaviewheight > 0'), ('one tic in the air over the gap', 'view onground == 0'),
+                ('the gap landing at z == floorz kept deltaviewheight (4.0, then 4.25)', 'view deltaviewheight == 278528'),
+                ('in the air after the 8-unit walk-off', 'view onground == 0 from 50'),
+                ('in the air after the 24-unit walk-off', 'view onground == 0 from 70'),
+                ('in the air after the 32-unit walk-off', 'view onground == 0 from 85'),
+                ('no landing squats: momz -2, -4, -7 and -8 are not below -GRAVITY*8 (never)', 'view deltaviewheight < 0')],
+    'segangle': [('the wall with the disagreeing SEGS angle in view', 'frame drawsegs >= 2')],
+    'maskpad': [('the masked reads past the unpadded patch (tracker-flagged columns)', 'frame columns > 0')],
 }
 PNG = {'peg': [(10, 40), (10, 200)], 'mask': [(10, 60)], 'planes': [(10, 60)], 'sky': [(11, 100)], 'light': [(10, 60)],
        'contrast': [(10, 50)], 'dist': [(10, 120)], 'sprites': [(11, 0), (11, 100)], 'clip': [(10, 60)], 'weapon': [(10, 150), (10, 330)],
        'fuzz': [(10, 30), (10, 120)], 'amp': [(10, 60)], 'hom': [(10, 60)], 'short': [(10, 8)], 'view': [(9, 20), (10, 20), (11, 20)],
        'vplanes': [(10, 40)], 'dsegs': [(10, 60)], 'vsprites': [(10, 60)], 'openings': [(10, 30)], 'solidsegs': [(10, 12)],
-       'ampflick': [(10, 60), (10, 4096)], 'viewz': [(10, 100), (10, 450)], 'switch': [(10, 13), (10, 130)]}
+       'ampflick': [(10, 60), (10, 4096)], 'viewz': [(10, 100), (10, 450)], 'switch': [(10, 13), (10, 130)],
+       'landing': [(10, 44)], 'segangle': [(10, 4)], 'maskpad': [(10, 4)]}
 
 
 def framing():

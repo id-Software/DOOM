@@ -811,7 +811,8 @@ mod tests {
         // against the other, so a seg whose stored angle disagrees with its vertices reaches
         // `rw_normalangle - rw_angle1 == ANG180` on a front-facing seg (for example a seg stored
         // with angle 0 that runs west with its v1 due south of the viewer). `rw_angle1` is forced
-        // here to the value such a seg gives.
+        // here to the value such a seg gives; the M5SEGANG room reaches the same case through the
+        // public API, against its genuine goldens.
         use crate::r_main::{
             ANG90, ANGLETOFINESHIFT, FrameView, finesine, fixed_mul, point_to_dist,
         };
@@ -869,8 +870,9 @@ mod tests {
         // starts within 127 bytes of its patch lump's end reads outside the lump there: undefined
         // (decision R4; Resources::lump_source), and the pixel's taint is `texnum + 1`. The
         // label is never 0 for a masked midtexture (`texnum` is not 0 there), so the frame
-        // comparison sees only that the column is flagged; the label itself is part of the
-        // render state (`DRST`), which this test pins.
+        // comparison sees only that the column is flagged (the M5MSKPAD room reaches such reads
+        // through the public API, and its flagged columns equal the genuine tracker's); the label
+        // itself is part of the render state (`DRST`), which this test pins.
         use super::Clip;
         use crate::r_data::MaskedPosts;
         use crate::r_main::FrameView;
