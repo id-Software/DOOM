@@ -211,7 +211,7 @@ impl FrameContext<'_> {
 mod tests {
     use super::*;
     use crate::r_data::Resources;
-    use crate::test_support::with_ctx;
+    use crate::test_support::{with_ctx, with_ctx_res};
 
     fn column<'a>(x: i32, yl: i32, yh: i32, texels: &'a [u8]) -> ColumnDraw<'a> {
         ColumnDraw {
@@ -365,5 +365,72 @@ mod tests {
                 Err(RenderRefusal::RangeCheck("R_DrawSpan outside the view"))
             );
         });
+    }
+
+    #[test]
+    fn draw_fuzz_column_refuses_either_end_outside_the_view_window() {
+        // Decision R3 (as for `draw_column`): inside the 320x200 screen but outside the 288x144
+        // window of screenblocks 9, the bottom row alone (rows 10 to 144) is refused as well as
+        // a column or top row alone, and the last window row and column are drawn. The fuzz
+        // read of the row above or below is inside the window for every clamped column
+        // (r_draw.c:293-298 keeps `yl >= 1` and `yh <= viewheight - 2`).
+        let outside = Err(RenderRefusal::RangeCheck(
+            "R_DrawFuzzColumn outside the view",
+        ));
+        with_ctx(9, |ctx| {
+            assert_eq!(
+                ctx.draw_fuzz_column(10, 10, 144, Feature::Untouched),
+                outside
+            );
+            assert_eq!(
+                ctx.draw_fuzz_column(10, 150, 160, Feature::Untouched),
+                outside
+            );
+            assert_eq!(
+                ctx.draw_fuzz_column(288, 10, 20, Feature::Untouched),
+                outside
+            );
+            assert_eq!(
+                ctx.draw_fuzz_column(10, 10, 143, Feature::Untouched),
+                Ok(())
+            );
+        });
+    }
+
+    #[test]
+    fn a_short_flat_taints_its_span_with_the_flat_lump_number() {
+        // A flat lump shorter than 4,096 bytes is read past its end by the genuine `R_DrawSpan`
+        // (r_draw.c:545-558, a 64x64 flat): the pixels carry the origin `0x8000_0000 | lump
+        // number` (decision R4); a full flat leaves them defined (0).
+        with_ctx_res(
+            11,
+            |res| {
+                let mut dir = crate::r_data::LumpDirectory::new();
+                for i in 0..res.directory().len() {
+                    let name = *res.directory().name(i).unwrap();
+                    let mut data = res.directory().data(i).unwrap().to_vec();
+                    if i == res.firstflat + 2 {
+                        data.truncate(100);
+                    }
+                    dir.add_single_lump(&crate::r_data::name_text(&name), &data)
+                        .unwrap();
+                }
+                res.dir = dir;
+            },
+            |ctx| {
+                let lump = (ctx.res.firstflat + 2) as u32;
+                assert_eq!(ctx.res.flat(2).len(), 100);
+                for (flat, want) in [(2, lump | 0x8000_0000), (1, 0)] {
+                    ctx.taint.fill(9);
+                    let mut sp = span(30, 40, 43);
+                    sp.flat = flat;
+                    assert_eq!(ctx.draw_span(&sp), Ok(()));
+                    for x in 40..=43 {
+                        assert_eq!(ctx.taint[30 * 320 + x], want, "flat {flat} x {x}");
+                    }
+                    assert_eq!(ctx.taint[30 * 320 + 44], 9, "only the span is written");
+                }
+            },
+        );
     }
 }

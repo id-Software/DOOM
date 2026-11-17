@@ -540,4 +540,135 @@ mod tests {
             assert!((a + b).abs() <= 1, "sin(x + pi) = -sin(x) at {i}: {a} {b}");
         }
     }
+
+    #[test]
+    fn finetangent_ends_at_4095() {
+        // `finetangent[4096]` (tables.c:67): an index of 4096 would read `finesine[0]`.
+        assert_eq!(finetangent(4095), Some(170910304));
+        assert_eq!(finetangent(4096), None);
+        assert_eq!(finetangent(-1), None);
+    }
+
+    #[test]
+    fn fixed_div_overflow_follows_the_signs_of_the_operands() {
+        // FixedDiv (m_fixed.c:57-66): `if ((abs(a)>>14) >= abs(b)) return (a^b) < 0 ? MININT :
+        // MAXINT;` (in the strict build abs(INT_MIN) stays INT_MIN, so `a` = INT_MIN overflows
+        // like a large value).
+        let max = Ok(i32::MAX);
+        let min = Ok(i32::MIN);
+        assert_eq!(fixed_div(1 << 30, 1), max);
+        assert_eq!(
+            fixed_div(-(1 << 30), -1),
+            max,
+            "both negative: xor is positive"
+        );
+        assert_eq!(fixed_div(1 << 30, -1), min);
+        assert_eq!(fixed_div(-(1 << 30), 1), min);
+        // a == b == 0: 0 >= 0 overflows, and the xor of equal values is 0, not negative.
+        assert_eq!(fixed_div(0, 0), max);
+        assert_eq!(fixed_div(5, 0), max);
+        assert_eq!(fixed_div(-5, 0), min);
+        // No overflow: 1/2 = 0.5.
+        assert_eq!(fixed_div(1 << 16, 2 << 16), Ok(1 << 15));
+        assert_eq!(fixed_div(-(1 << 16), 2 << 16), Ok(-(1 << 15)));
+    }
+
+    #[test]
+    fn slope_div_follows_tables_c() {
+        // SlopeDiv (tables.c:50-62): `if (den < 512) return SLOPERANGE; ans = (num<<3)/(den>>8);
+        // if (ans <= SLOPERANGE) return ans; return SLOPERANGE;` with SLOPERANGE 2048.
+        assert_eq!(slope_div(1, 0), 2048);
+        assert_eq!(slope_div(7, 100), 2048);
+        assert_eq!(slope_div(0, 511), 2048);
+        assert_eq!(slope_div(1, 512), 4, "den == 512 is divided: 8 / 2");
+        assert_eq!(slope_div(100, 1 << 16), 3);
+        assert_eq!(slope_div(256, 512), 1024);
+        assert_eq!(slope_div(257, 512), 1028);
+        assert_eq!(slope_div(1000, 512), 2048, "clamped to SLOPERANGE");
+        assert_eq!(slope_div(u32::MAX >> 3, 512), 2048);
+    }
+
+    /// `R_PointOnSide` transliterated from r_main.c:160-210 (the source's `int` arithmetic,
+    /// wrapping as the strict build does).
+    fn point_on_side_c(x: i32, y: i32, node: [i32; 4]) -> usize {
+        let [nx, ny, ndx, ndy] = node;
+        if ndx == 0 {
+            if x <= nx {
+                return usize::from(ndy > 0);
+            }
+            return usize::from(ndy < 0);
+        }
+        if ndy == 0 {
+            if y <= ny {
+                return usize::from(ndx < 0);
+            }
+            return usize::from(ndx > 0);
+        }
+        let dx = x.wrapping_sub(nx);
+        let dy = y.wrapping_sub(ny);
+        if (ndy ^ ndx ^ dx ^ dy) as u32 & 0x8000_0000 != 0 {
+            if (ndy ^ dx) as u32 & 0x8000_0000 != 0 {
+                return 1;
+            }
+            return 0;
+        }
+        let left = fixed_mul(ndy >> 16, dx);
+        let right = fixed_mul(dy, ndx >> 16);
+        if right < left {
+            return 0;
+        }
+        1
+    }
+
+    #[test]
+    fn point_on_side_matches_the_c_on_every_sign_and_tie_combination() {
+        // The C function is `R_PointOnSide`: the axis-aligned shortcuts (including the zero
+        // partition), the sign-bit shortcut, then the cross-product comparison. The grid holds
+        // every extreme, sign, zero and tie of the 16.16 operands (11 x 11 x 9 x 9 x 11 x 11 combinations).
+        let v = [
+            i32::MIN,
+            -(3 << 16),
+            -(1 << 16) - 1,
+            -(1 << 16),
+            -1,
+            0,
+            1,
+            1 << 16,
+            (1 << 16) + 1,
+            3 << 16,
+            i32::MAX,
+        ];
+        let w = [
+            i32::MIN,
+            -(2 << 16),
+            -(1 << 16),
+            -1,
+            0,
+            1,
+            1 << 16,
+            2 << 16,
+            i32::MAX,
+        ];
+        let mut seen = [0usize; 2];
+        for &x in &v {
+            for &y in &v {
+                for &nx in &w {
+                    for &ny in &w {
+                        for &ndx in &v {
+                            for &ndy in &v {
+                                let node = [nx, ny, ndx, ndy];
+                                let want = point_on_side_c(x, y, node);
+                                seen[want] += 1;
+                                assert_eq!(point_on_side(x, y, node), want, "{x} {y} {node:?}");
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        assert!(
+            seen[0] > 1000 && seen[1] > 1000,
+            "both sides occur: {seen:?}"
+        );
+    }
 }

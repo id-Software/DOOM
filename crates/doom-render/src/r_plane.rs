@@ -468,4 +468,53 @@ mod tests {
             },
         );
     }
+
+    #[test]
+    fn a_new_visplane_starts_empty_and_equal_planes_are_shared() {
+        // R_FindPlane (r_plane.c:217-259): a new plane has `minx = SCREENWIDTH`, `maxx = -1`
+        // (r_plane.c:253-254); a plane with the same height, picture and light is reused, and
+        // every sky plane maps to height 0 and light 0 (r_plane.c:224-228).
+        with_ctx(11, |ctx| {
+            let a = ctx.find_plane(64 << 16, 3, 100).unwrap();
+            assert_eq!(a, 0);
+            assert_eq!(
+                (ctx.planes.visplanes[a].minx, ctx.planes.visplanes[a].maxx),
+                (320, -1)
+            );
+            assert_eq!(ctx.find_plane(64 << 16, 3, 100).unwrap(), a);
+            assert_eq!(ctx.find_plane(65 << 16, 3, 100).unwrap(), 1);
+            assert_eq!(ctx.find_plane(64 << 16, 2, 100).unwrap(), 2);
+            assert_eq!(ctx.find_plane(64 << 16, 3, 101).unwrap(), 3);
+            let sky = ctx.res.skyflatnum.expect("sky flat");
+            let s = ctx.find_plane(99 << 16, sky, 77).unwrap();
+            assert_eq!(ctx.planes.visplanes[s].height, 0);
+            assert_eq!(ctx.planes.visplanes[s].lightlevel, 0);
+            assert_eq!(ctx.find_plane(-5 << 16, sky, 5).unwrap(), s);
+        });
+    }
+
+    #[test]
+    fn map_plane_refuses_each_bad_span_with_its_own_check() {
+        // R_MapPlane's RANGECHECK (r_plane.c:131-139): `x2 < x1 || x1 < 0 || x2 >= viewwidth ||
+        // y > viewheight` is an I_Error, each alone; a row equal to `viewheight` passes that
+        // permissive test and then reads `yslope[viewheight]`, outside the view (the Rust
+        // renderer's own refusal, decision R3). Screenblocks 9: viewwidth 288, viewheight 144.
+        with_ctx(9, |ctx| {
+            let (w, h) = (ctx.view.viewwidth, ctx.view.viewheight);
+            assert_eq!((w, h), (288, 144));
+            let range = Err(RenderRefusal::RangeCheck("R_MapPlane"));
+            let slope = Err(RenderRefusal::RangeCheck("R_MapPlane (yslope)"));
+            assert_eq!(ctx.map_plane(10, 20, 10), range, "x2 < x1");
+            assert_eq!(ctx.map_plane(10, -1, 10), range, "x1 < 0");
+            assert_eq!(ctx.map_plane(10, 20, w), range, "x2 >= viewwidth");
+            assert_eq!(ctx.map_plane(h + 1, 20, 30), range, "y > viewheight");
+            assert_eq!(ctx.map_plane(-1, 20, 30), range, "y negative");
+            assert_eq!(ctx.map_plane(h, 20, 30), slope, "y == viewheight");
+            assert_eq!(
+                ctx.map_plane(200, 20, 30),
+                range,
+                "y == SCREENHEIGHT is above viewheight"
+            );
+        });
+    }
 }

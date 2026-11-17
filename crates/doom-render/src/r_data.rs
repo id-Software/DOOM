@@ -1524,4 +1524,198 @@ mod tests {
         let res = Resources::load(d, GameMode::Registered).unwrap();
         assert_eq!(res.skyflatnum, None);
     }
+
+    #[test]
+    fn the_lump_directory_reports_its_lumps() {
+        // `numlumps` and the lump bytes by number (w_wad.c).
+        let mut d = LumpDirectory::new();
+        assert!(d.is_empty());
+        assert_eq!(d.len(), 0);
+        assert_eq!(d.data(0), None);
+        d.add_single_lump("FIRST", &[1, 2]).unwrap();
+        d.add_single_lump("SECOND", &[3]).unwrap();
+        assert!(!d.is_empty());
+        assert_eq!(d.len(), 2);
+        assert_eq!(d.data(0), Some(&[1u8, 2][..]));
+        assert_eq!(d.data(1), Some(&[3u8][..]));
+        assert_eq!(d.data(2), None);
+    }
+
+    #[test]
+    fn resource_errors_display_their_variant() {
+        assert_eq!(
+            ResourceError::TooManyLumps.to_string(),
+            "renderer resources: TooManyLumps"
+        );
+    }
+
+    #[test]
+    fn a_flat_name_must_name_a_lump_inside_the_flat_range() {
+        // R_FlatNumForName (r_data.c:680-692) is `W_GetNumForName(name) - firstflat`; the refusal
+        // is for a lump outside F_START..F_END: the F_END marker itself (the lump after the
+        // last flat) is outside it.
+        let mut d = LumpDirectory::new();
+        for (n, len) in [
+            ("BEFORE", 4096),
+            ("F_START", 0),
+            ("A", 4096),
+            ("B", 4096),
+            ("F_END", 0),
+            ("AFTER", 4096),
+        ] {
+            d.add_single_lump(n, &vec![0; len]).unwrap();
+        }
+        let res = Resources {
+            dir: d,
+            colormaps: vec![],
+            palette: None,
+            textures: vec![],
+            firstflat: 2,
+            numflats: 2,
+            firstspritelump: 0,
+            sprite_lumps: vec![],
+            sprites: vec![],
+            switchlist: vec![],
+            anims: vec![],
+            skytexture: 0,
+            skyflatnum: None,
+        };
+        assert_eq!(res.flat_num_for_name(b"A"), Ok(0));
+        assert_eq!(res.flat_num_for_name(b"B"), Ok(1));
+        for n in [&b"F_END"[..], b"AFTER", b"BEFORE", b"F_START"] {
+            assert!(
+                matches!(
+                    res.flat_num_for_name(n),
+                    Err(ResourceError::FlatOutOfRange(_))
+                ),
+                "{n:?}"
+            );
+        }
+        assert!(matches!(
+            res.flat_num_for_name(b"NOPE"),
+            Err(ResourceError::FlatNotFound(_))
+        ));
+    }
+
+    #[test]
+    fn a_composite_texture_may_fill_exactly_64k() {
+        // R_GenerateLookup (r_data.c:365-371): `if (texturecompositesize[texnum] > 0x10000 -
+        // texture->height) I_Error("R_GenerateLookup: texture %i is >64k")`, checked before each
+        // multi-patch column adds its height. 128-high columns: the 512th column starts at
+        // 511 x 128 = 0x10000 - 128, which is allowed; a 513th starts at 0x10000 and is not.
+        let ok = |w: i16| {
+            let p = ("P", patch(w, 128));
+            lookup("WALL", w, 128, &[(0, 0, 0), (0, 0, 0)], &[p])
+        };
+        let t = ok(512).expect("512 columns of 128 rows fill the 64 KiB exactly");
+        assert_eq!(t[0].compositesize, 0x10000);
+        assert_eq!(ok(513).err(), Some(ResourceError::CompositeTooLarge(0)));
+    }
+
+    // ---- R_DrawColumnInCache (r_data.c:152-185) on hand-made patch columns.
+
+    /// A post column: (topdelta, data) posts, each `topdelta, length, pad, data, pad`, then 0xff.
+    fn posts(list: &[(u8, &[u8])]) -> Vec<u8> {
+        let mut o = Vec::new();
+        for (top, data) in list {
+            o.extend([*top, data.len() as u8, 0]);
+            o.extend(*data);
+            o.push(0);
+        }
+        o.push(0xff);
+        o
+    }
+
+    /// The block (length 16, base 4) and `defined` after drawing `patch` at `originy` into a
+    /// cache of `height` rows.
+    fn cache(patch: &[u8], column: i32, originy: i32, height: i32) -> (Vec<u8>, Vec<bool>) {
+        let mut block = vec![0u8; 16];
+        let mut defined = vec![false; 16];
+        draw_column_in_cache(patch, column, &mut block, &mut defined, 4, originy, height);
+        (block, defined)
+    }
+
+    #[test]
+    fn posts_are_copied_at_originy_plus_topdelta_and_clipped_to_the_cache() {
+        // `position = originy + patch->topdelta; if (position < 0) { count += position;
+        // position = 0; } if (position + count > cacheheight) count = cacheheight - position;
+        // if (count > 0) memcpy (cache + position, source, count);` The copy starts at the
+        // post's first byte even when the front was clipped.
+        let patch = posts(&[(2, &[10, 11, 12])]);
+        let rows = |(b, d): (Vec<u8>, Vec<bool>)| -> Vec<(u8, bool)> {
+            b.into_iter().zip(d).skip(4).take(8).collect()
+        };
+        let cell = |v: u8| (v, v != 0);
+        // Plain: rows 2-4.
+        assert_eq!(
+            rows(cache(&patch, 0, 0, 8)),
+            [0, 0, 10, 11, 12, 0, 0, 0].map(cell)
+        );
+        // Shifted down one row by originy.
+        assert_eq!(
+            rows(cache(&patch, 0, 1, 8)),
+            [0, 0, 0, 10, 11, 12, 0, 0].map(cell)
+        );
+        // Shifted above the top: position -1 keeps count 3 - 1 = 2 bytes, copied from source[0];
+        // position -2 keeps one.
+        assert_eq!(
+            rows(cache(&patch, 0, -3, 8)),
+            [10, 11, 0, 0, 0, 0, 0, 0].map(cell)
+        );
+        assert_eq!(
+            rows(cache(&patch, 0, -4, 8)),
+            [10, 0, 0, 0, 0, 0, 0, 0].map(cell)
+        );
+        // Clipped at the bottom: rows 6-7 of an 8-row cache only (the block holds more rows,
+        // which stay untouched).
+        let low = posts(&[(6, &[1, 2, 3, 4])]);
+        assert_eq!(
+            rows(cache(&low, 0, 0, 8)),
+            [0, 0, 0, 0, 0, 0, 1, 2].map(cell)
+        );
+        // A post wholly past the bottom or above the top copies nothing.
+        assert_eq!(rows(cache(&low, 0, 8, 8)), [0; 8].map(cell));
+        assert_eq!(rows(cache(&low, 0, -20, 8)), [0; 8].map(cell));
+    }
+
+    #[test]
+    fn the_next_post_follows_the_length_plus_four() {
+        // `patch = (column_t *)((byte *)patch + patch->length + 4)`: header, data, one pad byte.
+        let patch = posts(&[(0, &[1, 2]), (4, &[3, 4, 5]), (9, &[6])]);
+        let (b, d) = cache(&patch, 0, 0, 12);
+        assert_eq!(&b[4..16], &[1, 2, 0, 0, 3, 4, 5, 0, 0, 6, 0, 0]);
+        assert_eq!(
+            &d[4..16],
+            &[
+                true, true, false, false, true, true, true, false, false, true, false, false
+            ]
+        );
+        // Starting from the middle of the lump: a column offset past the first post.
+        let (b, _) = cache(&patch, 6, 0, 12);
+        assert_eq!(&b[4..16], &[0, 0, 0, 0, 3, 4, 5, 0, 0, 6, 0, 0]);
+    }
+
+    #[test]
+    fn a_column_running_off_the_lump_leaves_the_whole_column_undefined() {
+        // The genuine walk reads zone memory past the lump; the renderer marks every row of
+        // the column undefined (`poison`), including rows an earlier post of it wrote.
+        let mut patch = posts(&[(0, &[1, 2])]);
+        patch.pop(); // no terminator
+        let mut block = vec![7u8; 16];
+        let mut defined = vec![true; 16];
+        draw_column_in_cache(&patch, 0, &mut block, &mut defined, 4, 0, 8);
+        assert_eq!(
+            &defined[..4],
+            &[true; 4],
+            "rows before the column are not its own"
+        );
+        assert_eq!(&defined[4..12], &[false; 8]);
+        assert_eq!(&defined[12..], &[true; 4]);
+        // An offset outside the lump (or negative) is the same.
+        for column in [100, -1] {
+            let mut defined = vec![true; 16];
+            draw_column_in_cache(&patch, column, &mut block, &mut defined, 4, 0, 8);
+            assert_eq!(&defined[4..12], &[false; 8], "column {column}");
+        }
+    }
 }

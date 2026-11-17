@@ -793,4 +793,385 @@ mod tests {
             },
         );
     }
+
+    // ---- R_ClipSolidWallSegment / R_ClipPassWallSegment (r_bsp.c:103-238) against a
+    // transliteration of the C on random call sequences.
+
+    /// The C `solidsegs` list with its two sentinels, and the ranges handed to
+    /// `R_StoreWallRange`, for `R_ClipSolidWallSegment` (r_bsp.c:103-185).
+    struct Oracle {
+        solid: Vec<(i32, i32)>,
+        newend: usize,
+        stored: Vec<(i32, i32)>,
+    }
+
+    impl Oracle {
+        /// The list as `R_ClearClipSegs` leaves it: two sentinels, and the stale entries of
+        /// earlier frames behind them (the C reads `solidsegs[newend]` when it crunches).
+        fn new(viewwidth: i32, stale: &[super::ClipRange]) -> Self {
+            let mut solid: Vec<(i32, i32)> = stale.iter().map(|r| (r.first, r.last)).collect();
+            solid[0] = (-0x7fff_ffff, -1);
+            solid[1] = (viewwidth, 0x7fff_ffff);
+            Oracle {
+                solid,
+                newend: 2,
+                stored: Vec::new(),
+            }
+        }
+
+        fn solid_wall(&mut self, first: i32, last: i32) {
+            let mut start = 0;
+            while self.solid[start].1 < first - 1 {
+                start += 1;
+            }
+            if first < self.solid[start].0 {
+                if last < self.solid[start].0 - 1 {
+                    self.stored.push((first, last));
+                    let mut next = self.newend;
+                    self.newend += 1;
+                    while next != start {
+                        self.solid[next] = self.solid[next - 1];
+                        next -= 1;
+                    }
+                    self.solid[next] = (first, last);
+                    return;
+                }
+                self.stored.push((first, self.solid[start].0 - 1));
+                self.solid[start].0 = first;
+            }
+            if last <= self.solid[start].1 {
+                return;
+            }
+            let mut next = start;
+            let mut crunch = false;
+            while last >= self.solid[next + 1].0 - 1 {
+                self.stored
+                    .push((self.solid[next].1 + 1, self.solid[next + 1].0 - 1));
+                next += 1;
+                if last <= self.solid[next].1 {
+                    self.solid[start].1 = self.solid[next].1;
+                    crunch = true;
+                    break;
+                }
+            }
+            if !crunch {
+                self.stored.push((self.solid[next].1 + 1, last));
+                self.solid[start].1 = last;
+            }
+            if next == start {
+                return;
+            }
+            loop {
+                let was = next;
+                next += 1;
+                if was == self.newend {
+                    break;
+                }
+                start += 1;
+                self.solid[start] = self.solid[next];
+            }
+            self.newend = start + 1;
+        }
+
+        fn pass_wall(&mut self, first: i32, last: i32) {
+            let mut start = 0;
+            while self.solid[start].1 < first - 1 {
+                start += 1;
+            }
+            if first < self.solid[start].0 {
+                if last < self.solid[start].0 - 1 {
+                    self.stored.push((first, last));
+                    return;
+                }
+                self.stored.push((first, self.solid[start].0 - 1));
+            }
+            if last <= self.solid[start].1 {
+                return;
+            }
+            while last >= self.solid[start + 1].0 - 1 {
+                self.stored
+                    .push((self.solid[start].1 + 1, self.solid[start + 1].0 - 1));
+                start += 1;
+                if last <= self.solid[start].1 {
+                    return;
+                }
+            }
+            self.stored.push((self.solid[start].1 + 1, last));
+        }
+    }
+
+    #[test]
+    fn the_clip_lists_follow_the_c_on_random_wall_sequences() {
+        // Both clippers decide, for a range of columns, which parts are still visible
+        // (`R_StoreWallRange`) and how the occluded-column list grows, splits and merges. The
+        // ranges are random columns of the room's north-west wall (columns 0-119 from the start),
+        // every call kind and every adjacency (touching, overlapping, one column, contained).
+        with_room(
+            "hom.wad",
+            11,
+            |_| {},
+            |ctx| {
+                let viewwidth = ctx.view.viewwidth;
+                let mut state = 0x2545_f491u32;
+                let mut rnd = move |n: u32| {
+                    state ^= state << 13;
+                    state ^= state >> 17;
+                    state ^= state << 5;
+                    (state >> 8) % n
+                };
+                for sequence in 0..400 {
+                    ctx.frame = FrameView::setup(0, 0, ANG90, 0, 41 << 16, 0);
+                    ctx.clear_clip_segs();
+                    ctx.clear_planes().expect("planes");
+                    let seg = ctx
+                        .level
+                        .geometry
+                        .segs
+                        .iter()
+                        .position(|s| s.linedef == 0)
+                        .expect("the wall's seg");
+                    ctx.bsp.curline = seg;
+                    ctx.bsp.frontsector = 0;
+                    let angle1 = crate::r_main::point_to_angle(
+                        ctx.level.geometry.segs[seg].v1[0],
+                        ctx.level.geometry.segs[seg].v1[1],
+                        0,
+                        0,
+                    );
+                    ctx.segs.rw_angle1 = angle1 as i32;
+                    let front = ctx.sectors[0];
+                    ctx.planes.floorplane = Some(
+                        ctx.find_plane(front.floorheight, front.floorpic, front.lightlevel)
+                            .unwrap(),
+                    );
+                    ctx.planes.ceilingplane = Some(
+                        ctx.find_plane(front.ceilingheight, front.ceilingpic, front.lightlevel)
+                            .unwrap(),
+                    );
+                    let mut oracle = Oracle::new(viewwidth, &ctx.bsp.solidsegs);
+                    let calls = 3 + rnd(6);
+                    for call in 0..calls {
+                        let first =
+                            rnd(60) as i32 + if sequence % 2 == 0 { 0 } else { rnd(40) as i32 };
+                        let last = first + rnd(if sequence % 3 == 0 { 3 } else { 40 }) as i32;
+                        let solid = rnd(3) != 0;
+                        if solid {
+                            oracle.solid_wall(first, last);
+                            ctx.clip_solid_wall_segment(first, last).expect("clip");
+                        } else {
+                            oracle.pass_wall(first, last);
+                            ctx.clip_pass_wall_segment(first, last).expect("clip");
+                        }
+                        let stored: Vec<(i32, i32)> =
+                            ctx.bsp.drawsegs.iter().map(|d| (d.x1, d.x2)).collect();
+                        assert_eq!(
+                            stored, oracle.stored,
+                            "sequence {sequence} call {call}: ({first}, {last}) solid {solid}"
+                        );
+                        assert_eq!(
+                            ctx.bsp.newend, oracle.newend,
+                            "sequence {sequence} call {call}"
+                        );
+                        for k in 0..oracle.newend {
+                            let r = ctx.bsp.solidsegs[k];
+                            assert_eq!(
+                                (r.first, r.last),
+                                oracle.solid[k],
+                                "solidsegs[{k}] after sequence {sequence} call {call}"
+                            );
+                        }
+                    }
+                }
+            },
+        );
+    }
+
+    // ---- R_CheckBBox (r_bsp.c:381-487) against a transliteration of the C.
+
+    /// `checkcoord` (r_bsp.c:365-378); the two `{0}` rows are never used (`boxpos` 3 and 7
+    /// cannot occur).
+    const CHECKCOORD: [[usize; 4]; 12] = [
+        [3, 0, 2, 1],
+        [3, 0, 2, 0],
+        [3, 1, 2, 0],
+        [0, 0, 0, 0],
+        [2, 0, 2, 1],
+        [0, 0, 0, 0],
+        [3, 1, 3, 0],
+        [0, 0, 0, 0],
+        [2, 0, 3, 1],
+        [2, 1, 3, 1],
+        [2, 1, 3, 0],
+        [0, 0, 0, 0],
+    ];
+
+    fn check_bbox_c(ctx: &FrameContext<'_>, bspcoord: [i32; 4], solid: &[(i32, i32)]) -> bool {
+        use crate::r_main::{ANG180, point_to_angle};
+        let (viewx, viewy, viewangle) = (ctx.frame.viewx, ctx.frame.viewy, ctx.frame.viewangle);
+        // BOXTOP 0, BOXBOTTOM 1, BOXLEFT 2, BOXRIGHT 3.
+        let boxx = if viewx <= bspcoord[2] {
+            0
+        } else if viewx < bspcoord[3] {
+            1
+        } else {
+            2
+        };
+        let boxy = if viewy >= bspcoord[0] {
+            0
+        } else if viewy > bspcoord[1] {
+            1
+        } else {
+            2
+        };
+        let boxpos = (boxy << 2) + boxx;
+        if boxpos == 5 {
+            return true;
+        }
+        let c = CHECKCOORD[boxpos];
+        let (x1, y1, x2, y2) = (
+            bspcoord[c[0]],
+            bspcoord[c[1]],
+            bspcoord[c[2]],
+            bspcoord[c[3]],
+        );
+        let mut angle1 = point_to_angle(x1, y1, viewx, viewy).wrapping_sub(viewangle);
+        let mut angle2 = point_to_angle(x2, y2, viewx, viewy).wrapping_sub(viewangle);
+        let span = angle1.wrapping_sub(angle2);
+        if span >= ANG180 {
+            return true;
+        }
+        let clipangle = ctx.view.clipangle;
+        let mut tspan = angle1.wrapping_add(clipangle);
+        if tspan > clipangle.wrapping_mul(2) {
+            tspan = tspan.wrapping_sub(clipangle.wrapping_mul(2));
+            if tspan >= span {
+                return false;
+            }
+            angle1 = clipangle;
+        }
+        tspan = clipangle.wrapping_sub(angle2);
+        if tspan > clipangle.wrapping_mul(2) {
+            tspan = tspan.wrapping_sub(clipangle.wrapping_mul(2));
+            if tspan >= span {
+                return false;
+            }
+            angle2 = clipangle.wrapping_neg();
+        }
+        let a1 = (angle1.wrapping_add(ANG90) >> 19) as usize;
+        let a2 = (angle2.wrapping_add(ANG90) >> 19) as usize;
+        let sx1 = ctx.view.viewangletox[a1];
+        let mut sx2 = ctx.view.viewangletox[a2];
+        if sx1 == sx2 {
+            return false;
+        }
+        sx2 -= 1;
+        let mut start = 0;
+        while solid[start].1 < sx2 {
+            start += 1;
+        }
+        !(sx1 >= solid[start].0 && sx2 <= solid[start].1)
+    }
+
+    #[test]
+    fn check_bbox_matches_the_c_for_boxes_on_every_side_and_tie() {
+        // The box's nine positions relative to the viewer (including exactly on an edge, which
+        // the `<=`, `<`, `>=`, `>` pairs of r_bsp.c:400-412 separate), the edge-angle clipping,
+        // and the lookup in a random occluded-column list. Boxes and viewpoints lie on a
+        // 64-unit grid and the viewer faces a multiple of 45 degrees, so ties are common.
+        with_room(
+            "hom.wad",
+            11,
+            |_| {},
+            |ctx| {
+                let mut state = 0x9e37_79b9u32;
+                let mut rnd = move |n: u32| {
+                    state ^= state << 13;
+                    state ^= state >> 17;
+                    state ^= state << 5;
+                    (state >> 8) % n
+                };
+                let grid = |r: &mut dyn FnMut(u32) -> u32| (r(9) as i32 - 4) * 64;
+                let mut results = [0usize; 2];
+                for case in 0..20_000 {
+                    let (a, b) = (grid(&mut rnd), grid(&mut rnd));
+                    let (c, d) = (grid(&mut rnd), grid(&mut rnd));
+                    let (top, bottom) = (a.max(b), a.min(b));
+                    let (left, right) = (c.min(d), c.max(d));
+                    let bbox = [top << 16, bottom << 16, left << 16, right << 16];
+                    let angle = rnd(8) * 0x2000_0000;
+                    ctx.frame = FrameView::setup(
+                        grid(&mut rnd) << 16,
+                        grid(&mut rnd) << 16,
+                        angle,
+                        0,
+                        0,
+                        0,
+                    );
+                    // A random occluded list: up to five ranges between the sentinels.
+                    ctx.clear_clip_segs();
+                    let mut list = vec![(-0x7fff_ffff, -1)];
+                    let mut at = 0;
+                    for _ in 0..rnd(5) {
+                        at += rnd(60) as i32;
+                        let first = at;
+                        at += rnd(50) as i32 + 1;
+                        list.push((first, at));
+                        at += 2;
+                    }
+                    list.push((ctx.view.viewwidth, 0x7fff_ffff));
+                    for (k, r) in list.iter().enumerate() {
+                        ctx.bsp.solidsegs[k] = super::ClipRange {
+                            first: r.0,
+                            last: r.1,
+                        };
+                    }
+                    let want = check_bbox_c(ctx, bbox, &list);
+                    results[usize::from(want)] += 1;
+                    assert_eq!(
+                        ctx.check_bbox(bbox),
+                        Ok(want),
+                        "case {case}: {bbox:?} {list:?}"
+                    );
+                }
+                assert!(results[0] > 500 && results[1] > 500, "{results:?}");
+            },
+        );
+    }
+
+    #[test]
+    fn a_floor_or_ceiling_exactly_at_the_eye_makes_no_plane() {
+        // R_Subsector (r_bsp.c:516-533): `if (frontsector->floorheight < viewz)` makes a floor
+        // plane and `if (frontsector->ceilingheight > viewz || frontsector->ceilingpic ==
+        // skyflatnum)` a ceiling plane: at the eye's height neither (the plane would be seen
+        // edge-on).
+        with_room(
+            "hom.wad",
+            11,
+            |_| {},
+            |ctx| {
+                let sub = ctx
+                    .level
+                    .geometry
+                    .subsectors
+                    .iter()
+                    .position(|s| s.sector == 0)
+                    .expect("a subsector of the room");
+                let planes = |ctx: &mut FrameContext<'_>, floor: i32, ceiling: i32| {
+                    ctx.sectors[0].floorheight = floor << 16;
+                    ctx.sectors[0].ceilingheight = ceiling << 16;
+                    ctx.frame = FrameView::setup(0, 0, ANG90, 0, 41 << 16, 0);
+                    ctx.clear_clip_segs();
+                    ctx.clear_planes().expect("planes");
+                    ctx.subsector(sub).expect("subsector");
+                    (
+                        ctx.planes.floorplane.is_some(),
+                        ctx.planes.ceilingplane.is_some(),
+                    )
+                };
+                assert_eq!(planes(ctx, 40, 42), (true, true));
+                assert_eq!(planes(ctx, 41, 41), (false, false));
+                assert_eq!(planes(ctx, 42, 40), (false, false));
+            },
+        );
+    }
 }

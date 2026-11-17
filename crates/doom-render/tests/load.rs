@@ -173,3 +173,39 @@ fn scrolling_lines_move_their_front_side_one_unit_a_tic() {
         6 * 65536
     );
 }
+
+#[test]
+fn the_colormap_lump_needs_exactly_thirty_three_maps() {
+    // R_InitColormaps reads `W_GetNumForName("COLORMAP")` and the renderer reads maps 0-32
+    // (32 light maps and the inverse map, investigation §2.3.6): 33 x 256 bytes are enough,
+    // one byte fewer are not.
+    let gfx_bytes = std::fs::read(reference("m5a_gfx.wad")).expect("graphics WAD");
+    let gfx = doom_wad::Wad::parse(&gfx_bytes, doom_wad::Limits::default()).expect("gfx");
+    let gfx_lumps: Vec<([u8; 8], Vec<u8>)> = gfx
+        .lumps()
+        .iter()
+        .map(|l| (*l.name().as_bytes(), gfx_bytes[l.range()].to_vec()))
+        .collect();
+    let room = pwad(&room_lumps());
+    let room = doom_wad::Wad::parse(&room, doom_wad::Limits::default()).expect("room");
+    let with_maps = |len: usize| {
+        let mut lumps = gfx_lumps.clone();
+        let colormap = lump_mut(&mut lumps, "COLORMAP");
+        colormap.resize(len, 0);
+        let bytes = pwad(&lumps);
+        let wad = doom_wad::Wad::parse(&bytes, doom_wad::Limits::default()).expect("variant");
+        let mut dir = LumpDirectory::new();
+        dir.add_wad(&room).expect("room directory");
+        dir.add_wad(&wad).expect("graphics directory");
+        Resources::load(dir, GameMode::Registered).map(|r| r.colormaps.len())
+    };
+    assert_eq!(with_maps(33 * 256), Ok(33 * 256));
+    assert_eq!(
+        with_maps(33 * 256 - 1).err(),
+        Some(ResourceError::LumpTooShort {
+            name: "COLORMAP".into(),
+            needed: 33 * 256,
+            length: 33 * 256 - 1
+        })
+    );
+}
