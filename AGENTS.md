@@ -126,6 +126,10 @@
 - Long sessions: use fresh subagents per step, never two writers on one tree, and never
   leave background jobs running across the end of a reply. Run the C reference suite with
   at most 2 parallel jobs on the owner's machine.
+- Waiting on a process: wait on its PID (`wait PID`, or
+  `while kill -0 PID 2>/dev/null; do sleep N; done`), never `pgrep -f PATTERN`, which
+  matches its own command line and never exits. Every wait loop must have a timeout. An
+  agent that finishes must leave no shell running.
 - Unattended rule: continue past an investigation phase only if every new decision has a
   clear recommendation consistent with prior owner decisions and admits no silent
   divergence; otherwise stop, commit, push and report.
