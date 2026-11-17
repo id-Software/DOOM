@@ -527,8 +527,14 @@ monster/player behavior. Further stages require separate owner direction.
     menus, palette flashes, window, input, sound, low detail, a modern renderer.
   - **M5b (playable: window, input, status bar, HUD messages, palette flashes and the real-time loop on
     the wire-24 simulation and the M5a renderer).** Phase 1, the investigation, is done (2026-11-17); owner
-    decisions S1–S23 are open, and Phase 2 starts after the owner's rulings; see the
+    decisions S1–S23 were confirmed by the owner on 2026-11-17, and Phase 2 is in progress; see the
     [investigation note](M5B_REFERENCE_INVESTIGATION.md#4-owner-decisions-s1s23-with-recommendations).
+  - **M5c (proposed; not started, owner-approved items only).** Two items so far. (1) Close the status bar
+    face's idle glance gap (S15): model the `M_Random` draws of sound starts and of the level-start wipe so
+    that the idle face's left, ahead or right glance matches a vanilla session with sound; until then, frames
+    are identical to the genuine engine only under the declared sound-free, wipe-free contract. (2) The
+    full-resolution unrecorded turning mode (S3 (ii), labelled "not recorded: no demo, cannot be replayed"):
+    the first item of M5c if the M5b size cap does not allow it in M5b.
 - **Simulation follow-up (proposed, pending the owner): model the THING-loading truncation under a new
   wire.** `P_LoadThings` ends the whole THINGS loop at the first Doom II type (doomednums 64-69, 71, 84,
   88, 89) when `gamemode != commercial` (p_setup.c:317-337); wires 12-24 spawn such a type-65 THING and
