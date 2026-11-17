@@ -4,7 +4,7 @@ Phase 1 note for milestone M5b, which makes the game playable in a limited way: 
 
 The behavioural authority is the original id Software Linux DOOM 1.10 at `a77dfb96cb91780ca334d0d4cfd86957558007e0`. Milestone status lives in [ROADMAP](ROADMAP.md), support in [COMPATIBILITY](COMPATIBILITY.md), schemas in [STATE_FORMAT](STATE_FORMAT.md) and commands in [TESTING](TESTING.md) (see the [documentation authority map](README.md#documentation-authority)). Observations of this milestone will be in `docs/validation/M5B.md`, which Phase 2 creates. This note records only counts, pass/fail facts and digests from runs against the IWAD: no lump content, no IWAD-derived names, sizes, coordinates or geometry. All dates are America/Los_Angeles.
 
-**Status / next step (2026-11-17 13:43 PST).** Phase 1 is complete (`689e09d`); the owner's rulings on S1–S23 are recorded ([§4 Owner rulings](#owner-rulings-2026-11-17)). **Phase 2 step 1 is done (this commit):** the synthetic status bar, face and font graphics (`tools/reference/m5b_gfx.py`, checked by `m5b_check_gfx.py`), eleven new rooms and scripts (`m5b_wad.py`; ten wire-24 rooms and the bespoke cheat scenario of S1), the genuine full-frame runner (`m5b_driver.c`, `m5b_stubs.c`, `m5b_build.py`, contract `DOOM-M5B-RUNNER-v1`) and `m5b_reference.py` with C-only goldens for 59 items at screenblocks 10 and 11 (21,176 frames per configuration; frames identical to the genuine engine under the declared sound-free, wipe-free contract). Step 2 is still in progress in the detached worktree `~/scratch/m5b/wt-input` (its head was `4012ad4` at 13:43; not integrated). Next: integrate the worktree's work by cherry-pick when the main tree is quiet, then steps 3 and 4 ([§5.1](#51-steps)). No pull request yet. Failing checks: none known (the new tools' `--check` and `--selftest`, the M5a tools' `--check` and `tools/check_docs.py` passed before this commit; TESTING, COMPATIBILITY, the README and CI do not list the new tools yet: steps 9 and 10). Scratch, all outside the repository and to be deleted at the end of the milestone: `~/scratch/m5b/proto-frames`, `proto-input`, `deps`, `phase1`, `iwad` (a scratch IWAD copy), `step1`, the probe directories `probe-input`, `probe-loop`, `probe-rust` and `probe-st`, and the worktree `wt-input`. To resume: `git checkout feat/m5b-playable && git pull --ff-only origin feat/m5b-playable`, `git worktree list`, then `python3 tools/reference/m5b_reference.py --work ~/scratch/m5b/step1/ref --check --pngs --selftest --jobs 6` and §5.1. `/mnt/c` free: 47 GB (`df -h /mnt/c`).
+**Status / next step (2026-11-17 13:58 PST).** Phase 1 is complete (`689e09d`); the owner's rulings on S1–S23 are recorded ([§4 Owner rulings](#owner-rulings-2026-11-17)). **Phase 2 steps 1, 2 and 4 are done** ([§5.1](#51-steps)): step 1 `de4f136` (the synthetic graphics, eleven new rooms, the genuine full-frame runner and C-only goldens for 59 items at screenblocks 10 and 11), step 2 `6e59a0d` (the genuine input driver, 251 scripts and their C-only goldens) and step 4 `dfc8533` (the `doom-game` input core and the app event layer); steps 2 and 4 were made in the worktree and brought over by cherry-pick. In progress: step 3 (the Rust status bar, HUD, palette choice, frame composition and saved display state in `doom-render`) in this tree, and step 6 (the app) in the detached worktree `~/scratch/m5b/wt-input`, based on the original step 4 commit `4012ad4`, whose commits are brought over by cherry-pick. Next: step 5 (real maps), then join step 6 and switch its frame source to the new `Display`. Draft pull request #62 is open. Failing checks: none known. Corrections found so far are in [§2.7](#27-corrections-found-in-phase-2). Scratch, all outside the repository and to be deleted at the end of the milestone: `~/scratch/m5b/proto-frames`, `proto-input`, `deps`, `phase1`, `iwad` (a scratch IWAD copy), `step1`, `step3`, the probe directories `probe-input`, `probe-loop`, `probe-rust` and `probe-st`, and the worktree `wt-input`. To resume: `git checkout feat/m5b-playable && git pull --ff-only origin feat/m5b-playable`, `git worktree list`, then `python3 tools/reference/m5b_reference.py --work ~/scratch/m5b/step1/ref --check --jobs 6`, `python3 tools/reference/m5b_input_reference.py --check` and `cargo test -p doom-game`, then §5.1. `/mnt/c` free: 47 GB (`df -h /mnt/c`).
 
 ## Summary
 
@@ -4273,6 +4273,45 @@ Each finding is taken up in §4: FH1 in S15; FH2 in S8; FH3 in S23; FH4 in S16; 
   only and were not reviewed against i_sound.c beyond `I_SoundIsPlaying`; they affect channel
   bookkeeping only, which comes after the draws (s_sound.c:348-355).
 - No timing or CI duration was measured.
+
+### 2.7 Corrections found in Phase 2
+
+Each item was checked against the C source and the committed goldens.
+
+- **Faces.** 40 of 42 faces are reachable under wire 24, not 41. The ouch face at pain level 4
+  (index 37 = 4 × `ST_FACESTRIDE` + `ST_OUCHOFFSET`, st_stuff.c:96-114) needs
+  `plyr->health - st_oldhealth > ST_MUCHPAIN` (20) with a health of 19 or less (st_stuff.c:735-741,
+  807, 860). That cannot happen: `st_oldhealth` is never below -1 (st_stuff.c:994, 1268) and a
+  player's health never below 0 (p_inter.c:870-872). The god face (index 40, `ST_GODFACE`, st_stuff.c:114) appears
+  only in the bespoke cheat scenario, so the C goldens show 41 of 42 faces (`coverage` in
+  `tests/reference/m5b_results.json`). S23 said 41 under wire 24.
+- **Message code 6 (`GOTMEDINEED`) is unreachable.** A medikit is taken only by a living player
+  (p_inter.c:363) whose health is below 100 (p_inter.c:233-234), and it adds 25 (p_inter.c:477), so
+  the `player->health < 25` test (p_inter.c:480) is always false.
+- **The radiation-suit palette condition** is `powers[pw_ironfeet] > 4*32 || powers[pw_ironfeet] & 8`
+  (st_stuff.c:1039-1040): bit 3, not bit 8.
+- **A space advances 4 pixels** (hu_lib.c:125-128). The synthetic font's letters are therefore 10
+  wide, so that a reachable message (the blue and yellow locked-door strings) reaches the
+  `x + w > SCREENWIDTH` cut-off of `HUlib_drawTextLine` (hu_lib.c:120); see `tools/reference/m5b_gfx.py`.
+- **The new rooms** total 7,785 tics (the note estimated about 10,000), and the goldens in
+  `tests/reference/m5b_frames` are 5.1 MB.
+- **Input (step 2).**
+  - Typing `iddqd` one key per tic while recording ends the demo, because `q` is still held
+    when the next `G_Ticker` writes the command (g_game.c:1508-1509).
+  - A built turn of +32640 or +32760, at the positive edge of a short, executes as -32768 after the
+    demo re-read: `(angleturn+128)>>8` is written as the byte 0x80 (g_game.c:1512) and read back as
+    `0x80<<8` (g_game.c:1501). This is beyond the app's clamp (`beyond_app_mouse_short_edge`).
+  - A second press lasting only 2 tics after a 2-tic gap gives no double-click use
+    (`dclick_fwd_inside`): the release that ends the first press restarts `dclicktime` at 0, and a
+    transition registers only while `dclicktime > 1` (g_game.c:355, 366, 370).
+  - `G_DoLoadLevel` leaves the double-click state as it was (g_game.c:489-496 clear only the keys,
+    the mouse motion and the buttons).
+  - The script set is 251 scripts and 36,453 tics (the note estimated more scripts for the
+    double-click sweep).
+- **Input (step 4).** The Rust event layer applies the S6 same-pump deferral to mouse buttons as
+  well as keys, posts a mouse event only when there is motion or a button change, and `load_level`
+  clears only `mousebuttons[0]`, as the declared 32-bit `sizeof` adapter of the genuine input driver
+  does (g_game.c:187, 495).
 
 ## 3. Rust design
 
