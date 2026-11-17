@@ -431,6 +431,37 @@ jobs:
         if: env.DOCS_ONLY == 'true'
         run: echo "documentation-only change, so the build, test, evidence and example steps were skipped and the documentation check ran"
 
+  m5a-renderer:
+    # M5a step 6 (decision R15): the genuine linuxdoom-1.10 renderer, compiled whole by the M5a
+    # runner, against the committed synthetic goldens (Linux only, as M4b's genuine runs). The
+    # Rust renderer's frame, view-shadow, switch and rewind tests run in the Stable job on all
+    # three operating systems as part of `cargo test --workspace`. Not a required check name.
+    name: M5a genuine renderer
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    needs: changes
+    if: ${{ !cancelled() }}
+    env:
+      DOCS_ONLY: ${{ needs.changes.outputs.docs_only }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - name: M5a graphics PWAD, rooms, scripts, runner contract and renderer tables
+        if: env.DOCS_ONLY != 'true'
+        run: |
+          python3 tools/reference/m5a_gfx.py --check
+          python3 tools/reference/m5a_check_gfx.py
+          python3 tools/reference/m5a_wad.py --check
+          python3 tools/reference/m5a_build.py --check
+          python3 tools/reference/m5a_tables.py --check
+      - name: Genuine renderer runs of every room and M4b script (strict, overflow and address variants identical), goldens, PNGs and self-test
+        if: env.DOCS_ONLY != 'true'
+        run: ASAN_OPTIONS=detect_leaks=0 python3 tools/reference/m5a_reference.py --check --pngs --selftest --jobs 4 --work "$RUNNER_TEMP/m5a"
+      - name: Documentation-only fast path
+        if: env.DOCS_ONLY == 'true'
+        run: echo "documentation-only change, so the genuine renderer runs were skipped"
+
   simulation-ir:
     # M4p decision P6: an instruction-count regression guard for Simulation::advance.
     # Callgrind counts, not time: the pinned toolchain keeps codegen fixed, and the

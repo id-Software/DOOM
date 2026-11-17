@@ -67,6 +67,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "doom-render"
+version = "0.1.0"
+dependencies = [
+ "doom-map",
+ "doom-sim",
+ "doom-test-evidence",
+ "doom-types",
+ "doom-wad",
+ "serde_json",
+]
+
+[[package]]
 name = "doom-sim"
 version = "0.1.0"
 dependencies = [

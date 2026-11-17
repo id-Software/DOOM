@@ -510,9 +510,28 @@ monster/player behavior. Further stages require separate owner direction.
   kinds belong to M4a).
 - **M4 — Demo compatibility:** version-specific playback and divergence diagnostics;
   keep DOS and Linux behavior claims separate.
-- **M5 — Rendering and platform integration:** presentation/input/audio and a
-  custom Vulkan-first rendering direction across supported platforms. Presentation
-  must not change authoritative simulation or RNG; no renderer exists yet.
+- **M5 — Rendering and platform integration:** presentation/input/audio, with a
+  custom Vulkan-first rendering direction across supported platforms as a future
+  direction, not a commitment. Presentation must not change authoritative
+  simulation or RNG.
+  - **M5a (faithful software renderer; draft [PR #61](https://github.com/Copgunn/DOOM/pull/61)).**
+    Phase 2 is implemented: the `doom-render` crate draws `R_RenderPlayerView`'s 3D view at high
+    detail (screenblocks 9-11) and matches linuxdoom-1.10 on every synthetic frame in CI and on every
+    frame of the scripted real Episode 1 runs (local-only); a local GIF viewer, a CI job for the
+    genuine renderer, unit and contract tests and two fuzz targets are in. Owner decisions R1-R16 were
+    confirmed 2026-11-15. Mutation testing (with an independent review of its dispositions), the
+    independent code review, fuzz campaigns and timings are recorded. Pending: the final gates from clean
+    and the owner's review; see the [investigation note](M5A_REFERENCE_INVESTIGATION.md) status
+    line, [support](COMPATIBILITY.md#software-renderer-m5a) and the
+    [evidence record](validation/M5A.md). Not part of M5a (M5b and later): status bar, HUD, automap,
+    menus, palette flashes, window, input, sound, low detail, a modern renderer.
+- **Simulation follow-up (proposed, pending the owner): model the THING-loading truncation under a new
+  wire.** `P_LoadThings` ends the whole THINGS loop at the first Doom II type (doomednums 64-69, 71, 84,
+  88, 89) when `gamemode != commercial` (p_setup.c:317-337); wires 12-24 spawn such a type-65 THING and
+  everything after it. A new wire would stop loading at the first such THING in registered and shareware
+  mode, with a synthetic map and genuine-engine evidence. Today's gap is recorded in
+  [COMPATIBILITY](COMPATIBILITY.md#known-gap-thing-loading-stops-at-the-first-doom-ii-type-outside-commercial-mode);
+  no Episode 1 map is affected.
 - Multiplayer and later experiments, after their source/game-context dependencies
   can be independently validated.
 

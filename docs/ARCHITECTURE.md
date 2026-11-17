@@ -14,6 +14,7 @@ terms such as profile, fixture and admission.
 | [`doom-wad`](../crates/doom-wad/src/lib.rs) | Bounded WAD directory/resource access without assuming assets are executable |
 | [`doom-map`](../crates/doom-map/src/lib.rs) | Validated classic map records, BSP, REJECT and source BLOCKMAP data |
 | [`doom-sim`](../crates/doom-sim/src/lib.rs) | Headless deterministic gameplay profiles, actors, collision and canonical diagnostics |
+| [`doom-render`](../crates/doom-render/src/lib.rs) | The faithful software renderer for the 3D view (M5a); reads a simulation, never writes it ([below](#software-renderer-m5a)) |
 
 The preserved [original source](../linuxdoom-1.10/) is behavioral reference, not a
 runtime dependency. The Rust workspace forbids unsafe code and global mutable game
@@ -246,9 +247,41 @@ new-instance operation, retaining RNG and rebuilding through the validated const
 
 ## Rendering direction
 
-A custom Vulkan-first presentation architecture is planned. No renderer or
-Vulkan/wgpu runtime is implemented in this milestone. Future presentation must
-consume simulation results without changing time, ordering or RNG.
+A custom Vulkan-first presentation architecture remains a future direction (see
+[ROADMAP](ROADMAP.md)); no Vulkan or wgpu runtime exists. What exists is the faithful
+software renderer below. Any presentation must consume simulation results without
+changing time, ordering or RNG.
+
+### Software renderer (M5a)
+
+`doom-render` depends on `doom-types`, `doom-wad`, `doom-map` and `doom-sim`; nothing
+depends on it, so the simulation cannot reach presentation code. It reads the simulation
+only through its public `&self` API and `Simulation::snapshot()` (the runtime floors,
+line specials and button slots the simulation keeps only in its canonical snapshot), so
+`doom-sim` was not edited for it. A test compares a run with and without rendering tic by tic.
+
+- **Shape.** `Renderer::begin_level` at tic 0, then after every committed
+  `Simulation::advance` call `observe` and `render` into a `Frame` (320x200 palette
+  indices). Resources (`r_data::Resources`) come from the caller's lump list with the
+  original's lookup semantics. `RenderConfig` selects screenblocks 9-11 at high detail;
+  everything else is a typed `RenderRefusal`, which leaves state unchanged.
+- **`RenderState` and `DRST`.** What the original renderer carries between tics and the
+  simulation does not keep (the view shadow that re-derives `viewz`, the switch tracker,
+  the mapped-line set, `fuzzpos`, the r_segs.c wall-step globals, the persistent framebuffer
+  and the undefined-read taint)
+  lives in one self-contained value that serializes as [`DRST`](STATE_FORMAT.md#render-state-drst-version-2-m5a),
+  separate from DSIM. Saved next to a DSIM snapshot, it lets a rewind render any tic directly.
+- **Layout.** One module per C file, named for it: `r_main`, `r_bsp`, `r_segs`, `r_plane`,
+  `r_sky`, `r_things`, `r_draw`, `r_data` and `p_spec` (the switch list and scrolling-wall offset, from p_spec.c and p_switch.c), plus
+  `tables` (generated from `tables.c` and checked), `view` (the view shadow), `state`, and
+  hand-written `png` and `gif` writers. Renderer arithmetic wraps as the original's does
+  (a presentation-only exception to the simulation's checked arithmetic).
+- **Harness and tools.** The genuine renderer is compiled whole into a separate runner
+  (`tools/reference/m5a_*`) that dumps a frame stream; goldens and PNGs for the synthetic rooms
+  are committed, and `tests/frames.rs` compares the Rust frames in CI. The real-map comparison
+  (`tools/local/m5a_real.py`), the GIF viewer example and two fuzz targets are developer tools,
+  not part of the library. See [support](COMPATIBILITY.md#software-renderer-m5a) and
+  [commands](TESTING.md#m5a-synthetic-renderer-rooms).
 
 For detailed historical design constraints see the complete
 [pre-M3d3j architecture](validation/archive/pre-m3d3j-architecture.md).

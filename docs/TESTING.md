@@ -1942,6 +1942,222 @@ the digests are recorded.
 - `level_compare_m4b.py` is `level_compare.py`'s method over the DSIM40 projection. It is a new
   tool, because `level_compare.py` is frozen and has no DSIM40 profile.
 
+## README animations
+
+The simulation recording is described under [M4b mechanism WADs](#m4b-synthetic-mechanism-wads). The renderer
+animation (`docs/media/m5a-renderer-side-by-side.gif`) is generated the same way, never captured:
+
+```sh
+python3 tools/media/m5a_readme_visual.py [--work DIR] [--cargo-target DIR] [--check]   # --work defaults to ~/scratch/m5a-readme-visual
+```
+
+It builds the strict genuine M5a runner (`m5a_build.py`, a C compiler), runs it with `--frames-raw` on the
+committed synthetic rooms SKY, SPRITES and FUZZ (their scripts and `tests/reference/m5a_gfx.wad`, no IWAD), and
+renders the same tics with `m5a_view --raw` (screenblocks 11). Every shown frame must be byte-identical between
+the two and equal to the golden digest in `tests/reference/m5a_frames/*.sb11.frames` (and not a non-comparable
+frame), or the script exits with an error. It shows every 5th tic at real speed, draws the genuine frame, the
+Rust frame and their per-pixel difference, and computes the caption's differing-pixel count from the frames; the
+lettering is the script's own 5x7 bitmap font. The GIF encoder is a Python port of `crates/doom-render/src/gif.rs`
+with frame deltas, and the script decodes its own output and compares every displayed frame. The file has no
+timestamp or path, so a rerun writes the same bytes. `--check` regenerates the animation and compares it with the
+committed file; it builds the C runner and runs cargo, so it is a local check and not part of CI.
+
+## M5a synthetic renderer rooms
+
+The M5a [reference investigation](M5A_REFERENCE_INVESTIGATION.md) (decisions R1-R16, §5) compares
+a Rust renderer with the genuine linuxdoom-1.10 `R_RenderPlayerView`. Phase 2 step 1 adds the
+genuine side: a synthetic graphics PWAD (no id art), one synthetic room per renderer feature and
+per vanilla limit, and the M5a runner, which compiles the genuine renderer whole and renders after
+every dumped tic. Everything here is synthetic and runs on a clean checkout; the observations are
+in [the M5a evidence record](validation/M5A.md).
+
+```sh
+# generators, verifiers and the contract (no compiler)
+python3 tools/reference/m5a_gfx.py [--out PATH] [--list] [--check]   # tests/reference/m5a_gfx.wad; --check compares bytes, then runs the verifier
+python3 tools/reference/m5a_check_gfx.py [PWAD]                        # independent verifier: colour maps, inherited texture/flat order and heights, switches, sky, sprite frames and rotations, patch bounds and padding
+python3 tools/reference/m5a_wad.py [--only NAME] [--list] [--manifest] [--check]   # rooms in tests/reference/m5a_wads/, scripts in tests/reference/m5a_scripts/, generated manifest fields
+python3 tools/reference/m5a_build.py --check                           # tests/reference/m5a_runner_contract.json (DOOM-M5A-RUNNER-v1)
+
+# the genuine renderer (C; Linux); the address variant runs with ASAN_OPTIONS=detect_leaks=0 (leak detection disabled)
+python3 tools/reference/m5a_reference.py --work DIR --check [--pngs] [--selftest]
+python3 tools/reference/m5a_reference.py --work DIR --strict32          # local opt-in: also the -m32 genuine-text build; writes nothing
+python3 tools/reference/m5a_reference.py --work DIR --only M5SHORT,BINF1 # a subset; writes nothing
+python3 tools/reference/m5a_build.py --variant strict|overflow|address|all|strict32 [--out DIR]
+```
+
+What each asserts:
+
+- `m5a_gfx.py --check` regenerates the PWAD and requires the committed bytes; the verifier
+  re-parses it without importing the generator (rules in its docstring).
+- `m5a_wad.py --check` regenerates every room WAD, script text and `.lmp`, and the manifest's
+  generated fields (WAD digest and counts, script digest and tic count, `png` frames and the
+  `must_show` expressions; a frame or view expression may end in `from N`, the first tic at or
+  after N where it holds). The observed tics in the manifest come from `m5a_reference.py
+  --update-events` and are held fixed by `--check`.
+- `m5a_build.py --check` regenerates the runner contract: sources and their adapted digests, the
+  inherited and the renderer adapters (each with file, line, original, adapted text and reason; the
+  three line-keyed ones record their occurrence count), stubs, wrapped symbols, driver behaviour,
+  view configurations, and the dump, frame and view row kinds.
+- `m5a_reference.py --check` builds the strict, overflow and address runners and the frozen M4b
+  runner. For every room and every M4b synthetic script: the never-render dump set must equal the
+  committed M4b digest (M4b scripts) or the frozen M4b runner's dump set (rooms); for screenblocks
+  11, 10 and 9 every variant renders every dumped tic, and the dump sets (with `ML_MAPPED` masked)
+  must equal the never-render set, while the frame streams and view records must be byte-identical
+  across the variants up to the earliest end (tracker-flagged frames compared on their masked
+  digest). It then requires the manifest's endings and event tics, `tests/reference/m5a_results.json`,
+  every `tests/reference/m5a_frames/*.frames` and `tests/reference/m5a_views/*.view`, and with
+  `--pngs` the pixels of every `tests/reference/m5a_png/*.png`. `--selftest` plants a one-pixel change
+  in M5VIEW's frame of tic 20 and requires the comparison to report that tic and that pixel.
+- Low detail is refused (decision R2): `--detail 1` exits with status 8 and no comparison is built.
+
+The Rust renderer (`crates/doom-render`, Phase 2 step 2) and its comparison with those goldens:
+
+```sh
+python3 tools/reference/m5a_tables.py --check     # crates/doom-render/src/tables.rs from linuxdoom-1.10/tables.c
+cargo test -p doom-render                                   # unit tests, the view-shadow validation and the frame harness
+cargo test -p doom-render --release --test view_shadow -- --nocapture   # per-field counts against tests/reference/m5a_views
+cargo test -p doom-render --release --test frames -- --nocapture        # frames compared, matched, refused; the limit refusals
+cargo test -p doom-render --release --test switches                     # the switch tracker against M5SWTCH's genuine switch textures
+cargo test -p doom-render --release --test rewind -- --nocapture        # restore the render state at tic N-k next to a simulation clone, continue to N
+# local first-difference reporter: counts, the first non-matching frame per item and configuration,
+# and with --c-runner the pixel comparison of every frame against the genuine raw frames, naming the
+# feature in play at the first differing pixel, with a PNG pair (genuine, Rust) in ~/scratch/m5a/diff
+# timings (recorded, never gated; run alone on an idle machine, built and run from ext4: CARGO_TARGET_DIR=~/scratch/m5a/perf):
+# per-tic simulation advance and render time, warm-up then N replays, median/p95/max per configuration
+cargo run -p doom-render --release --example m5a_bench -- --room M5PLANE [--screenblocks 11,10] [--reps 5] [--warmup 1]
+cargo run -p doom-render --release --example m5a_bench -- --iwad ~/scratch/m5a/iwad/DOOM.WAD --lmp tests/reference/e1m1_scripts/WALK.lmp
+python3 tools/reference/m5a_build.py --variant strict --out ~/scratch/m5a/build
+cargo run -p doom-render --release --example m5a_compare -- --c-runner ~/scratch/m5a/build/strict/crunner [--only M5PEG,TELE1] [--screenblocks 11,10,9] [--diff DIR]
+```
+
+- `m5a_tables.py --check` regenerates `finetangent` followed by `finesine` (one array, the
+  genuine contiguous layout) and `tantoangle` from the preserved source text and requires the
+  committed bytes.
+- `tests/view_shadow.rs` replays every item through the simulation's public API and requires every
+  field of every genuine view record (`viewx` .. `lightlevel` and the A rows) to equal the Rust
+  renderer's view inputs: the view shadow (`viewz`, `viewheight`, `deltaviewheight`, `onground`,
+  `fixedcolormap`) and the simulation values it reads.
+- `tests/frames.rs` runs every item once with three renderers (screenblocks 11, 10, 9) observing
+  after every committed `advance` and compares every frame with the committed SHA-256 (the masked
+  digest where the genuine tracker flagged columns). It requires every frame to match, with the
+  Rust flagged columns equal to the genuine U rows, except M5SWTCH's 35 parity-unknown frames per
+  configuration (decision R7); on every frame the genuine F row's counters (mapped lines,
+  visplanes, drawsegs, vissprites, openings, the solid-segment peak, dropped drawsegs, the
+  vissprite overflow), `fuzzpos` and M row (newly mapped lines); no refused frame; and, where the
+  genuine run ends at a renderer limit (`m5a_results.json`), the matching refusal at the next tic
+  (VPLANES, OPENINGS, SOLIDSEGS). Its self-test plants a one-pixel change and requires a mismatch.
+- `tests/rewind.rs` (owner ruling on R5-R7): for M5FUZZ, BINF1, M5SWTCH, M5VIEWZ and M5DSEG at
+  the three configurations it renders straight through to tic N, and separately restores, at tic
+  N-k, a clone of the simulation (doom-sim has no restore-from-snapshot API) and the render state
+  through its `DRST` encoding into a fresh renderer, then continues to N; every rewound frame and
+  report and the encoded render state at N must equal the uninterrupted run's, and every rewound
+  frame must match its golden. Its self-test restores a state with a changed `fuzzpos` and
+  requires a different frame.
+- `m5a_compare --c-runner` (local) reruns the genuine runner with `--frames-raw` per item and
+  configuration and compares every pixel of every comparable frame except the genuine flagged
+  columns; the first difference names the stage and its object (seg, visplane, vissprite with
+  sprite and frame, weapon sprite, fuzz owner). On the first compared frame of each item and
+  configuration it plants a one-pixel change and requires the comparison to detect it.
+- `tests/switches.rs` replays M5SWTCH and requires the switch tracker's side textures to equal the
+  genuine `s0mid` of its four switch lines at every tic where the parity is known (the expected
+  values are the strict runner's dump rows, recorded in the evidence record), and the parity to be
+  unknown exactly at the tics after a re-press until the button expires (decision R7).
+
+Real maps, local only (M5a step 4; never in CI, it reads the IWAD from a scratch copy). The tool runs
+the 61 runs of `tests/reference/m4b_real_results.json` (the committed E1M1-E1M9 scripts and DEMO1,
+extracted from the IWAD copy and patched 109 to 110 into `--work`, checked against the recorded
+digest) through the genuine M5a runner in the strict, address and overflow variants (address with
+`ASAN_OPTIONS=detect_leaks=0`, so leak detection is disabled) and through the `m5a_real` example
+(the Rust simulation replays the demo, the Rust renderer renders every tic), at screenblocks 11 and
+10, high detail; at most 2 C jobs at once:
+
+```sh
+python3 tools/local/m5a_real.py [--maps E1M1,E1M2] [--only WALK,M2DIE] [--diagnose] [--write | --check]
+cargo run -p doom-render --release --example m5a_real -- --iwad ~/scratch/m5a/iwad/DOOM.WAD \
+  --lmp tests/reference/e1m1_scripts/WALK.lmp --frames 10=FILE [--raw 10=DIR] --json OUT   # one run by hand
+```
+
+- Per run and configuration it requires the three variants' frame streams to be identical up to the
+  earliest end (a tracker-flagged frame compared on its masked digest and its flagged columns), and
+  reports the Rust frames matched, mismatched, non-comparable (switch parity unknown, R7; whole frame,
+  R4), refused by kind and not reached, with the counters, `fuzzpos` and newly mapped lines of every
+  frame. Any mismatch, refusal, counter difference or variant difference makes it exit 1.
+- `--write` merges the selected runs into `tests/reference/m5a_real_results.json`
+  (DOOM-M5A-REAL-RESULTS-v1: counts, pass/fail facts and the genuine and Rust stream digests, the rule
+  in the tool's docstring); `--check` requires the selected runs' records to equal the committed ones.
+- `--diagnose` reruns a failing run with raw frames, and `m5a_real --raw` names the feature at the
+  first differing pixel and writes a PNG pair to `~/scratch/m5a/diff`. Those images, the genuine
+  frame streams (they name IWAD textures), the per-frame digest lists (`--work/digests`) and the
+  per-texture report (`~/scratch/m5a/reports/real_textures.json`) are IWAD-derived and stay in
+  scratch; delete them once the counts are recorded.
+
+Local viewer (M5a step 5, decision R16; a developer aid, not a comparison). `m5a_view` replays a demo
+script through the Rust simulation and renderer and writes an animated GIF of the 3D view in palette 0 of
+the WAD in use (palette flashes are M5b), using the hand-written encoder `doom_render::gif` (GIF89a, LZW,
+no dependency; unit-tested by decoding its own output with an independent test decoder). Build and run it
+from the Linux disk; IWAD-derived output must never be committed (write it to `/mnt/d/DoomRenders/`):
+
+```sh
+cargo run -p doom-render --release --example m5a_view -- --iwad ~/scratch/m5a/iwad/DOOM.WAD \
+  --lmp tests/reference/e1m1_scripts/WALK.lmp --out /mnt/d/DoomRenders/e1m1_walk.gif \
+  [--screenblocks 11] [--from TIC] [--to TIC] [--scale 2] [--fps 35]
+cargo run -p doom-render --release --example m5a_view -- --room M5AMP --out ~/scratch/m5a/m5amp.gif   # a committed synthetic room, no IWAD
+```
+
+GIF delays are whole hundredths of a second, so 35 tics/second is written as 2, 3, 3, 3, 3, 3, 3 cs
+repeating (20 cs per 7 tics; every `n * 100 / fps` cs total is exact), never as a uniform 3 cs.
+`--scale` is an integer nearest-neighbour enlargement (1-8). The replay ends at the end of the script, at
+`--to`, when the simulation stops advancing, or at a renderer refusal (reported).
+
+CI (M5a step 6, decision R15). The Rust renderer's synthetic-room frames against the committed goldens
+(`tests/frames.rs`, `view_shadow.rs`, `switches.rs`, `rewind.rs`) are ordinary workspace tests, so the
+`Stable` job already runs them on Linux, Windows and macOS (`cargo test --workspace`); nothing further is
+needed there. The genuine renderer (C, Linux only, as M4b's genuine runs) is the separate job
+`M5a genuine renderer`, which runs on the runner's default gcc:
+
+```sh
+python3 tools/reference/m5a_gfx.py --check && python3 tools/reference/m5a_check_gfx.py
+python3 tools/reference/m5a_wad.py --check && python3 tools/reference/m5a_build.py --check
+python3 tools/reference/m5a_tables.py --check
+ASAN_OPTIONS=detect_leaks=0 python3 tools/reference/m5a_reference.py --check --pngs --selftest --jobs 4 --work DIR
+```
+
+The last command builds the strict, overflow and address runners (leak detection disabled in the address
+variant) and the frozen M4b runner; locally keep `--jobs` at 2 or below on the owner's machine. The real-map
+tool stays local (it reads the IWAD).
+
+Renderer guard tests and fuzz targets (M5a step 7a). The unit tests below the public API (`r_draw`,
+`r_things`, `r_main`, `r_data`, `state`) name the guard they pin and why `Renderer::render` cannot reach it;
+`crates/doom-render/src/test_support.rs` builds a frame context over the committed `amp.wad` room for them.
+`tests/contract.rs` covers the public contract (configuration refusals, call order, the limit refusals are
+typed, repeatable and change nothing, and rendering never changes the simulation, compared with a bare run
+tic by tic). All run in `cargo test -p doom-render` and the workspace tests; no IWAD. Two fuzz targets
+(no IWAD, no id art) and one seed tool:
+
+```sh
+python3 tools/seed_render_fuzz.py frames DIR   # render_frames seeds (max_len 516): the 45 scripts of the target's 41 WADs at three view sizes plus variants
+python3 tools/seed_render_fuzz.py data DIR     # render_data seeds (max_len 2048): edits of the synthetic graphics WAD and raw tails
+cargo +nightly fuzz build --sanitizer address render_frames   # also render_data; or build every target as above
+# seed replay (not a campaign); ASAN_OPTIONS=detect_leaks=0 means LeakSanitizer is disabled, not passed
+ASAN_OPTIONS=detect_leaks=0 cargo +nightly fuzz run render_frames --sanitizer address CORPUS -- -runs=0 -max_len=516 -timeout=300 -rss_limit_mb=2048
+cargo +nightly fuzz run render_data --sanitizer address CORPUS -- -runs=0 -max_len=2048 -timeout=60 -rss_limit_mb=2048
+# bounded coverage-guided campaign (M5a; leak detection on works for both targets), binaries from a CARGO_TARGET_DIR on ext4:
+# ASAN_OPTIONS=detect_leaks=1 BIN/render_data CORPUS -max_total_time=1800 -max_len=2048 -timeout=60 -rss_limit_mb=2048 -seed=N
+```
+
+- `render_frames` loads one of the 23 M5a rooms or 18 M4b WADs with the synthetic graphics set, runs the
+  byte-derived commands (clamped into the simulation's admitted domain), and observes and renders every tic
+  at screenblocks 9, 10 or 11: no panic; a refusal is a typed `RenderRefusal` that leaves the render state
+  unchanged; a cloned renderer and simulation render the identical frame, report and state; the render state
+  round-trips through `DRST` and a mutated or truncated copy never panics; the simulation digest is the same
+  before and after every frame. It compares no pixels (the committed goldens do).
+- `render_data` edits lumps of the synthetic graphics WAD in memory (counts, offsets, sizes, deletions) and
+  loads the result with `Resources::load`, walks every column, flat and sprite of a successful load, and
+  feeds the raw tail to `RenderState::decode` and the patch readers. Its seeds cannot reach a valid `DRST`
+  (64,000-byte framebuffer): `render_frames` covers the deep decoder paths with real states.
+- `seed_render_fuzz.py` is deterministic (fixed-seed generator, committed inputs only) and has no `--check`
+  flag, as the other `seed_*_fuzz.py` tools have none.
+
 ## Mutation testing
 
 M4a used cargo-mutants 27.1.0 with cargo-nextest 0.9.151. These are separate
@@ -2032,7 +2248,7 @@ cargo mutants -p doom-sim --test-tool nextest --jobs 2 \
 
 The [`Mutants` workflow](../.github/workflows/mutants.yml) runs cargo-mutants
 27.1.0 with cargo-nextest 0.9.151 (the M4a versions, installed pinned) over the
-diff of `crates/` against `master`, `-p doom-sim --test-tool nextest --in-diff`,
+diff of `crates/` against `master`, `-p doom-sim -p doom-render --test-tool nextest --in-diff`,
 in 8 matrix shards (`--shard k/8`). It is informational and not a required
 check. Start it by adding the `run-mutants` label to the pull request (the
 trigger that works before merge; a push does not re-run it, so remove and
@@ -2043,7 +2259,36 @@ tab once the file is on `master`. Each shard uploads `outcomes.json` and the
 missed and timed-out lists in the run's step summary. A shard fails only for a
 usage error or a failing baseline; missed mutants and timeouts are findings,
 triaged as above (the local procedure and the M4a rules for timeouts and
-equivalent mutants apply unchanged).
+equivalent mutants apply unchanged). Since M5a the run covers the `doom-render` lines of the diff too
+(`-p doom-render`), the crate whose diff M5a adds.
+
+#### Re-running one shard or the survivors locally (M5a)
+
+A shard that the hosted runner killed (its job log ends "The runner has received a shutdown signal")
+is re-run from the same patch and shard number, at the head the workflow tested, in a scratch worktree
+on the Linux disk (never `/mnt/*`), with `TMPDIR` in scratch (cargo-mutants copies the tree there for each
+job) and **no** `CARGO_TARGET_DIR`: a shared target directory makes concurrent jobs build into one
+directory, and outcomes come out wrong (M5a, [evidence](validation/M5A.md#mutation-testing)):
+
+```sh
+git worktree add --detach ~/scratch/<milestone>/wt <head-sha>
+git diff --no-ext-diff origin/master...<head-sha> -- crates/ > ~/scratch/<milestone>/mutants.patch
+cd ~/scratch/<milestone>/wt
+unset CARGO_TARGET_DIR
+export CARGO_PROFILE_DEV_OPT_LEVEL=1 CARGO_PROFILE_DEV_DEBUG=0 TMPDIR=~/scratch/<milestone>/tmp
+mkdir -p "$TMPDIR"
+cargo mutants -p doom-sim -p doom-render --test-tool nextest --jobs 2 --timeout 300 --build-timeout 900 \
+  --in-diff ~/scratch/<milestone>/mutants.patch --shard 0/8 --output ~/scratch/<milestone>/out
+```
+
+Run it detached and wait on its PID with a timeout. To check the new tests against the survivors, list
+every `missed.txt` and `timeout.txt` line, give each a `--re '^<regex-escaped line>$'` (no `--in-diff`, so a
+later source diff cannot drop a target) and run `cargo mutants -p doom-render --test-tool nextest` with
+those arguments from a scratch worktree of the branch head, with the same `TMPDIR` and no `CARGO_TARGET_DIR`.
+First run the same command with `--list`: cargo-mutants 27.1.0 also matches some struct-field deletions
+outside the name filters (two expressions matched six mutants in M5a), so report which mutants ran. A
+mutant that runs a loop forever (`+=` to `*=` on its counter) ends as `TIMEOUT`, which counts as killed
+once the loop is explained.
 
 ## Whole-level simulation-only timing
 

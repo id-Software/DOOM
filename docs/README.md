@@ -165,3 +165,6 @@ original evidence and former guide contents with exact-byte copies and digests.
 - [M4p simulation performance (no behaviour change) investigation](M4P_REFERENCE_INVESTIGATION.md)
   (the master profile by cause, the optimisation inventory with an equivalence argument per item,
   decisions P1–P9 and the plan; merged as PR #60; [observations](validation/M4P.md)).
+- [M5a faithful software renderer (the 3D view) investigation](M5A_REFERENCE_INVESTIGATION.md)
+  (the original C facts, the genuine-engine harness and its prototype, the Rust design and state inventory,
+  decisions R1–R16 awaiting the owner and the plan; Phase 1 only).
