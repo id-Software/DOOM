@@ -18,9 +18,9 @@ owns the commands. Exact review state and CI belong to GitHub.
 | 5 and 6 | 2026-11-16 | The local GIF viewer and the CI job ([below](#local-viewer-and-ci-steps-5-and-6)) |
 | 7a | 2026-11-16 | Renderer tests and fuzz targets ([below](#renderer-tests-and-fuzz-targets-step-7a)) |
 | Review | 2026-11-16 | The independent review's findings and their resolution ([below](#independent-review)) |
+| Mutation | 2026-11-17 | The `Mutants` run, the shard 0 re-run and the survivors ([below](#mutation-testing)) |
 
-The [findings](#findings) at the end are cross-cutting. Mutation results, fuzz
-campaigns, timings and the final gates are not yet recorded here. No IWAD was read in steps 1-3; step 4 read
+The [findings](#findings) at the end are cross-cutting. The final gates of the mutation step are at the end of the [mutation section](#mutation-testing). No IWAD was read in steps 1-3; step 4 read
 a scratch copy locally and committed only counts, pass/fail facts and digests. Address-checked runs used
 `ASAN_OPTIONS=detect_leaks=0`: LeakSanitizer was disabled, not passed. No benchmark or timing was
 measured; the one debug test duration quoted in the step 2c section is incidental to a build-profile change.
@@ -680,3 +680,124 @@ refusal. For scale, the 35 tics/second budget is 28,571 us per tic; the largest 
 Limits: DEMO1 was not timed (the patched lump is only built by `tools/local/m5a_real.py`); no Low detail, no
 screenblocks 9, no comparison with the C renderer's speed, and one machine and one toolchain only. These are
 observations, not a performance claim or a gate, and the rustc used differs from the 1.85.0 MSRV.
+
+## Mutation testing
+
+Observed 2026-11-16 to 2026-11-17 (America/Los_Angeles). The informational
+[`Mutants` workflow](../../.github/workflows/mutants.yml) ran as run 43961629327 on head `d69f62f`
+(cargo-mutants 27.1.0, cargo-nextest 0.9.151, `-p doom-sim -p doom-render --in-diff` against `master`, 8 shards).
+The `doom-render` crate is the only one the branch changes, so every mutant is in it.
+
+| Shard | Caught | Missed | Timeout | Unviable | Notes |
+| ---: | ---: | ---: | ---: | ---: | --- |
+| 0 (CI) | - | 51 logged | - | - | Failed: the runner received a shutdown signal after about 54 minutes (GitHub infrastructure, not a test failure); 990 mutants, the rest never ran |
+| 1 | 882 | 92 | 6 | 10 | |
+| 2, 3, 4, 6 | 990 each | 0 | 0 | 0 | |
+| 5 | 989 | 1 | 0 | 0 | |
+| 7 | 959 | 24 | 0 | 3 | |
+| 0 (local re-run) | 819 | 135 | 10 | 26 | Same patch and `--shard 0/8` on a worktree of `d69f62f`, the original tests, `--jobs 2`, no caps, 3 h |
+
+Shards 1-7 sum to 6,790 caught, 117 missed, 6 timeouts, 13 unviable. The owner ruled that a failed shard is a set
+of survivors to disposition, not CI breakage. A first local attempt set `CARGO_TARGET_DIR` and ran two jobs, so the
+jobs shared one target directory and some outcomes were wrong (a mutant the new tests kill was reported missed).
+It was discarded; every count above comes from runs with `TMPDIR` in scratch and no `CARGO_TARGET_DIR`
+([TESTING](../TESTING.md#re-running-one-shard-or-the-survivors-locally-m5a)). The local worktrees and scratch
+target directories were on ext4 (`~/scratch/m5a`), not `/mnt/*`.
+
+**Survivors:** the union of shards 1-7 and the local shard 0 is 268 distinct survivor descriptions (missed or timed out), 272 mutants. They
+were handled by tests derived from facts already cited (the C line is in each test), small unit tests through
+`test_support` first (a room fixture, an edited sector or resource set, hand-made drawsegs and patch columns),
+differential tests against a transliteration of the C where the function is pure (`R_PointOnSide`,
+`R_ClipSolidWallSegment`/`R_ClipPassWallSegment`, `R_CheckBBox`), and one public-API test that runs the fuzz room
+until the invisibility power reaches the shadow thresholds. No production code changed and no real bug was found.
+
+**Verification:** the 268 were run again on the branch (a worktree of `bd0f34d`, then `47b7d65` for the last two
+tests; `--jobs 4`, 272 mutants matched the 268 expressions): **195 caught, 15 timeouts, 62 still missed** (the 64
+missed of that run include two killed by the final test, re-run separately: 6 mutants, 6 caught). All 272 matched mutants
+are accounted for below.
+
+| Disposition | Mutants | Which |
+| --- | ---: | --- |
+| Killed by a new test | 195 | Groups after the table |
+| Timeout, counted as killed | 15 | Loop counters mutated so the loop never ends: `+=` to `*=` or `-=` to `/=` leaves the counter unchanged (`r_bsp.rs` 254, 270, 326, 506; `r_plane.rs` 201, 309, 314, 318, 322; `r_segs.rs` 704), `r_data.rs` 711 (`j <<= 1` to `j >>= 1` makes `j * 2 <= width` true forever), `r_data.rs` 898 (the next-post offset, two mutants) and `r_things.rs` 346 (the next-post offset, two mutants). Each was observed as TIMEOUT at 300 s and the loop explained from the code |
+| Equivalent (cannot change any output) | 55 | Reasons below |
+| Unreachable on admitted inputs | 3 | `view.rs` 225:26; `r_draw.rs` 150:35 and 150:43 |
+| Not killed, needs a new scenario | 4 | `view.rs` 229:65, 229:67, 229:76 (two) |
+
+Killed, by area (each test names what it pins and the C line):
+
+- **GIF and PNG writers** (`gif.rs`, `png.rs`; local viewer output, no C): the LZW end code's width and the clear
+  period, checked by an independent decoder on a de Bruijn sequence (every pixel adds one table entry, so the
+  table size is exact) with the byte-boundary cases where a too-narrow or too-wide end code changes the byte count;
+  the PNG stored-block flags, `NLEN` and Adler-32 through a decoder.
+- **Errors, trace, state** (`lib.rs`, `state.rs`): `Display` of each error, `set_trace`/`trace`, the
+  `MAXLINEANIMS` bound (64 accepted, 65 refused; p_spec.c:1336-1345), the floor texture taken from the simulation
+  when it differs from the map's, the zero-length taint run, `fuzzpos` below `FUZZTABLE` (r_draw.c:259-263).
+- **Tables and view** (`r_main.rs`, `view.rs`): `finesine` against the real sine (a sign flip of one entry), the
+  `GRAVITY`/`VIEWHEIGHT` constants (p_local.h:34, 53), the invulnerability and infrared thresholds (p_user.c:362-383),
+  the `P_DeathThink` viewheight clamp, the `P_CalcHeight` bounds and the ceiling clamp (p_user.c:77-141), another actor's
+  teleport leaving the player's view alone (M4b MTELE1), `FixedDiv` overflow signs (m_fixed.c:57-66), `SlopeDiv`
+  (tables.c:50-62), `R_PointOnSide` against the C on 118,000 sign and tie combinations (r_main.c:160-210).
+- **Animations and switches** (`p_spec.rs`): the animation cycle bound (p_spec.c:148-183), the switch list by game
+  mode (p_switch.c:107-140), the tracker's unknown-line rule, the scrolling offset.
+- **Resources** (`r_data.rs`): sprite-name errors by frame letter (r_things.c:108-157, 239-257), directory accessors,
+  the flat range, the 64 KiB composite bound (r_data.c:365-371), `R_DrawColumnInCache` (r_data.c:152-185), the
+  33-map colormap.
+- **BSP, planes, walls** (`r_bsp.rs`, `r_plane.rs`, `r_segs.rs`, `r_draw.rs`): silhouettes with a floor or ceiling
+  exactly at the eye, the closed top and a masked midtexture (r_segs.c:482-535, 734-743), the equal-height cases
+  that must not pick a top or bottom texture or touch the carried `pixhigh`/`pixlow` (r_segs.c:570-602, 690-704),
+  the taint origin of a wall and of a sky column, the clip lists and `R_CheckBBox` against the C on random cases
+  (r_bsp.c:103-238, 381-487), `R_Subsector` planes at the eye height, the plane light clamp (r_plane.c:437-444),
+  `R_MapPlane` and fuzz-column range checks, the short-flat taint label.
+- **Sprites** (`r_things.rs`): the `MINZ` and four-times-`tz` culls, drawseg clipping (behind, silhouette bits,
+  `gz`/`gzt`, the nearest drawseg first, the masked columns of a seg behind the sprite; r_things.c:860-933), the
+  translated-sprite refusal and bad texture column, weapon sprites at the left and right edges and mirrored, the
+  frame number in the trace, and in `tests/psprite_shadow.rs` the weapon's invisibility threshold at 130, 129, 128, 127,
+  120, 112, 100 and 96 (r_things.c:716-736).
+
+Equivalent (55), with the reason:
+
+- Boundary at which both branches give the same value: `gif.rs` 93:55 (`width < 12` inside `next < 4096`, where
+  `next == 2^width` cannot happen at width 12), 107:13 and 107:65 (`next <= 4096` and `width <= 12`: at 4096 the width
+  is already 12), `r_segs.rs` 282, 446, 449 and `r_bsp.rs` 386, 394, 482, 490 (an angle equal to the limit is set to
+  the limit it already equals), 573 (`yl < cc + 1`: assigning the equal value), `r_data.rs` 876, 883 (`position`
+  or `count` zero changes nothing), 880:29 (`>=` clamps `count` to the value it has), `r_plane.rs` 186, 191, 233:28
+  (an equal bound swaps equal values; `y < 200` is implied by `y < viewheight`), `r_things.rs` 125 (`maxframe` set to
+  itself), 471 (`vx1 > x1` adds 0), 556, 557, 558 (`>=`/`<=` at equal columns or scales gives the same range or
+  assignment), 733 and 743:19 (`x1 >= viewwidth` or `x2 < 0` leave an empty draw loop), 753 (adds 0), `r_main.rs` 145
+  (`ndx` is not 0 there), 165 (swap of equal values), 106 (the seam at 45 degrees is continuous in that quadrant),
+  `view.rs` 189:29, 189:33, 192 (a decrement followed by the clamp to 6 gives 6), 229:53 (implied by the next test),
+  280 (`viewz >= limit` assigns the same), `r_segs.rs` 211 (an equal `den` and `num >> 16` overflow `FixedDiv` to
+  `MAXINT`, clamped to the same 64 units; the projection keeps `|num|` far above the one case where it differs) and
+  455 (`diff == ANG180` only for a back-facing seg, which `R_AddLine` has dropped).
+- Disjoint bit fields, so `|` and `^` agree: `png.rs` 43 (`b << 16 | a`, `a < 65521`), `state.rs` 318 (one bit per line
+  in a byte), `r_bsp.rs` 140 (`doom-map` masks the subsector index with `0x7fff`, parse.rs:413), `r_draw.rs` 187,
+  `r_things.rs` 678 (the origin label is unread for a defined lump source: two mutants).
+- Value never read or never different at `detailshift` 0 (low detail is refused, decision R2): `r_plane.rs` 342,
+  `r_things.rs` 482, 500, 647, 774.
+- The skip in `R_DrawSprite` is an optimisation: an out-of-range or silhouette-less drawseg produces empty loops and no
+  masked call (`r_things.rs` 551, 552). `R_ClipPassWallSegment` stores the same ranges either way (`r_bsp.rs` 325, 330).
+- `r_segs.rs` 649 (`floorclip[x] = -1`): the columns of a solid wall are in `solidsegs`, so no later seg reads them.
+  `r_segs.rs` 786 (masked-midtexture origin): `lump_source` columns are always defined, so the label is never stored.
+- `r_data.rs` 893 (the `(None, Some)` arm): the `poison` that follows clears the same rows.
+
+Unreachable (3): `view.rs` 225:26 (`z < floor` to `<=`) needs a vertical event of the player with `z == floorz`, which
+`P_MobjThinker` never runs (it calls `P_ZMovement` only when `z != floorz || momz != 0`, and the player has
+`momz == 0` at the floor, p_mobj.c:251-258); `r_draw.rs` 150:35 and 150:43 guard a fuzz read the clamp of r_draw.c:293-298
+already keeps inside the view (the code comment says so; the read is within one row of a row inside the view).
+
+**Not killed (4), and what would:** `view.rs` 229:65 (`momz < -GRAVITY * 8` to `<=`), 229:67 (the sign) and 229:76
+(`*` to `+` or `/`) are the landing-speed threshold of p_mobj.c:299-307. No committed scenario lands with a speed
+between 0 and 8 units per tic or exactly 8 (the only landing, in M5VIEWZ, is 34), and the shadow reads the simulation's
+events, which a test cannot forge. A scenario that falls a chosen height needs a new synthetic room and genuine-engine
+golden, which this step does not add; it is left to the owner.
+
+Also seen and dismissed: on the discarded run, `gif.rs delay_cs -> 0` was reported missed on a stale build; the same
+mutant is caught on a clean run.
+
+**Gates after the new tests** (2026-11-17, local, tree `47b7d65` plus documentation): build, `cargo fmt --check` (workspace
+and `fuzz`), Clippy with warnings denied (`--workspace --all-targets`), `cargo test --workspace` (1,537 passed, 0 failed,
+4 ignored), `RUSTDOCFLAGS=-D warnings cargo doc --workspace --no-deps` and `cargo +1.85.0 test -p doom-render` (136
+passed) all passed. **Not run in this step:** the release tests of `doom-sim` and `doom-types`, the Python generator
+checks, the reference suite, fuzz builds and the real-map comparison (no simulation, fixture or comparison code changed;
+the final gates from clean are the next step).
