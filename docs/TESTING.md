@@ -2262,6 +2262,27 @@ triaged as above (the local procedure and the M4a rules for timeouts and
 equivalent mutants apply unchanged). Since M5a the run covers the `doom-render` lines of the diff too
 (`-p doom-render`), the crate whose diff M5a adds.
 
+#### Re-running one shard or the survivors locally (M5a)
+
+A shard that the hosted runner killed (its job log ends "The runner has received a shutdown signal")
+is re-run from the same patch and shard number, at the head the workflow tested, in a scratch worktree
+and a scratch target directory on the Linux disk (never `/mnt/*`):
+
+```sh
+git worktree add --detach ~/scratch/<milestone>/wt <head-sha>
+git diff --no-ext-diff origin/master...<head-sha> -- crates/ > ~/scratch/<milestone>/mutants.patch
+cd ~/scratch/<milestone>/wt
+export CARGO_PROFILE_DEV_OPT_LEVEL=1 CARGO_PROFILE_DEV_DEBUG=0 CARGO_TARGET_DIR=~/scratch/<milestone>/target
+cargo mutants -p doom-sim -p doom-render --test-tool nextest --jobs 2 --timeout 300 --build-timeout 900 \
+  --in-diff ~/scratch/<milestone>/mutants.patch --shard 0/8 --output ~/scratch/<milestone>/out
+```
+
+Run it detached and wait on its PID with a timeout. To check the new tests against the survivors, list
+every `missed.txt` and `timeout.txt` line, give each a `--re '^<regex-escaped line>$'` (no `--in-diff`, so a
+later source diff cannot drop a target) and run `cargo mutants -p doom-render --test-tool nextest` with
+those arguments from the branch tree. A mutant that runs a loop forever (`+=` to `*=` on its counter) ends as
+`TIMEOUT`, which counts as killed once the loop is explained.
+
 ## Whole-level simulation-only timing
 
 The M4a H12 developer caller `player_level_advance` uses the same public setup

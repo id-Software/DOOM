@@ -222,7 +222,13 @@ mod tests {
                     prev = None;
                     continue;
                 }
-                257 => break,
+                257 => {
+                    // The stream ends with the end code's last bit: the byte count must be
+                    // exactly the bits read (so a wrongly narrow or wide end code, whose
+                    // zero padding a lenient reader would absorb, is caught).
+                    assert_eq!(pos.div_ceil(8), data.len(), "bytes after the end code");
+                    break;
+                }
                 _ => {}
             }
             let entry = if code < table.len() {
@@ -304,26 +310,60 @@ mod tests {
             .collect()
     }
 
-    #[test]
-    fn end_code_width_round_trips_at_every_table_size_boundary() {
-        // Pins `lzw`'s end-code width (the decoder, one entry behind, widens once code 2^width
-        // exists; GIF89a LZW): the final prefix and END codes are written at the width the
-        // decoder has then reached. Noise over 256 values almost never repeats a pair, so
-        // every pixel adds one entry and the lengths below straddle the 9->10, 10->11, 11->12
-        // bit changes and the table-full clear (an independent decoder checks every length).
-        let data = noise(9000);
-        for w in 9..=12u32 {
-            let around = (1usize << w) - 258;
-            for n in around.saturating_sub(4)..=around + 4 {
-                let p = &data[..n];
-                assert_eq!(unlzw(&lzw(p), n), p, "length {n}");
+    /// A sequence over 256 values in which no pair of neighbours occurs twice (a de Bruijn
+    /// sequence of order 2), so LZW never finds a dictionary hit: every pixel after the first
+    /// emits one code and adds one entry, which makes the table size at any length exact.
+    fn no_repeats(n: usize) -> Vec<u8> {
+        let mut seq = Vec::new();
+        for i in 0..256usize {
+            seq.push(i as u8);
+            for j in i + 1..256 {
+                seq.push(i as u8);
+                seq.push(j as u8);
             }
         }
-        for n in 3830..=3850 {
-            assert_eq!(unlzw(&lzw(&data[..n]), n), &data[..n], "length {n}");
+        seq.truncate(n);
+        seq
+    }
+
+    #[test]
+    fn end_code_width_round_trips_at_every_table_size_boundary() {
+        // Pins `lzw`'s end-code width: after the last prefix the decoder, one entry behind,
+        // has added its entry and widens once code 2^width exists (GIF89a LZW), so the end
+        // code is written wider exactly when the next free code is 2^width. With no dictionary
+        // hits (`no_repeats`) that next free code is 258 + n - 1 for n pixels, so the 9->10, 10->11
+        // and 11->12 bit changes fall at n = 255, 767 and 1791; the table fills (and clears) at
+        // n = 3839, after which the same sizes recur. An independent decoder reads every
+        // length and checks that no byte follows the end code.
+        //
+        // A too-narrow end code (written at the old width) only shows when the extra bit the
+        // decoder then reads falls outside the last byte, that is when the bits before it end
+        // on a byte boundary. The residue of those bits moves by 3 with every table cycle (3839
+        // pixels), so the widenings to 10, 11 and 12 bits each meet a boundary case in a later
+        // cycle; the loop below visits cycles until each has, and the decoder (which panics
+        // reading past the data) then pins the end code's width.
+        let data = no_repeats(65536);
+        let mut sensitive = [0usize; 13];
+        for cycle in 0..12usize {
+            for boundary in [255usize, 767, 1791] {
+                let n = 3839 * cycle + boundary;
+                let packed = lzw(&data[..n]);
+                let (out, codes) = unlzw_codes(&packed, n);
+                assert_eq!(out, &data[..n], "length {n}");
+                let (end, last) = (codes[codes.len() - 1], codes[codes.len() - 2]);
+                assert_eq!(end.0, 257);
+                assert!(end.1 > last.1, "length {n} widens the end code");
+                let before: usize = codes[..codes.len() - 1].iter().map(|c| c.1).sum();
+                if (before + last.1) % 8 == 0 {
+                    sensitive[end.1] += 1;
+                }
+            }
         }
-        for n in 7670..=7690 {
-            assert_eq!(unlzw(&lzw(&data[..n]), n), &data[..n], "length {n}");
+        for w in [10, 11, 12] {
+            assert!(
+                sensitive[w] > 0,
+                "no byte-boundary case widening to {w} bits: {sensitive:?}"
+            );
         }
     }
 
