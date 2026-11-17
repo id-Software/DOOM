@@ -24,8 +24,10 @@ pub use recorder::{RecordError, Recorder, TIC_CAP, Timestamp, session_name, wire
 pub use screens::{APP_PALETTE, CLEAR, Screen, glyph, pause_overlay};
 
 use crate::input::{Event, EventLayer, Input, InputError, MouseButton, Preset, RecordedTic, keys};
+use doom_render::hu_stuff::Message;
 use doom_render::{
-    Frame, GameMode, LumpDirectory, ResourceError, Resources, SCREENHEIGHT, SCREENWIDTH,
+    DisplayFrame, Frame, GameMode, LumpDirectory, ResourceError, Resources, SCREENHEIGHT,
+    SCREENWIDTH,
 };
 use doom_sim::{
     MapContextOptions, PlayerSlot, SimError, Simulation, Skill, TicCommand, WeaponInventory,
@@ -52,6 +54,95 @@ pub trait Host {
     fn exists(&mut self, name: &str) -> bool;
     /// Writes (or rewrites) the session file `name` whole.
     fn save(&mut self, name: &str, bytes: &[u8]) -> Result<(), String>;
+    /// Called after every committed and drawn tic, for headless session verification (M5b
+    /// investigation §2.3); a window has no use for it.
+    fn tic(&mut self, _report: &TicReport<'_>) {}
+}
+
+/// One committed and drawn tic, as [`Host::tic`] receives it.
+#[derive(Clone, Copy, Debug)]
+pub struct TicReport<'a> {
+    /// The tic's number in the genuine runners' numbering: the simulation's tic count before it.
+    pub tic: u64,
+    /// The events posted before the tic's command was built (none in a [`replay`]).
+    pub events: &'a [Event],
+    /// The executed command: the demo's re-read copy (decision S3).
+    pub executed: TicCommand,
+    /// The simulation after the tic.
+    pub simulation: &'a Simulation,
+    /// The tic's frame.
+    pub frame: &'a Frame,
+    /// The frame's palette number, palette set, face, message flag and view report.
+    pub display: &'a DisplayFrame,
+    /// The message `HU_Ticker` took in the tic.
+    pub message: Option<Message>,
+    /// The `M_Random` index after the tic.
+    pub rndindex: u8,
+}
+
+/// Replays recorded commands (a session's demo) through the simulation and the app's frame
+/// source as play does, reporting every tic to `host`: the headless check of a recorded
+/// session (M5b investigation §2.3). Returns how the replay ended early, or `None` after the
+/// last command.
+pub fn replay(
+    data: &GameData,
+    screenblocks: u8,
+    commands: &[TicCommand],
+    host: &mut dyn Host,
+) -> Option<Ending> {
+    let refuse = |tic, e| {
+        Some(Ending::Refused {
+            tic,
+            witness: Witness::Frame(e),
+        })
+    };
+    let mut sim = data.start.clone();
+    let mut frames = match FrameSource::start(&data.assets, screenblocks, &sim) {
+        Ok(f) => f,
+        Err(e) => return refuse(0, e),
+    };
+    let (mut frame, none) = (Frame::new(), TicCommand::default());
+    for &executed in commands {
+        let tic = sim.tic();
+        if let Err(e) = sim.advance([executed, none, none, none]) {
+            return Some(ending_of(&sim, e, tic));
+        }
+        let drawn = frames
+            .observe(&sim, &executed)
+            .and_then(|m| Ok((m, frames.draw(&data.assets, &sim, &mut frame)?)));
+        let (message, display) = match drawn {
+            Ok(d) => d,
+            Err(e) => return refuse(tic, e),
+        };
+        host.tic(&TicReport {
+            tic,
+            events: &[],
+            executed,
+            simulation: &sim,
+            frame: &frame,
+            display: &display,
+            message,
+            rndindex: frames.rndindex(),
+        });
+    }
+    None
+}
+
+/// The ending of a refused `advance`: the exit, the reborn or a witness.
+fn ending_of(sim: &Simulation, e: SimError, tic: u64) -> Ending {
+    match e {
+        SimError::LevelExited => Ending::Exit {
+            secret: sim
+                .snapshot()
+                .fields()
+                .any(|f| f.path() == "level.secret_exit" && f.value() == [1]),
+        },
+        SimError::PlayerReborn => Ending::Died,
+        e => Ending::Refused {
+            tic,
+            witness: Witness::Simulation(e),
+        },
+    }
 }
 
 /// Why the game data could not be loaded.
@@ -561,38 +652,35 @@ impl App {
         let none = TicCommand::default();
         if let Err(e) = self.sim.advance([executed, none, none, none]) {
             self.recorder.drop_last();
-            let ending = match e {
-                SimError::LevelExited => Ending::Exit {
-                    secret: self.secret_exit(),
-                },
-                SimError::PlayerReborn => Ending::Died,
-                e => refuse(Witness::Simulation(e)),
-            };
-            return self.end(ending, host);
+            return self.end(ending_of(&self.sim, e, tic), host);
         }
         let Some(frames) = self.frames.as_mut() else {
             return;
         };
-        let drawn = frames
-            .observe(&self.sim, &executed)
-            .and_then(|_| frames.draw(&self.data.assets, &self.sim, &mut self.frame));
+        let drawn = frames.observe(&self.sim, &executed).and_then(|m| {
+            let d = frames.draw(&self.data.assets, &self.sim, &mut self.frame)?;
+            Ok((m, d))
+        });
         match drawn {
-            Ok(drawn) => {
+            Ok((message, drawn)) => {
                 self.palette = drawn.palette;
                 self.drawn = true;
+                host.tic(&TicReport {
+                    tic,
+                    events: &self.events,
+                    executed,
+                    simulation: &self.sim,
+                    frame: &self.frame,
+                    display: &drawn,
+                    message,
+                    rndindex: frames.rndindex(),
+                });
             }
             Err(e) => return self.end(refuse(Witness::Frame(e)), host),
         }
         if self.recorder.len() % SAVE_INTERVAL == 0 {
             self.save(host);
         }
-    }
-
-    fn secret_exit(&self) -> bool {
-        self.sim
-            .snapshot()
-            .fields()
-            .any(|f| f.path() == "level.secret_exit" && f.value() == [1])
     }
 
     fn save(&mut self, host: &mut dyn Host) {

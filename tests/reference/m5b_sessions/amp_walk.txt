@@ -1,0 +1,23 @@
+# M5b session amp_walk (scripted, not played by a person): keyboard and mouse turning, a mouse fire, a pickup and a pause.
+wad tests/reference/m5a_wads/amp.wad
+map 1
+skill 2
+screenblocks 10
+100 key up down          # walk forward; the pickup near tic 18 shows bonus palette 10
+700 key left down        # keyboard turn: 320 for the first 6 tics, then 640; executed as 256 and 768 (demo resolution)
+930 key left up
+940 motion -37 5         # mouse turn and forward motion in one command
+1000 button left down    # fire with the mouse
+1010 motion 90 -12
+1060 button left up
+1070 key up up
+1200 key esc down        # the app's pause: no tics run, no command is recorded
+1210 key esc up
+3000 key esc down        # resume
+3010 key esc up
+3100 motion 3 0          # turn -96: rounds to 0 when recorded
+3200 motion 4 0          # turn -128: rounds to 0
+3300 motion 5 0          # turn -160: rounds to -256
+3400 key fire down       # fire with the keyboard
+3700 key fire up
+4000 end

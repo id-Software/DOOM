@@ -14,5 +14,8 @@ doom-render = { path = "../doom-render" }
 doom-wad = { path = "../doom-wad" }
 doom-map = { path = "../doom-map" }
 
+[dev-dependencies]
+doom-test-evidence = { path = "../doom-test-evidence" }
+
 [lints]
 workspace = true

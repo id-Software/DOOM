@@ -132,4 +132,9 @@ impl FrameSource {
             .ok_or(FrameRefusal::Palette(drawn.palette))?;
         Ok(drawn)
     }
+
+    /// The `M_Random` index after the last observed tic.
+    pub(crate) fn rndindex(&self) -> u8 {
+        self.display.status().rndindex
+    }
 }

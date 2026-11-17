@@ -5,7 +5,8 @@
 
 use doom_game::app::{
     App, Ending, GAMMA, GameData, Host, MAX_TICS_PER_UPDATE, Mode, PICTURE_BYTES, SAVE_INTERVAL,
-    SaveStatus, SessionConfig, TIC_CAP, Timestamp, Witness, session_name, wire24_admits,
+    SaveStatus, SessionConfig, TIC_CAP, TicReport, Timestamp, Witness, replay, session_name,
+    wire24_admits,
 };
 use doom_game::input::{MouseButton, keys};
 use doom_render::GameMode;
@@ -38,6 +39,7 @@ struct FakeHost {
     files: BTreeMap<String, Vec<u8>>,
     writes: usize,
     fail: bool,
+    reports: Vec<(u64, TicCommand, u64, u8, u8)>,
 }
 
 impl Host for FakeHost {
@@ -54,6 +56,11 @@ impl Host for FakeHost {
         self.writes += 1;
         self.files.insert(name.to_string(), bytes.to_vec());
         Ok(())
+    }
+    fn tic(&mut self, r: &TicReport<'_>) {
+        let f = fnv(r.frame.pixels());
+        let e = (r.tic, r.executed, f, r.display.palette, r.rndindex);
+        self.reports.push(e);
     }
 }
 
@@ -244,6 +251,19 @@ fn the_written_demo_replays_to_the_same_state_at_every_tic() {
         assert_eq!(sim.snapshot().digest(), d.digests[i], "tic {i}");
     }
     assert_eq!(d.app.save_status(), &SaveStatus::Saved(cmds.len()));
+    // every played tic was reported once, and the replay of the demo reports the same tics,
+    // commands, frames, palettes and M_Random indices
+    let live = &d.host.reports;
+    assert_eq!(
+        live.iter().map(|r| r.0).collect::<Vec<_>>(),
+        (0..58).collect::<Vec<_>>()
+    );
+    let mut again = FakeHost::default();
+    assert_eq!(
+        replay(&load("m5a_wads/amp.wad", 1, 2), 10, &cmds, &mut again),
+        None
+    );
+    assert_eq!(&again.reports, live);
 }
 
 #[test]
