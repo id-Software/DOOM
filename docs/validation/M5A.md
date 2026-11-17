@@ -937,3 +937,55 @@ detection disabled, so no LeakSanitizer coverage) passed, and `seed_render_fuzz.
 before the rooms. **Not run in this step:** the release tests of `doom-sim` and `doom-types`, the fuzz builds and
 campaigns and the real-map comparison (no simulation, fuzz-target or real-map code changed); they belong to the final
 gates from clean.
+
+## Final gates from clean
+
+2026-11-17 (America/Los_Angeles), local, no caps, on the ext4 disk. The tree was a fresh `git clone --no-hardlinks` of the
+repository checked out detached at `3238ee3` (tree `f6efe11d`, clean status), with a fresh target directory, a fresh
+fuzz target directory and a fresh `TMPDIR`; no earlier build products were reused. Nothing here is a timing. All passed:
+
+- build;
+- both format checks (workspace and `fuzz`);
+- Clippy with warnings denied (`--workspace --all-targets`);
+- `cargo test --workspace` (1,541 passed, 0 failed, 4 ignored);
+- the release tests of `doom-sim` and `doom-types` (1,368 passed, 0 failed, 2 ignored);
+- `cargo +1.85.0 test --workspace` (1,541 passed, 0 failed, 4 ignored; it prints the known dead-code warning for
+  `MAX_LINKED_THINGS` in `doom-sim`, as before this milestone);
+- warnings-denied rustdoc (`cargo doc --workspace --no-deps`);
+- `run_reference.py --suite --jobs 2` (65 unchanged historical source and encoder commands);
+- every Linux command of the CI `stable` job, the `M5a genuine renderer` job and the `Simulation instruction counts`
+  job, extracted from `.github/workflows/rust.yml` in its order (68 steps, 109 `python3` commands and the `cargo run`
+  and `cargo build` examples, all passed; the macOS and Windows-only variants and the Rust build, test and rustdoc steps
+  already listed above were not repeated). The reference suite used `--jobs 2` and the genuine renderer step
+  `--jobs 2` (CI uses 4). `bench_advance.py ir --check` on the rustc 1.85.0 build: `threshold 3.0%: ok`, all nine
+  scenarios equal to the baseline (+0.00%);
+- the M5a tools: `m5a_gfx.py --check`, `m5a_check_gfx.py`, `m5a_wad.py --check` (26 rooms), `m5a_build.py --check`
+  (the runner contract), `m5a_tables.py --check`, and `ASAN_OPTIONS=detect_leaks=0 m5a_reference.py --check --pngs
+  --selftest` (48 items, 192 golden files and `m5a_results.json` match, 35 PNGs, the self-test's planted pixel found;
+  frames per configuration 13,391 / 13,391 / 13,403). **Leak detection is disabled in that command**, so it has no
+  LeakSanitizer coverage;
+- `check_docs.py` (138 Markdown files, 2,470 links, 714 anchors, 20 archives) before this section was added, and again after it
+  (138 files, 2,473 links, 717 anchors, 20 archives);
+- `cargo +nightly fuzz build --sanitizer address`: all 53 committed targets built.
+
+The sanitizer seed replay (not a campaign) used `tools/seed_render_fuzz.py`'s seeds written to a scratch directory and the
+built binaries run directly with `ASAN_OPTIONS=detect_leaks=1` (leak detection on), `-runs=0`: `render_frames` 342 seeds
+(`-max_len=516`, 385 executions reported, 660 s), exit 0; `render_data` 409 seeds (`-max_len=2048`, 411 executions
+reported), exit 0. No crash, leak or sanitizer report in either log. The two 30-minute coverage-guided campaigns ran at
+`d69f62f` ([above](#full-re-checks-and-fuzz-campaigns-after-the-review-fixes)) and were not repeated.
+
+Two harness slips, both mine and neither a product failure: the first two `stable` steps (the reference suite and
+`evidence_storage.py verify-git`) failed because those tools look for `target/debug/evidence` under the repository, not
+under `CARGO_TARGET_DIR`; with a symlink from the clone's `target` to the scratch target directory they were re-run and
+passed (65 commands; 19 original trace identities, 6,342 protected paths checked). The CI-step run also started while the
+1.85.0 test run was still compiling, so the two shared the target directory and the machine; no result depended on it.
+
+**Not run, and why.** The real-map comparison (it reads the IWAD, which this run never touched): every source change
+since `d69f62f`, where the full real-map check passed
+([above](#full-re-checks-and-fuzz-campaigns-after-the-review-fixes)), is inside `#[cfg(test)]` modules, `tests/`, the
+tools that build the synthetic rooms, or documentation, so the renderer and simulation code that comparison exercises is
+unchanged. No timing, benchmark or Callgrind timing was run (the instruction counts above are counts). The exact-head CI
+matrix is GitHub's record.
+
+`git diff --check master...HEAD` found one trailing space (`M5A_REFERENCE_INVESTIGATION.md` line 240), fixed in the same
+commit as this section.
