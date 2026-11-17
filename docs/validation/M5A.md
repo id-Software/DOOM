@@ -188,7 +188,7 @@ showed only additions apart from the manifest, which gained three entries, and
 - **Frame harness.** `tests/frames.rs`: 39,585 frames reached (13,191 + 13,191 + 13,203), all refused
   with `NotImplemented` (no drawing code yet); the switch tracker observed every tic of M5SWTCH without
   `SwitchInconsistency`.
-- **Switch tracker.** `tests/switches.rs`: at the 189 tics where the parity is known the tracker's side
+- **Switch tracker.** `tests/switches.rs`: at the 179 tics (the load record included) where the parity is known the tracker's side
   textures equal the genuine `s0mid` of the four switch lines; the parity is unknown at exactly the 35
   tics 12-35 and 146-156, after each re-press until its button expires (decision R7). These are the
   frames the `SwitchParityUnknown` witness will skip in M5SWTCH.
