@@ -69,8 +69,9 @@ Today it can simulate:
   scripted runs (local-only), leaving out two kinds of pixels: screen columns where the original reads
   undefined memory, and 105 test-map frames where it shows a switch state the game does not record. It
   writes images and animations, no window yet ([support](docs/COMPATIBILITY.md#software-renderer-m5a));
-- on those maps, one tic of the simulation takes about 33–150 µs on a laptop CPU, 1.8 to 7 times faster
-  than before the performance work, with every result unchanged
+- on those maps, one tic of the simulation takes about 33–150 µs on an Intel Core i7-8750H laptop CPU
+  (6 cores, 2.2 GHz, Linux under WSL2), 1.8 to 7 times faster than before the performance work, with
+  every result unchanged
   ([measurements](docs/validation/M4P.md#matched-timing)).
 
 What it cannot do yet:
