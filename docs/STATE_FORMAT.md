@@ -2433,3 +2433,38 @@ screen exactly. `Renderer::restore` then checks the state against the renderer's
 (`RestoreError`): the mapped set and sector floors must have the level's line and sector counts,
 every running button's line and every unknown-parity line must be a line of the level, every
 cleared line one of its tracked switch lines, and every bounded value in range.
+
+## Display state (`DDSP` version 1, M5b)
+
+Not a DSIM version and not a change to `DRST`: decision S18 of the
+[M5b investigation](M5B_REFERENCE_INVESTIGATION.md#owner-rulings-2026-11-17) chose a new block
+with its own magic that embeds the `DRST` version 2 bytes unchanged. `DDSP` is the history of
+`doom_render::Display` (`DisplayState`): the renderer's state plus the status bar, the heads-up
+message and the `D_Display` statics, none of which the simulation keeps. Inside a `DDSP` the
+embedded `DRST` `screen` is the composed `screens[0]` (status bar and message pixels included),
+which is the C's own meaning of `screens[0]` but different values from a renderer-only run. All
+integers are little endian; i8 values are stored as their byte.
+
+| Field | Encoding | Meaning |
+| --- | --- | --- |
+| magic | 4 bytes `DDSP` | |
+| version | u32 = 1 | |
+| DRST length n, DRST | u32, n bytes | a complete `DRST` version 2 encoding, decoded by its own decoder |
+| screenblocks | u8, 10 or 11 | decision S14 |
+| display flags | u8: bit 0 `fullscreen`, bit 1 wipe due | `D_Display`'s `fullscreen` (d_main.c:198, 247) and `gamestate != wipegamestate` (d_main.c:223) |
+| rndindex | u8 | `M_Random`'s index (decision S15: 0 at a new game, advanced only by `ST_Ticker`) |
+| oldweaponsowned | u16, bits 0..8 | `oldweaponsowned[9]` (st_stuff.c:381) |
+| oldhealth, facecount, faceindex, priority, lastattackdown, palette | 6 x i32 | `st_oldhealth` (>= -1), `st_facecount` (0..=70), `st_faceindex` (0..=41), face `priority` (0, 4..=9), `lastattackdown` (-1..=70), `st_palette` (-1..=13) |
+| keyboxes, arms old, face old, keys old | 3 + 6 + 1 + 3 x i8 | `keyboxes[i]` (-1, i or i+3), `w_arms[i].oldinum` (-1..=1), `w_faces.oldinum` (-1..=41), `w_keyboxes[i].oldinum` (-1..=5) |
+| ready ammo | u8, 0..=3 or 255 | what `w_ready.num` points at; 255 is `largeammo` (1994) |
+| status flags | u8: bit 0 `st_firsttime`, bit 1 BG drawn, bit 2 `w_armsbg.oldval` | the background `screens[4]` is STBAR once drawn, so a flag replaces its bytes |
+| HUD flags | u8: bit 0 `message_on`, 1 protected, 2 must show, 3 `laston` | hu_stuff.c:98-100, hu_lib.h:73 |
+| message_counter, showMessages, needsupdate | 3 x i32 | 0..=140; any integer, tested for nonzero; 0..=4 |
+| stored message | u8, 0..=30 | the simulation's stored `PickupMessage` after the last tic (the message cross-check, decision S17) |
+| line length n, line | u8 (<= 80), n bytes | the message line's text, no NUL |
+
+The decoder rejects a wrong magic or version, truncation, trailing bytes, a bad embedded `DRST`,
+undefined flag bits and every value outside the ranges above (`StateDecodeError::Invalid` names
+the field). `Display::restore` then requires the state's tic to be the simulation's, checks the
+same ranges, restores the embedded `DRST` through `Renderer::restore`, redraws the background from
+STBAR when it had been drawn, and reads the status bar inputs from the simulation.
