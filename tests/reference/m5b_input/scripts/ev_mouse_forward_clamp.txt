@@ -1,0 +1,22 @@
+tic
+ev mouse 0 0 20
+tic
+ev mouse 0 0 50
+tic
+ev mouse 0 0 51
+tic
+ev mouse 0 0 400
+tic
+ev mouse 0 0 -50
+tic
+ev mouse 0 0 -51
+tic
+ev mouse 0 0 -400
+tic
+ev keydown 0xad
+ev mouse 0 0 40
+tic
+ev mouse 0 0 -100
+tic
+ev keyup 0xad
+tic

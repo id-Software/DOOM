@@ -1,0 +1,10 @@
+tic
+tap KP_Subtract
+tic
+press KP_Subtract
+tic
+release KP_Subtract
+press Up
+tic 2
+release Up
+tic

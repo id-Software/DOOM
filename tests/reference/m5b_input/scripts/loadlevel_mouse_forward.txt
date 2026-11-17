@@ -1,0 +1,7 @@
+tic
+ev mouse 4 0 0
+tic 2
+loadlevel
+tic 2
+ev mouse 0 0 0
+tic

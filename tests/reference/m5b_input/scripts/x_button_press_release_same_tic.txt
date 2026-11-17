@@ -1,0 +1,8 @@
+config grab 1
+tic
+bpress 1
+brelease 1
+tic 2
+bpress 3
+brelease 3
+tic 2

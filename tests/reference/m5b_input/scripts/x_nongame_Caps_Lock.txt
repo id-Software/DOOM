@@ -1,0 +1,10 @@
+tic
+tap Caps_Lock
+tic
+press Caps_Lock
+tic
+release Caps_Lock
+press Up
+tic 2
+release Up
+tic

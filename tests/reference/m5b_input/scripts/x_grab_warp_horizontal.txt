@@ -1,0 +1,8 @@
+config grab 1
+config warpmodel 1
+tic
+motion 165 100
+tic
+motion 175 100
+tic
+tic

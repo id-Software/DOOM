@@ -1,0 +1,86 @@
+tic
+ev mouse 0 0 64
+tic
+ev mouse 0 0 60
+tic
+ev mouse 0 0 56
+tic
+ev mouse 0 0 52
+tic
+ev mouse 0 0 48
+tic
+ev mouse 0 0 44
+tic
+ev mouse 0 0 40
+tic
+ev mouse 0 0 36
+tic
+ev mouse 0 0 32
+tic
+ev mouse 0 0 28
+tic
+ev mouse 0 0 24
+tic
+ev mouse 0 0 20
+tic
+ev mouse 0 0 16
+tic
+ev mouse 0 0 12
+tic
+ev mouse 0 0 8
+tic
+ev mouse 0 0 4
+tic
+ev mouse 0 0 0
+tic
+ev mouse 0 0 -4
+tic
+ev mouse 0 0 -8
+tic
+ev mouse 0 0 -12
+tic
+ev mouse 0 0 -16
+tic
+ev mouse 0 0 -20
+tic
+ev mouse 0 0 -24
+tic
+ev mouse 0 0 -28
+tic
+ev mouse 0 0 -32
+tic
+ev mouse 0 0 -36
+tic
+ev mouse 0 0 -40
+tic
+ev mouse 0 0 -44
+tic
+ev mouse 0 0 -48
+tic
+ev mouse 0 0 -52
+tic
+ev mouse 0 0 -56
+tic
+ev mouse 0 0 -60
+tic
+ev mouse 0 0 -64
+tic
+ev keydown 0xad
+ev mouse 0 0 64
+tic
+ev mouse 0 0 28
+tic
+ev mouse 0 0 24
+tic
+ev mouse 0 0 4
+tic
+ev mouse 0 0 -4
+tic
+ev mouse 0 0 -24
+tic
+ev mouse 0 0 -28
+tic
+ev mouse 0 0 -64
+tic
+ev keyup 0xad
+tic

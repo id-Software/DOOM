@@ -1,0 +1,13 @@
+config set key_up 119
+config set key_down 115
+config set key_strafeleft 97
+config set key_straferight 100
+config set key_use 101
+config set mouseb_strafe -1
+config set mouseb_forward -1
+ev keydown 0xb6
+tic
+ev mouse 0 0 80
+tic
+ev mouse 0 0 -80
+tic

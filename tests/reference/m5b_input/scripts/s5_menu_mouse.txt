@@ -1,0 +1,17 @@
+tic
+ev keydown 0x1b
+tic
+ev keyup 0x1b
+ev mouse 1 0 0
+tic
+ev mouse 0 0 0
+tic
+ev mouse 0 40 40
+tic
+ev keydown 0x1b
+tic
+ev keyup 0x1b
+ev mouse 1 40 0
+tic
+ev mouse 0 0 0
+tic

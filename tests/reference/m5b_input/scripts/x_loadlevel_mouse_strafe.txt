@@ -1,0 +1,12 @@
+config grab 1
+tic
+bpress 2
+press Left
+tic 2
+loadlevel
+release Left
+press Left
+tic 2
+release Left
+brelease 2
+tic

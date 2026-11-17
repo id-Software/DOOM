@@ -1,0 +1,10 @@
+tic
+tap Home
+tic
+press Home
+tic
+release Home
+press Up
+tic 2
+release Up
+tic

@@ -1,0 +1,9 @@
+tic
+ev mouse 7 8 -8
+tic
+ev mouse 7 0 0
+tic 2
+ev mouse 3 -8 8
+tic
+ev mouse 0 0 0
+tic

@@ -1,0 +1,15 @@
+tic
+ev keydown 0xb6
+ev keydown 0xae
+ev keydown 0x2e
+ev mouse 2 0 0
+tic 7
+ev keyup 0xb6
+ev keyup 0xae
+ev keyup 0x2e
+ev mouse 0 0 0
+tic 2
+ev keydown 0xae
+tic 2
+ev keyup 0xae
+tic

@@ -1,0 +1,9 @@
+tic
+press Meta_L
+press Left
+press Up
+tic 7
+release Left
+release Up
+release Meta_L
+tic

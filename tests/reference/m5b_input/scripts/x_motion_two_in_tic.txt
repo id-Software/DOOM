@@ -1,0 +1,7 @@
+config grab 1
+tic
+motion 170 110
+tic
+motion 190 120
+motion 180 125
+tic

@@ -1,0 +1,13 @@
+tic
+press Left
+tic 3
+release Left
+press Left
+tic
+release Left
+press Left
+release Left
+press Left
+tic 3
+release Left
+tic

@@ -1,0 +1,10 @@
+config grab 1
+tic
+motion 170 110
+tic
+bpress 3
+tic
+motion 175 115
+tic
+brelease 3
+tic

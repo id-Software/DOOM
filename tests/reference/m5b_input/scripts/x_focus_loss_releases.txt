@@ -1,0 +1,12 @@
+config grab 1
+tic
+press Up
+press Left
+bpress 1
+bpress 3
+tic 3
+release Up
+release Left
+brelease 1
+brelease 3
+tic 2

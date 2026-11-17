@@ -1,0 +1,4 @@
+tic
+ev mouse 0 -20 0
+tic
+tic

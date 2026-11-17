@@ -1,0 +1,6 @@
+tic
+expose
+press Up
+tic
+release Up
+tic

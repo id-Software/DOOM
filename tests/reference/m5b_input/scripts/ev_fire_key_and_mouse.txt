@@ -1,0 +1,8 @@
+tic
+ev keydown 0x9d
+ev mouse 1 0 0
+tic 2
+ev keyup 0x9d
+tic
+ev mouse 0 0 0
+tic

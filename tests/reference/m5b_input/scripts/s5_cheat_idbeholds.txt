@@ -1,0 +1,33 @@
+tic
+ev keydown 0x69
+tic
+ev keyup 0x69
+ev keydown 0x64
+tic
+ev keyup 0x64
+ev keydown 0x62
+tic
+ev keyup 0x62
+ev keydown 0x65
+tic
+ev keyup 0x65
+ev keydown 0x68
+tic
+ev keyup 0x68
+ev keydown 0x6f
+tic
+ev keyup 0x6f
+ev keydown 0x6c
+tic
+ev keyup 0x6c
+ev keydown 0x64
+tic
+ev keyup 0x64
+ev keydown 0x73
+tic
+ev keyup 0x73
+tic
+ev keydown 0xad
+tic
+ev keyup 0xad
+tic

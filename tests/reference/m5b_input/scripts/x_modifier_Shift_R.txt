@@ -1,0 +1,9 @@
+tic
+press Shift_R
+press Left
+press Up
+tic 7
+release Left
+release Up
+release Shift_R
+tic

@@ -1,0 +1,153 @@
+tic
+press Left
+tic
+release Left
+tic
+press Right
+tic
+release Right
+tic
+press Up
+tic
+release Up
+tic
+press Down
+tic
+release Down
+tic
+press comma
+tic
+release comma
+tic
+press period
+tic
+release period
+tic
+press space
+tic
+release space
+tic
+press Control_L
+tic
+release Control_L
+tic
+press Control_R
+tic
+release Control_R
+tic
+press Shift_L
+tic
+release Shift_L
+tic
+press Shift_R
+tic
+release Shift_R
+tic
+press Alt_L
+tic
+release Alt_L
+tic
+press Alt_R
+tic
+release Alt_R
+tic
+press Meta_L
+tic
+release Meta_L
+tic
+press Meta_R
+tic
+release Meta_R
+tic
+press 1
+tic
+release 1
+tic
+press 8
+tic
+release 8
+tic
+press a
+tic
+release a
+tic
+press z
+tic
+release z
+tic
+press A
+tic
+release A
+tic
+press Z
+tic
+release Z
+tic
+press equal
+tic
+release equal
+tic
+press minus
+tic
+release minus
+tic
+press KP_Equal
+tic
+release KP_Equal
+tic
+press KP_Subtract
+tic
+release KP_Subtract
+tic
+press BackSpace
+tic
+release BackSpace
+tic
+press Delete
+tic
+release Delete
+tic
+press Return
+tic
+release Return
+tic
+press Tab
+tic
+release Tab
+tic
+press Home
+tic
+release Home
+tic
+press KP_Enter
+tic
+release KP_Enter
+tic
+press Caps_Lock
+tic
+release Caps_Lock
+tic
+press Super_L
+tic
+release Super_L
+tic
+press 0xac
+tic
+release 0xac
+tic
+press 0xad
+tic
+release 0xad
+tic
+press 0xb6
+tic
+release 0xb6
+tic
+press 0xb8
+tic
+release 0xb8
+tic
+press 0xe9
+tic
+release 0xe9
+tic

@@ -1,0 +1,19 @@
+tic
+ev mouse 0 1 0
+tic
+ev mouse 0 -1 0
+tic
+ev mouse 0 4 0
+tic
+ev mouse 0 -4 0
+tic
+ev mouse 0 15 0
+tic
+ev mouse 0 16 0
+tic
+ev mouse 0 -16 0
+tic
+ev mouse 0 -17 0
+tic
+ev mouse 0 17 0
+tic

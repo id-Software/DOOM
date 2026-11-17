@@ -1,0 +1,8 @@
+tic
+press 3
+tic
+release 3
+press 3
+tic
+release 3
+tic

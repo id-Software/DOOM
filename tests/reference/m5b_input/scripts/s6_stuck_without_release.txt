@@ -1,0 +1,5 @@
+tic
+ev keydown 0xad
+ev keydown 0xac
+ev mouse 1 0 0
+tic 10

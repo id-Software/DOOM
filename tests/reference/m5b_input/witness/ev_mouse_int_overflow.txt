@@ -1,0 +1,3 @@
+tic
+ev mouse 0 300000000 0
+tic
