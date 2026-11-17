@@ -45,3 +45,11 @@
 /corpus/game_instance/
 /corpus/stepping_equivalence/
 /artifacts/stepping_equivalence/
+
+# Hand-made input-code seeds are committed; mutations stay local.
+/corpus/game_input_events/*
+!/corpus/game_input_events/vanilla_walk
+!/corpus/game_input_events/modern_mouse
+!/corpus/game_input_events/withheld_core
+!/corpus/game_input_events/mouse_overflow
+!/corpus/game_input_events/sets_and_buttons
