@@ -14,6 +14,7 @@
 mod common;
 
 use common::{VIEW_FIELDS, ViewTic, advance, items, load, read_view};
+use doom_render::view::ViewShadow;
 use doom_render::{RenderState, p_spec};
 use doom_sim::{PlayerSlot, Simulation};
 
@@ -140,4 +141,138 @@ fn view_shadow_matches_every_genuine_view_record() {
         failures.join("\n")
     );
     assert!(compared > 0);
+}
+
+/// A hand-built shadow of a dead player standing on the floor, with `viewheight`.
+fn dead_shadow(viewheight: i32) -> ViewShadow {
+    ViewShadow {
+        viewheight,
+        deltaviewheight: 12345,
+        viewz: 0,
+        onground: false,
+        fixedcolormap: 0,
+        z: 0,
+        floorz: 0,
+        ceilingz: 128 << 16,
+        reactiontime: 0,
+        dead: true,
+        powers: [0; 6],
+        sector_floors: vec![0],
+    }
+}
+
+#[test]
+fn a_dead_players_view_sinks_to_six_units_and_no_lower() {
+    // P_DeathThink (p_user.c:185-198): `if (viewheight > 6*FRACUNIT) viewheight -= FRACUNIT;
+    // if (viewheight < 6*FRACUNIT) viewheight = 6*FRACUNIT; deltaviewheight = 0;
+    // onground = (z <= floorz); P_CalcHeight`. The prior shadow is built by hand (a dead
+    // player of a few tics ago); the simulation (the live player at tic 1, no vertical or
+    // teleport events, bob 0) only supplies the tic. In P_CalcHeight the dead player's
+    // `viewheight` is not advanced (`playerstate != PST_LIVE`, p_user.c:109-124) and
+    // `viewz = z + viewheight + bob` (p_user.c:132) with `bob` 0.
+    let item = items()
+        .into_iter()
+        .find(|i| i.lump == "M5AMP")
+        .expect("M5AMP");
+    let mut run = load(&item);
+    advance(&mut run, 0).unwrap();
+    assert_eq!(run.sim.tic(), 1);
+    let mo = run
+        .sim
+        .original_player(doom_sim::PlayerSlot::One)
+        .unwrap()
+        .mo
+        .unwrap();
+    assert!(
+        run.sim.events().iter().all(|e| !matches!(e,
+            doom_sim::Event::Vertical { actor, .. } if *actor == mo)
+            && !matches!(e, doom_sim::Event::Mover(doom_sim::MoverEvent::Teleported { actor, .. }) if *actor == mo)),
+        "no vertical or teleport event of the player at tic 1"
+    );
+    let w = run
+        .sim
+        .original_player_weapons(doom_sim::PlayerSlot::One)
+        .unwrap()
+        .unwrap();
+    assert_eq!(w.bob.bits(), 0);
+    let six = 6 << 16;
+    // (prior viewheight, viewheight after the tic)
+    for (before, after) in [
+        (41 << 16, 40 << 16),
+        (six + (1 << 16), six),
+        // 6.5 units: 5.5 after the decrement, clamped back to 6.
+        (six + (1 << 15), six),
+        (six + 1, six),
+        (six, six),
+        (six - 1, six),
+        (five_and_a_half(), six),
+        (1 << 16, six),
+        (0, six),
+        (-(1 << 16), six),
+    ] {
+        let s = dead_shadow(before).next(&run.sim).unwrap();
+        assert_eq!(s.viewheight, after, "from {before}");
+        assert_eq!(s.deltaviewheight, 0, "from {before}");
+        assert!(s.onground, "z <= floorz");
+        assert_eq!(s.viewz, after, "viewz = z + viewheight + 0, from {before}");
+    }
+    // `onground = (z <= floorz)`: a dead player above the floor has `viewz = z + viewheight`.
+    let mut air = dead_shadow(six);
+    air.z = 1;
+    let s = air.next(&run.sim).unwrap();
+    assert!(!s.onground);
+    assert_eq!(s.viewz, 1 + six);
+}
+
+fn five_and_a_half() -> i32 {
+    (11 << 16) / 2
+}
+
+#[test]
+fn another_actors_teleport_does_not_move_the_players_view() {
+    // p_telept.c:106-108 sets `viewz` only for `thing->player` (the teleported thing itself); a
+    // monster or any other actor teleporting is not the player's view. M4b's MTELE1 has a
+    // non-player teleport at tic 87 and no event of the player's own. The prior shadow is
+    // built by hand: standing in the air (so `viewz = z + viewheight`, p_user.c:97-105) with
+    // every sector floor at 5,000 units, which a wrongly applied teleport would copy into
+    // `viewz` (`floor + viewheight`).
+    let item = items()
+        .into_iter()
+        .find(|i| i.lump == "MTELE1")
+        .expect("MTELE1");
+    let mut run = load(&item);
+    let mo = run
+        .sim
+        .original_player(PlayerSlot::One)
+        .unwrap()
+        .mo
+        .unwrap();
+    let mut index = 0;
+    let found = loop {
+        advance(&mut run, index).unwrap();
+        index += 1;
+        let ev = run.sim.events();
+        let other = ev.iter().any(|e| {
+            matches!(e, doom_sim::Event::Mover(doom_sim::MoverEvent::Teleported { actor, .. }) if *actor != mo)
+        });
+        if other {
+            break run.sim.tic();
+        }
+        assert!(index < run.commands.len(), "no other-actor teleport");
+    };
+    assert_eq!(found, 87);
+    assert!(
+        run.sim.events().iter().all(|e| !matches!(e,
+            doom_sim::Event::Mover(doom_sim::MoverEvent::Teleported { actor, .. }) if *actor == mo)
+            && !matches!(e, doom_sim::Event::Vertical { actor, .. } if *actor == mo)),
+        "no teleport or vertical event of the player"
+    );
+    let mut before = dead_shadow(41 << 16);
+    before.dead = false;
+    before.z = 1;
+    before.floorz = 0;
+    before.sector_floors = vec![5000 << 16; run.sim.sectors().len()];
+    let after = before.next(&run.sim).unwrap();
+    assert!(!after.onground);
+    assert_eq!(after.viewz, 1 + (41 << 16));
 }

@@ -837,7 +837,7 @@ struct Thing {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::test_support::with_ctx;
+    use crate::test_support::{with_ctx, with_ctx_res};
 
     /// One post (topdelta 0, length 4, pad, four texels, pad) and the 0xff terminator
     /// (the patch column format, investigation §2.6).
@@ -976,5 +976,773 @@ mod tests {
                 Err(RenderRefusal::StaleGlobal("R_SortVisSprites best"))
             );
         });
+    }
+
+    // ---- R_InitSpriteDefs / R_InstallSpriteLump (r_things.c:108-157, 166-270): the error paths
+    // of the sprite lump naming rules, reached by the public API only with well-formed sprite
+    // sets (every golden loads), so they are exercised on hand-made lump directories.
+
+    use crate::r_data::{LumpDirectory, Resources};
+
+    /// A `Resources` whose sprite range holds lumps named `names` (empty patches; the sprite
+    /// definitions read only the names).
+    fn sprite_res(names: &[&str]) -> Resources {
+        let mut dir = LumpDirectory::new();
+        dir.add_single_lump("S_START", &[]).unwrap();
+        for n in names {
+            dir.add_single_lump(n, &[0; 8]).unwrap();
+        }
+        dir.add_single_lump("S_END", &[]).unwrap();
+        Resources {
+            dir,
+            colormaps: vec![],
+            palette: None,
+            textures: vec![],
+            firstflat: 0,
+            numflats: 0,
+            firstspritelump: 1,
+            sprite_lumps: vec![[0; 3]; names.len()],
+            sprites: vec![],
+            switchlist: vec![],
+            anims: vec![],
+            skytexture: 0,
+            skyflatnum: None,
+        }
+    }
+
+    fn sprite_err(names: &[&str]) -> String {
+        match init_sprite_defs(&sprite_res(names)) {
+            Err(ResourceError::Sprite(m)) => m,
+            other => panic!("{names:?}: {other:?}"),
+        }
+    }
+
+    #[test]
+    fn a_frame_with_no_patch_below_the_last_frame_is_refused_by_letter() {
+        // `for (frame = 0; frame < maxframe; frame++) case -1: I_Error("R_InitSprites: No
+        // patches found for %s frame %c", ..., frame+'A')` (r_things.c:239-247): TROO has
+        // frames A and C but no B.
+        assert_eq!(
+            sprite_err(&["TROOA0", "TROOC0"]),
+            "No patches found for TROO frame B"
+        );
+        assert_eq!(
+            sprite_err(&["TROOA0", "TROOB0", "TROOD0"]),
+            "No patches found for TROO frame C"
+        );
+    }
+
+    #[test]
+    fn a_rotated_frame_needs_all_eight_rotations() {
+        // `case 1: for (rotation = 0; rotation < 8; rotation++) if (lump[rotation] == -1)
+        // I_Error("... Sprite %s frame %c is missing rotations")` (r_things.c:249-257).
+        assert_eq!(
+            sprite_err(&[
+                "TROOA1", "TROOA2", "TROOA3", "TROOA4", "TROOA5", "TROOA6", "TROOA7"
+            ]),
+            "Sprite TROO frame A is missing rotations"
+        );
+        let all: Vec<String> = (1..=8).map(|r| format!("TROOA{r}")).collect();
+        let refs: Vec<&str> = all.iter().map(String::as_str).collect();
+        let defs = init_sprite_defs(&sprite_res(&refs)).expect("complete rotations");
+        let troo = defs.iter().find(|d| !d.frames.is_empty()).expect("TROO");
+        assert_eq!(troo.frames.len(), 1);
+        assert!(troo.frames[0].rotate);
+        assert_eq!(troo.frames[0].lump, [0, 1, 2, 3, 4, 5, 6, 7]);
+        // A mirrored pair `TROOA2A8` fills rotations 2 and 8 (name[6..8], r_things.c:215-221).
+        let defs = init_sprite_defs(&sprite_res(&[
+            "TROOA1", "TROOA2A8", "TROOA3A7", "TROOA4A6", "TROOA5",
+        ]))
+        .expect("mirrored rotations");
+        let f = &defs.iter().find(|d| !d.frames.is_empty()).unwrap().frames[0];
+        assert_eq!(f.lump, [0, 1, 2, 3, 4, 3, 2, 1]);
+        assert_eq!(
+            f.flip,
+            [false, false, false, false, false, true, true, true]
+        );
+    }
+
+    #[test]
+    fn install_refuses_bad_names_and_duplicate_lumps_naming_the_frame_letter() {
+        // R_InstallSpriteLump (r_things.c:108-157): `frame >= 29 || rotation > 8` is "Bad frame
+        // characters in lump %i" (either alone); the others name the frame as 'A'+frame.
+        // Lump numbers count from the start of the directory: S_START is lump 0.
+        assert_eq!(sprite_err(&["TROO^1"]), "Bad frame characters in lump 1");
+        assert_eq!(sprite_err(&["TROOA9"]), "Bad frame characters in lump 1");
+        assert_eq!(
+            sprite_err(&["TROOA0", "TROOB0", "TROOB0"]),
+            "Sprite TROO frame B has multip rot=0 lump"
+        );
+        assert_eq!(
+            sprite_err(&["TROOA0", "TROOB1", "TROOB0"]),
+            "Sprite TROO frame B has rotations and a rot=0 lump"
+        );
+        assert_eq!(
+            sprite_err(&["TROOA0", "TROOB0", "TROOB1"]),
+            "Sprite TROO frame B has rotations and a rot=0 lump"
+        );
+        assert_eq!(
+            sprite_err(&["TROOA0", "TROOB3", "TROOB3"]),
+            "Sprite TROO : B : 3 has two lumps mapped to it"
+        );
+    }
+
+    // ---- R_DrawSprite's drawseg clipping (r_things.c:860-933) on hand-made drawsegs.
+
+    use crate::r_segs::DrawSeg;
+
+    const BOTTOM_CLIP: i16 = 123;
+    const TOP_CLIP: i16 = 37;
+
+    /// A drawseg over columns 10-13 of seg 0 whose clip arrays are `openings` rows holding
+    /// `bottom`/`top`.
+    fn drawseg(
+        ctx: &mut crate::FrameContext<'_>,
+        k: usize,
+        scales: [i32; 2],
+        silhouette: i32,
+        bsil: i32,
+        tsil: i32,
+        (bottom, top): (i16, i16),
+    ) -> DrawSeg {
+        let (bb, tb) = (k as i32 * 1000, k as i32 * 1000 + 500);
+        for x in 0..320 {
+            ctx.planes.openings[(bb + x) as usize] = bottom;
+            ctx.planes.openings[(tb + x) as usize] = top;
+        }
+        DrawSeg {
+            curline: 0,
+            x1: 10,
+            x2: 13,
+            scale1: scales[0],
+            scale2: scales[1],
+            scalestep: 0,
+            silhouette,
+            bsilheight: bsil,
+            tsilheight: tsil,
+            sprtopclip: Clip::Openings(tb),
+            sprbottomclip: Clip::Openings(bb),
+            maskedtexturecol: None,
+        }
+    }
+
+    /// A sprite over columns 11-12 (inside the drawsegs' 10-13) at (`gx`, `gy`), z from 0 to
+    /// `gzt`, drawn from every column 0 of sprite lump 0.
+    fn spr_at(scale: i32, gx: i32, gy: i32, gz: i32, gzt: i32) -> VisSprite {
+        VisSprite {
+            x1: 11,
+            x2: 12,
+            gx,
+            gy,
+            gz,
+            gzt,
+            startfrac: 0,
+            scale,
+            xiscale: 0,
+            texturemid: 0,
+            patch: 0,
+            colormap: Some(0),
+            mobjflags: 0,
+            sprite: 0,
+            frame: 0,
+        }
+    }
+
+    /// A point on side `side` of seg 0 (`R_PointOnSegSide`, r_main.c:217-273).
+    fn point_on_seg0_side(ctx: &crate::FrameContext<'_>, side: usize) -> (i32, i32) {
+        let seg = &ctx.level.geometry.segs[0];
+        let node = [
+            seg.v1[0],
+            seg.v1[1],
+            seg.v2[0].wrapping_sub(seg.v1[0]),
+            seg.v2[1].wrapping_sub(seg.v1[1]),
+        ];
+        for gx in (-8..8).map(|i| (i * 256) << 16) {
+            for gy in (-8..8).map(|i| (i * 256) << 16) {
+                if crate::r_main::point_on_side(gx, gy, node) == side {
+                    return (gx, gy);
+                }
+            }
+        }
+        panic!("no point on side {side}");
+    }
+
+    /// Draws `spr` against `segs` and returns its columns 11 and 12 of (`clipbot`, `cliptop`).
+    fn clips(
+        ctx: &mut crate::FrameContext<'_>,
+        spr: VisSprite,
+        segs: Vec<DrawSeg>,
+    ) -> [(i16, i16); 2] {
+        ctx.bsp.drawsegs = segs;
+        ctx.things.vissprites.clear();
+        ctx.things.vissprites.push(spr);
+        ctx.draw_sprite(0).expect("draw");
+        let t = &ctx.things;
+        [
+            (t.clipbot[11], t.cliptop[11]),
+            (t.clipbot[12], t.cliptop[12]),
+        ]
+    }
+
+    #[test]
+    fn a_drawseg_clips_a_sprite_unless_it_is_behind_it() {
+        // r_things.c:870-891: the drawseg is `behind` the sprite when its nearer end is
+        // farther (`scale < spr->scale`) or its far end is farther and the sprite is on the
+        // seg's front (`lowscale < spr->scale && !R_PointOnSegSide`); `scale` is the larger of
+        // the two end scales. A behind drawseg does not clip. Unclipped bounds are
+        // clipbot = viewheight (200 here), cliptop = -1 (r_things.c:938-945).
+        with_ctx(11, |ctx| {
+            let on_back = point_on_seg0_side(ctx, 1);
+            let on_front = point_on_seg0_side(ctx, 0);
+            let sil =
+                |ctx: &mut crate::FrameContext<'_>, sc: [i32; 2], at: (i32, i32), spr_scale| {
+                    let ds = drawseg(ctx, 0, sc, 1, i32::MAX, i32::MIN, (BOTTOM_CLIP, TOP_CLIP));
+                    clips(ctx, spr_at(spr_scale, at.0, at.1, 0, 1 << 16), vec![ds])[0].0
+                };
+            let (clipped, unclipped) = (BOTTOM_CLIP, 200);
+            // The larger end scale (100, in either order) beyond the sprite's 50 and the
+            // smaller one before it: behind only on the seg's front side (side 0).
+            for sc in [[100, 1], [1, 100]] {
+                assert_eq!(sil(ctx, sc, on_back, 50), clipped, "{sc:?} back side");
+                assert_eq!(sil(ctx, sc, on_front, 50), unclipped, "{sc:?} front side");
+            }
+            // Both ends nearer than the sprite (`scale < spr->scale`): behind, whatever the side.
+            assert_eq!(sil(ctx, [10, 20], on_back, 50), unclipped);
+            // The larger end scale equal to the sprite's is not `<`: not behind via the first
+            // test, and the second needs `lowscale < spr->scale`.
+            assert_eq!(sil(ctx, [50, 50], on_back, 50), clipped);
+            assert_eq!(sil(ctx, [30, 50], on_back, 50), clipped);
+            assert_eq!(sil(ctx, [30, 50], on_front, 50), unclipped);
+            // The smaller end scale equal to the sprite's: `lowscale < spr->scale` is false.
+            assert_eq!(sil(ctx, [50, 100], on_front, 50), clipped);
+        });
+    }
+
+    #[test]
+    fn silhouette_bits_select_the_clip_arrays_and_gz_gzt_remove_them() {
+        // r_things.c:898-931: `if (spr->gz >= ds->bsilheight) silhouette &= ~SIL_BOTTOM; if
+        // (spr->gzt <= ds->tsilheight) silhouette &= ~SIL_TOP;` then silhouette 1 clips from
+        // the bottom array, 2 from the top array, 3 from both.
+        with_ctx(11, |ctx| {
+            let (gx, gy) = point_on_seg0_side(ctx, 1); // never behind at these scales
+            let near = 1_000_000;
+            let run = |ctx: &mut crate::FrameContext<'_>, silhouette, bsil, tsil, gz, gzt| {
+                let ds = drawseg(
+                    ctx,
+                    0,
+                    [near, near],
+                    silhouette,
+                    bsil,
+                    tsil,
+                    (BOTTOM_CLIP, TOP_CLIP),
+                );
+                clips(ctx, spr_at(50, gx, gy, gz, gzt), vec![ds])[0]
+            };
+            let (b, t) = (BOTTOM_CLIP, TOP_CLIP);
+            let (open_b, open_t) = (200, -1);
+            // Bottom only, top only, both.
+            assert_eq!(run(ctx, 1, i32::MAX, i32::MIN, 0, 10), (b, open_t));
+            assert_eq!(run(ctx, 2, i32::MAX, i32::MIN, 0, 10), (open_b, t));
+            assert_eq!(run(ctx, 3, i32::MAX, i32::MIN, 0, 10), (b, t));
+            // `gz >= bsilheight` drops the bottom bit (equality included) and leaves the top.
+            assert_eq!(run(ctx, 3, 0, i32::MIN, 0, 10), (open_b, t));
+            assert_eq!(run(ctx, 3, 1, i32::MIN, 0, 10), (b, t));
+            // `gzt <= tsilheight` drops the top bit (equality included) and leaves the bottom.
+            assert_eq!(run(ctx, 3, i32::MAX, 10, 0, 10), (b, open_t));
+            assert_eq!(run(ctx, 3, i32::MAX, 9, 0, 10), (b, t));
+            assert_eq!(run(ctx, 2, i32::MAX, 10, 0, 10), (open_b, open_t));
+            // Both dropped.
+            assert_eq!(run(ctx, 3, 0, 10, 0, 10), (open_b, open_t));
+        });
+    }
+
+    #[test]
+    fn the_nearest_drawseg_clips_first_and_a_clipped_column_is_not_rewritten() {
+        // Drawsegs are scanned from the last emitted backwards and `if (clipbot[x] == -2)`
+        // keeps the first (nearest) write (r_things.c:902-931): the later index wins.
+        with_ctx(11, |ctx| {
+            let (gx, gy) = point_on_seg0_side(ctx, 1);
+            let near = 1_000_000;
+            let first = drawseg(ctx, 0, [near, near], 3, i32::MAX, i32::MIN, (11, 12));
+            let last = drawseg(ctx, 1, [near, near], 3, i32::MAX, i32::MIN, (21, 22));
+            let got = clips(ctx, spr_at(50, gx, gy, 0, 10), vec![first, last]);
+            assert_eq!(got, [(21, 22), (21, 22)]);
+        });
+    }
+
+    // ---- R_DrawVisSprite (r_things.c:389-450).
+
+    #[test]
+    fn a_translated_sprite_is_refused_and_a_bad_texture_column_is_a_range_error() {
+        // `else if (vis->mobjflags & MF_TRANSLATION)` selects R_DrawTranslatedColumn
+        // (r_things.c:407-413), refused by decision R1; the genuine `texturecolumn < 0 ||
+        // texturecolumn >= SHORT(patch->width)` is an I_Error (r_things.c:432-436).
+        with_ctx(11, |ctx| {
+            let mut v = spr_at(50, 0, 0, 0, 0);
+            v.mobjflags = MF_TRANSLATION & 0x400_0000;
+            let draw = |ctx: &mut crate::FrameContext<'_>, v: &VisSprite| {
+                ctx.draw_vis_sprite(v, Clip::ScreenHeight, Clip::NegOne, Feature::Untouched)
+            };
+            assert_eq!(draw(ctx, &v), Err(RenderRefusal::PlayerTranslation));
+            // The shadow colour map (NULL) wins over the translation flags.
+            v.colormap = None;
+            assert!(draw(ctx, &v).is_ok());
+            v.colormap = Some(0);
+            v.mobjflags = 0;
+            assert!(draw(ctx, &v).is_ok());
+            let width = i32::from(
+                patch_header(ctx.res.lump(ctx.res.firstspritelump))
+                    .expect("patch header")
+                    .width,
+            );
+            let range = Err(RenderRefusal::RangeCheck(
+                "R_DrawSpriteRange: bad texturecolumn",
+            ));
+            for startfrac in [-1, -(1 << 16), width << 16, (width << 16) + 5, i32::MIN] {
+                v.startfrac = startfrac;
+                assert_eq!(draw(ctx, &v), range, "startfrac {startfrac}");
+            }
+            for startfrac in [0, (width - 1) << 16, ((width - 1) << 16) + 0xffff] {
+                v.startfrac = startfrac;
+                assert!(draw(ctx, &v).is_ok(), "startfrac {startfrac}");
+            }
+        });
+    }
+
+    #[test]
+    fn light_rows_clamp_to_the_sixteen_scalelight_rows() {
+        // r_things.c:628-635, 753-762: `lightnum = (sec->lightlevel >> LIGHTSEGSHIFT) +
+        // extralight; if (lightnum < 0) spritelights = scalelight[0]; else if (lightnum >=
+        // LIGHTLEVELS) spritelights = scalelight[LIGHTLEVELS-1]`.
+        for (light, extra, want) in [
+            (255, 0, 15),
+            (255, 1, 15),
+            (255, 8, 15),
+            (240, 0, 15),
+            (224, 1, 15),
+            (224, 0, 14),
+            (160, 0, 10),
+            (160, 2, 12),
+            (0, 0, 0),
+            (0, -1, 0),
+            (16, -5, 0),
+        ] {
+            assert_eq!(light_row(light, extra), want, "{light} {extra}");
+        }
+    }
+
+    // ---- R_ProjectSprite's culling edges (r_things.c:483-547).
+
+    use crate::r_data::SpriteDef;
+    use crate::r_main::fixed_mul;
+
+    /// The first sprite whose frame 0 has one lump for every rotation, as (sprite number, lump).
+    fn plain_sprite(res: &Resources) -> (u16, i16) {
+        res.sprites
+            .iter()
+            .enumerate()
+            .find_map(|(i, d): (usize, &SpriteDef)| {
+                let f = d.frames.first()?;
+                (!f.rotate).then_some((i as u16, f.lump[0]))
+            })
+            .expect("a non-rotating sprite in the fixture")
+    }
+
+    /// `tz` and `tx` of r_things.c:483-489 for a thing at (`x`, `y`) seen from the fixture's
+    /// view at the origin.
+    fn tz_tx(ctx: &crate::FrameContext<'_>, x: i32, y: i32) -> (i32, i32) {
+        let f = ctx.frame;
+        let gxt = fixed_mul(x, f.viewcos);
+        let gyt = fixed_mul(y, f.viewsin).wrapping_neg();
+        let tz = gxt.wrapping_sub(gyt);
+        let gxt = fixed_mul(x, f.viewsin).wrapping_neg();
+        let gyt = fixed_mul(y, f.viewcos);
+        (tz, gyt.wrapping_add(gxt).wrapping_neg())
+    }
+
+    fn thing(sprite: u16, x: i32, y: i32, frame: u32) -> Thing {
+        Thing {
+            x,
+            y,
+            z: 0,
+            angle: 0,
+            sprite,
+            frame,
+            flags: 0,
+        }
+    }
+
+    /// A (x, y) with exactly `tz` and `tx` (the view is at the origin, `viewsin` is not 0, so
+    /// both depend on both coordinates), found in a window around the ideal values.
+    fn find_xy(ctx: &crate::FrameContext<'_>, tz: i32, tx: i32) -> (i32, i32) {
+        for y in (-tx - 2048)..(-tx + 2048) {
+            for x in (tz - 2048)..(tz + 2048) {
+                if tz_tx(ctx, x, y) == (tz, tx) {
+                    return (x, y);
+                }
+            }
+        }
+        panic!("no thing position gives tz {tz} tx {tx}");
+    }
+
+    /// The fixture with sprite lump `plain_sprite` made 100 units wide, so that a thing 16 units
+    /// to the side at the 4-unit minimum distance still reaches the view.
+    fn wide(res: &mut Resources) {
+        let (_, lump) = plain_sprite(res);
+        res.sprite_lumps[lump as usize] = [100 << 16, 0, 50 << 16];
+    }
+
+    #[test]
+    fn project_culls_at_exactly_minz_and_four_times_tz_to_the_side() {
+        // r_things.c:492-493 `if (tz < MINZ) return` (MINZ 4 units) and 502-503 `if
+        // (abs(tx) > (tz<<2)) return`: a thing at exactly MINZ, or exactly 4 tz to the side,
+        // is kept; one fixed-point unit nearer, or farther to the side, is not.
+        with_ctx_res(11, wide, |ctx| {
+            let (sprite, _) = plain_sprite(ctx.res);
+            let kept = |ctx: &mut crate::FrameContext<'_>, (x, y): (i32, i32)| {
+                ctx.things.vissprites.clear();
+                ctx.project_sprite(&thing(sprite, x, y, 0))
+                    .expect("project");
+                !ctx.things.vissprites.is_empty()
+            };
+            let limit = MINZ << 2;
+            let centre = find_xy(ctx, MINZ, 0);
+            assert!(
+                kept(ctx, centre),
+                "tz == MINZ is in front of the view plane"
+            );
+            assert!(
+                !kept(ctx, find_xy(ctx, MINZ - 1, 0)),
+                "tz < MINZ is behind it"
+            );
+            let edge = find_xy(ctx, MINZ, -limit);
+            assert!(
+                kept(ctx, edge),
+                "abs(tx) == tz<<2 is not too far off the side"
+            );
+            let out = find_xy(ctx, MINZ, -limit - 1);
+            assert!(!kept(ctx, out), "abs(tx) > tz<<2 is too far off the side");
+        });
+    }
+
+    #[test]
+    fn a_projected_sprites_frame_field_is_the_frame_number_without_the_full_bright_bit() {
+        // R_ProjectSprite indexes `spriteframes[thing->frame & FF_FRAMEMASK]` (r_things.c:511)
+        // and `FF_FULLBRIGHT` (0x8000) selects colour map 0 (r_things.c:593-596); the
+        // vissprite keeps the plain frame number for first-difference reports.
+        with_ctx_res(11, wide, |ctx| {
+            let (sprite, _) = plain_sprite(ctx.res);
+            let x = 8 << 16;
+            ctx.project_sprite(&thing(sprite, x, 0, FF_FULLBRIGHT))
+                .expect("project");
+            let v = ctx.things.vissprites.last().expect("a vissprite");
+            assert_eq!(v.frame, 0);
+            assert_eq!(v.colormap, Some(0));
+            assert_eq!(v.sprite, sprite);
+        });
+    }
+
+    // ---- R_DrawPSprite (r_things.c:643-739) with the weapon taken from the fixture's player.
+
+    /// The fixture player's weapon state with the first psprite's x set to `sx`.
+    fn weapon_at(ctx: &crate::FrameContext<'_>, sx: i32) -> doom_sim::PlayerWeaponState {
+        let mut w = ctx
+            .sim
+            .original_player_weapons(PlayerSlot::One)
+            .expect("player")
+            .expect("weapon state");
+        assert!(
+            w.psprites[0].state.is_some(),
+            "the fixture's weapon psprite"
+        );
+        w.psprites[0].position = [
+            doom_types::Fixed::from_bits(sx),
+            doom_types::Fixed::from_bits(32 << 16),
+        ];
+        w
+    }
+
+    /// `x2` of r_things.c:676-690 for psprite x `sx`.
+    fn psprite_x2(ctx: &crate::FrameContext<'_>, sx: i32, width: i32, offset: i32) -> i32 {
+        let tx = sx
+            .wrapping_sub(160 << 16)
+            .wrapping_sub(offset)
+            .wrapping_add(width);
+        (ctx.view
+            .centerxfrac
+            .wrapping_add(fixed_mul(tx, ctx.view.pspritescale))
+            >> 16)
+            - 1
+    }
+
+    /// The weapon sprite's lump, width and offset in the fixture.
+    fn weapon_lump(ctx: &crate::FrameContext<'_>) -> (i16, i32, i32) {
+        let w = weapon_at(ctx, 0);
+        let def = ctx
+            .res
+            .sprites
+            .get(usize::from(
+                ctx.sim
+                    .actor_registry()
+                    .expect("registry")
+                    .state(w.psprites[0].state.unwrap())
+                    .expect("state")
+                    .sprite,
+            ))
+            .expect("sprite def");
+        let lump = def.frames[0].lump[0];
+        let [width, offset, _] = ctx.res.sprite_lumps[lump as usize];
+        (lump, width, offset)
+    }
+
+    #[test]
+    fn a_weapon_sprite_ending_exactly_at_column_zero_is_drawn() {
+        // r_things.c:685-690 `x2 = ((centerxfrac + FixedMul(tx, pspritescale)) >> FRACBITS) - 1;
+        // if (x2 < 0) return;`: a weapon whose last column is screen column 0 is drawn, one
+        // column further left is not. The sprite is made one column wide (spritewidth 1 unit)
+        // so that exactly column 0 shows the patch's column 0.
+        with_ctx_res(
+            11,
+            |res| {
+                // The fixture weapon's lump, found as `weapon_lump` does, one column wide.
+                let w = crate::test_support::fixture_weapon_lump(res);
+                res.sprite_lumps[w as usize][0] = 1 << 16;
+            },
+            |ctx| {
+                let (lump, width, offset) = weapon_lump(ctx);
+                assert_eq!(width, 1 << 16);
+                let patch = ctx.res.lump(ctx.res.firstspritelump + lump as usize);
+                let col0 = patch_column_offset(patch, 0).expect("column 0");
+                assert!(patch[col0 as usize] != 0xff, "patch column 0 has a post");
+                let find = |want: i32| {
+                    (-(600i32 << 16)..(600 << 16))
+                        .step_by(1 << 10)
+                        .find(|sx| psprite_x2(ctx, *sx, width, offset) == want)
+                        .expect("an sx")
+                };
+                let (sx0, sx_1) = (find(0), find(-1));
+                let column0_pixels = |ctx: &mut crate::FrameContext<'_>, sx| {
+                    ctx.screen.fill(0xAA);
+                    let w = weapon_at(ctx, sx);
+                    ctx.draw_player_sprites(&w).expect("psprites");
+                    (0..200).filter(|y| ctx.screen[y * 320] != 0xAA).count()
+                };
+                assert!(column0_pixels(ctx, sx0) > 0, "x2 == 0: column 0 is drawn");
+                assert_eq!(column0_pixels(ctx, sx_1), 0, "x2 == -1: off the left side");
+            },
+        );
+    }
+
+    #[test]
+    fn a_mirrored_weapon_lump_draws_the_patch_columns_in_reverse() {
+        // r_things.c:700-715: a flipped lump starts at `spritewidth[lump] - 1` and steps by
+        // `-pspriteiscale`, so at scale 1 the columns of the patch appear in reverse order over
+        // the same screen span as the unflipped drawing.
+        let draw = |flip: bool| {
+            with_ctx_res(
+                11,
+                |res| {
+                    if flip {
+                        let sprite = {
+                            let w = crate::test_support::fixture_weapon_lump(res);
+                            res.sprites
+                                .iter_mut()
+                                .find(|d| d.frames.first().is_some_and(|f| f.lump[0] == w))
+                                .expect("weapon sprite")
+                                .frames[0]
+                                .flip = [true; 8];
+                            w
+                        };
+                        assert!(sprite >= 0);
+                    }
+                },
+                |ctx| {
+                    let (_, width, offset) = weapon_lump(ctx);
+                    let x2 = psprite_x2(ctx, 0, width, offset);
+                    let x1 = x2 - (width >> 16) + 1;
+                    ctx.screen.fill(0xAA);
+                    let w = weapon_at(ctx, 0);
+                    ctx.draw_player_sprites(&w).expect("psprites");
+                    (x1, x2, ctx.screen.to_vec())
+                },
+            )
+        };
+        let (x1, x2, plain) = draw(false);
+        let (fx1, fx2, flipped) = draw(true);
+        assert_eq!((x1, x2), (fx1, fx2));
+        assert!(
+            x1 >= 0 && x2 < 320,
+            "the fixture weapon is fully on screen: {x1} {x2}"
+        );
+        assert_ne!(plain, flipped, "mirroring changes the picture");
+        for y in 0..200 {
+            for x in 0..320 {
+                let mirror = if (x1..=x2).contains(&x) {
+                    x1 + x2 - x
+                } else {
+                    x
+                };
+                assert_eq!(
+                    flipped[y * 320 + x as usize],
+                    plain[y * 320 + mirror as usize],
+                    "({x},{y})"
+                );
+            }
+        }
+    }
+
+    /// Draws the fixture weapon with its x at `sx` and returns the screen (background 0xAA) and
+    /// the span of columns it covers.
+    fn weapon_screen(ctx: &mut crate::FrameContext<'_>, sx: i32) -> (Vec<u8>, i32, i32) {
+        let (_, width, offset) = weapon_lump(ctx);
+        let x2 = psprite_x2(ctx, sx, width, offset);
+        ctx.screen.fill(0xAA);
+        let w = weapon_at(ctx, sx);
+        ctx.draw_player_sprites(&w).expect("psprites");
+        (ctx.screen.to_vec(), x2 - (width >> 16) + 1, x2)
+    }
+
+    #[test]
+    fn a_weapon_cut_by_the_left_or_right_edge_shows_the_same_columns_as_the_uncut_one() {
+        // r_things.c:696-713: `vis->x1 = x1 < 0 ? 0 : x1; vis->x2 = x2 >= viewwidth ? viewwidth-1
+        // : x2; ... if (vis->x1 > x1) vis->startfrac += vis->xiscale*(vis->x1-x1);` At scale 1
+        // (screenblocks 11) moving the weapon k pixels left or right only hides columns: every
+        // visible screen column shows the patch column it showed before, and nothing is written
+        // outside columns 0-319 (the framebuffer is row-major, so column 320 is the next row).
+        with_ctx(11, |ctx| {
+            let (whole, x1, x2) = weapon_screen(ctx, 0);
+            assert!(x1 >= 5 && x2 < 300, "the uncut weapon: {x1}-{x2}");
+            // Left: the first five columns are off the screen.
+            let k = x1 + 5;
+            let (left, lx1, _) = weapon_screen(ctx, -(k << 16));
+            assert_eq!(lx1, -5);
+            for y in 0..200 {
+                for x in 0..320 - k as usize {
+                    assert_eq!(
+                        left[y * 320 + x],
+                        whole[y * 320 + x + k as usize],
+                        "left ({x},{y})"
+                    );
+                }
+            }
+            // Right: only the first five columns of the patch fit.
+            let k = 315 - x1;
+            let (right, rx1, rx2) = weapon_screen(ctx, k << 16);
+            assert_eq!(rx1, 315);
+            assert!(rx2 >= 320);
+            for y in 0..200 {
+                assert_eq!(right[y * 320], 0xAA, "column 0 untouched ({y})");
+                for x in 315..320usize {
+                    assert_eq!(
+                        right[y * 320 + x],
+                        whole[y * 320 + x - 315 + x1 as usize],
+                        "right ({x},{y})"
+                    );
+                }
+            }
+        });
+    }
+
+    #[test]
+    fn the_weapon_vissprite_reports_the_plain_frame_number() {
+        // The first-difference trace names `PSprite { psprite, sprite, frame }` with the
+        // state's frame without `FF_FULLBRIGHT` (the vissprite's `frame & FF_FRAMEMASK`).
+        with_ctx(11, |ctx| {
+            let w = weapon_at(ctx, 0);
+            let state = ctx
+                .sim
+                .actor_registry()
+                .expect("registry")
+                .state(w.psprites[0].state.unwrap())
+                .expect("state");
+            let (sprite, frame) = (state.sprite, state.frame);
+            assert_eq!(
+                frame & FF_FULLBRIGHT,
+                0,
+                "a ready weapon is not full bright"
+            );
+            ctx.draw_player_sprites(&w).expect("psprites");
+            let mut seen: Vec<Feature> = ctx
+                .trace
+                .as_deref()
+                .expect("trace")
+                .iter()
+                .copied()
+                .filter(|f| matches!(f, Feature::PSprite { .. }))
+                .collect();
+            seen.dedup();
+            assert_eq!(
+                seen,
+                [Feature::PSprite {
+                    psprite: 0,
+                    sprite,
+                    frame: (frame & FF_FRAMEMASK) as u16
+                }]
+            );
+        });
+    }
+
+    #[test]
+    fn a_masked_seg_behind_a_sprite_is_drawn_only_over_the_columns_they_share() {
+        // r_things.c:870-891 `r1 = ds->x1 < spr->x1 ? spr->x1 : ds->x1; r2 = ds->x2 > spr->x2 ?
+        // spr->x2 : ds->x2; ... R_RenderMaskedSegRange(ds, r1, r2)`: the masked columns of a
+        // seg behind the sprite are drawn (and cleared to MAXSHORT in the openings) for the
+        // overlap only; the rest are drawn later by R_DrawMasked. The seg covers columns
+        // 8-15, the sprite 11-12; every masked column is pending (0) at 9, 11 and 14.
+        const MAXSHORT: i16 = 0x7fff;
+        crate::test_support::with_room(
+            "hom.wad",
+            11,
+            |_| {},
+            |ctx| {
+                let seg = ctx
+                    .level
+                    .geometry
+                    .segs
+                    .iter()
+                    .position(|s| s.backsector.is_some())
+                    .expect("a two-sided seg");
+                let base = 2000;
+                for x in 0..320 {
+                    ctx.planes.openings[base + x] = MAXSHORT;
+                }
+                for x in [9, 11, 14] {
+                    ctx.planes.openings[base + x] = 0;
+                }
+                ctx.bsp.drawsegs = vec![DrawSeg {
+                    curline: seg,
+                    x1: 8,
+                    x2: 15,
+                    scale1: 10,
+                    scale2: 10,
+                    scalestep: 0,
+                    silhouette: 0,
+                    bsilheight: 0,
+                    tsilheight: 0,
+                    sprtopclip: Clip::NegOne,
+                    sprbottomclip: Clip::ScreenHeight,
+                    maskedtexturecol: Some(base as i32),
+                }];
+                ctx.things.vissprites.clear();
+                ctx.things.vissprites.push(spr_at(50, 0, 0, 0, 0));
+                ctx.draw_sprite(0).expect("draw");
+                let open = |x: usize| ctx.planes.openings[base + x];
+                assert_eq!(
+                    open(11),
+                    MAXSHORT,
+                    "an overlapping column is drawn and cleared"
+                );
+                assert_eq!(
+                    open(9),
+                    0,
+                    "a column left of the sprite is left for R_DrawMasked"
+                );
+                assert_eq!(
+                    open(14),
+                    0,
+                    "a column right of the sprite is left for R_DrawMasked"
+                );
+            },
+        );
     }
 }

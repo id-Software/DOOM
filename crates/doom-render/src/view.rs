@@ -340,4 +340,99 @@ mod tests {
         assert_eq!(air.calc_height(0, i32::MAX, true), Some(()));
         assert_eq!(air.viewz, VIEWHEIGHT);
     }
+
+    #[test]
+    fn the_constants_are_the_headers_values() {
+        // p_local.h:34 `VIEWHEIGHT (41*FRACUNIT)`, p_local.h:53 `GRAVITY FRACUNIT`,
+        // p_user.c:41 `INVERSECOLORMAP 32`, tables.h:50 `FINEANGLES 8192`.
+        assert_eq!(VIEWHEIGHT, 41 * 65536);
+        assert_eq!(GRAVITY, 65536);
+        assert_eq!(INVERSECOLORMAP, 32);
+        assert_eq!(FINEANGLES, 8192);
+    }
+
+    #[test]
+    fn colormap_thresholds_are_over_four_times_thirty_two_or_bit_three() {
+        // p_user.c:362-383: powers > 4*32 (128) or bit 8 selects the special map.
+        let inv = |n| fixed_colormap([n, 0, 0, 0, 0, 0]);
+        let inf = |n| fixed_colormap([0, 0, 0, 0, 0, n]);
+        for (n, want) in [
+            (1, 0),
+            (8, 1),
+            (9, 1),
+            (15, 1),
+            (16, 0),
+            (40, 1),
+            (100, 0),
+            (127, 1),
+            (112, 0),
+            (128, 0),
+            (129, 1),
+            (130, 1),
+            (136, 1),
+            (144, 1),
+        ] {
+            assert_eq!(inv(n), want * INVERSECOLORMAP, "invulnerability {n}");
+            assert_eq!(inf(n), want, "infrared {n}");
+        }
+        // Invulnerability wins over infrared, even when it selects map 0
+        // (`else if`, p_user.c:371).
+        assert_eq!(fixed_colormap([100, 0, 0, 0, 0, 200]), 0);
+    }
+
+    #[test]
+    fn viewheight_adjusts_on_the_ground_at_the_exact_bounds() {
+        // P_CalcHeight (p_user.c:112-130) for a live player on the ground (bob 0).
+        // viewheight reaching exactly VIEWHEIGHT is not clamped: deltaviewheight survives
+        // and gains FRACUNIT/4 (p_user.c:112-117, 126-129).
+        let mut s = shadow(true);
+        s.viewheight = VIEWHEIGHT - (1 << 14);
+        s.deltaviewheight = 1 << 14;
+        assert_eq!(s.calc_height(0, 0, true), Some(()));
+        assert_eq!(s.viewheight, VIEWHEIGHT);
+        assert_eq!(s.deltaviewheight, 2 << 14);
+        // One past it is clamped and the delta zeroed (and stays 0: `if (deltaviewheight)`).
+        let mut s = shadow(true);
+        s.viewheight = VIEWHEIGHT;
+        s.deltaviewheight = 1;
+        s.calc_height(0, 0, true).unwrap();
+        assert_eq!((s.viewheight, s.deltaviewheight), (VIEWHEIGHT, 0));
+        // viewheight reaching exactly VIEWHEIGHT/2 is not clamped, so a negative delta is
+        // not replaced by 1 (p_user.c:119-125): -FRACUNIT + FRACUNIT/4.
+        let mut s = shadow(true);
+        s.viewheight = VIEWHEIGHT / 2 + (1 << 16);
+        s.deltaviewheight = -(1 << 16);
+        s.calc_height(0, 0, true).unwrap();
+        assert_eq!(s.viewheight, VIEWHEIGHT / 2);
+        assert_eq!(s.deltaviewheight, -(1 << 16) + (1 << 14));
+        // One below is clamped, and a non-positive delta becomes 1, then 1 + FRACUNIT/4.
+        let mut s = shadow(true);
+        s.viewheight = VIEWHEIGHT / 2;
+        s.deltaviewheight = -1;
+        s.calc_height(0, 0, true).unwrap();
+        assert_eq!(s.viewheight, VIEWHEIGHT / 2);
+        assert_eq!(s.deltaviewheight, 1 + (1 << 14));
+        // A delta that reaches 0 after the increment becomes 1 (p_user.c:127-128).
+        let mut s = shadow(true);
+        s.deltaviewheight = -(1 << 14);
+        s.calc_height(0, 0, true).unwrap();
+        assert_eq!(s.deltaviewheight, 1);
+    }
+
+    #[test]
+    fn viewz_stays_four_units_below_the_ceiling() {
+        // p_user.c:132-135: `if (viewz > ceilingz - 4*FRACUNIT) viewz = ceilingz - 4*FRACUNIT`.
+        let mut s = shadow(true);
+        s.ceilingz = 44 << 16; // limit 40 < z + viewheight = 41
+        s.calc_height(0, 0, true).unwrap();
+        assert_eq!(s.viewz, 40 << 16);
+        let mut s = shadow(true);
+        s.ceilingz = 45 << 16; // limit 41: exactly viewz, unchanged
+        s.calc_height(0, 0, true).unwrap();
+        assert_eq!(s.viewz, 41 << 16);
+        let mut s = shadow(true);
+        s.ceilingz = 46 << 16;
+        s.calc_height(0, 0, true).unwrap();
+        assert_eq!(s.viewz, 41 << 16);
+    }
 }

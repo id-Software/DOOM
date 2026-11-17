@@ -652,3 +652,51 @@ fn sector_views(
     }
     Ok(out)
 }
+
+/// `sector_views` below the public API: it takes the sector floor texture from the simulation's
+/// runtime `floorpic` when it differs from the map's, and from the level's resolved flat when
+/// it does not. The committed scripts never change a floor texture, so the two sources are
+/// told apart here by giving the level a flat number the map's names do not give.
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::test_support::with_ctx;
+
+    #[test]
+    fn a_floor_texture_the_simulation_changed_is_looked_up_by_name() {
+        with_ctx(11, |ctx| {
+            let sim = ctx.sim;
+            let res = ctx.res;
+            let real = ctx.level.sector_flats[0][0];
+            let bogus = real + 1;
+            // The map and the simulation agree on the floor name: the level's own flat number
+            // (resolved at load) is used, whatever it is.
+            let mut level = ctx.level.clone();
+            level.sector_flats[0][0] = bogus;
+            assert_eq!(sector_views(sim, res, &level).unwrap()[0].floorpic, bogus);
+            // The simulation's floor name differs from the map's (here the map is the one that
+            // names another flat): the simulation's name is resolved, never the level's number.
+            let root =
+                std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../tests/reference");
+            let mut bytes = std::fs::read(root.join("m5a_wads/amp.wad")).expect("room WAD");
+            let sectors = doom_wad::Wad::parse(&bytes, doom_wad::Limits::default())
+                .expect("room")
+                .lumps()
+                .iter()
+                .find(|l| l.name().as_bytes().starts_with(b"SECTORS"))
+                .map(|l| l.range())
+                .expect("SECTORS");
+            // A `mapsector_t`: floor height, ceiling height, then the 8-byte floor texture.
+            assert_eq!(&bytes[sectors.start + 4..sectors.start + 11], b"M5FLAT3");
+            bytes[sectors.start + 10] = b'5';
+            let wad = doom_wad::Wad::parse(&bytes, doom_wad::Limits::default()).expect("variant");
+            level.map = doom_map::Map::from_wad(&wad, "E1M1", doom_map::MapLimits::default())
+                .expect("variant map");
+            assert_eq!(level.map.sectors()[0].flats[0].as_bytes(), b"M5FLAT5\0");
+            assert_eq!(
+                sector_views(sim, res, &level).unwrap()[0].floorpic,
+                res.flat_num_for_name(b"M5FLAT3").unwrap()
+            );
+        });
+    }
+}

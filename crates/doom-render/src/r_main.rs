@@ -519,4 +519,25 @@ mod tests {
         assert_eq!(fixed_div(1 << 30, 1 << 15), Ok(i32::MAX));
         assert_eq!(fixed_div(-(1 << 30), 1 << 15), Ok(i32::MIN));
     }
+
+    #[test]
+    fn finesine_follows_the_sine_of_the_bin_centre() {
+        // tables.c:584 `finesine[10240]`: entry i is 65536 * sin((i + 1/2) * 2 pi / 8192)
+        // (first entries 25, 75, 125) to within 1.5 (rounding or truncation of the real sine; observed worst case 1.0001), and indices 8192.. repeat the first
+        // quarter turn as the cosine overhang. Pins every entry's sign and size (a table
+        // entry whose sign flipped differs by twice its magnitude), which no frame reads in
+        // full.
+        for i in 0..10240i32 {
+            let want = 65536.0 * ((f64::from(i) + 0.5) * std::f64::consts::TAU / 8192.0).sin();
+            let got = f64::from(finesine(i).unwrap());
+            assert!(
+                (got - want).abs() <= 1.5,
+                "finesine[{i}] = {got}, sine says {want}"
+            );
+        }
+        for i in 0..4096 {
+            let (a, b) = (finesine(i).unwrap(), finesine(i + 4096).unwrap());
+            assert!((a + b).abs() <= 1, "sin(x + pi) = -sin(x) at {i}: {a} {b}");
+        }
+    }
 }

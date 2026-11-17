@@ -395,4 +395,136 @@ mod tests {
             Err(SwitchInconsistency)
         );
     }
+
+    use crate::r_data::{LumpDirectory, Texture};
+
+    /// A `Resources` whose flat range holds `flats` (lumps `F_START`, the flats, `F_END`) and
+    /// whose textures are named `textures`; the anim and switch initialisers read only these.
+    fn resources(flats: &[&str], textures: &[&str]) -> Resources {
+        let mut dir = LumpDirectory::new();
+        dir.add_single_lump("F_START", &[]).unwrap();
+        for f in flats {
+            dir.add_single_lump(f, &[0; 4096]).unwrap();
+        }
+        dir.add_single_lump("F_END", &[]).unwrap();
+        Resources {
+            dir,
+            colormaps: vec![],
+            palette: None,
+            textures: textures
+                .iter()
+                .map(|n| {
+                    let mut name = [0u8; 8];
+                    name[..n.len()].copy_from_slice(n.as_bytes());
+                    Texture {
+                        name,
+                        width: 0,
+                        height: 0,
+                        patches: vec![],
+                        widthmask: 0,
+                        textureheight: 0,
+                        columns: vec![],
+                        compositesize: 0,
+                        composite: vec![],
+                        defined: vec![],
+                    }
+                })
+                .collect(),
+            firstflat: 1,
+            numflats: flats.len(),
+            firstspritelump: 0,
+            sprite_lumps: vec![],
+            sprites: vec![],
+            switchlist: vec![],
+            anims: vec![],
+            skytexture: 0,
+            skyflatnum: None,
+        }
+    }
+
+    #[test]
+    fn an_animation_cycle_needs_two_pictures_and_may_end_the_flat_table() {
+        // P_InitPicAnims (p_spec.c:148-183): `numpics = picnum - basepic + 1`; fewer than 2
+        // is `I_Error("P_InitPicAnims: bad cycle from %s to %s")`. The first animdef is
+        // NUKAGE1..NUKAGE3 at speed 8 (p_spec.c:101-103). Every other animdef's start name is
+        // absent and is skipped (`W_CheckNumForName(startname) == -1`, p_spec.c:163-164).
+        let anim = |flats: &[&str]| init_pic_anims(&resources(flats, &[]));
+        // Three pictures filling the whole table: accepted, with the cycle's last picture
+        // the table's last flat.
+        assert_eq!(
+            anim(&["NUKAGE1", "NUKAGE2", "NUKAGE3"]),
+            Ok(vec![Anim {
+                istexture: false,
+                picnum: 2,
+                basepic: 0,
+                numpics: 3,
+                speed: 8
+            }])
+        );
+        // The same cycle after two unrelated flats (basepic 2, numpics 3, table of 5).
+        assert_eq!(
+            anim(&["A", "B", "NUKAGE1", "NUKAGE2", "NUKAGE3"]),
+            Ok(vec![Anim {
+                istexture: false,
+                picnum: 4,
+                basepic: 2,
+                numpics: 3,
+                speed: 8
+            }])
+        );
+        // Exactly two pictures (NUKAGE3 directly after NUKAGE1) is a cycle.
+        let two = anim(&["NUKAGE1", "NUKAGE3"]).unwrap();
+        assert_eq!((two[0].basepic, two[0].picnum, two[0].numpics), (0, 1, 2));
+        // The end before the start (numpics 0 and below) is the genuine bad cycle.
+        let bad = ResourceError::BadAnimCycle("NUKAGE1 to NUKAGE3".into());
+        assert_eq!(anim(&["NUKAGE3", "NUKAGE1"]), Err(bad.clone()));
+        assert_eq!(anim(&["NUKAGE3", "X", "NUKAGE1"]), Err(bad));
+        // No animated flat present: no animation.
+        assert_eq!(anim(&["A", "B"]), Ok(vec![]));
+    }
+
+    #[test]
+    fn the_switch_list_follows_the_game_mode() {
+        // P_InitSwitchList (p_switch.c:107-140): episode 1 by default, 2 for registered; the
+        // table holds 19 episode-1, 10 episode-2 and 11 episode-3 pairs (p_switch.c:50-96),
+        // and the list holds both textures of every pair whose episode is not above the game's
+        // (retail is not commercial, so it keeps episode 1 as in the C else-branch).
+        let names: Vec<String> = SWITCHES
+            .iter()
+            .flat_map(|(a, b, _)| [a, b])
+            .map(|n| String::from_utf8(n.to_vec()).unwrap())
+            .collect();
+        let refs: Vec<&str> = names.iter().map(String::as_str).collect();
+        let res = resources(&[], &refs);
+        assert_eq!(SWITCHES.iter().filter(|s| s.2 == 1).count(), 19);
+        assert_eq!(SWITCHES.iter().filter(|s| s.2 == 2).count(), 10);
+        let list = |m| init_switch_list(&res, m).unwrap();
+        assert_eq!(list(GameMode::Shareware).len(), 2 * 19);
+        assert_eq!(list(GameMode::Retail).len(), 2 * 19);
+        assert_eq!(list(GameMode::Registered).len(), 2 * (19 + 10));
+        // The pairs keep the table's order: SW1BRCOM (texture 0) then SW2BRCOM (texture 1).
+        assert_eq!(&list(GameMode::Registered)[..4], &[0, 1, 2, 3]);
+    }
+
+    #[test]
+    fn a_vanished_button_line_leaves_the_unknown_set_even_while_other_buttons_run() {
+        // The expiry of the button on line 4 (btimer 1) re-synchronises that line
+        // (p_spec.c:1127-1153); a different line's new button must not keep it unknown.
+        let mut t = SwitchTracker::default();
+        t.buttons[0] = ButtonSlot { timer: 1, line: 4 };
+        t.unknown = vec![4];
+        let mut now = SwitchInputs::default();
+        now.buttons[1] = ButtonSlot { timer: 35, line: 9 };
+        now.sounds = 2; // the expiry and the new button
+        let t = t.next(&now).unwrap();
+        assert!(t.unknown.is_empty(), "{:?}", t.unknown);
+        // A line still holding a running button stays unknown while its button runs.
+        let mut t = SwitchTracker::default();
+        t.buttons[0] = ButtonSlot { timer: 20, line: 4 };
+        t.unknown = vec![4];
+        let mut now = SwitchInputs::default();
+        now.buttons[0] = ButtonSlot { timer: 19, line: 4 };
+        now.sounds = 0;
+        assert_eq!(t.next(&now).unwrap().unknown, vec![4]);
+    }
 }

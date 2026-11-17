@@ -586,3 +586,211 @@ impl FrameContext<'_> {
         Ok(())
     }
 }
+
+/// Unit tests of `R_StoreWallRange`'s two-sided decisions (r_segs.c:482-535, 570-602, 680-743)
+/// below the public API. The committed rooms never put a sector height exactly at the eye
+/// height, equal ceilings with a different light, a masked midtexture on a fully open line or
+/// a closed top with a raised floor, so each case is built on the synthetic room `hom.wad`
+/// (a 512-unit room, an alcove sector reached through the two-sided line 1 at y = 256) by
+/// editing the sector heights the frame context holds, then rendering from (0, 0) facing
+/// north, the demo's start.
+#[cfg(test)]
+mod tests {
+    use crate::FrameContext;
+    use crate::r_main::{ANG90, FrameView};
+    use crate::r_segs::{Clip, DrawSeg};
+    use crate::test_support::with_room;
+
+    /// What one rendering of the room leaves.
+    struct Scene {
+        /// The drawseg of linedef 1 (the first one the traversal emits).
+        ds: DrawSeg,
+        toptexture: usize,
+        bottomtexture: usize,
+        pixhigh: i32,
+        pixlow: i32,
+    }
+
+    /// Sector 0 (the room) and sector 1 (the alcove) at the given (floor, ceiling) heights in
+    /// units, the eye at `viewz` units, then `edit`.
+    fn scene(
+        room: [i32; 2],
+        alcove: [i32; 2],
+        viewz: i32,
+        edit: impl FnOnce(&mut FrameContext<'_>),
+    ) -> Scene {
+        with_room(
+            "hom.wad",
+            11,
+            |_| {},
+            |ctx| {
+                for (s, h) in [(0, room), (1, alcove)] {
+                    ctx.sectors[s].floorheight = h[0] << 16;
+                    ctx.sectors[s].ceilingheight = h[1] << 16;
+                }
+                ctx.frame = FrameView::setup(0, 0, ANG90, 0, viewz << 16, 0);
+                edit(ctx);
+                assert_eq!(
+                    (ctx.segs.pixhigh, ctx.segs.pixlow),
+                    (0, 0),
+                    "fresh wall steps"
+                );
+                ctx.clear_clip_segs();
+                ctx.clear_planes().expect("planes");
+                // The alcove line as seen from the room: the one seg of linedef 1 whose front
+                // sector is the room, added alone after `R_Subsector`'s plane set-up
+                // (r_bsp.c:516-533), so that the segs state is what its own processing left.
+                let seg = ctx
+                    .level
+                    .geometry
+                    .segs
+                    .iter()
+                    .position(|s| s.linedef == 1 && s.frontsector == 0 && s.backsector.is_some())
+                    .expect("the line's room-side seg");
+                ctx.bsp.frontsector = 0;
+                let front = ctx.sectors[0];
+                ctx.planes.floorplane = (front.floorheight < ctx.frame.viewz).then(|| {
+                    ctx.find_plane(front.floorheight, front.floorpic, front.lightlevel)
+                        .expect("floor plane")
+                });
+                ctx.planes.ceilingplane = (front.ceilingheight > ctx.frame.viewz).then(|| {
+                    ctx.find_plane(front.ceilingheight, front.ceilingpic, front.lightlevel)
+                        .expect("ceiling plane")
+                });
+                ctx.add_line(seg).expect("line");
+                let ds = *ctx.bsp.drawsegs.last().expect("the seg's drawseg");
+                Scene {
+                    ds,
+                    toptexture: ctx.segs.toptexture,
+                    bottomtexture: ctx.segs.bottomtexture,
+                    pixhigh: ctx.segs.pixhigh,
+                    pixlow: ctx.segs.pixlow,
+                }
+            },
+        )
+    }
+
+    const MAX: i32 = i32::MAX;
+    const MIN: i32 = i32::MIN;
+    const BOTTOM: i32 = 1;
+    const TOP: i32 = 2;
+
+    #[test]
+    fn a_back_floor_exactly_at_the_eye_is_not_a_bottom_silhouette() {
+        // r_segs.c:495-503 `else if (backsector->floorheight > viewz)`: a floor exactly at the
+        // eye does not hide sprites below it, one unit above does (bsilheight MAXINT).
+        let level = |f| scene([0, 128], [f, 128], 41, |_| {});
+        assert_eq!(level(41).ds.silhouette, 0);
+        let above = level(42).ds;
+        assert_eq!((above.silhouette, above.bsilheight), (BOTTOM, MAX));
+        assert_eq!(level(40).ds.silhouette, 0);
+    }
+
+    #[test]
+    fn a_back_ceiling_exactly_at_the_eye_is_not_a_top_silhouette() {
+        // r_segs.c:505-513 `else if (backsector->ceilingheight < viewz)`: a ceiling exactly at
+        // the eye does not hide sprites above it, one unit below does (tsilheight MININT).
+        let level = |c| scene([0, 128], [0, c], 41, |_| {});
+        assert_eq!(level(41).ds.silhouette, 0);
+        let below = level(40).ds;
+        assert_eq!((below.silhouette, below.tsilheight), (TOP, MIN));
+        assert_eq!(level(42).ds.silhouette, 0);
+    }
+
+    #[test]
+    fn a_closed_top_adds_the_top_silhouette_to_the_bottom_one() {
+        // r_segs.c:515-531: a back floor at or above the front ceiling sets `sprtopclip =
+        // screenheightarray`, `tsilheight = MININT` and `silhouette |= SIL_TOP`. Here the back
+        // floor (64) is above the eye (bottom silhouette, MAXINT) and the front ceiling (64) is
+        // below the back ceiling (top silhouette) before the closed-top rule applies.
+        let s = scene([0, 64], [64, 128], 41, |_| {}).ds;
+        assert_eq!(s.silhouette, BOTTOM | TOP);
+        assert_eq!((s.bsilheight, s.tsilheight), (MAX, MIN));
+        assert_eq!(s.sprtopclip, Clip::ScreenHeight);
+        assert!(matches!(s.sprbottomclip, Clip::Openings(_)));
+    }
+
+    #[test]
+    fn a_masked_midtexture_makes_an_open_line_a_full_silhouette() {
+        // r_segs.c:734-743: `if (maskedtexture && !(silhouette & SIL_TOP)) { silhouette |=
+        // SIL_TOP; tsilheight = MININT; } if (maskedtexture && !(silhouette & SIL_BOTTOM)) {
+        // silhouette |= SIL_BOTTOM; bsilheight = MAXINT; }`. A masked line already silhouetted
+        // keeps its own heights.
+        let masked = |edit: fn(&mut FrameContext<'_>)| edit;
+        let mid = masked(|ctx| ctx.sides[1][1] = 1);
+        let open = scene([0, 128], [0, 100], 41, mid).ds;
+        assert!(open.maskedtexturecol.is_some());
+        assert_eq!(open.silhouette, BOTTOM | TOP);
+        assert_eq!((open.bsilheight, open.tsilheight), (MAX, MIN));
+        assert!(matches!(open.sprtopclip, Clip::Openings(_)));
+        assert!(matches!(open.sprbottomclip, Clip::Openings(_)));
+        // Front floor above the back floor: SIL_BOTTOM with the front floor's height first.
+        let low = scene([8, 128], [0, 128], 41, mid).ds;
+        assert_eq!(low.silhouette, BOTTOM | TOP);
+        assert_eq!(low.bsilheight, 8 << 16);
+        assert_eq!(low.tsilheight, MIN);
+        // Back ceiling above the front's: SIL_TOP with the front ceiling's height.
+        let high = scene([0, 100], [0, 128], 41, mid).ds;
+        assert_eq!(high.silhouette, BOTTOM | TOP);
+        assert_eq!(high.tsilheight, 100 << 16);
+        assert_eq!(high.bsilheight, MAX);
+        // Without the masked texture the same open line has no silhouette.
+        assert_eq!(scene([0, 128], [0, 100], 41, |_| {}).ds.silhouette, 0);
+        assert!(
+            scene([0, 128], [0, 100], 41, |_| {})
+                .ds
+                .maskedtexturecol
+                .is_none()
+        );
+    }
+
+    #[test]
+    fn equal_floors_and_ceilings_pick_no_lower_or_upper_texture_and_leave_the_steps_alone() {
+        // r_segs.c:570-602 `if (worldhigh < worldtop)` / `if (worldlow > worldbottom)`: with the
+        // alcove's floor and ceiling equal to the room's (only the light differs, so the line
+        // is not the rejected empty trigger of r_bsp.c:341-347) neither texture is chosen, and
+        // r_segs.c:690-704 `if (worldhigh < worldtop)` / `if (worldlow > worldbottom)` after
+        // `>> 4` leave `pixhigh` and `pixlow` (globals carried between segs) untouched.
+        let textured = |ctx: &mut FrameContext<'_>| {
+            ctx.sectors[1].lightlevel = 100;
+            ctx.sides[1] = [2, 0, 3];
+        };
+        let s = scene([0, 128], [0, 128], 41, textured);
+        assert_eq!((s.toptexture, s.bottomtexture), (0, 0));
+        assert_eq!((s.pixhigh, s.pixlow), (0, 0));
+        // A lower alcove ceiling and a higher alcove floor do pick them and set the steps.
+        let s = scene([0, 128], [8, 100], 41, textured);
+        assert_ne!(s.toptexture, 0);
+        assert_ne!(s.bottomtexture, 0);
+        assert_ne!(s.pixhigh, 0);
+        assert_ne!(s.pixlow, 0);
+    }
+
+    #[test]
+    fn a_wall_pixel_read_from_an_undefined_texel_carries_the_texture_number_plus_one() {
+        // The 72-unit-high texture M5W72 (texture number 77 in the committed graphics set) on a
+        // 128-unit wall: rows 72-127 of each column are not covered by any patch post, so the
+        // pixels read there are undefined and taint with the origin `texture + 1` (decision R4;
+        // the evidence reports name it `T:M5W72`). Nothing else in this frame is undefined.
+        with_room(
+            "hom.wad",
+            11,
+            |_| {},
+            |ctx| {
+                let tex = (0..ctx.res.textures.len())
+                    .find(|t| &ctx.res.textures[*t].name[..5] == b"M5W72")
+                    .expect("M5W72");
+                assert_eq!(tex, 77);
+                // Linedef 0's one side (the room's north-west wall).
+                ctx.sides[0] = [0, tex, 0];
+                ctx.frame = FrameView::setup(0, 0, ANG90, 0, 41 << 16, 0);
+                ctx.clear_clip_segs();
+                ctx.clear_planes().expect("planes");
+                ctx.render_bsp().expect("bsp");
+                let tainted: std::collections::BTreeSet<u32> =
+                    ctx.taint.iter().copied().filter(|t| *t != 0).collect();
+                assert_eq!(tainted, [tex as u32 + 1].into(), "{tainted:?}");
+            },
+        );
+    }
+}

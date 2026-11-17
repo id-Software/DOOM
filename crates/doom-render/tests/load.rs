@@ -93,3 +93,83 @@ fn a_two_sided_line_without_a_back_side_is_refused_by_doom_map_first() {
     assert_eq!(e.lump, "LINEDEFS");
     assert_eq!(e.record, Some(record));
 }
+
+#[test]
+fn the_scrolling_line_budget_is_maxlineanims() {
+    // P_SpawnSpecials registers every special-48 line in `linespeciallist[MAXLINEANIMS]` and
+    // `I_Error`s on the 65th (p_spec.c:1336-1345; MAXLINEANIMS is 64): 64 lines load, 65 are
+    // refused. Pins `Level::load`'s count and its bound. Extra lines are copies of the room's
+    // first linedef with special 48 (bytes 6-8 of the 14-byte record); no seg refers to them.
+    let base = room_lumps();
+    let records = base
+        .iter()
+        .find(|(n, _)| n.starts_with(b"LINEDEFS"))
+        .expect("LINEDEFS")
+        .1
+        .chunks(14)
+        .filter(|r| i16::from_le_bytes([r[6], r[7]]) == 48)
+        .count();
+    assert_eq!(records, 0, "the room has no scrolling line of its own");
+    let with_scrollers = |n: usize| {
+        let mut lumps = base.clone();
+        let linedefs = lump_mut(&mut lumps, "LINEDEFS");
+        let mut extra = linedefs[..14].to_vec();
+        extra[6..8].copy_from_slice(&48i16.to_le_bytes());
+        for _ in 0..n {
+            linedefs.extend(&extra);
+        }
+        let (res, map) = load(&pwad(&lumps));
+        Level::load(&res, &map.expect("map"), 1)
+    };
+    // Zero: the genuine count is not touched.
+    assert!(with_scrollers(0).is_ok());
+    assert!(with_scrollers(1).is_ok());
+    assert!(with_scrollers(64).is_ok());
+    for n in [65, 66] {
+        assert_eq!(
+            with_scrollers(n).err(),
+            Some(ResourceError::Map(
+                "more than MAXLINEANIMS (64) scrolling lines (p_spec.c:1336-1345)".into()
+            )),
+            "{n}"
+        );
+    }
+}
+
+#[test]
+fn scrolling_lines_move_their_front_side_one_unit_a_tic() {
+    // P_UpdateSpecials (p_spec.c:1113-1124): every special-48 line adds FRACUNIT to its front
+    // side's `textureoffset` each tic (a side with two such lines moves twice as fast; the
+    // 16.16 value wraps in an `int`). The room's first linedef is copied twice with special
+    // 48, so its front side has two scrolling lines.
+    let mut lumps = room_lumps();
+    let linedefs = lump_mut(&mut lumps, "LINEDEFS");
+    let first = linedefs[..14].to_vec();
+    let front = usize::from(u16::from_le_bytes([first[10], first[11]]));
+    let mut extra = first;
+    extra[6..8].copy_from_slice(&48i16.to_le_bytes());
+    linedefs.extend(&extra);
+    linedefs.extend(&extra);
+    let (_, map) = load(&pwad(&lumps));
+    let map = map.expect("map");
+    let scrolling = |side: usize| {
+        map.linedefs()
+            .iter()
+            .filter(|l| l.special == 48 && l.sides[0].map(usize::from) == Some(side))
+            .count() as i32
+    };
+    assert_eq!(scrolling(front), 2);
+    for tic in [0u64, 1, 3, 40] {
+        let got = doom_render::p_spec::texture_offsets(&map, tic);
+        assert_eq!(got.len(), map.sidedefs().len());
+        for (side, s) in map.sidedefs().iter().enumerate() {
+            let want = (i32::from(s.offsets[0]) << 16) + tic as i32 * scrolling(side) * 65536;
+            assert_eq!(got[side], want, "tic {tic} side {side}");
+        }
+    }
+    assert_eq!(
+        doom_render::p_spec::texture_offsets(&map, 3)[front]
+            - doom_render::p_spec::texture_offsets(&map, 0)[front],
+        6 * 65536
+    );
+}

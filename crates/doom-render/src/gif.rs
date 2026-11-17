@@ -183,6 +183,14 @@ mod tests {
 
     /// An independent LZW decoder (minimum code size 8) for the tests.
     fn unlzw(data: &[u8], expect: usize) -> Vec<u8> {
+        unlzw_codes(data, expect).0
+    }
+
+    /// The decoder of [`unlzw`], also returning every code read with the decoder's code width
+    /// at that point. A code may be at most the next table index (the decoder knows every
+    /// earlier entry; the next one only by the `KwKwK` rule), the GIF89a LZW rule.
+    fn unlzw_codes(data: &[u8], expect: usize) -> (Vec<u8>, Vec<(usize, usize)>) {
+        let mut codes = Vec::new();
         let mut table: Vec<Vec<u8>> = Vec::new();
         let reset = |t: &mut Vec<Vec<u8>>| {
             t.clear();
@@ -201,6 +209,12 @@ mod tests {
                 code |= usize::from((data[bit / 8] >> (bit % 8)) & 1) << i;
             }
             pos += width;
+            codes.push((code, width));
+            assert!(
+                code <= table.len(),
+                "code {code} beyond table {}",
+                table.len()
+            );
             match code {
                 256 => {
                     reset(&mut table);
@@ -232,7 +246,7 @@ mod tests {
             }
         }
         assert_eq!(out.len(), expect);
-        out
+        (out, codes)
     }
 
     fn decode_frame(file: &[u8], at: &mut usize, expect: usize) -> (u16, Vec<u8>) {
@@ -275,6 +289,72 @@ mod tests {
             let packed = lzw(&p);
             assert_eq!(unlzw(&packed, p.len()), p, "length {}", p.len());
         }
+    }
+
+    /// The GIF89a variable-width rules, pinned on the stream itself.
+    fn noise(n: usize) -> Vec<u8> {
+        let mut x = 0x9e37_79b9u32;
+        (0..n)
+            .map(|_| {
+                x ^= x << 13;
+                x ^= x >> 17;
+                x ^= x << 5;
+                (x >> 8) as u8
+            })
+            .collect()
+    }
+
+    #[test]
+    fn end_code_width_round_trips_at_every_table_size_boundary() {
+        // Pins `lzw`'s end-code width (the decoder, one entry behind, widens once code 2^width
+        // exists; GIF89a LZW): the final prefix and END codes are written at the width the
+        // decoder has then reached. Noise over 256 values almost never repeats a pair, so
+        // every pixel adds one entry and the lengths below straddle the 9->10, 10->11, 11->12
+        // bit changes and the table-full clear (an independent decoder checks every length).
+        let data = noise(9000);
+        for w in 9..=12u32 {
+            let around = (1usize << w) - 258;
+            for n in around.saturating_sub(4)..=around + 4 {
+                let p = &data[..n];
+                assert_eq!(unlzw(&lzw(p), n), p, "length {n}");
+            }
+        }
+        for n in 3830..=3850 {
+            assert_eq!(unlzw(&lzw(&data[..n]), n), &data[..n], "length {n}");
+        }
+        for n in 7670..=7690 {
+            assert_eq!(unlzw(&lzw(&data[..n]), n), &data[..n], "length {n}");
+        }
+    }
+
+    #[test]
+    fn compression_and_clear_period() {
+        // A run of one value must actually compress (an encoder that clears at once also
+        // round-trips).
+        assert!(lzw(&[7; 64000]).len() < 1000);
+        // Every pixel of noise emits one code and adds one entry; the table holds 4096 entries
+        // (codes 0-4095), so after the clear the stream has exactly 4096 - 258 = 3838 entries
+        // added plus the emission that finds the table full: 3839 data codes between clears.
+        let p = noise(20000);
+        let (_, codes) = unlzw_codes(&lzw(&p), p.len());
+        assert_eq!(codes[0], (256, 9));
+        let clears: Vec<usize> = (0..codes.len()).filter(|&i| codes[i].0 == 256).collect();
+        assert!(clears.len() >= 4);
+        for pair in clears.windows(2) {
+            assert_eq!(pair[1] - pair[0] - 1, 3839);
+        }
+        // No code is ever written wider than 12 bits.
+        assert!(codes.iter().all(|&(c, w)| w <= 12 && c < 4096 || c == 257));
+        assert_eq!(codes.iter().map(|c| c.1).max(), Some(12));
+    }
+
+    #[test]
+    fn data_ending_on_a_byte_boundary_has_no_padding_byte() {
+        // CLEAR, five emissions of all-distinct pixels, the last prefix and END are eight
+        // 9-bit codes: exactly 72 bits = 9 bytes, with no trailing zero byte.
+        assert_eq!(lzw(&[1, 2, 3, 4, 5, 6]).len(), 9);
+        // Seven codes (63 bits) need 8 bytes.
+        assert_eq!(lzw(&[1, 2, 3, 4, 5]).len(), 8);
     }
 
     #[test]

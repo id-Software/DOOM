@@ -795,3 +795,32 @@ impl FrameContext<'_> {
         Ok(())
     }
 }
+
+/// R_StoreWallRange's `RANGECHECK` (r_segs.c:389-392), below the public API: the BSP walk
+/// only hands it ranges inside the view, so the refusal is exercised directly.
+#[cfg(test)]
+mod tests {
+    use crate::RenderRefusal;
+    use crate::test_support::with_ctx;
+
+    #[test]
+    fn a_wall_range_outside_the_view_or_reversed_is_refused() {
+        // `if (start >= viewwidth || start > stop) I_Error("Bad R_StoreWallRange: %i to %i")`:
+        // either condition alone refuses (viewwidth 320 at screenblocks 11).
+        with_ctx(11, |ctx| {
+            let bad = Err(RenderRefusal::RangeCheck("R_StoreWallRange"));
+            assert_eq!(
+                ctx.store_wall_range(5, 3),
+                bad,
+                "start > stop, inside the view"
+            );
+            assert_eq!(ctx.store_wall_range(320, 320), bad, "start == viewwidth");
+            assert_eq!(
+                ctx.store_wall_range(400, 500),
+                bad,
+                "start beyond viewwidth"
+            );
+            assert_eq!(ctx.bsp.drawsegs.len(), 0, "a refused range stores nothing");
+        });
+    }
+}

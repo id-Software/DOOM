@@ -101,4 +101,77 @@ mod tests {
         assert_eq!(&png[..8], b"\x89PNG\r\n\x1a\n");
         assert_eq!(&png[png.len() - 8..png.len() - 4], b"IEND");
     }
+
+    /// Splits a PNG into (kind, data) chunks, checking the signature and every chunk's CRC
+    /// (PNG specification, section 5.3 and annex D).
+    fn chunks(png: &[u8]) -> Vec<([u8; 4], Vec<u8>)> {
+        assert_eq!(&png[..8], b"\x89PNG\r\n\x1a\n");
+        let mut at = 8;
+        let mut out = Vec::new();
+        while at < png.len() {
+            let n = u32::from_be_bytes(png[at..at + 4].try_into().unwrap()) as usize;
+            let kind: [u8; 4] = png[at + 4..at + 8].try_into().unwrap();
+            let data = png[at + 8..at + 8 + n].to_vec();
+            let crc = u32::from_be_bytes(png[at + 8 + n..at + 12 + n].try_into().unwrap());
+            assert_eq!(crc, crc32(&png[at + 4..at + 8 + n]), "crc of {kind:?}");
+            out.push((kind, data));
+            at += 12 + n;
+        }
+        out
+    }
+
+    /// Inflates a zlib stream made only of stored blocks (RFC 1950/1951), checking the header,
+    /// each block's `LEN`/`NLEN`, that exactly the last block is flagged final, and the Adler-32.
+    fn inflate_stored(z: &[u8]) -> Vec<u8> {
+        assert_eq!(&z[..2], &[0x78, 0x01]);
+        assert_eq!((u16::from(z[0]) << 8 | u16::from(z[1])) % 31, 0, "FCHECK");
+        let (mut at, mut raw) = (2, Vec::new());
+        loop {
+            let header = z[at];
+            assert_eq!(header & 0xfe, 0, "stored block type");
+            let len = u16::from_le_bytes([z[at + 1], z[at + 2]]);
+            let nlen = u16::from_le_bytes([z[at + 3], z[at + 4]]);
+            assert_eq!(nlen, !len, "NLEN");
+            raw.extend_from_slice(&z[at + 5..at + 5 + usize::from(len)]);
+            at += 5 + usize::from(len);
+            if header == 1 {
+                break;
+            }
+        }
+        assert_eq!(
+            z[at..],
+            adler32(&raw).to_be_bytes(),
+            "Adler-32 and no trailing bytes"
+        );
+        raw
+    }
+
+    #[test]
+    fn indexed_png_round_trips_through_an_independent_decoder() {
+        // 70,000 x 1 pixels: 70,001 filtered bytes, so two stored blocks (65,535 + 4,466): the
+        // first not final, the last final. Palette entries beyond the given ones are black.
+        let (w, h) = (70_000u32, 1u32);
+        let pixels: Vec<u8> = (0..w).map(|i| (i % 253) as u8).collect();
+        let palette = [10u8, 20, 30, 40, 50, 60];
+        let png = encode_indexed(w, h, &pixels, &palette);
+        let c = chunks(&png);
+        let kinds: Vec<&[u8]> = c.iter().map(|(k, _)| &k[..]).collect();
+        assert_eq!(kinds, [&b"IHDR"[..], b"PLTE", b"IDAT", b"IEND"]);
+        let mut ihdr = Vec::new();
+        ihdr.extend(w.to_be_bytes());
+        ihdr.extend(h.to_be_bytes());
+        ihdr.extend([8, 3, 0, 0, 0]);
+        assert_eq!(c[0].1, ihdr);
+        let mut plte = palette.to_vec();
+        plte.resize(768, 0);
+        assert_eq!(c[1].1, plte);
+        assert_eq!(c[3].1, Vec::<u8>::new());
+        let raw = inflate_stored(&c[2].1);
+        assert_eq!(raw[0], 0, "filter type None");
+        assert_eq!(&raw[1..], pixels.as_slice());
+        // Several rows, one block: each row is preceded by its filter byte.
+        let png = encode_indexed(3, 2, &[1, 2, 3, 4, 5, 6], &[]);
+        let c = chunks(&png);
+        assert_eq!(inflate_stored(&c[2].1), [0, 1, 2, 3, 0, 4, 5, 6]);
+    }
 }

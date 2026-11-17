@@ -768,4 +768,47 @@ mod tests {
         bad[tail..].copy_from_slice(&0u32.to_le_bytes());
         assert_eq!(RenderState::decode(&bad), invalid);
     }
+
+    #[test]
+    fn a_zero_length_taint_run_is_refused_even_when_the_runs_still_tile() {
+        // Pins the `n == 0` half of the run check: a (0, value) run inserted before valid runs
+        // leaves the framebuffer exactly tiled, so only the zero length itself can refuse it.
+        let e = sample().encode();
+        let tail = e.len() - 28;
+        let mut bad = e[..tail].to_vec();
+        bad.extend(4u32.to_le_bytes());
+        bad.extend(0u32.to_le_bytes());
+        bad.extend(9u32.to_le_bytes());
+        bad.extend_from_slice(&e[tail + 4..]);
+        assert_eq!(
+            RenderState::decode(&bad),
+            Err(StateDecodeError::Invalid("taint runs"))
+        );
+    }
+
+    #[test]
+    fn value_error_bounds_fuzzpos_below_fuzztable() {
+        // `fuzzpos` indexes `fuzzoffset[FUZZTABLE]` (r_draw.c:259-263, FUZZTABLE 50): 49 is
+        // the last admitted value. Pins the check `check_level` shares with the decoder.
+        let mut s = sample();
+        assert_eq!(value_error(&s), None);
+        for bad in [50, 51, u32::MAX] {
+            s.fuzzpos = bad;
+            assert_eq!(value_error(&s), Some("fuzzpos"), "{bad}");
+        }
+        s.fuzzpos = 0;
+        assert_eq!(value_error(&s), None);
+    }
+
+    #[test]
+    fn decode_errors_display_their_variant() {
+        assert_eq!(
+            StateDecodeError::Trailing.to_string(),
+            "render state: Trailing"
+        );
+        assert_eq!(
+            RestoreError::Value("powers").to_string(),
+            "render state does not fit the level: Value(\"powers\")"
+        );
+    }
 }

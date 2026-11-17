@@ -7,7 +7,7 @@ mod common;
 
 use common::{advance, items, load};
 use doom_render::{
-    ConfigError, Detail, Frame, ObserveError, RenderConfig, RenderRefusal, Renderer,
+    ConfigError, Detail, Feature, Frame, ObserveError, RenderConfig, RenderRefusal, Renderer,
     view::ShadowError,
 };
 
@@ -199,4 +199,53 @@ fn a_limit_refusal_is_typed_repeatable_and_changes_nothing() {
             assert_eq!(refusal, Some(want.clone()), "{lump} sb{screenblocks}");
         }
     }
+}
+
+#[test]
+fn the_per_pixel_trace_is_off_by_default_and_covers_the_view() {
+    // `set_trace` enables a record of which stage wrote each of the 320x200 pixels of the last
+    // frame (lib.rs, `Feature`); it is first-difference reporting only.
+    let run = load(&item("M5AMP"));
+    let mut r = Renderer::new(run.res.clone(), run.level.clone(), cfg(11)).unwrap();
+    assert!(r.trace().is_none());
+    r.set_trace(true);
+    assert_eq!(r.trace().map(<[Feature]>::len), Some(320 * 200));
+    assert!(r.trace().unwrap().iter().all(|f| *f == Feature::Untouched));
+    r.begin_level(&run.sim).unwrap();
+    let mut frame = Frame::new();
+    r.render(&run.sim, &mut frame).unwrap();
+    let t = r.trace().unwrap();
+    assert_eq!(t.len(), 320 * 200);
+    assert!(
+        t.iter().any(|f| *f != Feature::Untouched),
+        "a rendered frame writes pixels"
+    );
+    r.set_trace(false);
+    assert!(r.trace().is_none());
+}
+
+#[test]
+fn refusals_and_errors_display_their_cause() {
+    // The `Display` of each public error names the failure and the variant (diagnostics for
+    // the viewer tools; no caller parses it).
+    assert_eq!(
+        ConfigError::LowDetail.to_string(),
+        "render configuration refused: LowDetail"
+    );
+    assert_eq!(
+        ConfigError::ScreenBlocks(8).to_string(),
+        "render configuration refused: ScreenBlocks(8)"
+    );
+    assert_eq!(
+        RenderRefusal::VisplaneOverflow.to_string(),
+        "frame refused: VisplaneOverflow"
+    );
+    assert_eq!(
+        RenderRefusal::RangeCheck("x").to_string(),
+        "frame refused: RangeCheck(\"x\")"
+    );
+    assert_eq!(
+        ObserveError::SwitchInconsistency.to_string(),
+        "tic not observed: SwitchInconsistency"
+    );
 }

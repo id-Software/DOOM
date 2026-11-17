@@ -392,3 +392,80 @@ impl FrameContext<'_> {
         Ok(())
     }
 }
+
+/// Unit tests of `R_DrawPlanes` below the public API: the light index and the taint origin of a
+/// sky column, on the `amp.wad` fixture (`test_support`). The public frames reach both only
+/// with the committed rooms' own values (every golden light index lies below the clamp, and no
+/// committed sky texture has an undefined column).
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::r_data::ColumnEntry;
+    use crate::test_support::{with_ctx, with_ctx_res};
+
+    #[test]
+    fn plane_light_is_the_sector_light_plus_extralight_clamped_to_the_sixteen_levels() {
+        // R_DrawPlanes (r_plane.c:437-444): `light = (pl->lightlevel >> LIGHTSEGSHIFT) +
+        // extralight; if (light >= LIGHTLEVELS) light = LIGHTLEVELS-1; if (light < 0) light =
+        // 0; planezlight = zlight[light]`; LIGHTSEGSHIFT 4, LIGHTLEVELS 16.
+        for (lightlevel, extralight, want) in [
+            (255, 0, 15),
+            (255, 5, 15),
+            (240, 0, 15),
+            (240, 1, 15),
+            (224, 1, 15),
+            (224, 0, 14),
+            (128, 0, 8),
+            (128, 1, 9),
+            (16, -1, 0),
+            (0, -3, 0),
+            (0, 0, 0),
+        ] {
+            with_ctx(11, |ctx| {
+                ctx.frame.extralight = extralight;
+                // A flat plane (picnum 0 is not the sky flat) with no column set: nothing is
+                // drawn, but the light index is computed before the column loop.
+                ctx.planes
+                    .visplanes
+                    .push(Visplane::new(0, 0, lightlevel, 0, 0));
+                ctx.draw_planes().expect("planes");
+                assert_eq!(
+                    ctx.planes.planezlight, want,
+                    "light {lightlevel} extralight {extralight}"
+                );
+            });
+        }
+    }
+
+    #[test]
+    fn a_sky_column_taints_with_the_sky_texture_number_plus_one() {
+        // A sky pixel read from an undefined texel carries the origin `skytexture + 1` (nonzero
+        // and distinct per texture: STATE_FORMAT "taint ... origin", decision R4; the
+        // evidence reports name it `T:<texture>`). The committed sky textures are fully
+        // defined, so the fixture's SKY1 (texture number 6) is made undefined here.
+        with_ctx_res(
+            11,
+            |res| {
+                let sky = res.skytexture;
+                res.textures[sky].columns.fill(ColumnEntry::Undefined);
+            },
+            |ctx| {
+                let sky = ctx.res.skytexture;
+                assert!(
+                    sky >= 1,
+                    "the label must differ from the bare texture number"
+                );
+                let flat = ctx.res.skyflatnum.expect("sky flat");
+                let mut plane = Visplane::new(0, flat, 255, 10, 10);
+                plane.set(10, 5, 7);
+                ctx.planes.visplanes.push(plane);
+                ctx.draw_planes().expect("planes");
+                let row = |y: usize| ctx.taint[y * SCREENWIDTH + 10];
+                assert_eq!(row(5), sky as u32 + 1);
+                assert_eq!(row(7), sky as u32 + 1);
+                assert_eq!(row(4), 0);
+                assert_eq!(row(8), 0);
+            },
+        );
+    }
+}
