@@ -168,3 +168,7 @@ original evidence and former guide contents with exact-byte copies and digests.
 - [M5a faithful software renderer (the 3D view) investigation](M5A_REFERENCE_INVESTIGATION.md)
   (the original C facts, the genuine-engine harness and its prototype, the Rust design and state inventory,
   decisions R1–R16 awaiting the owner and the plan; Phase 1 only).
+- [M5b playable (window, input, status bar, HUD messages, the real-time loop) investigation](M5B_REFERENCE_INVESTIGATION.md)
+  (the original C facts of input, recording, the loop, the status bar and the HUD, the two harness prototypes,
+  the Rust state inventory and design, the window-library comparison, decisions S1–S23 awaiting the owner and
+  the plan; Phase 1 only).
