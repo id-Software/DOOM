@@ -839,6 +839,52 @@ mod tests {
     use super::*;
     use crate::test_support::{with_ctx, with_ctx_res};
 
+    #[test]
+    fn sprite_texel_read_past_its_lump_is_undefined_with_the_lump_label() {
+        // R_DrawVisSprite/R_DrawMaskedColumn (r_things.c:351-443) with the R_ProjectSprite values
+        // xiscale = FixedDiv(FRACUNIT, xscale) (r_things.c:560) at xscale 3.0 (21845, truncated) and
+        // an integer texturemid below the eye (gzt - viewz = -1.0): the top row of each post has
+        // frac = -(1 + topdelta) < 0, so R_DrawColumn reads dc_source[(frac>>16)&127], texel 127 of
+        // the post (r_draw.c:105-148). For a post within 127 bytes of the lump end the read is
+        // outside the lump (undefined, R4) and the pixel's taint is `lump | 0x4000_0000`, never
+        // 0: with `&` in place of `|` the label would be 0 ("defined") and the column would not
+        // be flagged although the genuine tracker flags it.
+        with_ctx(11, |ctx| {
+            let res = ctx.res;
+            // The committed fixture pads every sprite lump with 128 zero bytes (m5a_gfx.py PAD), so
+            // texel 127 of a post is always inside it; real IWAD sprites are not padded. The
+            // unpadded patch P_W72 (m5a_gfx.py 'short') stands in for an unpadded sprite lump.
+            let lump = res.dir.get_num_for_name(b"P_W72").expect("P_W72");
+            let rel = lump - res.firstspritelump;
+            let bytes = res.lump(lump);
+            let mut found = None;
+            let width = patch_header(bytes).expect("header").width;
+            for col in (0..i32::from(width)).rev() {
+                let at = patch_column_offset(bytes, col)
+                    .and_then(|o| usize::try_from(o).ok())
+                    .unwrap();
+                let top = bytes[at];
+                if top != 0xff && top < 20 && at + 3 + 127 >= bytes.len() {
+                    found = Some((rel, col, top));
+                    break;
+                }
+            }
+            let (rel, col, topdelta) = found.expect("a post near the lump end");
+            let mut vis = sprite(3 << 16, 10);
+            vis.startfrac = col << 16;
+            vis.xiscale = crate::r_main::fixed_div(1 << 16, 3 << 16).unwrap();
+            vis.texturemid = -(1 << 16);
+            vis.patch = rel as i16;
+            ctx.draw_vis_sprite(&vis, Clip::ScreenHeight, Clip::NegOne, Feature::Untouched)
+                .expect("drawn");
+            let yl = ctx.view.centery + 3 * (1 + i32::from(topdelta));
+            assert_eq!(
+                ctx.taint[ctx.view.offset(10, yl)],
+                (res.firstspritelump + rel) as u32 | 0x4000_0000
+            );
+        });
+    }
+
     /// One post (topdelta 0, length 4, pad, four texels, pad) and the 0xff terminator
     /// (the patch column format, investigation §2.6).
     const COLUMN: [u8; 9] = [0, 4, 0, 1, 2, 3, 4, 0, 0xff];

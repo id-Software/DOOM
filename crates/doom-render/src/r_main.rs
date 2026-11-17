@@ -495,6 +495,20 @@ mod tests {
     }
 
     #[test]
+    fn point_to_angle_octant_7_diagonal_where_slopediv_wraps() {
+        // R_PointToAngle (r_main.c:320-335): `y < 0` and `x == -y` take the `else` branch
+        // (octant 7), `ANG270 + tantoangle[SlopeDiv(x, y)]`, not octant 8's
+        // `-tantoangle[SlopeDiv(y, x)]`. SlopeDiv (tables.c:50-62) computes `num<<3` in
+        // `unsigned`, which wraps for `num >= 2^29`, so `SlopeDiv(2^29, 2^29)` is 0 and the two
+        // branches differ there: ANG270 against 0. A vertex 8,192 units east and 8,192 units south
+        // of the viewer is that point (independent review of the mutation survivors, 2026-11-17).
+        assert_eq!(point_to_angle(1 << 29, -(1 << 29), 0, 0), 0xc000_0000);
+        assert_eq!(slope_div(1 << 29, 1 << 29), 0, "num<<3 wraps to 0");
+        // Below the wrap the seam is continuous (`tantoangle[2048] == ANG45`).
+        assert_eq!(point_to_angle(1 << 20, -(1 << 20), 0, 0), 0xe000_0000);
+    }
+
+    #[test]
     fn point_to_dist_on_the_point_is_a_table_read_refusal() {
         // Investigation §1.11 hazard 2: with the viewpoint exactly on the point,
         // `FixedDiv(0,0) = MAXINT` (m_fixed.c:62-63) and `tantoangle[MAXINT>>5]` reads outside

@@ -804,6 +804,147 @@ mod tests {
     use crate::test_support::with_ctx;
 
     #[test]
+    fn rw_offset_is_not_negated_at_exactly_ang180() {
+        // r_segs.c:617-633: `if (rw_normalangle-rw_angle1 < ANG180) rw_offset = -rw_offset;` is
+        // strict. `rw_normalangle` comes from the SEGS angle field (p_setup.c:181, r_segs.c:401),
+        // not from the vertices R_AddLine culls on (r_bsp.c:267-277), and nothing checks one
+        // against the other, so a seg whose stored angle disagrees with its vertices reaches
+        // `rw_normalangle - rw_angle1 == ANG180` on a front-facing seg (for example a seg stored
+        // with angle 0 that runs west with its v1 due south of the viewer). `rw_angle1` is forced
+        // here to the value such a seg gives.
+        use crate::r_main::{
+            ANG90, ANGLETOFINESHIFT, FrameView, finesine, fixed_mul, point_to_dist,
+        };
+        use crate::test_support::with_room;
+        with_room(
+            "hom.wad",
+            11,
+            |_| {},
+            |ctx| {
+                ctx.frame = FrameView::setup(0, 0, ANG90, 0, 41 << 16, 0);
+                ctx.clear_clip_segs();
+                ctx.clear_planes().expect("planes");
+                let seg = ctx
+                    .level
+                    .geometry
+                    .segs
+                    .iter()
+                    .position(|s| s.linedef == 0)
+                    .expect("the wall's seg");
+                let s = ctx.level.geometry.segs[seg];
+                ctx.bsp.curline = seg;
+                ctx.bsp.frontsector = 0;
+                ctx.bsp.backsector = s.backsector;
+                // rw_normalangle - rw_angle1 == (angle + ANG90) - (angle - ANG90) == ANG180.
+                ctx.segs.rw_angle1 = s.angle.wrapping_sub(ANG90) as i32;
+                let front = ctx.sectors[0];
+                ctx.planes.floorplane = Some(
+                    ctx.find_plane(front.floorheight, front.floorpic, front.lightlevel)
+                        .unwrap(),
+                );
+                ctx.planes.ceilingplane = Some(
+                    ctx.find_plane(front.ceilingheight, front.ceilingpic, front.lightlevel)
+                        .unwrap(),
+                );
+                ctx.store_wall_range(10, 20).expect("stored");
+                assert!(ctx.segs.segtextured, "the wall is textured");
+                let hyp = point_to_dist(s.v1[0], s.v1[1], 0, 0).unwrap();
+                let sine = finesine((ANG90 >> ANGLETOFINESHIFT) as i32).unwrap();
+                let expected = fixed_mul(hyp, sine)
+                    .wrapping_add(ctx.textureoffset[s.sidedef].wrapping_add(s.offset));
+                assert_eq!(
+                    ctx.segs.rw_offset, expected,
+                    "not negated at exactly ANG180"
+                );
+            },
+        );
+    }
+
+    #[test]
+    fn masked_midtexture_read_past_its_patch_lump_is_undefined_with_the_texture_label() {
+        // R_RenderMaskedSegRange (r_segs.c:162-188): dc_iscale = 0xffffffff / spryscale (truncated)
+        // and sprtopscreen = centeryfrac - FixedMul(dc_texturemid, spryscale). At spryscale 3.0 and
+        // dc_texturemid = -1.0 the top row of a post has frac = -(1 + topdelta) < 0, so R_DrawColumn
+        // reads dc_source[(frac>>16)&127] = texel 127 of the post (r_draw.c:105-148). A post that
+        // starts within 127 bytes of its patch lump's end reads outside the lump there: undefined
+        // (decision R4; Resources::lump_source), and the pixel's taint is `texnum + 1`. The
+        // label is never 0 for a masked midtexture (`texnum` is not 0 there), so the frame
+        // comparison sees only that the column is flagged; the label itself is part of the
+        // render state (`DRST`), which this test pins.
+        use super::Clip;
+        use crate::r_data::MaskedPosts;
+        use crate::r_main::FrameView;
+        use crate::test_support::with_room;
+        with_room(
+            "mask.wad",
+            11,
+            |_| {},
+            |ctx| {
+                let res = ctx.res;
+                // The committed fixture pads every patch with 128 zero bytes except the tracker's
+                // short patches (m5a_gfx.py PAD, 'short'); give a masked line the unpadded M5W72.
+                let texnum = res
+                    .textures
+                    .iter()
+                    .position(|t| &t.name[..5] == b"M5W72")
+                    .expect("M5W72");
+                let seg = ctx
+                    .level
+                    .geometry
+                    .segs
+                    .iter()
+                    .position(|s| s.backsector.is_some() && ctx.sides[s.sidedef][1] != 0)
+                    .expect("a masked two-sided seg");
+                let sidedef = ctx.level.geometry.segs[seg].sidedef;
+                ctx.sides[sidedef][1] = texnum;
+                ctx.texturetranslation[texnum] = texnum;
+                let mut found = None;
+                for col in (0..i32::from(res.textures[texnum].width)).rev() {
+                    if let MaskedPosts::Lump { bytes, at } = res.masked_posts(texnum, col) {
+                        let top = bytes[at];
+                        if top != 0xff && top < 20 && at + 3 + 127 >= bytes.len() {
+                            found = Some((seg, texnum, col, top));
+                            break;
+                        }
+                    }
+                }
+                let (seg, texnum, col, topdelta) =
+                    found.expect("a masked column near its lump end");
+                let s = ctx.level.geometry.segs[seg];
+                let front = ctx.sectors[s.frontsector];
+                let back = ctx.sectors[s.backsector.unwrap()];
+                let flags = ctx.level.geometry.line_flags[s.linedef];
+                let mid = if flags & super::ML_DONTPEGBOTTOM != 0 {
+                    front.floorheight.max(back.floorheight) + res.textures[texnum].textureheight
+                } else {
+                    front.ceilingheight.min(back.ceilingheight)
+                } + ctx.level.geometry.rowoffset[s.sidedef];
+                // dc_texturemid = mid - viewz = -1.0
+                ctx.frame = FrameView::setup(0, 0, 0, 0, mid + (1 << 16), 0);
+                ctx.planes.openings[100] = col as i16;
+                ctx.bsp.drawsegs.push(super::DrawSeg {
+                    curline: seg,
+                    x1: 10,
+                    x2: 10,
+                    scale1: 3 << 16,
+                    scale2: 3 << 16,
+                    scalestep: 0,
+                    silhouette: 0,
+                    bsilheight: 0,
+                    tsilheight: 0,
+                    sprtopclip: Clip::NegOne,
+                    sprbottomclip: Clip::ScreenHeight,
+                    maskedtexturecol: Some(90),
+                });
+                let index = ctx.bsp.drawsegs.len() - 1;
+                ctx.render_masked_seg_range(index, 10, 10).expect("drawn");
+                let yl = ctx.view.centery + 3 * (1 + i32::from(topdelta));
+                assert_eq!(ctx.taint[ctx.view.offset(10, yl)], texnum as u32 + 1);
+            },
+        );
+    }
+
+    #[test]
     fn a_wall_range_outside_the_view_or_reversed_is_refused() {
         // `if (start >= viewwidth || start > stop) I_Error("Bad R_StoreWallRange: %i to %i")`:
         // either condition alone refuses (viewwidth 320 at screenblocks 11).
