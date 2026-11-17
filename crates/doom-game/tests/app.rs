@@ -1,6 +1,7 @@
 //! Headless sessions of the app on the repository's synthetic maps (with
-//! `tests/reference/m5a_gfx.wad`), driven by scripted events and a fake monotonic clock: no
-//! window, no file system inside the app, no wall clock.
+//! `tests/reference/m5b_gfx.wad`, the M5a graphics with the status bar and HUD lumps), driven
+//! by scripted events and a fake monotonic clock: no window, no file system inside the app, no
+//! wall clock.
 
 use doom_game::app::{
     App, Ending, GAMMA, GameData, Host, MAX_TICS_PER_UPDATE, Mode, PICTURE_BYTES, SAVE_INTERVAL,
@@ -21,7 +22,7 @@ fn reference(name: &str) -> PathBuf {
 
 fn load(map_wad: &str, map: u8, skill: u8) -> GameData {
     let wad = std::fs::read(reference(map_wad)).expect("map WAD");
-    let gfx = std::fs::read(reference("m5a_gfx.wad")).expect("gfx WAD");
+    let gfx = std::fs::read(reference("m5b_gfx.wad")).expect("gfx WAD");
     GameData::load(&[&wad, &gfx], GameMode::Registered, map, skill).expect("game data")
 }
 
@@ -206,7 +207,15 @@ fn same_events_and_clock_give_the_same_session_twice() {
     assert_eq!(a, b);
     let (frames, _, demo) = a;
     assert_eq!(frames.len(), 58);
-    assert!(frames.iter().all(|(_, p)| *p == 0));
+    // the pickup of tic 18 shows the first bonus palette for six frames (st_stuff.c:1036-1043)
+    let palettes: Vec<u8> = frames.iter().map(|f| f.1).collect();
+    assert_eq!(palettes[17..23], [10; 6]);
+    assert!(
+        palettes
+            .iter()
+            .enumerate()
+            .all(|(i, p)| *p == 0 || (17..23).contains(&i))
+    );
     // the walk is visible: the frames are not all the same
     assert!(frames.windows(2).any(|w| w[0].0 != w[1].0));
     assert_eq!(demo.len(), 13 + 4 * 58 + 1);
@@ -618,9 +627,51 @@ fn the_picture_uses_the_palette_through_the_gamma_table() {
 }
 
 #[test]
+fn the_status_bar_and_a_bonus_palette_reach_the_presented_picture() {
+    let data = load("m5a_wads/amp.wad", 1, 2);
+    let (pal0, pal10) = (
+        data.assets().palette(0).expect("palette 0").to_vec(),
+        data.assets().palette(10).expect("palette 10").to_vec(),
+    );
+    let mut d = Driver::new(data, SessionConfig::default());
+    d.run(&walk_script()[..2]);
+    let (frame, palette) = d.app.frame().expect("frame");
+    assert_eq!(
+        (d.app.tic(), palette),
+        (23, 10),
+        "the pickup's bonus palette"
+    );
+    // the status bar fills rows 168-199 at screenblocks 10 (ST_Y, st_stuff.h:32-34); M5a's
+    // view-only frame left them 0
+    let bar = &frame[168 * 320..];
+    assert!(bar.iter().filter(|&&c| c != 0).count() > 320 * 16);
+    let frame = frame.to_vec();
+    let mut pic = vec![0; PICTURE_BYTES];
+    d.app.picture(0, &mut pic);
+    let rgb = |pal: &[u8], i: usize| {
+        let at = usize::from(frame[i]) * 3;
+        [0, 1, 2].map(|k| GAMMA[0][usize::from(pal[at + k])])
+    };
+    assert!((0..64_000).all(|i| pic[i * 4..i * 4 + 3] == rgb(&pal10, i)));
+    assert!((0..64_000).any(|i| rgb(&pal10, i) != rgb(&pal0, i)));
+    // at screenblocks 11 the same tic has no status bar: the view covers the rows
+    let mut full = Driver::new(
+        load("m5a_wads/amp.wad", 1, 2),
+        SessionConfig {
+            screenblocks: 11,
+            ..SessionConfig::default()
+        },
+    );
+    full.run(&walk_script()[..2]);
+    let (other, palette) = full.app.frame().expect("frame");
+    assert_eq!(palette, 10);
+    assert_ne!(&other[168 * 320..], &frame[168 * 320..]);
+}
+
+#[test]
 fn the_load_refuses_outside_the_wire_24_domain() {
     let wad = std::fs::read(reference("m5a_wads/amp.wad")).expect("map WAD");
-    let gfx = std::fs::read(reference("m5a_gfx.wad")).expect("gfx");
+    let gfx = std::fs::read(reference("m5b_gfx.wad")).expect("gfx");
     for (map, skill) in [(1, 1), (1, 4), (0, 2), (10, 2)] {
         let e = GameData::load(&[&wad, &gfx], GameMode::Registered, map, skill).unwrap_err();
         assert!(e.to_string().contains("not playable"), "{e}");

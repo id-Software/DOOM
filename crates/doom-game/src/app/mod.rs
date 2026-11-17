@@ -575,10 +575,10 @@ impl App {
         };
         let drawn = frames
             .observe(&self.sim, &executed)
-            .and_then(|()| frames.draw(&self.data.assets, &self.sim, &mut self.frame));
+            .and_then(|_| frames.draw(&self.data.assets, &self.sim, &mut self.frame));
         match drawn {
-            Ok(palette) => {
-                self.palette = palette;
+            Ok(drawn) => {
+                self.palette = drawn.palette;
                 self.drawn = true;
             }
             Err(e) => return self.end(refuse(Witness::Frame(e)), host),
