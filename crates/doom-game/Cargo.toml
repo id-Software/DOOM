@@ -1,6 +1,6 @@
 [package]
 name = "doom-game"
-description = "Platform-free app core of the playable port: linuxdoom-1.10's input path (G_Responder's game part, G_BuildTiccmd, the demo round trip) and the app's event layer"
+description = "Platform-free app core of the playable port: linuxdoom-1.10's input path (G_Responder's game part, G_BuildTiccmd, the demo round trip), the app's event layer, the 35 Hz loop, the session recorder and the app's own screens"
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
@@ -10,6 +10,9 @@ publish.workspace = true
 
 [dependencies]
 doom-sim = { path = "../doom-sim" }
+doom-render = { path = "../doom-render" }
+doom-wad = { path = "../doom-wad" }
+doom-map = { path = "../doom-map" }
 
 [lints]
 workspace = true

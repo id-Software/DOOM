@@ -7,9 +7,13 @@
 //! (forbidden by the workspace lints). It takes DOOM key codes, never platform key codes: the
 //! binary crate translates the window library's keys.
 //!
-//! In this step it holds only the [`input`] module: the genuine event-to-command path
-//! (`G_Responder`'s game part, `G_BuildTiccmd` and the demo write and re-read of
-//! `G_WriteDemoTiccmd`) and the app's event layer in front of it (decisions S4–S7). The loop,
-//! the session recorder, the app's screens and the pause are later modules of this crate.
+//! - [`input`]: the genuine event-to-command path (`G_Responder`'s game part, `G_BuildTiccmd`
+//!   and the demo write and re-read of `G_WriteDemoTiccmd`) and the app's event layer in front
+//!   of it (decisions S4–S7);
+//! - [`app`]: the session, the 35 Hz loop step on a clock the platform supplies, the session
+//!   recorder, the app's pause and its own end and refusal screens, and restart (decisions S3,
+//!   S8–S12, S21). Time and files come in from the platform through [`app::Host`] and
+//!   [`app::App::update`]'s argument.
 
+pub mod app;
 pub mod input;
