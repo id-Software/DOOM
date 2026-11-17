@@ -1643,39 +1643,39 @@ mod tests {
         // post's first byte even when the front was clipped.
         let patch = posts(&[(2, &[10, 11, 12])]);
         let rows = |(b, d): (Vec<u8>, Vec<bool>)| -> Vec<(u8, bool)> {
-            b.into_iter().zip(d).skip(4).take(8).collect()
+            b.into_iter().zip(d).collect::<Vec<_>>()[4..].to_vec()
         };
         let cell = |v: u8| (v, v != 0);
         // Plain: rows 2-4.
         assert_eq!(
             rows(cache(&patch, 0, 0, 8)),
-            [0, 0, 10, 11, 12, 0, 0, 0].map(cell)
+            [0, 0, 10, 11, 12, 0, 0, 0, 0, 0, 0, 0].map(cell)
         );
         // Shifted down one row by originy.
         assert_eq!(
             rows(cache(&patch, 0, 1, 8)),
-            [0, 0, 0, 10, 11, 12, 0, 0].map(cell)
+            [0, 0, 0, 10, 11, 12, 0, 0, 0, 0, 0, 0].map(cell)
         );
         // Shifted above the top: position -1 keeps count 3 - 1 = 2 bytes, copied from source[0];
         // position -2 keeps one.
         assert_eq!(
             rows(cache(&patch, 0, -3, 8)),
-            [10, 11, 0, 0, 0, 0, 0, 0].map(cell)
+            [10, 11, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0].map(cell)
         );
         assert_eq!(
             rows(cache(&patch, 0, -4, 8)),
-            [10, 0, 0, 0, 0, 0, 0, 0].map(cell)
+            [10, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0].map(cell)
         );
-        // Clipped at the bottom: rows 6-7 of an 8-row cache only (the block holds more rows,
-        // which stay untouched).
+        // Clipped at the bottom: rows 6-7 of an 8-row cache only (the block holds four more rows,
+        // which must stay untouched).
         let low = posts(&[(6, &[1, 2, 3, 4])]);
         assert_eq!(
             rows(cache(&low, 0, 0, 8)),
-            [0, 0, 0, 0, 0, 0, 1, 2].map(cell)
+            [0, 0, 0, 0, 0, 0, 1, 2, 0, 0, 0, 0].map(cell)
         );
         // A post wholly past the bottom or above the top copies nothing.
-        assert_eq!(rows(cache(&low, 0, 8, 8)), [0; 8].map(cell));
-        assert_eq!(rows(cache(&low, 0, -20, 8)), [0; 8].map(cell));
+        assert_eq!(rows(cache(&low, 0, 8, 8)), [0; 12].map(cell));
+        assert_eq!(rows(cache(&low, 0, -20, 8)), [0; 12].map(cell));
     }
 
     #[test]
