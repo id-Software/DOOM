@@ -130,6 +130,10 @@
   `while kill -0 PID 2>/dev/null; do sleep N; done`), never `pgrep -f PATTERN`, which
   matches its own command line and never exits. Every wait loop must have a timeout. An
   agent that finishes must leave no shell running.
+- Deleting files: never `cd DIR; rm ...` or `rm -rf *`. Delete by absolute path under
+  ~/scratch only (`rm -rf -- "$HOME/scratch/<milestone>/<dir>"`), with `set -u` so an
+  empty variable fails, and never delete inside the repo, /mnt/*, or a path built from
+  an unchecked variable. Download into a fresh empty directory instead of clearing one.
 - Unattended rule: continue past an investigation phase only if every new decision has a
   clear recommendation consistent with prior owner decisions and admits no silent
   divergence; otherwise stop, commit, push and report.
