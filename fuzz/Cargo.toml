@@ -401,3 +401,10 @@ path = "fuzz_targets/game_input_events.rs"
 test = false
 doc = false
 bench = false
+
+[[bin]]
+name = "render_display_state"
+path = "fuzz_targets/render_display_state.rs"
+test = false
+doc = false
+bench = false
