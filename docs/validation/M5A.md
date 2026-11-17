@@ -641,4 +641,42 @@ the slowest `render_frames` unit took 11 s under AddressSanitizer (a notice, not
 never fired); 1,279 executions is small. Bounded campaigns are not exhaustive proof. No crash, leak, timeout or
 out-of-memory input was produced; nothing was minimised or fixed. The corpora were deleted after recording.
 
-**Performance** (R15): not measured in this step. The owner asked to be consulted before any timing run.
+**Performance** (R15: recorded, never gated). Observed 2026-11-16 (America/Los_Angeles), 16:34-16:41, with the
+`m5a_bench` example ([command](../TESTING.md#m5a-synthetic-renderer-rooms)). Machine: Intel Core i7-8750H @ 2.20 GHz,
+12 logical CPUs (WSL2); rustc 1.100.0 (0ef1bc386 2026-11-09); release profile; binary built in and run from the
+Linux filesystem (`~/scratch/m5a/perf`, `CARGO_TARGET_DIR` there, deleted after recording). The owner had said the
+machine was idle; before the runs no cargo, rustc, C runner, fuzz, Valgrind or Python process was running (load
+average 1.6 and falling, decaying from the build 1 minute earlier; 0.9 afterwards), and nothing else was started
+while the runs lasted. Rust-analyzer was resident and idle. Real maps used the IWAD scratch copy
+(`~/scratch/m5a/iwad/DOOM.WAD`); the synthetic rooms are the committed scripts. The timers cover the simulation
+advance (`common::advance`) and the `Renderer::render` call only; observe, hashing and I/O are outside both. One
+unmeasured warm-up replay per configuration, then 5 measured replays (rooms) or 3 (real maps), each on a freshly
+loaded simulation; percentiles are over all frames of all measured replays of one run. The whole sequence ran 3
+times; each cell gives the range over the 3 runs (one value when all agreed). Times are microseconds.
+
+| Item | Frames per replay | Screenblocks | Render median | Render p95 | Render max | Advance median (per tic) |
+| --- | --- | --- | --- | --- | --- | --- |
+| M5PLANE (room) | 168 | 11 | 329-331 | 384-392 | 553-650 | 3 |
+| M5PLANE | 168 | 10 | 297-301 | 347-367 | 493-618 | 3 |
+| M5SPRIT (room) | 136 | 11 | 357 | 410-423 | 613-726 | 8 |
+| M5SPRIT | 136 | 10 | 330-341 | 393-410 | 570-886 | 8 |
+| M5FUZZ (room) | 156 | 11 | 323-327 | 364-416 | 563-756 | 4 |
+| M5FUZZ | 156 | 10 | 293-302 | 325-366 | 417-748 | 4 |
+| M5VSPR (room) | 82 | 11 | 924-953 | 1,046-1,180 | 1,817-1,953 | 33-34 |
+| M5VSPR | 82 | 10 | 896-911 | 1,000-1,019 | 1,189-3,037 | 33-34 |
+| E1M1 `WALK` | 766 | 11 | 822-837 | 932-971 | 1,227-2,073 | 39-41 |
+| E1M1 `WALK` | 766 | 10 | 794-804 | 909-951 | 1,819-2,756 | 39-40 |
+| E1M8 `M8WALK` | 5,813 | 11 | 882-886 | 1,022-1,038 | 2,418-3,117 | 49 |
+| E1M8 `M8WALK` | 5,813 | 10 | 850-853 | 981-988 | 2,021-4,511 | 48-49 |
+| E1M8 `M8FIGHT` | 5,740 | 11 | 881-884 | 1,016-1,018 | 2,355-4,869 | 50 |
+| E1M8 `M8FIGHT` | 5,740 | 10 | 848-852 | 981-985 | 2,993-4,345 | 50 |
+
+Variation: render medians agreed within about 1-4 % between runs (the widest spread, M5SPRIT at screenblocks 10,
+is 330 to 341); within one run the per-replay medians differed by up to 5 % on the rooms and under 2 % on the
+real maps. Maxima are single-frame outliers and varied by up to a factor of 2.5 between runs (scheduler noise on
+a shared WSL2 host); only medians and p95 should be compared. Every replay ran to the end of its script with no
+refusal. For scale, the 35 tics/second budget is 28,571 us per tic; the largest render p95 here is 1,180 us.
+
+Limits: DEMO1 was not timed (the patched lump is only built by `tools/local/m5a_real.py`); no Low detail, no
+screenblocks 9, no comparison with the C renderer's speed, and one machine and one toolchain only. These are
+observations, not a performance claim or a gate, and the rustc used differs from the 1.85.0 MSRV.

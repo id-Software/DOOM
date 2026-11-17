@@ -2022,6 +2022,10 @@ cargo test -p doom-render --release --test rewind -- --nocapture        # restor
 # local first-difference reporter: counts, the first non-matching frame per item and configuration,
 # and with --c-runner the pixel comparison of every frame against the genuine raw frames, naming the
 # feature in play at the first differing pixel, with a PNG pair (genuine, Rust) in ~/scratch/m5a/diff
+# timings (recorded, never gated; run alone on an idle machine, built and run from ext4: CARGO_TARGET_DIR=~/scratch/m5a/perf):
+# per-tic simulation advance and render time, warm-up then N replays, median/p95/max per configuration
+cargo run -p doom-render --release --example m5a_bench -- --room M5PLANE [--screenblocks 11,10] [--reps 5] [--warmup 1]
+cargo run -p doom-render --release --example m5a_bench -- --iwad ~/scratch/m5a/iwad/DOOM.WAD --lmp tests/reference/e1m1_scripts/WALK.lmp
 python3 tools/reference/m5a_build.py --variant strict --out ~/scratch/m5a/build
 cargo run -p doom-render --release --example m5a_compare -- --c-runner ~/scratch/m5a/build/strict/crunner [--only M5PEG,TELE1] [--screenblocks 11,10,9] [--diff DIR]
 ```
