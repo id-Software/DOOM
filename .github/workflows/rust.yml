@@ -462,6 +462,43 @@ jobs:
         if: env.DOCS_ONLY == 'true'
         run: echo "documentation-only change, so the genuine renderer runs were skipped"
 
+  m5b-status-input:
+    # M5b step 9: the genuine linuxdoom-1.10 status bar, HUD and palette (the M5b full-frame
+    # runner) and the genuine input path (the M5b input driver), against the committed goldens
+    # (Linux only, as M5a). The Rust frame and input-script tests, and the doom-game and
+    # doom-play builds, run in the Stable job on all three operating systems and in the
+    # Minimum Rust job as part of `--workspace`; no step opens a window. The local-only
+    # --strict32 option is never used here. Not a required check name.
+    name: M5b genuine status bar, HUD and input
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    needs: changes
+    if: ${{ !cancelled() }}
+    env:
+      DOCS_ONLY: ${{ needs.changes.outputs.docs_only }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - name: M5b graphics PWAD, rooms, runner contract and input scripts
+        if: env.DOCS_ONLY != 'true'
+        run: |
+          python3 tools/reference/m5b_gfx.py --check
+          python3 tools/reference/m5b_check_gfx.py
+          python3 tools/reference/m5b_wad.py --check
+          python3 tools/reference/m5b_build.py --check
+          python3 tools/reference/m5b_input_scripts.py --check
+          python3 tools/reference/m5b_input_build.py --check
+      - name: Genuine full-frame runs of every M5b room (strict, overflow and address variants identical), goldens, PNGs and self-test
+        if: env.DOCS_ONLY != 'true'
+        run: ASAN_OPTIONS=detect_leaks=0 python3 tools/reference/m5b_reference.py --check --pngs --selftest --jobs 4 --work "$RUNNER_TEMP/m5b"
+      - name: Genuine input-path runs of every input script (strict, overflow and address variants identical), goldens and self-test
+        if: env.DOCS_ONLY != 'true'
+        run: ASAN_OPTIONS=detect_leaks=0 python3 tools/reference/m5b_input_reference.py --check --selftest --work "$RUNNER_TEMP/m5b_input"
+      - name: Documentation-only fast path
+        if: env.DOCS_ONLY == 'true'
+        run: echo "documentation-only change, so the genuine status bar, HUD and input runs were skipped"
+
   simulation-ir:
     # M4p decision P6: an instruction-count regression guard for Simulation::advance.
     # Callgrind counts, not time: the pinned toolchain keeps codegen fixed, and the
