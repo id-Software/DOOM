@@ -114,14 +114,14 @@ def run_driver(binary, text, work):
         return lmp.read_bytes() if p.returncode == 0 and lmp.exists() else None
 
 
-def run_engine(binary, wads, lmp, sb, work):
-    """One genuine replay with --render every: dict(golden, full, rows, end, dumps dir, per-snapshot digests)."""
+def run_engine(binary, wads, lmp, sb, work, extra=()):
+    """One genuine replay with --render every (and `extra` arguments): dict(golden, full, rows, end, dumps dir, per-snapshot digests)."""
     if work.exists(): shutil.rmtree(work)
     (work / 'dumps').mkdir(parents=True)
     demo = work / f'{LUMP}.lmp'; demo.write_bytes(lmp)
     frames = work / 'frames.txt'
     cmd = [str(binary), *[a for w in wads for a in ('--wad', str(w))], '--wad', str(demo), '--demo', LUMP, '--out', str(work / 'dumps'),
-           '--render', 'every', '--screenblocks', str(sb), '--frames', str(frames)]
+           '--render', 'every', '--screenblocks', str(sb), '--frames', str(frames), *extra]
     p = subprocess.run(cmd, capture_output=True, text=True, env=ENV)
     text = frames.read_text() if frames.exists() else ''
     golden, full = R.normalise(text)

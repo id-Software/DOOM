@@ -1,0 +1,7 @@
+# M5b step 7b: the genuine input driver's chain_walk script, its built commands injected at full resolution (keyboard
+# turns 320, 640 and 480, mouse turns 160, 128, -128, -160 and -1184 with walking, strafing, fire, a weapon change and use).
+wad tests/reference/m5b_wads/palred.wad
+map 1
+skill 2
+screenblocks 10
+golden chain_walk

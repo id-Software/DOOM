@@ -1,0 +1,115 @@
+{
+ "schema": "DOOM-M5B-INJECT-RESULTS-v1",
+ "contract": "frames identical to the genuine engine under the declared sound-free, wipe-free contract (decision S15), for these scripts only",
+ "variants": [
+  "strict",
+  "overflow",
+  "address"
+ ],
+ "inject_contract_sha256": "3240203c48ba119574ea83d519bd657e6057e298b3b0303abe2b251ffd49141b",
+ "gfx_sha256": "50d0f0f881e2347a3527405b97a8f5abd949cff923a7078d03ec8c20a40ca032",
+ "asan_options": "detect_leaks=0 (leak detection disabled)",
+ "scripts": {
+  "chain_palred": {
+   "tics": 60,
+   "low_byte_commands": 16,
+   "counts": {
+    "tics": 60,
+    "commands": 60,
+    "frames": 60,
+    "digests": 60,
+    "masked": 0,
+    "non_comparable": 0,
+    "fields": 300,
+    "messages": 1,
+    "dump_tics": 61
+   },
+   "genuine_end": "marker",
+   "variants_identical": true,
+   "golden_sha256": "b262a266243eb6bb69141d406414a756fbfb6550399e7f5dcfa9b1dba938e81a",
+   "rounded_twin": {
+    "first_differing_dump_tic": 25,
+    "end": "marker",
+    "messages": 1,
+    "messages_full_resolution": 1
+   },
+   "script_sha256": "afc920709816d0436d10cc12becad5a2381b1e3a2a7cf3e42ac4d71c8244d601"
+  },
+  "control_palred": {
+   "tics": 60,
+   "low_byte_commands": 0,
+   "counts": {
+    "tics": 60,
+    "commands": 60,
+    "frames": 60,
+    "digests": 60,
+    "masked": 0,
+    "non_comparable": 0,
+    "fields": 300,
+    "messages": 1,
+    "dump_tics": 61
+   },
+   "genuine_end": "marker",
+   "variants_identical": true,
+   "golden_sha256": "ab94db27867cef5b493d1b506321142c8f8097186918bf931aa1bc8c07fa8e4a",
+   "rounded_twin": {
+    "first_differing_dump_tic": null,
+    "end": "marker",
+    "messages": 1,
+    "messages_full_resolution": 1
+   },
+   "control_equals_demo_replay": true,
+   "script_sha256": "a6264c92dac7ab597f489332c609148b4f2aec73902945de8366a9daeb4b4795"
+  },
+  "keys_palbonus": {
+   "tics": 165,
+   "low_byte_commands": 99,
+   "counts": {
+    "tics": 165,
+    "commands": 165,
+    "frames": 165,
+    "digests": 165,
+    "masked": 0,
+    "non_comparable": 0,
+    "fields": 825,
+    "messages": 2,
+    "dump_tics": 166
+   },
+   "genuine_end": "marker",
+   "variants_identical": true,
+   "golden_sha256": "e2e99c7038684b6bc312ea66031f9adfd39f79e4fcd77899f337206ecba5091f",
+   "rounded_twin": {
+    "first_differing_dump_tic": 0,
+    "end": "marker",
+    "messages": 0,
+    "messages_full_resolution": 2
+   },
+   "script_sha256": "f6793d6d61b7d0998d68a3544a48f638109619a7464dcf94f4f98f361a48c1ca"
+  },
+  "mouse_palred": {
+   "tics": 345,
+   "low_byte_commands": 258,
+   "counts": {
+    "tics": 345,
+    "commands": 345,
+    "frames": 345,
+    "digests": 345,
+    "masked": 0,
+    "non_comparable": 0,
+    "fields": 1725,
+    "messages": 0,
+    "dump_tics": 346
+   },
+   "genuine_end": "marker",
+   "variants_identical": true,
+   "golden_sha256": "3af201a95c133af5a331c9cb335aaa48729a9705a5a75a104d4ed4c2ab4d0c13",
+   "rounded_twin": {
+    "first_differing_dump_tic": 20,
+    "end": "marker",
+    "messages": 0,
+    "messages_full_resolution": 0
+   },
+   "script_sha256": "17b760fb57b3a7a6a7ed0037c782c9e676c98a070fbe8bffa6857df952d996b7"
+  }
+ }
+}

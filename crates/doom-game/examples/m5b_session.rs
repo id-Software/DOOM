@@ -7,7 +7,9 @@
 //! demo round trip, the recorder, the simulation and the composed display all run as in play.
 //! The saved demo is then replayed through [`replay`] and must give the same rows (the state
 //! the app reached equals the replay of its own demo). With `--demo`, a recorded session (for
-//! example one written by doom-play) is replayed through [`replay`] only.
+//! example one written by doom-play) is replayed through [`replay`] only. With `--commands`,
+//! tic commands at full resolution (one line `forward side angleturn buttons` per tic, step 7b)
+//! are fed to [`replay`] as they are, for `tools/reference/m5b_inject.py`; no demo is written.
 //!
 //! Writes to `--out`: `session.lmp` (the demo the app saved), `rows.txt` (per tic `E` the events
 //! posted, `T` the executed command and the state digest, `F` the frame digest, the digest with
@@ -23,6 +25,7 @@
 use doom_game::app::{App, GameData, Host, Mode, SessionConfig, TicReport, Timestamp, replay};
 use doom_game::input::{Event, MouseButton, keys};
 use doom_render::{GameMode, SCREENWIDTH};
+use doom_sim::TicCommand;
 use doom_sim::demo::parse_demo_episode1_v2;
 use std::fmt::Write as _;
 use std::path::PathBuf;
@@ -180,8 +183,31 @@ fn run_script(app: &mut App, host: &mut Rows, text: &str) -> Res<String> {
     Ok(ending)
 }
 
+/// Parses `--commands` lines: `forward side angleturn buttons`, `#` comments.
+fn parse_commands(text: &str) -> Res<Vec<TicCommand>> {
+    let mut out = Vec::new();
+    for l in text
+        .lines()
+        .map(|l| l.split('#').next().unwrap_or("").trim())
+    {
+        let w: Vec<&str> = l.split_whitespace().collect();
+        match w.as_slice() {
+            [] => {}
+            [f, s, a, b] => out.push(TicCommand {
+                forward: f.parse()?,
+                side: s.parse()?,
+                angle_turn: a.parse()?,
+                buttons: b.parse()?,
+            }),
+            _ => return Err(format!("bad command line {l:?}").into()),
+        }
+    }
+    Ok(out)
+}
+
 fn main() -> Res<()> {
     let (mut wads, mut out, mut script, mut demo) = (Vec::new(), None, None, None);
+    let mut commands: Option<Vec<TicCommand>> = None;
     let (mut map, mut skill, mut sb, mut captures) = (1u8, 2u8, 10u8, false);
     let mut args = std::env::args().skip(1);
     while let Some(a) = args.next() {
@@ -195,6 +221,7 @@ fn main() -> Res<()> {
             "--skill" => skill = v()?.parse()?,
             "--screenblocks" => sb = v()?.parse()?,
             "--captures" => captures = true,
+            "--commands" => commands = Some(parse_commands(&std::fs::read_to_string(v()?)?)?),
             _ => return Err(format!("unknown argument {a}").into()),
         }
     }
@@ -218,7 +245,9 @@ fn main() -> Res<()> {
             data.start().snapshot().canonical_bytes(),
         )?;
     }
-    let ending = if let Some(text) = &script {
+    let ending = if let Some(commands) = &commands {
+        format!("{:?}", replay(&data, sb, commands, &mut host))
+    } else if let Some(text) = &script {
         let cfg = SessionConfig {
             screenblocks: sb,
             ..SessionConfig::default()

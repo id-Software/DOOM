@@ -1,0 +1,8 @@
+# M5b step 7b control: the same golden's executed commands (after the genuine demo round trip, every low byte 0),
+# injected; they must equal the plain demo replay of the same commands through the unchanged demo runner.
+wad tests/reference/m5b_wads/palred.wad
+map 1
+skill 2
+screenblocks 10
+control
+executed chain_walk

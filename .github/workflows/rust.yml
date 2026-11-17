@@ -498,6 +498,9 @@ jobs:
       - name: Scripted app sessions replayed through the genuine input driver and engine (strict, overflow and address variants), every tic and frame compared, and self-test
         if: env.DOCS_ONLY != 'true'
         run: ASAN_OPTIONS=detect_leaks=0 python3 tools/reference/m5b_session.py --check --selftest --work "$RUNNER_TEMP/m5b_session"
+      - name: Full-resolution tic commands injected into the genuine runner (strict, overflow and address variants) and matched in Rust, and self-test
+        if: env.DOCS_ONLY != 'true'
+        run: ASAN_OPTIONS=detect_leaks=0 python3 tools/reference/m5b_inject.py --check --selftest --work "$RUNNER_TEMP/m5b_inject"
       - name: Documentation-only fast path
         if: env.DOCS_ONLY == 'true'
         run: echo "documentation-only change, so the genuine status bar, HUD and input runs were skipped"

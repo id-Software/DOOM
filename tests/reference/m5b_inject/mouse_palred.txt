@@ -1,0 +1,18 @@
+# M5b step 7b: mouse turns at full resolution with a shot at the barrel 133 units ahead (radius 10).
+wad tests/reference/m5b_wads/palred.wad
+map 1
+skill 2
+screenblocks 10
+cmd 0 0 0 0 x20                       # the pistol comes up (A_Raise) before it can fire
+cmd 0 0 -120 0 x12                    # -1440 (7.9 degrees) at full resolution; each rounds to 0 in a demo
+cmd 0 0 0 1                           # one accurate shot: it misses the barrel (health stays 20); the demo-resolution twin hits it (5)
+cmd 0 0 0 0 x20
+golden ev_mouse_turn_small            # -8, 8, -32, 32, -120, -128 (dropped), 128 (rounds to 256), 136, -136
+golden modern_mouse_horizontal_only   # 10208 (the app's clamp), 1184, 128, -128, -1184, -10208, a shot at -320
+golden round_app_mouse_and_keys       # mouse and keyboard turns summed in one command (-11488 to 10528)
+golden round_app_mouse_sens5 0 24     # the app's mouse at sensitivity 5: multiples of 32 from the clamp down
+golden round_app_mouse_sens5 300 40   # and across zero
+golden round_fine_mouse               # every multiple of 8 from -504 to 504
+golden sens_9_turn                    # sensitivity 9: up to 14288
+cmd 0 0 0 1
+cmd 0 0 0 0 x10
