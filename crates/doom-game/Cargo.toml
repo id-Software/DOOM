@@ -1,0 +1,15 @@
+[package]
+name = "doom-game"
+description = "Platform-free app core of the playable port: linuxdoom-1.10's input path (G_Responder's game part, G_BuildTiccmd, the demo round trip) and the app's event layer"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+publish.workspace = true
+
+[dependencies]
+doom-sim = { path = "../doom-sim" }
+
+[lints]
+workspace = true

@@ -59,6 +59,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "doom-game"
+version = "0.1.0"
+dependencies = [
+ "doom-sim",
+]
+
+[[package]]
 name = "doom-map"
 version = "0.1.0"
 dependencies = [

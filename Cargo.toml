@@ -1,5 +1,5 @@
 [workspace]
-members = ["crates/doom-types", "crates/doom-wad", "crates/doom-map", "crates/doom-sim", "crates/doom-test-evidence", "crates/doom-render"]
+members = ["crates/doom-types", "crates/doom-wad", "crates/doom-map", "crates/doom-sim", "crates/doom-test-evidence", "crates/doom-render", "crates/doom-game"]
 resolver = "3"
 
 [workspace.package]
