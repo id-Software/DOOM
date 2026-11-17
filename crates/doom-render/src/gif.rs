@@ -365,6 +365,28 @@ mod tests {
                 "no byte-boundary case widening to {w} bits: {sensitive:?}"
             );
         }
+        // The mirror image: one pixel short of a widening the end code keeps the old width, and
+        // a too-wide end code (one extra bit) shows on the same byte-boundary condition.
+        let mut kept = [0usize; 13];
+        for cycle in 0..12usize {
+            for boundary in [255usize, 767, 1791] {
+                let n = 3839 * cycle + boundary - 1;
+                let (out, codes) = unlzw_codes(&lzw(&data[..n]), n);
+                assert_eq!(out, &data[..n], "length {n}");
+                let (end, last) = (codes[codes.len() - 1], codes[codes.len() - 2]);
+                assert_eq!(end.1, last.1, "length {n} keeps the end code's width");
+                let before: usize = codes[..codes.len() - 1].iter().map(|c| c.1).sum();
+                if (before + last.1) % 8 == 0 {
+                    kept[end.1] += 1;
+                }
+            }
+        }
+        for w in [9, 10, 11] {
+            assert!(
+                kept[w] > 0,
+                "no byte-boundary case keeping {w} bits: {kept:?}"
+            );
+        }
     }
 
     #[test]
