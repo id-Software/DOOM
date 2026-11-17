@@ -2158,6 +2158,131 @@ cargo +nightly fuzz run render_data --sanitizer address CORPUS -- -runs=0 -max_l
 - `seed_render_fuzz.py` is deterministic (fixed-seed generator, committed inputs only) and has no `--check`
   flag, as the other `seed_*_fuzz.py` tools have none.
 
+## M5b playable: status bar, HUD, input and the app
+
+The M5b [reference investigation](M5B_REFERENCE_INVESTIGATION.md) (decisions S1-S23, owner rulings
+2026-11-17) adds three things to compare with the genuine linuxdoom-1.10: the status bar, HUD and palette
+choice (the M5b runner), the event-to-command path (the M5b input driver) and whole app sessions. Everything
+committed is synthetic and runs on a clean checkout; the observations are in
+[the M5b evidence record](validation/M5B.md) and the support statement is
+[Playable build (M5b)](COMPATIBILITY.md#playable-build-m5b). **Frames are identical to the genuine engine
+under the declared sound-free, wipe-free contract (decision S15)**, never claimed identical to a vanilla
+session without that qualifier.
+
+```sh
+# generators, verifiers and contracts (no compiler; every OS in CI where the job runs them)
+python3 tools/reference/m5b_gfx.py [--out PATH] [--list] [--check]      # tests/reference/m5b_gfx.wad: the M5a set plus our own status bar, face and HUD font lumps
+python3 tools/reference/m5b_check_gfx.py [PWAD]                           # independent verifier of that WAD (it re-parses it)
+python3 tools/reference/m5b_wad.py [--only NAME] [--list] [--manifest] [--check]   # the 11 new rooms in tests/reference/m5b_wads/, scripts in tests/reference/m5b_scripts/
+python3 tools/reference/m5b_build.py --check                              # tests/reference/m5b_runner_contract.json
+python3 tools/reference/m5b_input_scripts.py --check                      # the 251 event scripts of tests/reference/m5b_input/scripts
+python3 tools/reference/m5b_input_build.py --check                        # tests/reference/m5b_input_contract.json (DOOM-M5B-INPUT-v1)
+
+# the genuine status bar, HUD and palette (C; Linux); the address variant runs with ASAN_OPTIONS=detect_leaks=0 (leak detection disabled)
+ASAN_OPTIONS=detect_leaks=0 python3 tools/reference/m5b_reference.py --work DIR --check [--pngs] [--selftest] [--jobs N]
+python3 tools/reference/m5b_reference.py --work DIR --strict32            # local opt-in (-m32, genuine text); never required
+python3 tools/reference/m5b_reference.py --work DIR --only NAME[,NAME]    # a subset; writes nothing
+
+# the genuine input path (C; Linux)
+ASAN_OPTIONS=detect_leaks=0 python3 tools/reference/m5b_input_reference.py --work DIR --check [--selftest] [--jobs N]
+python3 tools/reference/m5b_input_reference.py --work DIR --strict32      # local opt-in; never required
+python3 tools/reference/m5b_input_reference.py --work DIR --summary       # which commands fall outside wire 24
+
+# scripted app sessions replayed through the genuine input driver and engine (C and a release build of the headless app; Linux)
+ASAN_OPTIONS=detect_leaks=0 python3 tools/reference/m5b_session.py --work DIR --check [--selftest] [--only NAME] [--jobs N]
+```
+
+What each asserts:
+
+- `m5b_gfx.py --check` and `m5b_check_gfx.py` require the committed graphics PWAD bytes (every M5a lump keeps
+  its bytes and number, so every M5a golden keeps its meaning). `m5b_wad.py --check` regenerates the rooms,
+  scripts and manifest fields; `m5b_build.py --check` the runner contract. No id art anywhere.
+- `m5b_reference.py --check` builds the strict, overflow and address M5b runners and the frozen M4b runner. For
+  the 59 items (the 26 M5a rooms, the 22 M4b scripts and the 11 new rooms) at screenblocks 10 and 11: the masked
+  never-render dump set equals the committed digest or the frozen runner's; the render-every dump sets equal it
+  snapshot for snapshot; the frame streams (frame digests, palette, face, `M_Random` index, messages) are
+  byte-identical across the variants; the committed `tests/reference/m5b_frames` goldens and
+  `m5b_results.json` match; with `--pngs`, the PNG pixels. `--selftest` plants six faults (a status bar pixel, a
+  palette number, an `M_Random` index, a message tic, and the two masks switched off) and requires each to be
+  reported at the planted place.
+- `m5b_input_reference.py --check` runs every script in each variant: no sanitizer report, byte-identical
+  goldens, the recorded demo consistent with the built and executed commands, the witness scripts as stated, the
+  chain (a recorded demo replayed by the genuine M5a runner, every command equal) and the committed goldens and
+  results. `--selftest` plants four faults (a command bit, a dropped key-up, a changed binding and a changed
+  turn-table entry).
+- `m5b_session.py --check` plays the four scripts of `tests/reference/m5b_sessions` through the headless app
+  (`crates/doom-game/examples/m5b_session.rs`) and compares every tic with the genuine engine as described in
+  the evidence record; `--selftest` plants four faults. The scripts were written by hand, not played by a person.
+
+The Rust side (all in `cargo test --workspace`, so on every OS and in the Minimum Rust job):
+
+```sh
+cargo test -p doom-render --test m5b_display --test m5b_restore   # the Display against every golden frame, field and message; DDSP restore and refusal
+cargo test -p doom-game                                            # input goldens (175 app-domain scripts), admission, layer, recorder, the app's headless scenarios
+cargo test -p doom-play                                            # key table, argument parsing, UTC dates, letterbox fit, backend choice (no window opened)
+cargo run -p doom-game --release --example m5b_session -- --wad ROOM.wad --wad tests/reference/m5b_gfx.wad --script SCRIPT.txt --out DIR   # one headless session (also --demo FILE.lmp, --map, --skill, --screenblocks, --captures)
+```
+
+**Local: real maps and recorded sessions** (reads the IWAD, so never in CI; the IWAD is used in place or from a
+scratch copy and nothing derived from it is committed). `tools/local/m5b_session_real.py` replays a script or
+a session recorded by `doom-play` through the headless app and the genuine runner in the strict, overflow and
+address variants, and ends with `VERDICT: PASS: ...` or `VERDICT: FAIL: first difference at tic T (kind)`:
+
+```sh
+python3 tools/local/m5b_session_real.py --iwad /path/to/DOOM.WAD --lmp /path/to/E1M1-skill2-YYYYMMDD-HHMMSS.lmp [--screenblocks 11] [--wad EXTRA.wad]... [--work DIR]
+python3 tools/local/m5b_session_real.py --iwad /path/to/DOOM.WAD --script SESSION.txt
+```
+
+Add `--screenblocks 11` if the session was played at 11. With a script, the app's demo must also equal the one
+the genuine input driver records (that header is E1M1 at skill 2; for other maps only commands are compared).
+
+**Playing** (a window; a human judges the result):
+
+```sh
+cargo run --release -p doom-play -- --iwad /path/to/DOOM.WAD --map 1 --skill 2 --sessions /path/for/sessions
+cargo run --release -p doom-play -- --help          # every flag and the stated limits
+```
+
+For a measurement or a smoke run, `--quit-after-tics N` saves and quits after N tics; a session plays at 35 tics
+a second, so 350 tics take about 10 seconds. Run any timing from a binary built on and run from the Linux
+filesystem, never from `/mnt/*`.
+
+**Fuzzing** (target `game_input_events`: layer and core events, controls, refusals, determinism; no IWAD):
+
+```sh
+cargo +nightly fuzz build game_input_events                                  # from fuzz/; add --sanitizer none for the plain build
+ASAN_OPTIONS=detect_leaks=0 cargo +nightly fuzz run game_input_events --sanitizer address CORPUS -- -runs=0 -max_len=1017   # seed replay; leak detection disabled
+```
+
+Seeds are committed in `fuzz/corpus/game_input_events/`. A coverage-guided campaign is the same binary with
+`-fork=4 -max_total_time=N -max_len=1017 -timeout=20 -rss_limit_mb=2048`; the observed campaigns, their
+options and findings are in the evidence record.
+
+**Mutation testing.** The `Mutants` workflow covers `-p doom-game` as well as `-p doom-sim -p doom-render`
+(see [CI mutation workflow](#ci-mutation-workflow-m4b)); `doom-play` is deliberately out of scope (a window
+shell with no logic a test could pin). The shard count is one value in the workflow's `Mutants plan` job.
+
+**CI.** The Rust frame, input and app tests run in the ordinary workspace tests (the `Stable` job on Linux,
+Windows and macOS and `Minimum Rust / 1.85.0`), which also build `doom-game` and `doom-play`. The genuine runs
+are the separate Linux job `M5b genuine status bar, HUD and input` (default gcc; `--strict32` is not used):
+
+```sh
+python3 tools/reference/m5b_gfx.py --check && python3 tools/reference/m5b_check_gfx.py
+python3 tools/reference/m5b_wad.py --check && python3 tools/reference/m5b_build.py --check
+python3 tools/reference/m5b_input_scripts.py --check && python3 tools/reference/m5b_input_build.py --check
+ASAN_OPTIONS=detect_leaks=0 python3 tools/reference/m5b_reference.py --check --pngs --selftest --jobs 4 --work DIR
+ASAN_OPTIONS=detect_leaks=0 python3 tools/reference/m5b_input_reference.py --check --selftest --work DIR
+ASAN_OPTIONS=detect_leaks=0 python3 tools/reference/m5b_session.py --check --selftest --work DIR
+```
+
+The job reports on a documentation-only push through the same fast path as the M5a job. No required check was
+added, renamed or removed for M5b, and `macos-26-intel` is unchanged. A second, label-triggered workflow
+(`windows-artifact.yml`, job **`Windows build artifact (doom-play)`**) builds `doom-play.exe` for Windows with
+a statically linked C runtime and uploads it as the 30-day artifact `doom-play-windows-x86_64` (with
+`LICENSE.TXT` and a generated `README.txt`; no game data). It starts when the repository label `windows-artifact`
+is put on a pull request (remove and re-add the label for a new head) or by `workflow_dispatch` once the file is
+on `master`; it is informational and not a required check.
+
 ## Mutation testing
 
 M4a used cargo-mutants 27.1.0 with cargo-nextest 0.9.151. These are separate
@@ -2248,8 +2373,10 @@ cargo mutants -p doom-sim --test-tool nextest --jobs 2 \
 
 The [`Mutants` workflow](../.github/workflows/mutants.yml) runs cargo-mutants
 27.1.0 with cargo-nextest 0.9.151 (the M4a versions, installed pinned) over the
-diff of `crates/` against `master`, `-p doom-sim -p doom-render --test-tool nextest --in-diff`,
-in 8 matrix shards (`--shard k/8`). It is informational and not a required
+diff of `crates/` against `master`, `-p doom-sim -p doom-render -p doom-game --test-tool nextest --in-diff`
+(`-p doom-game` since M5b),
+in matrix shards (`--shard k/N`; N is 8 for the M4b and M5a runs and, since M5b, one value set in the
+`Mutants plan` job, 16 at the time of writing). It is informational and not a required
 check. Start it by adding the `run-mutants` label to the pull request (the
 trigger that works before merge; a push does not re-run it, so remove and
 re-add the label for a new head), or with `workflow_dispatch` from the Actions

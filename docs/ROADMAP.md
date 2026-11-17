@@ -527,7 +527,14 @@ monster/player behavior. Further stages require separate owner direction.
     menus, palette flashes, window, input, sound, low detail, a modern renderer.
   - **M5b (playable: window, input, status bar, HUD messages, palette flashes and the real-time loop on
     the wire-24 simulation and the M5a renderer).** Phase 1, the investigation, is done (2026-11-17); owner
-    decisions S1–S23 were confirmed by the owner on 2026-11-17, and Phase 2 is in progress; see the
+    decisions S1–S23 were confirmed by the owner on 2026-11-17, and Phase 2 is well under way (status on
+    2026-11-17). Done and recorded in the [evidence record](validation/M5B.md): the genuine status bar, HUD and
+    input harnesses, the Rust status bar, HUD and `Display`, the input core, the app core and the `doom-play`
+    window (a first play check ran under WSLg), session verification against the genuine engine, the CI jobs
+    and the first input fuzz target; [support](COMPATIBILITY.md#playable-build-m5b) is written. Remaining: real
+    maps through the app, the unrecorded full-resolution mode if the size cap allows, the second fuzz target,
+    mutation testing, timings, independent review and the final gates. Nobody has yet seen the picture or
+    played with a real key or mouse; see the
     [investigation note](M5B_REFERENCE_INVESTIGATION.md#4-owner-decisions-s1s23-with-recommendations).
   - **M5c (proposed; not started, owner-approved items only).** Two items so far. (1) Close the status bar
     face's idle glance gap (S15): model the `M_Random` draws of sound starts and of the level-start wipe so
