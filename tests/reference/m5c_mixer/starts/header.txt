@@ -1,0 +1,6 @@
+# Header fields getsfx never reads (i_sound.c:218-250): firsht says 22,050 Hz and plays one byte per frame at
+# 11,025; firxpl has a wrong sample count and plays its size - 8 bytes.
+schema DOOM-M5C-STARTS-v1
+config integrated
+s 0 0 0 16 127 128 128 64 -
+s 4 0 4 17 127 128 128 64 -

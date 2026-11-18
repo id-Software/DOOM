@@ -1,0 +1,27 @@
+# The six single-instance sounds (i_sound.c:285-290). Every first copy plays at pitch 0 (2048 frames, four
+# buffers), so it is still playing when it is restarted one or two tics later: the first copy is freed and
+# the new one takes the first free channel. Also: sawup twice in one tic, sawidl while sawup plays (a
+# different id: both play), oof twice (not single-instance: two channels) and chgun while a pistol plays
+# (chgun is not in the list though it uses the pistol's data). Tic 31: sawup restarted while channel 0 is free
+# and the first copy plays on channel 1: channel 1 is freed and the new copy takes channel 0.
+schema DOOM-M5C-STARTS-v1
+config integrated
+s 0 0 0 10 60 128 0 64 -
+s 0 1 0 11 60 128 0 64 -
+s 1 0 1 10 60 64 128 64 -
+s 4 0 4 12 60 128 0 64 -
+s 6 0 6 12 60 200 128 64 -
+s 8 0 8 13 60 128 0 64 -
+s 9 0 9 13 60 40 128 64 -
+s 12 0 12 22 60 128 0 64 -
+s 14 0 14 22 60 90 128 64 -
+s 16 0 16 1 60 128 0 64 -
+s 17 0 17 1 60 160 128 64 -
+s 17 1 17 86 60 128 150 64 -
+s 20 0 20 10 70 128 128 64 -
+s 20 1 20 10 80 128 128 64 -
+s 24 0 24 34 50 128 128 64 -
+s 24 1 24 34 50 200 128 64 -
+s 28 0 28 8 50 128 128 64 -
+s 28 1 28 10 50 128 0 64 -
+s 31 0 31 10 50 100 128 64 -

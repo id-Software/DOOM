@@ -1,0 +1,14 @@
+# Ten starts in one tic: channels 0..7, then 0 and 0 (no channelstart is below the current gametic,
+# so oldestnum stays 0, i_sound.c:309-325).
+schema DOOM-M5C-STARTS-v1
+config integrated
+s 0 0 0 20 30 128 128 64 -
+s 0 1 0 21 30 128 128 64 -
+s 0 2 0 22 30 128 128 64 -
+s 0 3 0 23 30 128 128 64 -
+s 0 4 0 24 30 128 128 64 -
+s 0 5 0 25 30 128 128 64 -
+s 0 6 0 26 30 128 128 64 -
+s 0 7 0 27 30 128 128 64 -
+s 0 8 0 28 30 128 128 64 -
+s 0 9 0 29 30 128 128 64 -

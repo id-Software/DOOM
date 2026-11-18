@@ -1,0 +1,4 @@
+# The tables and every padded lump of m5c_sfx.wad as the genuine I_InitSound and I_SetChannels build them
+# (i_sound.c:185-251, 396-424, 799-813); no start.
+schema DOOM-M5C-STARTS-v1
+config integrated

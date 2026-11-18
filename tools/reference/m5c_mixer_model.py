@@ -161,7 +161,8 @@ class Mixer:
     def start_sound(self, gametic, sfxid, volume, sep, pitch):
         if not 0 <= pitch <= 255: raise Stop('refused: pitch outside 0..255 indexes past steptable (i_sound.c:495)')
         if not self.data[sfxid]:
-            raise Stop('refused: padded length 0, the mixed frame would read past the 8-byte block (i_sound.c:230-247, 591)')
+            raise Stop('refused: no sample byte at the start (padded length 0): the mixed frame would read past the 8-byte block '
+                       '(i_sound.c:230-247, 591)')
         step = self.step[pitch]
         before = [p is not None for p in self.pos]
         if self.sfx[sfxid][0] in SINGLE:

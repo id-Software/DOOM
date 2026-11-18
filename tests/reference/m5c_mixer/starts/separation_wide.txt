@@ -1,0 +1,10 @@
+# Separation values the mixer accepts beyond s_sound.c's domain (section 3.2.5 row 10): 0, 1, 255, 256
+# and -1 at volume 127, and 257 at volume 15 (the range check depends on the volume, i_sound.c:364-368).
+schema DOOM-M5C-STARTS-v1
+config integrated
+s 0 0 0 2 127 0 128 64 -
+s 8 0 8 2 127 1 128 64 -
+s 16 0 16 2 127 255 128 64 -
+s 24 0 24 2 127 256 128 64 -
+s 32 0 32 2 127 -1 128 64 -
+s 40 0 40 2 15 257 128 64 -

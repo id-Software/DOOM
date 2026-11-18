@@ -1,0 +1,21 @@
+# The oldest-channel rule (i_sound.c:309-325) with its ties; every start is shotgn at pitch 0 (4096 frames,
+# so nothing ends). Tic 0: eight starts, channels 0..7, all channelstart 0. Tic 3: all busy, all started
+# at 0: the lowest index, 0. Tic 4: channel 0 started at 3, the rest at 0: channel 1. Tic 5: channel 2.
+# Tic 6: channels 3 and 4 (equal minima: the lowest index first, and the second start sees channel 3 at 6).
+# Tic 7, passed with gametic 0: no channelstart is strictly below 0, so oldestnum stays 0: channel 0.
+schema DOOM-M5C-STARTS-v1
+config integrated
+s 0 0 0 2 20 128 0 64 -
+s 0 1 0 2 21 128 0 64 -
+s 0 2 0 2 22 128 0 64 -
+s 0 3 0 2 23 128 0 64 -
+s 0 4 0 2 24 128 0 64 -
+s 0 5 0 2 25 128 0 64 -
+s 0 6 0 2 26 128 0 64 -
+s 0 7 0 2 27 128 0 64 -
+s 3 0 3 2 90 128 0 64 -
+s 4 0 4 2 90 128 0 64 -
+s 5 0 5 2 90 128 0 64 -
+s 6 0 6 2 90 128 0 64 -
+s 6 1 6 2 91 128 0 64 -
+s 7 0 0 2 92 128 0 64 -

@@ -1,0 +1,29 @@
+# Clipping (i_sound.c:617-630) with the all-255 (rlaunc) and all-0 (rxplod) lumps at volume 127. Tic 0: four of
+# each, centred (the sums nearly cancel). Tic 2: eight all-255, full left: the left sum clips to 32767.
+# Tic 4: eight all-0, full right: the right sum clips to -32768.
+schema DOOM-M5C-STARTS-v1
+config integrated
+s 0 0 0 14 127 128 128 64 -
+s 0 1 0 14 127 128 128 64 -
+s 0 2 0 14 127 128 128 64 -
+s 0 3 0 14 127 128 128 64 -
+s 0 4 0 15 127 128 128 64 -
+s 0 5 0 15 127 128 128 64 -
+s 0 6 0 15 127 128 128 64 -
+s 0 7 0 15 127 128 128 64 -
+s 2 0 2 14 127 0 128 64 -
+s 2 1 2 14 127 0 128 64 -
+s 2 2 2 14 127 0 128 64 -
+s 2 3 2 14 127 0 128 64 -
+s 2 4 2 14 127 0 128 64 -
+s 2 5 2 14 127 0 128 64 -
+s 2 6 2 14 127 0 128 64 -
+s 2 7 2 14 127 0 128 64 -
+s 4 0 4 15 127 255 128 64 -
+s 4 1 4 15 127 255 128 64 -
+s 4 2 4 15 127 255 128 64 -
+s 4 3 4 15 127 255 128 64 -
+s 4 4 4 15 127 255 128 64 -
+s 4 5 4 15 127 255 128 64 -
+s 4 6 4 15 127 255 128 64 -
+s 4 7 4 15 127 255 128 64 -

@@ -1,0 +1,5 @@
+# The edge set m5c_sfx_edge.wad: lumps of 0, 5 and 8 bytes (padded length 0), 1, 511, 512, 513 and 1024 samples,
+# the header fields, pstart missing (getsfx copies dspistol, i_sound.c:213-216) and a dschgun lump
+# the link ignores (i_sound.c:808-811); no start.
+schema DOOM-M5C-STARTS-v1
+config integrated

@@ -1,0 +1,13 @@
+# Buffer boundaries. Sawup (512 samples) started at tic 0 ends on the last frame of buffer 0; the tic-1
+# start finds its channel free (a channel frees at the frame its data runs out, i_sound.c:606-607, not at
+# a tic). Sawidl (513) started at tic 3: its samples end one frame into its second buffer and its padding
+# (128) keeps the channel busy to the end of that buffer. A start at tic 9 lands in
+# buffer 6 (mixed after tic 9); the tic-10 start in buffer 7 (after tic 11: no buffer after tic 10).
+schema DOOM-M5C-STARTS-v1
+config integrated
+s 0 0 0 10 100 128 128 64 -
+s 1 0 1 3 100 128 128 64 -
+s 3 0 3 11 100 128 128 64 -
+s 3 1 3 4 100 128 128 64 -
+s 9 0 9 10 100 128 128 64 -
+s 10 0 10 12 100 128 128 64 -

@@ -1,0 +1,15 @@
+# Pitch: 0 and 255 (the clamp limits, s_sound.c:331-334, 341-344), 113 and 144 (the random range of most
+# sounds, s_sound.c:339), 121 and 136 (the saw sounds, s_sound.c:329), 128 (itemup and tink, and every
+# sound before the draw) and 135 and 166 (the linked chgun's 150, sounds.c:204). Pistol is 512 samples;
+# at pitch 0 it plays 2048 frames.
+schema DOOM-M5C-STARTS-v1
+config integrated
+s 0 0 0 1 15 128 0 64 -
+s 8 0 8 1 15 128 113 64 -
+s 16 0 16 1 15 128 121 64 -
+s 24 0 24 1 15 128 128 64 -
+s 32 0 32 1 15 128 135 64 -
+s 40 0 40 1 15 128 136 64 -
+s 48 0 48 1 15 128 144 64 -
+s 56 0 56 1 15 128 166 64 -
+s 64 0 64 1 15 128 255 64 -
