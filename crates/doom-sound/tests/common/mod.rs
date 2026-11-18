@@ -435,3 +435,17 @@ pub fn first_difference(want: &[String], got: &[String]) -> Option<(usize, Strin
         (w != g).then_some((i, w, g))
     })
 }
+
+/// `numtextures` of `R_InitTextures` (r_data.c:480): the counts at the head of TEXTURE1 and, if
+/// present, TEXTURE2 (the last lump of each name, `W_GetNumForName`), as the T12 detector's
+/// configuration value.
+pub fn texture_count(dir: &LumpDirectory) -> u32 {
+    let count = |name: &[u8]| {
+        dir.check_num_for_name(name).map_or(0, |l| {
+            let b = dir.data(l).expect("lump");
+            i32::from_le_bytes([b[0], b[1], b[2], b[3]])
+        })
+    };
+    let n = count(b"TEXTURE1") + count(b"TEXTURE2");
+    u32::try_from(n).expect("a non-negative texture count")
+}

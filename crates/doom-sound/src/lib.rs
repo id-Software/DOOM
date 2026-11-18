@@ -18,6 +18,7 @@
 //!   539-654).
 //! - [`logic`]: the sound logic of `s_sound.c` (s_sound.c:254-484, 519-613, 708-875) over the
 //!   simulation's sound records, with the `M_Random` draw where the C makes it.
+//! - [`detector`]: the layout detector of decision T12 for the switch-release origin.
 //! - [`schedule`]: the declared schedule (decision T5): `S_UpdateSounds` after every tic and
 //!   buffer k after tic floor(512k/315).
 //! - [`session`]: [`session::Sound`], one per session, running each tic's records, the update
@@ -27,6 +28,7 @@
 //! made before any state changes (M5c decision T11). Every audible quirk of the source is
 //! reproduced as it is (decision T13).
 
+pub mod detector;
 pub mod logic;
 pub mod lumps;
 pub mod mixer;

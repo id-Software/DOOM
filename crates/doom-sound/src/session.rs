@@ -12,6 +12,9 @@
 //! 3. the buffer due under the declared rule ([`crate::schedule`]), mixed by `I_UpdateSound`
 //!    (d_main.c:397-400).
 //!
+//! The layout detector of decision T12 ([`crate::detector`]) watches every release start and
+//! every later update read of a release origin; it never changes what the session does.
+//!
 //! A tic is transactional: it runs on a copy of the session (about 300 bytes; no simulation is
 //! cloned) and a refusal leaves the logic, the mixer, the schedule and the caller's random index
 //! exactly as they were (M5c note §4.9).
@@ -21,9 +24,10 @@ use std::sync::Arc;
 use doom_sim::Simulation;
 use doom_types::DoomRng;
 
+use crate::detector::LayoutDetector;
 use crate::logic::{
-    Listener, LogicConfig, OriginPositions, RecordEcho, SoundLogic, SoundRecord, SoundRefusal,
-    UpdateEcho,
+    ChannelEntry, Listener, LogicConfig, OriginPositions, RecordEcho, SoundLogic, SoundOrigin,
+    SoundPlacement, SoundRecord, SoundRefusal, StopReason, UpdateEcho,
 };
 use crate::lumps::SoundSet;
 use crate::mixer::{Buffer, Mixer};
@@ -35,13 +39,18 @@ pub struct SoundConfig {
     /// The sound logic's configuration: the map number, and a fresh process's volume 8 and 3
     /// channels (decision T9, [`LogicConfig::fresh`]).
     pub logic: LogicConfig,
+    /// The texture count of the loaded WADs (`numtextures`, r_data.c:480;
+    /// `Resources::textures.len()`), which the layout detector of decision T12 needs
+    /// ([`crate::detector`]). At most [`crate::detector::MAX_TEXTURES`].
+    pub textures: u32,
 }
 
 impl SoundConfig {
-    /// A fresh process on map `gamemap` (decisions T9, T15).
-    pub fn fresh(gamemap: i32) -> Self {
+    /// A fresh process on map `gamemap` (decisions T9, T15) with `textures` textures loaded.
+    pub fn fresh(gamemap: i32, textures: u32) -> Self {
         Self {
             logic: LogicConfig::fresh(gamemap),
+            textures,
         }
     }
 }
@@ -127,6 +136,14 @@ pub fn simulation_listener(sim: &Simulation) -> Option<Listener> {
     })
 }
 
+/// The placement of a start record.
+fn at_of(record: &SoundRecord) -> Option<SoundPlacement> {
+    match *record {
+        SoundRecord::Start { at, .. } => at,
+        SoundRecord::Stop { .. } => None,
+    }
+}
+
 /// One session's sound state.
 #[derive(Clone, Debug, PartialEq)]
 pub struct Sound {
@@ -134,17 +151,21 @@ pub struct Sound {
     pub(crate) logic: SoundLogic,
     pub(crate) mixer: Mixer,
     pub(crate) schedule: Schedule,
+    pub(crate) detector: LayoutDetector,
 }
 
 impl Sound {
     /// A fresh process started straight on the map (decision T15): `gametic` 0, the handle
     /// counter 0, no channel occupied, the mixer silent, no buffer mixed.
+    /// More than [`crate::detector::MAX_TEXTURES`] textures is refused as
+    /// [`SoundRefusal::Config`].
     pub fn new(set: Arc<SoundSet>, config: SoundConfig) -> Result<Self, SoundRefusal> {
         Ok(Self {
             config,
             logic: SoundLogic::new(config.logic)?,
             mixer: Mixer::new(set),
             schedule: Schedule::new(),
+            detector: LayoutDetector::new(config.textures).map_err(|_| SoundRefusal::Config)?,
         })
     }
 
@@ -166,6 +187,12 @@ impl Sound {
     /// The schedule: the next tic and the buffers mixed.
     pub fn schedule(&self) -> Schedule {
         self.schedule
+    }
+
+    /// The layout detector of decision T12: the tic from which the session is layout-dependent
+    /// and the number of firings ([`crate::detector`]).
+    pub fn detector(&self) -> LayoutDetector {
+        self.detector
     }
 
     /// Runs the next tic (see the module documentation): the tic's `records` in order with the
@@ -191,6 +218,12 @@ impl Sound {
         let refused = |at, refusal| SessionRefusal::Sound { tic, at, refusal };
         let mut logic = self.logic.clone();
         let mut mixer = self.mixer.clone();
+        let mut detector = self.detector;
+        let LogicConfig {
+            gamemap,
+            sfx_volume,
+            ..
+        } = self.config.logic;
         let mut rng = DoomRng::from_indices(0, rndindex);
         let mut echoes = Vec::with_capacity(records.len());
         let mut draws: u16 = 0;
@@ -200,12 +233,39 @@ impl Sound {
                 .map_err(|r| refused(RefusedAt::Record(i), r))?;
             if let RecordEcho::Start(s) = &echo {
                 draws = draws.saturating_add(u16::from(s.draws()));
+                // Decision T12: a release start that reached S_AdjustSoundParams.
+                if let (SoundOrigin::Button(_), Some(at), Some(_)) =
+                    (s.origin, at_of(record), s.adjusted)
+                {
+                    detector.check_start(tic, &at, gamemap, sfx_volume);
+                }
             }
             echoes.push(echo);
         }
+        let table = logic.channels().to_vec();
         let update = logic
             .update(listener, positions, after)
             .map_err(|r| refused(RefusedAt::Update, r))?;
+        // Decision T12: every channel the update read a position for (s_sound.c:584-595) whose
+        // origin is a release origin.
+        let read = update.params.iter().map(|p| p.0).chain(
+            update
+                .stops
+                .iter()
+                .filter(|s| s.reason == StopReason::Inaudible)
+                .map(|s| s.cnum),
+        );
+        for cnum in read {
+            if let Some(Some(ChannelEntry {
+                origin: SoundOrigin::Button(slot),
+                ..
+            })) = table.get(cnum)
+            {
+                if let Some(xy) = positions.button_xy(*slot) {
+                    detector.check_update(tic, listener, xy, gamemap, sfx_volume);
+                }
+            }
+        }
         let buffer = (self.schedule.due() == 1).then(|| {
             let mut out: Buffer = [[0; 2]; crate::lumps::SAMPLECOUNT];
             mixer.mix_buffer(&mut out);
@@ -215,6 +275,7 @@ impl Sound {
         self.logic = logic;
         self.mixer = mixer;
         self.schedule = next;
+        self.detector = detector;
         Ok(TicSound {
             tic,
             records: echoes,

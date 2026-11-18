@@ -54,7 +54,7 @@ fn listener() -> Listener {
 }
 
 fn session() -> Sound {
-    Sound::new(sound_set("m5c_sfx.wad"), SoundConfig::fresh(1)).expect("session")
+    Sound::new(sound_set("m5c_sfx.wad"), SoundConfig::fresh(1, 0)).expect("session")
 }
 
 /// A monster's start 64 units east of the listener: audible (s_sound.c:796-815).
