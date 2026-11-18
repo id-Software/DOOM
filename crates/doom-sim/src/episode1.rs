@@ -96,8 +96,15 @@ impl Episode1Bounds {
     /// spawn and any skill but medium at load, and keeps [`Self::from_map`], so
     /// its bounds and the DSIM39 reader's are unchanged.
     pub fn from_map_v2(map: &Map, skill: Skill) -> Self {
+        Self::from_loaded_v2(map.things(), skill)
+    }
+    /// [`Self::from_map_v2`] over the THINGS records a policy loads: every record
+    /// of the map for wire 24, and for wire 25 the prefix of
+    /// `spawning::loaded_things`, which ends at the first Doom II type
+    /// (p_setup.c:317-337; M5c review MINOR 2).
+    pub(crate) fn from_loaded_v2(things: &[Thing], skill: Skill) -> Self {
         Self::from_things_v2(
-            map.things().iter().map(|t: &Thing| (t.kind, t.options)),
+            things.iter().map(|t: &Thing| (t.kind, t.options)),
             skill_bit(skill),
         )
     }
@@ -146,8 +153,13 @@ impl Episode1Bounds {
     /// spawn and never counts it, so the bounds of the struct stay those of wire
     /// 23.
     pub fn landings(map: &Map, skill: Skill) -> usize {
+        Self::loaded_landings(map.things(), skill)
+    }
+    /// [`Self::landings`] over the THINGS records a policy loads (see
+    /// [`Self::from_loaded_v2`]).
+    pub(crate) fn loaded_landings(things: &[Thing], skill: Skill) -> usize {
         let bit = skill_bit(skill);
-        map.things()
+        things
             .iter()
             .filter(|t| t.kind == LANDING && t.options & 16 == 0 && t.options & bit != 0)
             .count()

@@ -1559,9 +1559,17 @@ impl Simulation {
             return Err(CombatError::InterceptLimit.into());
         }
         let sector_lines = real_map.then(|| player_map_scale::sector_lines(&map));
+        // Wire 25 counts only the records `P_LoadThings` loads, the prefix before
+        // the first Doom II type (p_setup.c:317-337; M5c review MINOR 2); every
+        // older policy loads and counts every record.
+        let loaded = if policy.has_sound_records() {
+            crate::spawning::loaded_things(map.things())
+        } else {
+            map.things()
+        };
         let episode1 = policy.has_episode1().then(|| {
             if policy.has_baron() {
-                crate::episode1::Episode1Bounds::from_map_v2(&map, options.skill)
+                crate::episode1::Episode1Bounds::from_loaded_v2(loaded, options.skill)
             } else {
                 crate::episode1::Episode1Bounds::from_map(&map)
             }
@@ -1569,7 +1577,7 @@ impl Simulation {
         // Wire 24: room for at least one teleport's two fogs when every placed thing
         // is live (M4b step 4); the store-full witness covers everything beyond.
         if let (Some(bounds), true) = (episode1, policy.has_teleport()) {
-            let landings = crate::episode1::Episode1Bounds::landings(&map, options.skill);
+            let landings = crate::episode1::Episode1Bounds::loaded_landings(loaded, options.skill);
             if bounds
                 .transient_allowance(landings, actor_cap as usize)
                 .is_none_or(|n| n < 2)

@@ -1241,7 +1241,7 @@ impl Simulation {
                 || (total > 0
                     && total as usize
                         != counted_map_things(
-                            self.world.map().things(),
+                            self.loaded_map_things(),
                             self.world.episode1.is_some(),
                             self.thing_skill_bit(),
                         ))
@@ -1382,6 +1382,18 @@ pub(crate) fn counted_map_things(things: &[doom_map::Thing], episode1: bool, bit
     )
 }
 impl Simulation {
+    /// The THINGS records the run's policy loads, over which the item total's
+    /// cross-check counts: the prefix before the first Doom II type under wire 25
+    /// (p_setup.c:317-337; `totalitems` counts spawned things only, p_mobj.c:792),
+    /// every record under every older policy.
+    fn loaded_map_things(&self) -> &[doom_map::Thing] {
+        let things = self.world.map().things();
+        if self.player_policy().has_sound_records() {
+            crate::spawning::loaded_things(things)
+        } else {
+            things
+        }
+    }
     /// The THING option bit the item total's cross-check counts with: the bit of
     /// the run's skill under wire 24 (M4b decision I4), the medium bit (2) for
     /// every older policy, which admits only the default options.
