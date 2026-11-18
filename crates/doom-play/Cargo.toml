@@ -12,6 +12,10 @@ publish.workspace = true
 doom-game = { path = "../doom-game" }
 doom-render = { path = "../doom-render" }
 miniquad = "=0.4.11"
+# The audio device (owner ruling T7, 2026-11-18), pinned exactly. Only the playback device is
+# used, but the default `engine` feature stays: maudio 0.1.15 does not compile without it (its
+# device builder imports the engine module), and maudio-sys compiles the engine either way.
+maudio = "=0.1.15"
 
 [lints]
 workspace = true
