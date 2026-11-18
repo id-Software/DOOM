@@ -142,12 +142,17 @@ fn single_instance(id: u16) -> bool {
     )
 }
 
-/// `addsfx`'s separation arithmetic (i_sound.c:352-361), in 64 bits so that no argument can
-/// overflow (the C's `int` products cannot overflow for volumes up to 127, M5c note §1.3.8
-/// item 4): `(left, right)`.
-fn volumes(vol: i32, sep: i32) -> (i64, i64) {
-    let v = i64::from(vol);
-    let mut s = i64::from(sep) + 1;
+/// `addsfx`'s separation arithmetic (i_sound.c:352-361): `(left, right)`.
+///
+/// Computed in 128 bits, where no pair of `i32` arguments can overflow: `|vol| <= 2^31` and
+/// `|sep + 1 - 257| < 2^32`, so `|vol * s * s| < 2^95` and each difference stays below `2^96`.
+/// For the game's range (volume 0..=127, separation 0..=255) every value equals the C's `int`
+/// arithmetic, whose products cannot overflow there (M5c note §1.3.8 item 4); outside it the
+/// range checks of i_sound.c:364-368 then refuse the start. (An earlier 64-bit form overflowed
+/// for arguments such as `vol = sep = 0x7fff << 15`, found by the sound_mixer fuzz target.)
+fn volumes(vol: i32, sep: i32) -> (i128, i128) {
+    let v = i128::from(vol);
+    let mut s = i128::from(sep) + 1;
     let left = v - ((v * s * s) >> 16);
     s -= 257;
     let right = v - ((v * s * s) >> 16);
@@ -347,4 +352,64 @@ pub fn buffers_due(tic: u64, mixed: u64) -> u64 {
     total
         .saturating_sub(u128::from(mixed))
         .min(u128::from(u64::MAX)) as u64
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::lumps::SoundCaps;
+    use crate::sounds::SFX_PISTOL;
+
+    fn mixer() -> Mixer {
+        let bytes = include_bytes!("../../../tests/reference/m5c_sfx.wad");
+        let wad = doom_wad::Wad::parse(bytes, doom_wad::Limits::default()).expect("WAD");
+        let mut dir = doom_render::LumpDirectory::new();
+        dir.add_wad(&wad).expect("directory");
+        Mixer::new(Arc::new(
+            SoundSet::load(&dir, SoundCaps::default()).expect("sound set"),
+        ))
+    }
+
+    /// Fuzz finding step11a-1: `vol = sep = 0x7fff << 15` overflowed the 64-bit products of
+    /// i_sound.c:352-361 and panicked. Now the start is refused by the first range check
+    /// (`rightvol`, i_sound.c:364-365) with the mixer unchanged, and no pair of extreme
+    /// arguments panics.
+    #[test]
+    fn volumes_far_outside_the_game_range_are_refused_without_overflow() {
+        let pistol = SfxId::new(i64::from(SFX_PISTOL)).expect("pistol");
+        let mut m = mixer();
+        let before = m.clone();
+        let wild = 0x7fff << 15;
+        let want = MixRefusal::RightVolume {
+            vol: wild,
+            sep: wild,
+        };
+        assert_eq!(m.check_start(pistol, wild, wild, 128), Err(want));
+        assert_eq!(m.start(pistol, wild, wild, 128, 0), Err(want));
+        assert_eq!(m, before);
+        let edges = [
+            i32::MIN,
+            i32::MIN + 1,
+            -258,
+            -1,
+            0,
+            1,
+            127,
+            255,
+            256,
+            i32::MAX,
+        ];
+        for vol in edges {
+            for sep in edges {
+                let (left, right) = volumes(vol, sep);
+                let got = m.check_start(pistol, vol, sep, 128);
+                let ok = (0..=127).contains(&left) && (0..=127).contains(&right);
+                assert_eq!(got.is_ok(), ok, "vol {vol} sep {sep}");
+                if got.is_err() {
+                    assert_eq!(m.start(pistol, vol, sep, 128, 0).map(|_| ()), got);
+                    assert_eq!(m, before);
+                }
+            }
+        }
+    }
 }
