@@ -555,6 +555,15 @@ jobs:
       - name: M5c rooms and scripts, genuine engine against the Rust wire-24 simulation
         if: env.DOCS_ONLY != 'true'
         run: python3 tools/reference/m5c_rust_check.py --binary target/release/examples/player_level_run --work "$RUNNER_TEMP/m5c_rust"
+      - name: Build the release wire-25 example the sound-record checks need
+        if: env.DOCS_ONLY != 'true'
+        run: cargo +stable build -p doom-sim --release --locked --example sound_records_run
+      - name: Every synthetic item, genuine engine against the Rust wire-25 simulation over DSIM41 with every sound record, results and self-test
+        if: env.DOCS_ONLY != 'true'
+        run: python3 tools/reference/m5c_wire25_check.py --binary target/release/examples/sound_records_run --work "$RUNNER_TEMP/m5c_wire25" --check --selftest --jobs 4
+      - name: THING-loading truncation map (decision T4), genuine engine against wire 25 (match) and wire 24 (the recorded gap)
+        if: env.DOCS_ONLY != 'true'
+        run: python3 tools/reference/m5c_t4.py --sound-records target/release/examples/sound_records_run --player-level target/release/examples/player_level_run --work "$RUNNER_TEMP/m5c_t4" --check
       - name: Documentation-only fast path
         if: env.DOCS_ONLY == 'true'
         run: echo "documentation-only change, so the genuine sound-logic and mixer runs were skipped"
