@@ -74,6 +74,16 @@ jobs:
             echo "  doom-play.exe --iwad C:\\path\\to\\DOOM.WAD --map 1 --skill 2"
             echo
             echo "Run doom-play.exe --help for every option."
+            echo
+            echo "Sound: sound effects (no music) play through WASAPI, DirectSound or"
+            echo "WinMM, whichever opens first; nothing needs to be installed. Check the"
+            echo "device with: doom-play.exe --audio-probe (about one second of silence)."
+            echo "  --volume N   volume at the speakers, 0 to 100 (default 100)"
+            echo "  --no-sound   open no audio device; the game is otherwise the same"
+            echo "  End key      mutes and unmutes; pausing is silent"
+            echo "If no device opens, one line on standard error says so (visible in a"
+            echo "command prompt) and the game runs without sound. Nobody has yet heard"
+            echo "this build on Windows: it was built and tested here, not run by a person."
           } > "$out/README.txt"
           ls -l "$out"
       - name: Upload the artifact
