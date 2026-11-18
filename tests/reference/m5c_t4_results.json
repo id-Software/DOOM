@@ -1,0 +1,51 @@
+{
+ "schema": "DOOM-M5C-T4-RESULTS-v1",
+ "note": "M5c decision T4: P_LoadThings ends at the first Doom II type outside commercial mode (p_setup.c:317-337). Genuine: the frozen M4b runner (registered) and the M5c runner sound stream; wire 25: sound_records_run --alone; wire 24: the frozen player_level_run --policy episode1v2.",
+ "wad": {
+  "file": "tests/reference/m5c_t4/truncate.wad",
+  "sha256": "052f2d933b738013f3001bbf9c7f92bb403f3419546d8c786aa30ad410f908a1",
+  "things": [
+   1,
+   3004,
+   65,
+   3004,
+   2011
+  ]
+ },
+ "script": {
+  "file": "tests/reference/m5c_t4/TRUNC.lmp",
+  "sha256": "afefdb4727eb8dbbaeeb4f40fcf41a894a861426a72373429a3b588f8169b0cc",
+  "skill": 2
+ },
+ "genuine": {
+  "snapshots": 93,
+  "dumps_sha256": "575606d21ac7fa59f4ee075f97922392c57bdae1be502e2aaa3665b8929cec5a",
+  "mobjs_at_load": 2,
+  "mobj_types_at_load": [
+   0,
+   1
+  ],
+  "sound_rows_sha256": "0124661ba6759fac7a5c344d02f31741ce32ebb573fbd9a0ea6557ff4f6e4fc3",
+  "starts": 4,
+  "placed": 3,
+  "stops": 1
+ },
+ "wire25": {
+  "match": true,
+  "tics_compared": 93,
+  "sound_disagreements": 0,
+  "actors_at_load": 2,
+  "c_sequence_sha256": "7ca8f5561436dc1bdc7e67a44a50368559a8ed1ac54e0284f9f71f914571182a",
+  "c_sound_sha256": "94bb0e0158d4064af8aa74a21d634efd1de62cd92edff6a5aee7b171b0e43a8d"
+ },
+ "wire24": {
+  "match": false,
+  "tics_compared": 1,
+  "first_divergence": {
+   "tic": 0,
+   "field": "rng.gameplay"
+  },
+  "projection_stop": null,
+  "actors_at_load": 5
+ }
+}
