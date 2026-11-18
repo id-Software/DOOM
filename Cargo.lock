@@ -113,6 +113,7 @@ dependencies = [
 name = "doom-sound"
 version = "0.1.0"
 dependencies = [
+ "doom-map",
  "doom-render",
  "doom-sim",
  "doom-test-evidence",

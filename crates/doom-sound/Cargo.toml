@@ -14,6 +14,7 @@ doom-sim = { path = "../doom-sim" }
 doom-render = { path = "../doom-render" }
 
 [dev-dependencies]
+doom-map = { path = "../doom-map" }
 doom-wad = { path = "../doom-wad" }
 doom-test-evidence = { path = "../doom-test-evidence" }
 
