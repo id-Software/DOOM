@@ -554,17 +554,21 @@ monster/player behavior. Further stages require separate owner direction.
     frame of the 64 items (45,540) equal and the face equal on every frame (step 5 part 1); restore and continue
     (step 6); the 61 real runs through the whole pipeline locally (158,966 tics: every sound row, every frame at both
     sizes and 98,578 mixer buffers equal, step 5 part 2); nine scripted app sessions against the genuine engine (step 5
-    part 3); and sound in `doom-play` (a device sink that never blocks the loop, `--volume`, `--no-sound`, End to
-    mute, step 7)**; the CI job `M5c genuine sound (not required)` and the mutation workflow's coverage of `doom-sound`
-    (step 8, part 1); four fuzz targets (step 11, part 1). **The status bar face's idle glance gap (S15) is closed** in the
+    part 3); and sound in `doom-play` (a device sink that never waits for the device to play anything, `--volume`,
+    `--no-sound`, End to mute, step 7)**; the CI job `M5c genuine sound (not required)` and the mutation workflow's coverage of `doom-sound`
+    (step 8, part 1); five fuzz targets, the fifth for `DDSP` version 2 (step 11); timings (step 12); **and the independent
+    review (step 13): three reviewers, no blocker, one major finding (the DSIM41 reader refused every capture of a map the
+    THING truncation cuts short), 11 minor and 19 notes, each fixed or documented, with a test that failed before the change wherever a behaviour was fixed** ([record](validation/M5C.md#step-13-independent-review)). **The status bar face's idle glance gap (S15) is closed** in the
     owner's T14 wording ([COMPATIBILITY](COMPATIBILITY.md#the-status-bar-faces-idle-glance-is-closed-with-sound-decision-s15-t14)).
-    **Not done:** mutation testing of the M5c code (no result, so no survivors yet), timings, a fuzz target for `DDSP`
-    version 2, the independent review and the final gates; the optional melt is not built. **Unobserved:** nobody has
+    **Not done:** mutation testing is half done (the first run's 74 survivors have no disposition yet, their independent
+    check and the run on the final head are to come, [step 10](validation/M5C.md#step-10-mutation-testing)); the final gates
+    from a clean tree and CI on the final head; the optional melt is not built. **Unobserved:** nobody has
     heard any sound, and no game audio has reached any device (the one real device open was a second of digital silence);
     nothing has run on Windows or macOS beyond CI builds and tests. Open for the owner: a game under WSLg occasionally
     opens already paused (a start-up focus event, an M5b behaviour, not sound), the simulation's tic is not rolled back
-    when sound or display refuses, the uncompared listener columns of starts with no position, and the macOS job's time
-    against its limit. Support is in [COMPATIBILITY](COMPATIBILITY.md#sound-effects-m5c). See the
+    when sound or display refuses (and whether M5b's rule S9 reads that way for sound refusals), the layout-dependent label
+    appearing only in `doom-play`'s exit line, the uncompared listener columns of starts with no position, and the macOS job's
+    time against its limit. Support is in [COMPATIBILITY](COMPATIBILITY.md#sound-effects-m5c). See the
     [investigation note](M5C_REFERENCE_INVESTIGATION.md) and its
     [owner decisions](M5C_REFERENCE_INVESTIGATION.md#5-owner-decisions-t1t16-with-recommendations).
 - **Simulation follow-up (decided: the THING-loading truncation is closed under wire 25 only).** `P_LoadThings` ends the

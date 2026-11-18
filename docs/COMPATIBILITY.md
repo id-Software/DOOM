@@ -2631,7 +2631,16 @@ refuses 41.
 | The two switch origins | Press: the origin the original passes, `buttonlist[0].soundorg` read before the new button is stored (p_switch.c:228-256). Release: the declared 64-bit reading and the slot-15 refusal ([below](#the-two-switch-sounds-decision-t12)) |
 | The corrected scream | A player's hard death plays `sfx_pldeth`, as the original does outside commercial mode (p_enemy.c:1994-2007). Wires 22-24 name `sfx_pdiehi` ([known gap](#known-gap-the-players-hard-death-scream-in-the-sound-events-of-wires-22-24)) |
 | The THING-loading truncation | `P_LoadThings` stops at the first of ten Doom II types outside commercial mode (p_setup.c:317-337); wire 25 does the same ([known gap](#known-gap-thing-loading-stops-at-the-first-doom-ii-type-outside-commercial-mode)) |
-| New typed refusals | `SimError::Sound` with `SectorOriginOverflow`, `ButtonSlot15` and `Unplaced` (a start that should carry positions and does not, which no admitted path makes); each leaves the simulation's state as it was |
+| New typed refusals | `SimError::Sound` with `SectorOriginOverflow`, `ButtonSlot15` and `Unplaced` (a start that should carry positions and does not, which no admitted path makes); each leaves the simulation's state as it was. The sound session's own refusals are [listed below](#what-the-sound-code-refuses) |
+
+**Admission counts only what the original loads.** Under wire 25 the constructor's per-map bounds (`Episode1Bounds`), the
+landing count, the transient-actor allowance and the world-pickup cross-check count only the THINGS before the first of
+the ten Doom II types, as `P_LoadThings` does (p_setup.c:317-337; the totals `totalkills` and `totalitems` count only
+spawned things, p_mobj.c:790, 792). A map with a long unloaded tail (for example a type-65 THING followed by 1,100
+zombiemen) is therefore admitted under wire 25, where wire 24 refuses it with `Capacity` at load; and the DSIM41 reader
+counts the same prefix, so every capture of a truncated map decodes
+([layout and reader](STATE_FORMAT.md#what-the-v41-reader-checks)). An independent review found that both had counted
+the whole lump; the fix and its tests are in the [evidence record](validation/M5C.md#step-13-independent-review).
 
 **How "nothing else changes" was shown** (details in the [evidence record](validation/M5C.md#step-3a-wire-25-in-doom-sim)):
 every wire-25 capture, with the sound group and the three header fields removed, equals the wire-24 capture of the
@@ -3066,8 +3075,15 @@ advances, **within each tic and in this order** (the C's order for the tic the s
    d_main.c:327-340; the first `wipe_ScreenWipe` call runs `wipe_initMelt`, which draws for the first column and for
    each of the other 319, f_wipe.c:159-166, 280-286). No melt picture is produced.
 
-In the C the update and the mix come after the frame's draw; here they run before it. Neither reads the other's
-state ([note section 4.3.3](M5C_REFERENCE_INVESTIGATION.md)), and the frame gate (below) found no output that changes.
+**Where the port's order differs from the C's.** In the C, `G_Ticker` runs `P_Ticker` and then `ST_Ticker` and
+`HU_Ticker` (g_game.c:730-733), `S_UpdateSounds` follows (d_main.c:392), then `D_Display` (d_main.c:395), and the mixer's
+buffer comes last (d_main.c:397-400). The port runs `S_UpdateSounds` and the mix **before** the status bar's ticker, where
+the original runs `S_UpdateSounds` after it and the mix after the frame. No value flows between them (the `M_Random`
+index, which both touch, keeps the original's order: the sound draws, then the status bar's one), so every output is equal and
+the frame gate (below) found none that changes ([note section 4.3.3](M5C_REFERENCE_INVESTIGATION.md)). The one observable difference is
+which refusal is named if two fall in the same tic: an `S_UpdateSounds` refusal (`OriginGone`) and an `ST_Ticker` refusal
+(`AttackerRemoved`) in one tic report the sound one here and the status bar one in the original's order. An earlier version of
+this paragraph said the update, too, came after the frame's draw in the C; that was wrong, and only the mix does.
 The saved display state under this contract is [`DDSP` version 2](STATE_FORMAT.md#display-state-ddsp-version-2-m5c).
 
 ### The status bar face's idle glance is closed with sound (decision S15, T14)
@@ -3134,6 +3150,18 @@ invariants and are labelled Rust-only safety checks in the [evidence record](val
   start), or whether it is audible (at a later read), the session is **labelled layout-dependent from that tic**
   and the firing is counted. The session always continues on the 64-bit reading. **Every report counts
   layout-dependent sessions separately.** The label and the count are part of the saved sound state.
+  **Where `doom-play` says so.** When the detector has labelled a session of the run, the exit lines on standard error
+  (printed with or without `--tic-stats`, after the tic statistics and before the line saying where the demo went)
+  carry one plain line: `doom-play: layout-dependent session from tic T (N detector firings): a 32-bit build could
+  have played a switch-release sound differently; this one used the 64-bit reading`, with `firing` for N = 1, and
+  `; K earlier session(s) of this run were labelled too` appended when a restart left earlier labelled sessions (a
+  current session that is not labelled then reads `this session is not layout-dependent; ...`). A run with no labelled
+  session prints no such line. **Nothing is drawn on the screen and the end screen is unchanged**, and the saved demo
+  holds no label (a replay recomputes it). Putting the label only in the exit line is the orchestrator's decision, taken
+  when a review found that the label reached no `doom-play` output at all; **the owner may change it** (for example to
+  an on-screen mark like the one for an unrecorded session). No committed input makes the detector fire inside a played
+  session, so a real window session has never produced this line; the exact text is tested by feeding a session whose
+  detector fires at tic 1.
   **Layout-dependent sessions counted so far: 0.** The detector fired 0 times over the 64 synthetic items, the 9 scripted
   app sessions and the 61 real Episode 1 runs, so none is a layout-dependent session. The 61 real runs hold 4 switch-release
   starts, none with a busy next slot, and no later `S_UpdateSounds` read of a release origin; the 9 sessions had no release
@@ -3166,7 +3194,7 @@ Against the genuine engine (the reference above, under the declared schedule):
 - **The 64 synthetic items**, end to end from the Rust wire-25 simulation: every start, stop, channel stop,
   per-update volume, separation and pitch, lump lookup and the `M_Random` index after each tic, and the mixer's every
   buffer on those items and on 23 scenarios ([step 4](validation/M5C.md#step-4-part-2-the-session-the-detector-the-saved-state-and-the-end-to-end-gate)).
-  Through the display and the game loop as well: 45,540 frames, all equal ([step 5](validation/M5C.md#step-5-part-1-the-frame-gate-restore-and-continue-and-the-headless-app-tests)).
+  Through the display and the game loop as well: 45,540 frames, with the face index equal on all of them (45,170 compared on the whole-frame digest, 300 on the masked digest, 70 not comparable, the same 70 as under M5b; [step 5](validation/M5C.md#step-5-part-1-the-frame-gate-restore-and-continue-and-the-headless-app-tests)).
 - **The 61 real Episode 1 runs** (local only, counts and digests committed): 158,966 tics through the whole Rust pipeline,
   every sound row, every frame at screenblocks 10 and 11 and all 98,578 mixer buffers equal
   ([step 5 part 2](validation/M5C.md#step-5-part-2-the-61-real-runs-through-the-whole-pipeline-local-only)).
@@ -3178,6 +3206,37 @@ Against the genuine engine (the reference above, under the declared schedule):
   the 61 real runs and 43 of 142 of the 9 sessions; every other column of those rows is compared, and the sound logic
   does not read them there (s_sound.c:304-324). A request to the simulation to carry them (so that they could be
   compared) is open.
+- **Other things the gates do not compare** (the headers and totals rows, the wipe's rows, the fake device's rows, four
+  items shorter than their demo, two buffers before each short-lump refusal) are listed with the tests in
+  [TESTING](TESTING.md#what-the-sound-gates-do-not-compare); they are evidence-completeness points, not known
+  differences.
+
+### What the sound code refuses
+
+Every refusal below is typed, happens before anything is committed and leaves the session, the mixer and the display
+exactly as they were. The first six were added after the independent review
+([record](validation/M5C.md#step-13-independent-review)); the others are older and are listed here once, for completeness.
+
+- **A start with the wrong placement** (`SoundRefusal::Placement`). The C measures the distance and stereo position of every
+  start whose origin is neither NULL nor the listener's own body (s_sound.c:304-320), and never those two. So a start of a
+  sector's or a switch button's origin, or of an actor other than the listener's body, **must carry a placement and is
+  refused if it does not**; a start of a NULL origin or of the listener's own body **must not carry one and is refused if
+  it does**. (The simulation makes neither; the session no longer trusts its producer. The sound number is checked first.)
+- **A saved sound state of another configuration** (`StateError::ConfigMismatch`): see [DSND](STATE_FORMAT.md#sound-session-state-dsnd-version-1-m5c).
+- **The two views of the `M_Random` index disagreeing** (`FrameRefusal::SoundIndex`): the display advances its index by the
+  draws the sound session reports, and the session returns its own index; the frame source requires that the two agree.
+- **A draw count out of range** (`SessionRefusal::DrawCount`): the draws of one tic are counted in 16 bits; 65,535 are
+  exact, 65,536 are refused (before, the count saturated). No real tic comes near it.
+- **A sound volume outside 0..=127** given to `adjust_sound_params` or the layout detector (`SoundRefusal::Config`): before,
+  such a value overflowed and panicked in a debug build. The session's own configuration is always checked, so no game
+  reaches it.
+- **The mixer's refusals are checked in the C's order**: pitch (i_sound.c:495), then the right and left volume rows
+  (i_sound.c:364-368), then a short lump, which the C reads only when the next buffer is mixed (i_sound.c:591). Only which
+  refusal is named changes; the C's volumes are always in range.
+- **A lump of 8 bytes or fewer, a missing lump, a button slot 15, a sector-origin overflow, a sound number outside 1..=108**:
+  as in the sections above (decisions T11, T12).
+- **A forged display state** whose wipe flag the original could not hold at its tic (`DDSP` version 2 only):
+  [STATE_FORMAT](STATE_FORMAT.md#display-state-ddsp-version-2-m5c).
 
 ### The app with sound, and what is presentation
 
@@ -3186,7 +3245,7 @@ every start with its volume, separation, pitch and channel; every stop; the chan
 `M_Random` index; and the mixer's sample stream, buffer by buffer by digest (decision T8). **Presentation, outside every
 claim:** the hand-over of the finished stream to the device thread, resampling from 11,025 Hz to the device's rate (by
 the audio library), the size of the queue and the latency that results, what happens on underrun (silence) and overrun
-(the oldest queued frames are dropped; the game loop never blocks on audio, because blocking would change pacing), the
+(the oldest queued frames are dropped; the game loop never waits for the device to play anything, because waiting would change pacing: it takes a lock on the queue that the device's callback holds only while it copies one period out, and that the loop holds only while it copies one buffer in, so it can wait for at most one such copy), the
 player's volume and mute, and the device itself. Of these the app's code is Rust-only safety tests, not equivalence.
 
 - **Per tic** the app runs the simulation, the sound session, the status bar's draw and the frame, in that order
@@ -3206,9 +3265,15 @@ player's volume and mute, and the device itself. Of these the app's code is Rust
 - **The device.** The first audio backend that opens plays the stream (Linux: PulseAudio, then ALSA, which need the
   system's `libpulse.so.0` or `libasound.so.2`; Windows: WASAPI, DirectSound, then WinMM; macOS: Core Audio); nothing
   falls back to a silent device. If none opens, **one line on standard error** says so and names every backend tried, and
-  the game runs exactly the same without sound output. The queue (512-frame buffers, playing starts when one buffer is
-  queued, at most 2,048 frames queued, 185.8 ms) and the latency (roughly 50 to 100 ms by arithmetic) are **not
-  measured** and are not part of any claim. `doom-play --audio-probe` writes about one second of silence to check the
+  the game runs exactly the same without sound output. The queue (512-frame buffers; the device takes nothing until **two
+  buffers, 1,024 frames, 92.9 ms at 11,025 Hz, are queued**, and again after every underrun and every pause; at most four
+  buffers, 2,048 frames, 185.8 ms, are kept, the oldest frames dropped beyond that) is presentation and **not measured**,
+  and the latency that follows (at least the 92.9 ms queued at the start, plus the device's own buffering) is by
+  arithmetic only; none of it is part of any claim. **Why two buffers:** under the declared schedule buffer k is handed
+  over at tic floor(512k/315) while a device at exactly 11,025 Hz needs it (512k/315) tics after it starts, so with one buffer as the
+  threshold the margin falls to nothing at every k that is a multiple of 315 (every 14.6 s) and ordinary sleep jitter gives an
+  underrun (a gap); two buffers keep one whole buffer in hand, for 46.4 ms more latency. (An earlier version of this page, and
+  the first implementation, started at one buffer; a review of the device code found the margin.) `doom-play --audio-probe` writes about one second of silence to check the
   device.
 - **No music, no menus.** The menu hot keys are not modelled (see the glance above).
 - **When the sound session refuses a tic** (a typed refusal: for example a PWAD's sound lump of 8 bytes or fewer, decision
@@ -3216,7 +3281,14 @@ player's volume and mute, and the device itself. Of these the app's code is Rust
   they were before the tic, and the simulation's tic is not rolled back**, as under M5b's rule for frame refusals
   (decision S9): the committed tic stays, its command stays in the demo, and replaying the demo ends at the same refusal.
   A display refusal after the simulation committed is the same. Rolling the simulation back too would need a staged
-  advance in `doom-sim` that does not exist, and a full-simulation clone per tic is not allowed.
+  advance in `doom-sim` that does not exist, and a full-simulation clone per tic is not allowed. The refusal screen
+  shows the witness as a plain sentence (for example `sound: tic 18, sound call 0: mixer: refused: sfx 1 has no sample
+  byte at its start (i_sound.c:230-247, 591)`), not as debug text. **For the owner to confirm:** this applies M5b's rule
+  S9 ("saved up to the last good tic") to sound refusals by reading "the last good tic" as the last tic the simulation
+  committed. What a person sees is that the refused tic stays in the demo, the replay refuses at the same tic, and the
+  genuine engine would have played that tic (for a short lump it reads past the block, for a missing lump it calls
+  `I_Error`). This is the same reading M5b applied to frame refusals, so it is consistent with shipped M5b code, but sound
+  adds a new class of refusal and the owner has not been asked about it.
 - **Under WSLg the game occasionally opens already paused.** The window can report a focus loss in its first moments,
   and the M5b focus-loss rule pauses the game (the same cause and effect as M5b's pause, [above](#platform-limits)). The
   PAUSED box shows, the mouse is released, and **Esc or Pause resumes**. It was seen in 3 of 260 runs in the

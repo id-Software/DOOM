@@ -360,7 +360,7 @@ point at run time.
 | `detector` | the layout detector of decision T12 for the switch-release origin | the read of p_spec.c:1151 |
 | `schedule` | the declared schedule (decision T5): the update after every tic, buffer k after tic floor(512k/315) | the order of d_main.c:392-405, declared |
 | `session` | `Sound`, one per session: a tic's records, the update and the due buffer, transactionally | g_game.c:727-733 and d_main.c:392-400 in order |
-| `state` | `DSND` version 1, its checks and restore ([layout](STATE_FORMAT.md#sound-session-state-dsnd-version-1-m5c)) | none (this port's own) |
+| `state` | `DSND` version 1, its checks and restore, which takes the caller's own configuration and refuses another ([layout](STATE_FORMAT.md#sound-session-state-dsnd-version-1-m5c)) | none (this port's own) |
 
 **How a tic's canonical sound records leave the simulation and reach the session.** Under wire 25 each place where
 the original calls `S_StartSound` or `S_StopSound` makes a record at that call, with the origin's and the listener's
@@ -411,15 +411,22 @@ buffer if one is due); (3) the **status bar and HUD tickers** (`Display::observe
 then `ST_Ticker`'s one); (4) the **frame** (`Display::draw`), and, on the level's first frame, the **wipe's 320 draws**;
 (5) the session and the display are committed together; the buffer, if any, goes to the audio sink; then the host's step.
 A sound or display refusal leaves both exactly as before the tic. The simulation's committed tic is **not** rolled back (no
-per-tic clone; M5b's rule S9 for frame refusals), so the demo keeps the tic and replays to the same refusal.
+per-tic clone; M5b's rule S9 for frame refusals), so the demo keeps the tic and replays to the same refusal; whether that
+reading of S9 is right for sound refusals is for the owner to confirm. Besides the sound logic's own refusals, two checks sit in
+this sequence: the session refuses a start with the wrong placement (`SoundRefusal::Placement`) and a tic whose draw count leaves
+16 bits (`SessionRefusal::DrawCount`) before it commits, and the frame source refuses a tic in which the display's advanced
+`M_Random` index and the session's returned one differ (`FrameRefusal::SoundIndex`) ([list](COMPATIBILITY.md#what-the-sound-code-refuses)).
+The port runs the sound session before the status bar's ticker, where the original runs `S_UpdateSounds` after it and the mix
+after the frame; no value flows between them ([COMPATIBILITY](COMPATIBILITY.md#the-display-contract-with-sound-m5c)).
 
 **The audio seam** is the trait `AudioSink` in `doom-game` (`buffer(&[[i16; 2]; 512])`, `pause`, `resume`,
 `session_start`, all defaulting to no-ops), reached through `Host::audio`. Only the finished stream crosses it: 11,025 Hz
-stereo 16-bit frames, unscaled, zero or one buffer per tic, delivered before `Host::tic`; the implementation must never
-block. `RecordingSink` (tests) records every call. A host that returns no sink gets the same game: the session still runs
+stereo 16-bit frames, unscaled, zero or one buffer per tic, delivered before `Host::tic`; the implementation must not wait for the device
+to play anything. `RecordingSink` (tests) records every call. A host that returns no sink gets the same game: the session still runs
 and the face stays genuine. In `doom-play` the sink is `DeviceSink` or `Discard`: a queue behind a lock that the loop fills
 one buffer at a time and the **device thread** (the library's callback) drains one period at a time, resampling and
-the device's own format being the library's. The queue starts playing at one buffer, holds at most four (2,048 frames),
+the device's own format being the library's. The loop never waits for the device to play anything; it takes the queue's lock, which the callback holds only while it copies one period out, so it can wait for at most one such copy. The queue starts playing at two buffers
+([why, and the numbers](COMPATIBILITY.md#the-app-with-sound-and-what-is-presentation)), holds at most four,
 drops its oldest frames on overrun, plays silence on underrun and is cleared on pause and on a new session; volume is
 a gain on the frames as they leave and mute drops them. None of this feeds back: nothing from the device, the queue or
 the gain reaches the simulation, the sound logic or the display, and a headless test shows eight settings of the options
