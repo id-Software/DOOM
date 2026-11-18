@@ -162,6 +162,10 @@ UNREACHABLE_SFX = {
     'swtchx': 'p_switch.c:211 zeroes line->special for a non-repeatable switch before p_switch.c:221 tests it for 11; the exit '
               'switch (special 11) is non-repeatable (P_ChangeSwitchTexture (line, 0), p_switch.c:543-544 via P_UseSpecialLine), '
               'so sfx_swtchx is never started by this source',
+    'bdopn': 'not reachable under wire 24: sfx_bdopn is started only for a blazeRaise or blazeOpen door (p_doors.c:320-328, '
+             '442-445), which only the line specials 99, 105-118 and 133-137 create (p_spec.c:726-756, 916-931; '
+             'p_switch.c:463-503, 600-634), and none of them is admitted by the wire-24 simulation (docs/COMPATIBILITY.md, '
+             'admitted line specials); no room may use one, because the simulation refuses it at load',
 }
 REQUIRED_SFX = [n for n in EPISODE1_SFX if n not in UNREACHABLE_SFX]
 REQUIRED_BRANCHES = [
@@ -592,6 +596,8 @@ def main():
             failures.append(f"coverage: required sfx not reached {cov['missing_sfx']}, required branches not reached {cov['missing_branches']}")
         tot = lambda k: sum(r['views'][str(sb)][k] for r in results.values() for sb in VIEWS)
         doc = dict(schema=SCHEMA, runner_contract_sha256=sha(m5c_build.CONTRACT.read_bytes()),
+                   tools_sha256={f'tools/reference/{n}': sha(m5c_build.text(ROOT / 'tools/reference' / n).encode('latin-1'))
+                                 for n in ('m5c_build.py', 'm5c_driver.c', 'm5c_stubs.c', 'm5c_sfx.py', 'm5c_wad.py')},
                    gfx_sha256=sha(GFX.read_bytes()), sfx_sha256=sha(SFX.read_bytes()), music_sha256=sha(MUSIC.read_bytes()),
                    manifest_sha256=sha(MANIFEST.read_bytes()) if MANIFEST.exists() else None,
                    switches=RECOMMENDED, alternates={k: ' '.join(v) for k, v in ALTERNATES.items()}, variants=VARIANTS, views=VIEWS,

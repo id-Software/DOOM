@@ -1,0 +1,129 @@
+{
+ "schema": "DOOM-M5C-MANIFEST-v1",
+ "rooms": [
+  {
+   "name": "SNDDIST",
+   "file": "tests/reference/m5c_wads/snddist.wad",
+   "slot": "E1M1",
+   "sha256": "321328e1e2fbd9374885c04ef42c263ee28f209d659db6e226819cf0c5fb5a89",
+   "bytes": 89281,
+   "sectors": 1,
+   "lines": 4,
+   "things": {
+    "1": 1,
+    "3004": 18
+   },
+   "scripts": [
+    {
+     "lump": "SNDDIST",
+     "txt": "tests/reference/m5c_scripts/SNDDIST.txt",
+     "lmp": "tests/reference/m5c_scripts/SNDDIST.lmp",
+     "what": "a stationary listener and 18 zombiemen at fixed distances that wake and call out",
+     "tics": 48,
+     "lmp_sha256": "b8c883af8b4820b76169928ef4209b0ca2822479429107a4932fc964a2e2cc17",
+     "views": [
+      10,
+      11
+     ]
+    }
+   ]
+  },
+  {
+   "name": "SNDBUSY",
+   "file": "tests/reference/m5c_wads/sndbusy.wad",
+   "slot": "E1M1",
+   "sha256": "8ef78e90938441c5bf9b97c9cdfa533e6d484eae6c1792930e218265d150bf88",
+   "bytes": 94968,
+   "sectors": 24,
+   "lines": 99,
+   "things": {
+    "1": 1
+   },
+   "scripts": [
+    {
+     "lump": "SNDBUSY",
+     "txt": "tests/reference/m5c_scripts/SNDBUSY.txt",
+     "lmp": "tests/reference/m5c_scripts/SNDBUSY.lmp",
+     "what": "a locked door used twice, nine doors at once, refused floor sounds and a pistol eviction",
+     "tics": 125,
+     "lmp_sha256": "385ffeea280a13675f3ed4a44ea559aee6d130017ead890b69a8671c14d37525",
+     "views": [
+      10,
+      11
+     ]
+    }
+   ]
+  },
+  {
+   "name": "SNDMONST",
+   "file": "tests/reference/m5c_wads/sndmonst.wad",
+   "slot": "E1M1",
+   "sha256": "ec52ced60e730fbcce164e29be64f0df74ab232e517cb1955551c9228c86f685",
+   "bytes": 87640,
+   "sectors": 3,
+   "lines": 14,
+   "things": {
+    "1": 1,
+    "9": 4,
+    "2003": 1,
+    "2013": 1,
+    "2035": 1,
+    "2046": 1,
+    "3001": 6,
+    "3004": 8
+   },
+   "scripts": [
+    {
+     "lump": "SNDMONST",
+     "txt": "tests/reference/m5c_scripts/SNDMONST.txt",
+     "lmp": "tests/reference/m5c_scripts/SNDMONST.lmp",
+     "what": "the use key against a wall, a door, the fist on a barrel, then rockets against zombiemen, shotgun guys and imps",
+     "tics": 452,
+     "lmp_sha256": "e057f091b7cfbf50576ea0ff7705652d0f8c8eff9f9afc0276d6a291368b586f",
+     "views": [
+      10,
+      11
+     ]
+    }
+   ]
+  },
+  {
+   "name": "SNDBTN",
+   "file": "tests/reference/m5c_wads/sndbtn.wad",
+   "slot": "E1M1",
+   "sha256": "0ceaed9c62f747bb4e55d25bed0e509a771a5aa22a463aa2803dfb5cb2048a41",
+   "bytes": 89829,
+   "sectors": 9,
+   "lines": 42,
+   "things": {
+    "1": 1
+   },
+   "scripts": [
+    {
+     "lump": "SNDBTN1",
+     "txt": "tests/reference/m5c_scripts/SNDBTN1.txt",
+     "lmp": "tests/reference/m5c_scripts/SNDBTN1.lmp",
+     "what": "a lift switch near the origin and one far from it, each released with the next button slot free, and a door",
+     "tics": 721,
+     "lmp_sha256": "7b1b63377b9aeb629e47ba59e0d35c9d6a69727a651096223ddd30f4d3e7471d",
+     "views": [
+      10,
+      11
+     ]
+    },
+    {
+     "lump": "SNDBTN2",
+     "txt": "tests/reference/m5c_scripts/SNDBTN2.txt",
+     "lmp": "tests/reference/m5c_scripts/SNDBTN2.lmp",
+     "what": "two lift switches pressed within one button time: slot 0 released while slot 1 is busy (decision T12)",
+     "tics": 248,
+     "lmp_sha256": "ce97ee5cfaf90de3cd74dd1e313c960f82d4ead9cf5420263ce4843b72e8086f",
+     "views": [
+      10,
+      11
+     ]
+    }
+   ]
+  }
+ ]
+}

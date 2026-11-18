@@ -1,0 +1,2518 @@
+{
+ "schema": "DOOM-M5C-COVERAGE-v1",
+ "source": "measured from the genuine sound streams of tools/reference/m5c_reference.py under the recommended switches",
+ "required_sfx": [
+  "pistol",
+  "shotgn",
+  "sawup",
+  "sawidl",
+  "sawful",
+  "sawhit",
+  "rlaunc",
+  "firsht",
+  "firxpl",
+  "pstart",
+  "pstop",
+  "doropn",
+  "dorcls",
+  "stnmov",
+  "swtchn",
+  "plpain",
+  "dmpain",
+  "popain",
+  "slop",
+  "itemup",
+  "wpnup",
+  "oof",
+  "telept",
+  "posit1",
+  "posit2",
+  "posit3",
+  "bgsit1",
+  "bgsit2",
+  "sgtsit",
+  "brssit",
+  "sgtatk",
+  "claw",
+  "pldeth",
+  "podth1",
+  "podth2",
+  "podth3",
+  "bgdth1",
+  "bgdth2",
+  "sgtdth",
+  "brsdth",
+  "posact",
+  "bgact",
+  "dmact",
+  "noway",
+  "barexp",
+  "punch",
+  "getpow"
+ ],
+ "required_branches": [
+  "origin:none",
+  "origin:player",
+  "origin:mobj",
+  "origin:sector",
+  "origin:button",
+  "outcome:started",
+  "outcome:inaudible",
+  "outcome:no_channel",
+  "inaudible:clip",
+  "inaudible:vol0",
+  "samexy",
+  "pitch:saw",
+  "pitch:nodraw",
+  "pitch:draw",
+  "dist:clip_exact",
+  "dist:clip_minus",
+  "dist:clip_plus",
+  "dist:close_below",
+  "dist:close_exact",
+  "dist:close_plus",
+  "angle:gt",
+  "angle:lt",
+  "angle:eq",
+  "sep:33",
+  "sep:224",
+  "vol:1",
+  "vol:2",
+  "vol:3",
+  "vol:4",
+  "vol:5",
+  "vol:6",
+  "vol:7",
+  "vol:8",
+  "map8:far",
+  "map8:near",
+  "getchannel:free",
+  "getchannel:evict",
+  "getchannel:refuse",
+  "stop:same_origin",
+  "stop:same_origin_null",
+  "stopsound:found",
+  "stopsound:none",
+  "stopchannel:playing",
+  "stopchannel:not_playing",
+  "update:finished",
+  "update:inaudible",
+  "update:params",
+  "update:local",
+  "lump:first",
+  "button:press_null",
+  "button:press_slot0",
+  "button:release_audible",
+  "button:release_inaudible",
+  "button:release_next_busy",
+  "starts:9_in_4_tics"
+ ],
+ "unreachable_sfx": {
+  "swtchx": "p_switch.c:211 zeroes line->special for a non-repeatable switch before p_switch.c:221 tests it for 11; the exit switch (special 11) is non-repeatable (P_ChangeSwitchTexture (line, 0), p_switch.c:543-544 via P_UseSpecialLine), so sfx_swtchx is never started by this source",
+  "bdopn": "not reachable under wire 24: sfx_bdopn is started only for a blazeRaise or blazeOpen door (p_doors.c:320-328, 442-445), which only the line specials 99, 105-118 and 133-137 create (p_spec.c:726-756, 916-931; p_switch.c:463-503, 600-634), and none of them is admitted by the wire-24 simulation (docs/COMPATIBILITY.md, admitted line specials); no room may use one, because the simulation refuses it at load"
+ },
+ "unreachable_branches": {
+  "outcome:link_volume": "sfx_chgun, the only linked sfx (sounds.c:204), is never started by any source file; the chaingun plays sfx_pistol (p_pspr.c:737)",
+  "getchannel:same_origin": "s_sound.c:837-841: S_StopSound (origin) at s_sound.c:349 has already stopped the one channel with this origin (at most one exists, by induction: every start first stops it), and a NULL origin is excluded by the \"origin &&\" test",
+  "pitch:clamp": "s_sound.c:331-345: the pitch is 128 plus at most 16 (saw: 8) either way, never outside 0..255",
+  "start:bad_sfx": "s_sound.c:277-278: every game call passes an sfx id from sounds.h",
+  "update:link": "s_sound.c:567-580: only for a linked sfx, never started",
+  "level_start:stop": "s_sound.c:209-211: S_Start runs once per process here, at the level load, before any start"
+ },
+ "missing_sfx": [],
+ "missing_branches": [],
+ "sfx_reached_by": {
+  "barexp": [
+   "BARON1",
+   "BVB1",
+   "M5PALRD",
+   "SLIDEB",
+   "SNDMONST"
+  ],
+  "bgact": [
+   "M5FACED",
+   "SNDMONST"
+  ],
+  "bgdth1": [
+   "SNDMONST"
+  ],
+  "bgdth2": [
+   "SNDMONST"
+  ],
+  "bgsit1": [
+   "M5FACED",
+   "SNDMONST"
+  ],
+  "bgsit2": [
+   "M5FACED",
+   "SNDMONST"
+  ],
+  "brsdth": [
+   "BARON1",
+   "BOSS1",
+   "BOSS2",
+   "BOSSM1",
+   "TFRAG1"
+  ],
+  "brssit": [
+   "BTUNNEL"
+  ],
+  "claw": [
+   "BARON1",
+   "BVB1",
+   "M5FACED"
+  ],
+  "dmact": [
+   "BARON1",
+   "BTUNNEL",
+   "BVB1",
+   "MTELE1"
+  ],
+  "dmpain": [
+   "BARON1",
+   "BVB1",
+   "SAWBITE"
+  ],
+  "dorcls": [
+   "SNDBTN1",
+   "SNDMONST"
+  ],
+  "doropn": [
+   "M5PEG",
+   "M5SWTCH",
+   "SNDBTN1",
+   "SNDBUSY",
+   "SNDMONST"
+  ],
+  "firsht": [
+   "BARON1",
+   "BTUNNEL",
+   "BVB1",
+   "M5FACED",
+   "SNDMONST"
+  ],
+  "firxpl": [
+   "BARON1",
+   "BTUNNEL",
+   "BVB1",
+   "M5FACED",
+   "SNDMONST"
+  ],
+  "getpow": [
+   "BARON1",
+   "BVB1",
+   "M5AMP",
+   "M5AMPFL",
+   "M5FUZZ",
+   "M5MSG",
+   "M5PALRD",
+   "M5PALST",
+   "M5STDIG",
+   "SNDMONST"
+  ],
+  "itemup": [
+   "BARON1",
+   "BVB1",
+   "M5FACED",
+   "M5MSG",
+   "M5OUCH",
+   "M5PALBN",
+   "M5STARM",
+   "M5STDIG",
+   "M5WEAP",
+   "SAWBITE",
+   "SNDMONST",
+   "TELE1",
+   "TFRAG1",
+   "TSLIDE",
+   "TSPLIT"
+  ],
+  "noway": [
+   "SNDMONST"
+  ],
+  "oof": [
+   "M5MSG",
+   "M5VIEWZ",
+   "SNDBUSY"
+  ],
+  "pistol": [
+   "M5OUCH",
+   "M5PALRD",
+   "M5STDIG",
+   "M5SWTCH",
+   "SLIDEB",
+   "SNDBUSY",
+   "SNDDIST",
+   "SNDMONST"
+  ],
+  "pldeth": [
+   "M5FACED",
+   "M5OUCH",
+   "M5VIEWZ"
+  ],
+  "plpain": [
+   "BARON1",
+   "BOSS1",
+   "BVB1",
+   "M5EVIL",
+   "M5FACED",
+   "M5LOOK",
+   "M5MSG",
+   "M5OUCH",
+   "M5STDIG",
+   "M5VIEWZ",
+   "SNDMONST"
+  ],
+  "podth1": [
+   "SNDMONST"
+  ],
+  "podth2": [
+   "SLIDEC",
+   "SNDMONST"
+  ],
+  "podth3": [
+   "SNDMONST"
+  ],
+  "popain": [
+   "SNDMONST"
+  ],
+  "posact": [
+   "SNDMONST"
+  ],
+  "posit1": [
+   "M5VIEWZ",
+   "SNDDIST",
+   "SNDMONST"
+  ],
+  "posit2": [
+   "SNDDIST",
+   "SNDMONST"
+  ],
+  "posit3": [
+   "SNDDIST",
+   "SNDMONST"
+  ],
+  "pstart": [
+   "SNDBTN1",
+   "SNDBTN2"
+  ],
+  "pstop": [
+   "BOSS1",
+   "BOSS2",
+   "M5SWTCH",
+   "SNDBTN1",
+   "SNDBTN2"
+  ],
+  "punch": [
+   "SNDMONST"
+  ],
+  "rlaunc": [
+   "BARON1",
+   "SNDMONST"
+  ],
+  "sawful": [
+   "M5WEAP",
+   "SAWBITE"
+  ],
+  "sawhit": [
+   "SAWBITE"
+  ],
+  "sawidl": [
+   "M5EVIL",
+   "M5MSG",
+   "M5STARM",
+   "M5WEAP",
+   "SAWBITE"
+  ],
+  "sawup": [
+   "M5EVIL",
+   "M5MSG",
+   "M5STARM",
+   "M5WEAP",
+   "SAWBITE"
+  ],
+  "sgtatk": [
+   "MTELE1",
+   "SAWBITE"
+  ],
+  "sgtdth": [
+   "SAWBITE",
+   "TFRAG1"
+  ],
+  "sgtsit": [
+   "BINF1",
+   "MTELE1",
+   "SAWBITE",
+   "TELEZ"
+  ],
+  "shotgn": [
+   "M5VIEWZ",
+   "M5WEAP",
+   "SLIDEC",
+   "SNDMONST"
+  ],
+  "slop": [
+   "SNDMONST",
+   "TFRAG1"
+  ],
+  "stnmov": [
+   "BOSS1",
+   "BOSS2",
+   "SNDBUSY"
+  ],
+  "swtchn": [
+   "M5SWTCH",
+   "SNDBTN1",
+   "SNDBTN2"
+  ],
+  "telept": [
+   "BOSS1",
+   "BOSS2",
+   "BOSSM1",
+   "MTELE1",
+   "SKILL3",
+   "SLIDEB",
+   "SLIDEC",
+   "TELE1",
+   "TELE2",
+   "TELE2X",
+   "TELEZ",
+   "TFRAG1",
+   "TSLIDE",
+   "TSPLIT"
+  ],
+  "wpnup": [
+   "BARON1",
+   "M5EVIL",
+   "M5MSG",
+   "M5STARM",
+   "M5STDIG",
+   "M5WEAP",
+   "SAWBITE",
+   "SLIDEC",
+   "SNDMONST"
+  ]
+ },
+ "branches_reached_by": {
+  "angle:eq": [
+   "BARON1",
+   "BINF1",
+   "BOSS1",
+   "BOSS2",
+   "BOSSM1",
+   "BTUNNEL",
+   "BVB1",
+   "M5PALRD",
+   "M5PEG",
+   "M5SWTCH",
+   "M5VIEWZ",
+   "SKILL3",
+   "SLIDEB",
+   "SLIDEC",
+   "SNDDIST",
+   "SNDMONST",
+   "TELE2X",
+   "TFRAG1"
+  ],
+  "angle:gt": [
+   "BARON1",
+   "BOSS1",
+   "BOSS2",
+   "BOSSM1",
+   "BTUNNEL",
+   "BVB1",
+   "M5FACED",
+   "M5SWTCH",
+   "M5VIEWZ",
+   "MTELE1",
+   "SAWBITE",
+   "SKILL3",
+   "SNDBTN1",
+   "SNDBTN2",
+   "SNDBUSY",
+   "SNDDIST",
+   "SNDMONST",
+   "TELE1",
+   "TELE2X",
+   "TFRAG1",
+   "TSPLIT"
+  ],
+  "angle:lt": [
+   "BARON1",
+   "BOSS2",
+   "BTUNNEL",
+   "M5FACED",
+   "M5SWTCH",
+   "MTELE1",
+   "SAWBITE",
+   "SNDBTN1",
+   "SNDMONST",
+   "TELE2",
+   "TELEZ",
+   "TSLIDE"
+  ],
+  "button:press_null": [
+   "M5SWTCH",
+   "SNDBTN1",
+   "SNDBTN2"
+  ],
+  "button:press_slot0": [
+   "M5SWTCH",
+   "SNDBTN2"
+  ],
+  "button:release_audible": [
+   "M5SWTCH",
+   "SNDBTN1",
+   "SNDBTN2"
+  ],
+  "button:release_inaudible": [
+   "SNDBTN1"
+  ],
+  "button:release_next_busy": [
+   "SNDBTN2"
+  ],
+  "dist:clip_exact": [
+   "SNDDIST"
+  ],
+  "dist:clip_minus": [
+   "SNDDIST"
+  ],
+  "dist:clip_plus": [
+   "SNDDIST"
+  ],
+  "dist:close_below": [
+   "BARON1",
+   "BOSS1",
+   "BOSS2",
+   "BOSSM1",
+   "BVB1",
+   "M5FACED",
+   "M5PALRD",
+   "M5PEG",
+   "M5SWTCH",
+   "M5VIEWZ",
+   "MTELE1",
+   "SAWBITE",
+   "SKILL3",
+   "SNDBTN1",
+   "SNDBTN2",
+   "SNDDIST",
+   "SNDMONST",
+   "TELE1",
+   "TELE2",
+   "TELE2X",
+   "TFRAG1",
+   "TSLIDE",
+   "TSPLIT"
+  ],
+  "dist:close_exact": [
+   "SNDDIST"
+  ],
+  "dist:close_plus": [
+   "SNDDIST"
+  ],
+  "getchannel:evict": [
+   "M5SWTCH",
+   "SAWBITE",
+   "SLIDEC",
+   "SNDBUSY",
+   "SNDDIST",
+   "SNDMONST"
+  ],
+  "getchannel:free": [
+   "BARON1",
+   "BINF1",
+   "BOSS1",
+   "BOSS2",
+   "BOSSM1",
+   "BTUNNEL",
+   "BVB1",
+   "M5AMP",
+   "M5AMPFL",
+   "M5EVIL",
+   "M5FACED",
+   "M5FUZZ",
+   "M5LOOK",
+   "M5MSG",
+   "M5OUCH",
+   "M5PALBN",
+   "M5PALRD",
+   "M5PALST",
+   "M5PEG",
+   "M5STARM",
+   "M5STDIG",
+   "M5SWTCH",
+   "M5VIEWZ",
+   "M5WEAP",
+   "MTELE1",
+   "SAWBITE",
+   "SKILL3",
+   "SLIDEB",
+   "SLIDEC",
+   "SNDBTN1",
+   "SNDBTN2",
+   "SNDBUSY",
+   "SNDDIST",
+   "SNDMONST",
+   "TELE1",
+   "TELE2",
+   "TELE2X",
+   "TELEZ",
+   "TFRAG1",
+   "TSLIDE",
+   "TSPLIT"
+  ],
+  "getchannel:refuse": [
+   "SNDBUSY",
+   "SNDDIST"
+  ],
+  "inaudible:clip": [
+   "BINF1",
+   "BOSSM1",
+   "MTELE1",
+   "SLIDEB",
+   "SLIDEC",
+   "SNDBTN1",
+   "SNDDIST",
+   "TELE2",
+   "TSLIDE",
+   "TSPLIT"
+  ],
+  "inaudible:vol0": [
+   "BARON1",
+   "BOSSM1",
+   "BVB1",
+   "SKILL3",
+   "SNDDIST",
+   "SNDMONST",
+   "TELE1",
+   "TELE2X",
+   "TFRAG1"
+  ],
+  "lump:first": [
+   "BARON1",
+   "BINF1",
+   "BOSS1",
+   "BOSS2",
+   "BOSSM1",
+   "BTUNNEL",
+   "BVB1",
+   "M5AMP",
+   "M5AMPFL",
+   "M5EVIL",
+   "M5FACED",
+   "M5FUZZ",
+   "M5LOOK",
+   "M5MSG",
+   "M5OUCH",
+   "M5PALBN",
+   "M5PALRD",
+   "M5PALST",
+   "M5PEG",
+   "M5STARM",
+   "M5STDIG",
+   "M5SWTCH",
+   "M5VIEWZ",
+   "M5WEAP",
+   "MTELE1",
+   "SAWBITE",
+   "SKILL3",
+   "SLIDEB",
+   "SLIDEC",
+   "SNDBTN1",
+   "SNDBTN2",
+   "SNDBUSY",
+   "SNDDIST",
+   "SNDMONST",
+   "TELE1",
+   "TELE2",
+   "TELE2X",
+   "TELEZ",
+   "TFRAG1",
+   "TSLIDE",
+   "TSPLIT"
+  ],
+  "map8:far": [
+   "BOSS1",
+   "BOSS2"
+  ],
+  "map8:near": [
+   "BOSS1",
+   "BOSS2"
+  ],
+  "origin:button": [
+   "M5SWTCH",
+   "SNDBTN1",
+   "SNDBTN2"
+  ],
+  "origin:mobj": [
+   "BARON1",
+   "BINF1",
+   "BOSS1",
+   "BOSS2",
+   "BOSSM1",
+   "BTUNNEL",
+   "BVB1",
+   "M5FACED",
+   "M5PALRD",
+   "M5VIEWZ",
+   "MTELE1",
+   "SAWBITE",
+   "SKILL3",
+   "SLIDEB",
+   "SLIDEC",
+   "SNDDIST",
+   "SNDMONST",
+   "TELE1",
+   "TELE2",
+   "TELE2X",
+   "TELEZ",
+   "TFRAG1",
+   "TSLIDE",
+   "TSPLIT"
+  ],
+  "origin:none": [
+   "BARON1",
+   "BVB1",
+   "M5AMP",
+   "M5AMPFL",
+   "M5EVIL",
+   "M5FACED",
+   "M5FUZZ",
+   "M5MSG",
+   "M5OUCH",
+   "M5PALBN",
+   "M5PALRD",
+   "M5PALST",
+   "M5STARM",
+   "M5STDIG",
+   "M5SWTCH",
+   "M5WEAP",
+   "SAWBITE",
+   "SLIDEC",
+   "SNDBTN1",
+   "SNDBTN2",
+   "SNDBUSY",
+   "SNDMONST",
+   "TELE1",
+   "TFRAG1",
+   "TSLIDE",
+   "TSPLIT"
+  ],
+  "origin:player": [
+   "BARON1",
+   "BOSS1",
+   "BVB1",
+   "M5EVIL",
+   "M5FACED",
+   "M5LOOK",
+   "M5MSG",
+   "M5OUCH",
+   "M5PALRD",
+   "M5STARM",
+   "M5STDIG",
+   "M5SWTCH",
+   "M5VIEWZ",
+   "M5WEAP",
+   "SAWBITE",
+   "SLIDEB",
+   "SLIDEC",
+   "SNDBUSY",
+   "SNDMONST"
+  ],
+  "origin:sector": [
+   "BOSS1",
+   "BOSS2",
+   "M5PEG",
+   "M5SWTCH",
+   "SNDBTN1",
+   "SNDBTN2",
+   "SNDBUSY",
+   "SNDMONST"
+  ],
+  "outcome:inaudible": [
+   "BARON1",
+   "BINF1",
+   "BOSSM1",
+   "BVB1",
+   "MTELE1",
+   "SKILL3",
+   "SLIDEB",
+   "SLIDEC",
+   "SNDBTN1",
+   "SNDDIST",
+   "SNDMONST",
+   "TELE1",
+   "TELE2",
+   "TELE2X",
+   "TFRAG1",
+   "TSLIDE",
+   "TSPLIT"
+  ],
+  "outcome:no_channel": [
+   "SNDBUSY",
+   "SNDDIST"
+  ],
+  "outcome:started": [
+   "BARON1",
+   "BINF1",
+   "BOSS1",
+   "BOSS2",
+   "BOSSM1",
+   "BTUNNEL",
+   "BVB1",
+   "M5AMP",
+   "M5AMPFL",
+   "M5EVIL",
+   "M5FACED",
+   "M5FUZZ",
+   "M5LOOK",
+   "M5MSG",
+   "M5OUCH",
+   "M5PALBN",
+   "M5PALRD",
+   "M5PALST",
+   "M5PEG",
+   "M5STARM",
+   "M5STDIG",
+   "M5SWTCH",
+   "M5VIEWZ",
+   "M5WEAP",
+   "MTELE1",
+   "SAWBITE",
+   "SKILL3",
+   "SLIDEB",
+   "SLIDEC",
+   "SNDBTN1",
+   "SNDBTN2",
+   "SNDBUSY",
+   "SNDDIST",
+   "SNDMONST",
+   "TELE1",
+   "TELE2",
+   "TELE2X",
+   "TELEZ",
+   "TFRAG1",
+   "TSLIDE",
+   "TSPLIT"
+  ],
+  "pitch:draw": [
+   "BARON1",
+   "BINF1",
+   "BOSS1",
+   "BOSS2",
+   "BOSSM1",
+   "BTUNNEL",
+   "BVB1",
+   "M5AMP",
+   "M5AMPFL",
+   "M5EVIL",
+   "M5FACED",
+   "M5FUZZ",
+   "M5LOOK",
+   "M5MSG",
+   "M5OUCH",
+   "M5PALRD",
+   "M5PALST",
+   "M5PEG",
+   "M5STARM",
+   "M5STDIG",
+   "M5SWTCH",
+   "M5VIEWZ",
+   "M5WEAP",
+   "MTELE1",
+   "SAWBITE",
+   "SKILL3",
+   "SLIDEB",
+   "SLIDEC",
+   "SNDBTN1",
+   "SNDBTN2",
+   "SNDBUSY",
+   "SNDDIST",
+   "SNDMONST",
+   "TELE1",
+   "TELE2",
+   "TELE2X",
+   "TELEZ",
+   "TFRAG1",
+   "TSLIDE",
+   "TSPLIT"
+  ],
+  "pitch:nodraw": [
+   "BARON1",
+   "BVB1",
+   "M5FACED",
+   "M5MSG",
+   "M5OUCH",
+   "M5PALBN",
+   "M5STARM",
+   "M5STDIG",
+   "M5WEAP",
+   "SAWBITE",
+   "SNDMONST",
+   "TELE1",
+   "TFRAG1",
+   "TSLIDE",
+   "TSPLIT"
+  ],
+  "pitch:saw": [
+   "M5EVIL",
+   "M5MSG",
+   "M5STARM",
+   "M5WEAP",
+   "SAWBITE"
+  ],
+  "samexy": [
+   "BARON1",
+   "BOSS1",
+   "BOSS2",
+   "BOSSM1",
+   "M5SWTCH",
+   "SNDMONST",
+   "TFRAG1"
+  ],
+  "sep:224": [
+   "M5FACED",
+   "MTELE1",
+   "SNDDIST",
+   "SNDMONST",
+   "TELE2",
+   "TELE2X"
+  ],
+  "sep:33": [
+   "M5FACED",
+   "MTELE1",
+   "SNDDIST",
+   "TELE1",
+   "TELE2X",
+   "TSPLIT"
+  ],
+  "starts:9_in_4_tics": [
+   "SNDBUSY",
+   "SNDMONST"
+  ],
+  "stop:finished": [
+   "BARON1",
+   "BOSS1",
+   "BOSS2",
+   "BOSSM1",
+   "BTUNNEL",
+   "BVB1",
+   "M5AMP",
+   "M5AMPFL",
+   "M5EVIL",
+   "M5FACED",
+   "M5FUZZ",
+   "M5LOOK",
+   "M5MSG",
+   "M5OUCH",
+   "M5PALBN",
+   "M5PALRD",
+   "M5PALST",
+   "M5PEG",
+   "M5STARM",
+   "M5STDIG",
+   "M5SWTCH",
+   "M5VIEWZ",
+   "M5WEAP",
+   "MTELE1",
+   "SLIDEC",
+   "SNDBTN1",
+   "SNDBTN2",
+   "SNDBUSY",
+   "SNDMONST",
+   "TELE1",
+   "TFRAG1",
+   "TSLIDE"
+  ],
+  "stop:inaudible": [
+   "BINF1",
+   "MTELE1",
+   "SLIDEC"
+  ],
+  "stop:priority": [
+   "M5SWTCH",
+   "SAWBITE",
+   "SLIDEC",
+   "SNDBUSY",
+   "SNDDIST",
+   "SNDMONST"
+  ],
+  "stop:remove": [
+   "M5PALRD",
+   "SLIDEB"
+  ],
+  "stop:same_origin": [
+   "BARON1",
+   "BVB1",
+   "M5EVIL",
+   "M5FACED",
+   "M5OUCH",
+   "M5PALBN",
+   "M5PALRD",
+   "M5STARM",
+   "M5STDIG",
+   "M5SWTCH",
+   "M5WEAP",
+   "MTELE1",
+   "SAWBITE",
+   "SLIDEB",
+   "SNDBUSY",
+   "SNDMONST"
+  ],
+  "stop:same_origin_null": [
+   "BARON1",
+   "BVB1",
+   "M5PALBN",
+   "M5STARM",
+   "M5SWTCH",
+   "M5WEAP",
+   "SAWBITE",
+   "SNDBUSY",
+   "SNDMONST"
+  ],
+  "stopchannel:not_playing": [
+   "BARON1",
+   "BOSS1",
+   "BOSS2",
+   "BOSSM1",
+   "BTUNNEL",
+   "BVB1",
+   "M5AMP",
+   "M5AMPFL",
+   "M5EVIL",
+   "M5FACED",
+   "M5FUZZ",
+   "M5LOOK",
+   "M5MSG",
+   "M5OUCH",
+   "M5PALBN",
+   "M5PALRD",
+   "M5PALST",
+   "M5PEG",
+   "M5STARM",
+   "M5STDIG",
+   "M5SWTCH",
+   "M5VIEWZ",
+   "M5WEAP",
+   "MTELE1",
+   "SLIDEC",
+   "SNDBTN1",
+   "SNDBTN2",
+   "SNDBUSY",
+   "SNDMONST",
+   "TELE1",
+   "TFRAG1",
+   "TSLIDE"
+  ],
+  "stopchannel:playing": [
+   "BARON1",
+   "BINF1",
+   "BVB1",
+   "M5EVIL",
+   "M5FACED",
+   "M5OUCH",
+   "M5PALBN",
+   "M5PALRD",
+   "M5STARM",
+   "M5STDIG",
+   "M5SWTCH",
+   "M5WEAP",
+   "MTELE1",
+   "SAWBITE",
+   "SLIDEB",
+   "SLIDEC",
+   "SNDBUSY",
+   "SNDDIST",
+   "SNDMONST"
+  ],
+  "stopsound:found": [
+   "M5PALRD",
+   "SLIDEB"
+  ],
+  "stopsound:none": [
+   "BARON1",
+   "BINF1",
+   "BOSS1",
+   "BOSS2",
+   "BOSSM1",
+   "BTUNNEL",
+   "BVB1",
+   "M5AMP",
+   "M5AMPFL",
+   "M5EVIL",
+   "M5FACED",
+   "M5FUZZ",
+   "M5MSG",
+   "M5OUCH",
+   "M5PALBN",
+   "M5PALRD",
+   "M5PALST",
+   "M5STARM",
+   "M5STDIG",
+   "M5SWTCH",
+   "M5VIEWZ",
+   "M5WEAP",
+   "MTELE1",
+   "SAWBITE",
+   "SLIDEB",
+   "SLIDEC",
+   "SNDBUSY",
+   "SNDMONST",
+   "TELE1",
+   "TFRAG1",
+   "TSLIDE",
+   "TSPLIT"
+  ],
+  "update:finished": [
+   "BARON1",
+   "BOSS1",
+   "BOSS2",
+   "BOSSM1",
+   "BTUNNEL",
+   "BVB1",
+   "M5AMP",
+   "M5AMPFL",
+   "M5EVIL",
+   "M5FACED",
+   "M5FUZZ",
+   "M5LOOK",
+   "M5MSG",
+   "M5OUCH",
+   "M5PALBN",
+   "M5PALRD",
+   "M5PALST",
+   "M5PEG",
+   "M5STARM",
+   "M5STDIG",
+   "M5SWTCH",
+   "M5VIEWZ",
+   "M5WEAP",
+   "MTELE1",
+   "SLIDEC",
+   "SNDBTN1",
+   "SNDBTN2",
+   "SNDBUSY",
+   "SNDMONST",
+   "TELE1",
+   "TFRAG1",
+   "TSLIDE"
+  ],
+  "update:inaudible": [
+   "BINF1",
+   "MTELE1",
+   "SLIDEC"
+  ],
+  "update:local": [
+   "BARON1",
+   "BVB1",
+   "M5AMP",
+   "M5AMPFL",
+   "M5EVIL",
+   "M5FACED",
+   "M5FUZZ",
+   "M5MSG",
+   "M5OUCH",
+   "M5PALBN",
+   "M5PALRD",
+   "M5PALST",
+   "M5STARM",
+   "M5STDIG",
+   "M5SWTCH",
+   "M5VIEWZ",
+   "M5WEAP",
+   "SAWBITE",
+   "SLIDEB",
+   "SLIDEC",
+   "SNDBTN1",
+   "SNDBTN2",
+   "SNDBUSY",
+   "SNDMONST",
+   "TFRAG1",
+   "TSPLIT"
+  ],
+  "update:params": [
+   "BARON1",
+   "BINF1",
+   "BOSS1",
+   "BOSS2",
+   "BOSSM1",
+   "BTUNNEL",
+   "BVB1",
+   "M5FACED",
+   "M5PALRD",
+   "M5SWTCH",
+   "M5VIEWZ",
+   "MTELE1",
+   "SAWBITE",
+   "SKILL3",
+   "SLIDEB",
+   "SLIDEC",
+   "SNDBTN1",
+   "SNDBTN2",
+   "SNDBUSY",
+   "SNDDIST",
+   "SNDMONST",
+   "TELE1",
+   "TELE2",
+   "TELE2X",
+   "TELEZ",
+   "TFRAG1",
+   "TSPLIT"
+  ],
+  "vol:1": [
+   "BVB1",
+   "SNDDIST",
+   "SNDMONST"
+  ],
+  "vol:2": [
+   "BARON1",
+   "BINF1",
+   "BVB1",
+   "SNDBUSY",
+   "SNDDIST",
+   "SNDMONST"
+  ],
+  "vol:3": [
+   "BARON1",
+   "BVB1",
+   "SNDBTN1",
+   "SNDBUSY",
+   "SNDDIST",
+   "SNDMONST",
+   "TELEZ"
+  ],
+  "vol:4": [
+   "BARON1",
+   "BOSSM1",
+   "BVB1",
+   "MTELE1",
+   "SNDBTN1",
+   "SNDBTN2",
+   "SNDBUSY",
+   "SNDDIST",
+   "SNDMONST",
+   "TELE2X",
+   "TFRAG1"
+  ],
+  "vol:5": [
+   "BARON1",
+   "BVB1",
+   "M5FACED",
+   "SNDBTN1",
+   "SNDBUSY",
+   "SNDDIST",
+   "SNDMONST",
+   "TELEZ"
+  ],
+  "vol:6": [
+   "BARON1",
+   "BTUNNEL",
+   "BVB1",
+   "M5FACED",
+   "M5VIEWZ",
+   "MTELE1",
+   "SLIDEB",
+   "SNDBTN2",
+   "SNDBUSY",
+   "SNDDIST",
+   "SNDMONST"
+  ],
+  "vol:7": [
+   "BARON1",
+   "BTUNNEL",
+   "M5FACED",
+   "MTELE1",
+   "SAWBITE",
+   "SLIDEB",
+   "SLIDEC",
+   "SNDBTN1",
+   "SNDBTN2",
+   "SNDBUSY",
+   "SNDDIST",
+   "SNDMONST"
+  ],
+  "vol:8": [
+   "BARON1",
+   "BOSSM1",
+   "BVB1",
+   "M5FACED",
+   "M5PALRD",
+   "M5PEG",
+   "M5SWTCH",
+   "M5VIEWZ",
+   "MTELE1",
+   "SAWBITE",
+   "SKILL3",
+   "SNDBTN1",
+   "SNDBTN2",
+   "SNDDIST",
+   "SNDMONST",
+   "TELE1",
+   "TELE2",
+   "TELE2X",
+   "TFRAG1",
+   "TSLIDE",
+   "TSPLIT"
+  ]
+ },
+ "by_item": {
+  "M5PEG": {
+   "sfx": [
+    "doropn"
+   ],
+   "branches": [
+    "angle:eq",
+    "dist:close_below",
+    "getchannel:free",
+    "lump:first",
+    "origin:sector",
+    "outcome:started",
+    "pitch:draw",
+    "stop:finished",
+    "stopchannel:not_playing",
+    "update:finished",
+    "vol:8"
+   ]
+  },
+  "M5MASK": {
+   "sfx": [],
+   "branches": []
+  },
+  "M5PLANE": {
+   "sfx": [],
+   "branches": []
+  },
+  "M5SKY": {
+   "sfx": [],
+   "branches": []
+  },
+  "M5LIGHT": {
+   "sfx": [],
+   "branches": []
+  },
+  "M5CONTR": {
+   "sfx": [],
+   "branches": []
+  },
+  "M5DIST": {
+   "sfx": [],
+   "branches": []
+  },
+  "M5SPRIT": {
+   "sfx": [],
+   "branches": []
+  },
+  "M5CLIP": {
+   "sfx": [],
+   "branches": []
+  },
+  "M5WEAP": {
+   "sfx": [
+    "itemup",
+    "sawful",
+    "sawidl",
+    "sawup",
+    "shotgn",
+    "wpnup"
+   ],
+   "branches": [
+    "getchannel:free",
+    "lump:first",
+    "origin:none",
+    "origin:player",
+    "outcome:started",
+    "pitch:draw",
+    "pitch:nodraw",
+    "pitch:saw",
+    "stop:finished",
+    "stop:same_origin",
+    "stop:same_origin_null",
+    "stopchannel:not_playing",
+    "stopchannel:playing",
+    "stopsound:none",
+    "update:finished",
+    "update:local"
+   ]
+  },
+  "M5FUZZ": {
+   "sfx": [
+    "getpow"
+   ],
+   "branches": [
+    "getchannel:free",
+    "lump:first",
+    "origin:none",
+    "outcome:started",
+    "pitch:draw",
+    "stop:finished",
+    "stopchannel:not_playing",
+    "stopsound:none",
+    "update:finished",
+    "update:local"
+   ]
+  },
+  "M5AMP": {
+   "sfx": [
+    "getpow"
+   ],
+   "branches": [
+    "getchannel:free",
+    "lump:first",
+    "origin:none",
+    "outcome:started",
+    "pitch:draw",
+    "stop:finished",
+    "stopchannel:not_playing",
+    "stopsound:none",
+    "update:finished",
+    "update:local"
+   ]
+  },
+  "M5HOM": {
+   "sfx": [],
+   "branches": []
+  },
+  "M5SHORT": {
+   "sfx": [],
+   "branches": []
+  },
+  "M5VIEW": {
+   "sfx": [],
+   "branches": []
+  },
+  "M5VPLAN": {
+   "sfx": [],
+   "branches": []
+  },
+  "M5DSEG": {
+   "sfx": [],
+   "branches": []
+  },
+  "M5VSPR": {
+   "sfx": [],
+   "branches": []
+  },
+  "M5OPEN": {
+   "sfx": [],
+   "branches": []
+  },
+  "M5SSEG": {
+   "sfx": [],
+   "branches": []
+  },
+  "M5AMPFL": {
+   "sfx": [
+    "getpow"
+   ],
+   "branches": [
+    "getchannel:free",
+    "lump:first",
+    "origin:none",
+    "outcome:started",
+    "pitch:draw",
+    "stop:finished",
+    "stopchannel:not_playing",
+    "stopsound:none",
+    "update:finished",
+    "update:local"
+   ]
+  },
+  "M5VIEWZ": {
+   "sfx": [
+    "oof",
+    "pldeth",
+    "plpain",
+    "posit1",
+    "shotgn"
+   ],
+   "branches": [
+    "angle:eq",
+    "angle:gt",
+    "dist:close_below",
+    "getchannel:free",
+    "lump:first",
+    "origin:mobj",
+    "origin:player",
+    "outcome:started",
+    "pitch:draw",
+    "stop:finished",
+    "stopchannel:not_playing",
+    "stopsound:none",
+    "update:finished",
+    "update:local",
+    "update:params",
+    "vol:6",
+    "vol:8"
+   ]
+  },
+  "M5SWTCH": {
+   "sfx": [
+    "doropn",
+    "pistol",
+    "pstop",
+    "swtchn"
+   ],
+   "branches": [
+    "angle:eq",
+    "angle:gt",
+    "angle:lt",
+    "button:press_null",
+    "button:press_slot0",
+    "button:release_audible",
+    "dist:close_below",
+    "getchannel:evict",
+    "getchannel:free",
+    "lump:first",
+    "origin:button",
+    "origin:none",
+    "origin:player",
+    "origin:sector",
+    "outcome:started",
+    "pitch:draw",
+    "samexy",
+    "stop:finished",
+    "stop:priority",
+    "stop:same_origin",
+    "stop:same_origin_null",
+    "stopchannel:not_playing",
+    "stopchannel:playing",
+    "stopsound:none",
+    "update:finished",
+    "update:local",
+    "update:params",
+    "vol:8"
+   ]
+  },
+  "M5LAND": {
+   "sfx": [],
+   "branches": []
+  },
+  "M5SEGANG": {
+   "sfx": [],
+   "branches": []
+  },
+  "M5MSKPAD": {
+   "sfx": [],
+   "branches": []
+  },
+  "TELE1": {
+   "sfx": [
+    "itemup",
+    "telept"
+   ],
+   "branches": [
+    "angle:gt",
+    "dist:close_below",
+    "getchannel:free",
+    "inaudible:vol0",
+    "lump:first",
+    "origin:mobj",
+    "origin:none",
+    "outcome:inaudible",
+    "outcome:started",
+    "pitch:draw",
+    "pitch:nodraw",
+    "sep:33",
+    "stop:finished",
+    "stopchannel:not_playing",
+    "stopsound:none",
+    "update:finished",
+    "update:params",
+    "vol:8"
+   ]
+  },
+  "TELE2": {
+   "sfx": [
+    "telept"
+   ],
+   "branches": [
+    "angle:lt",
+    "dist:close_below",
+    "getchannel:free",
+    "inaudible:clip",
+    "lump:first",
+    "origin:mobj",
+    "outcome:inaudible",
+    "outcome:started",
+    "pitch:draw",
+    "sep:224",
+    "update:params",
+    "vol:8"
+   ]
+  },
+  "TSPLIT": {
+   "sfx": [
+    "itemup",
+    "telept"
+   ],
+   "branches": [
+    "angle:gt",
+    "dist:close_below",
+    "getchannel:free",
+    "inaudible:clip",
+    "lump:first",
+    "origin:mobj",
+    "origin:none",
+    "outcome:inaudible",
+    "outcome:started",
+    "pitch:draw",
+    "pitch:nodraw",
+    "sep:33",
+    "stopsound:none",
+    "update:local",
+    "update:params",
+    "vol:8"
+   ]
+  },
+  "TSLIDE": {
+   "sfx": [
+    "itemup",
+    "telept"
+   ],
+   "branches": [
+    "angle:lt",
+    "dist:close_below",
+    "getchannel:free",
+    "inaudible:clip",
+    "lump:first",
+    "origin:mobj",
+    "origin:none",
+    "outcome:inaudible",
+    "outcome:started",
+    "pitch:draw",
+    "pitch:nodraw",
+    "stop:finished",
+    "stopchannel:not_playing",
+    "stopsound:none",
+    "update:finished",
+    "vol:8"
+   ]
+  },
+  "TFRAG1": {
+   "sfx": [
+    "brsdth",
+    "itemup",
+    "sgtdth",
+    "slop",
+    "telept"
+   ],
+   "branches": [
+    "angle:eq",
+    "angle:gt",
+    "dist:close_below",
+    "getchannel:free",
+    "inaudible:vol0",
+    "lump:first",
+    "origin:mobj",
+    "origin:none",
+    "outcome:inaudible",
+    "outcome:started",
+    "pitch:draw",
+    "pitch:nodraw",
+    "samexy",
+    "stop:finished",
+    "stopchannel:not_playing",
+    "stopsound:none",
+    "update:finished",
+    "update:local",
+    "update:params",
+    "vol:4",
+    "vol:8"
+   ]
+  },
+  "MTELE1": {
+   "sfx": [
+    "dmact",
+    "sgtatk",
+    "sgtsit",
+    "telept"
+   ],
+   "branches": [
+    "angle:gt",
+    "angle:lt",
+    "dist:close_below",
+    "getchannel:free",
+    "inaudible:clip",
+    "lump:first",
+    "origin:mobj",
+    "outcome:inaudible",
+    "outcome:started",
+    "pitch:draw",
+    "sep:224",
+    "sep:33",
+    "stop:finished",
+    "stop:inaudible",
+    "stop:same_origin",
+    "stopchannel:not_playing",
+    "stopchannel:playing",
+    "stopsound:none",
+    "update:finished",
+    "update:inaudible",
+    "update:params",
+    "vol:4",
+    "vol:6",
+    "vol:7",
+    "vol:8"
+   ]
+  },
+  "SLIDEB": {
+   "sfx": [
+    "barexp",
+    "pistol",
+    "telept"
+   ],
+   "branches": [
+    "angle:eq",
+    "getchannel:free",
+    "inaudible:clip",
+    "lump:first",
+    "origin:mobj",
+    "origin:player",
+    "outcome:inaudible",
+    "outcome:started",
+    "pitch:draw",
+    "stop:remove",
+    "stop:same_origin",
+    "stopchannel:playing",
+    "stopsound:found",
+    "stopsound:none",
+    "update:local",
+    "update:params",
+    "vol:6",
+    "vol:7"
+   ]
+  },
+  "SLIDEC": {
+   "sfx": [
+    "podth2",
+    "shotgn",
+    "telept",
+    "wpnup"
+   ],
+   "branches": [
+    "angle:eq",
+    "getchannel:evict",
+    "getchannel:free",
+    "inaudible:clip",
+    "lump:first",
+    "origin:mobj",
+    "origin:none",
+    "origin:player",
+    "outcome:inaudible",
+    "outcome:started",
+    "pitch:draw",
+    "stop:finished",
+    "stop:inaudible",
+    "stop:priority",
+    "stopchannel:not_playing",
+    "stopchannel:playing",
+    "stopsound:none",
+    "update:finished",
+    "update:inaudible",
+    "update:local",
+    "update:params",
+    "vol:7"
+   ]
+  },
+  "BARON1": {
+   "sfx": [
+    "barexp",
+    "brsdth",
+    "claw",
+    "dmact",
+    "dmpain",
+    "firsht",
+    "firxpl",
+    "getpow",
+    "itemup",
+    "plpain",
+    "rlaunc",
+    "wpnup"
+   ],
+   "branches": [
+    "angle:eq",
+    "angle:gt",
+    "angle:lt",
+    "dist:close_below",
+    "getchannel:free",
+    "inaudible:vol0",
+    "lump:first",
+    "origin:mobj",
+    "origin:none",
+    "origin:player",
+    "outcome:inaudible",
+    "outcome:started",
+    "pitch:draw",
+    "pitch:nodraw",
+    "samexy",
+    "stop:finished",
+    "stop:same_origin",
+    "stop:same_origin_null",
+    "stopchannel:not_playing",
+    "stopchannel:playing",
+    "stopsound:none",
+    "update:finished",
+    "update:local",
+    "update:params",
+    "vol:2",
+    "vol:3",
+    "vol:4",
+    "vol:5",
+    "vol:6",
+    "vol:7",
+    "vol:8"
+   ]
+  },
+  "BINF1": {
+   "sfx": [
+    "sgtsit"
+   ],
+   "branches": [
+    "angle:eq",
+    "getchannel:free",
+    "inaudible:clip",
+    "lump:first",
+    "origin:mobj",
+    "outcome:inaudible",
+    "outcome:started",
+    "pitch:draw",
+    "stop:inaudible",
+    "stopchannel:playing",
+    "stopsound:none",
+    "update:inaudible",
+    "update:params",
+    "vol:2"
+   ]
+  },
+  "BVB1": {
+   "sfx": [
+    "barexp",
+    "claw",
+    "dmact",
+    "dmpain",
+    "firsht",
+    "firxpl",
+    "getpow",
+    "itemup",
+    "plpain"
+   ],
+   "branches": [
+    "angle:eq",
+    "angle:gt",
+    "dist:close_below",
+    "getchannel:free",
+    "inaudible:vol0",
+    "lump:first",
+    "origin:mobj",
+    "origin:none",
+    "origin:player",
+    "outcome:inaudible",
+    "outcome:started",
+    "pitch:draw",
+    "pitch:nodraw",
+    "stop:finished",
+    "stop:same_origin",
+    "stop:same_origin_null",
+    "stopchannel:not_playing",
+    "stopchannel:playing",
+    "stopsound:none",
+    "update:finished",
+    "update:local",
+    "update:params",
+    "vol:1",
+    "vol:2",
+    "vol:3",
+    "vol:4",
+    "vol:5",
+    "vol:6",
+    "vol:8"
+   ]
+  },
+  "BOSS1": {
+   "sfx": [
+    "brsdth",
+    "plpain",
+    "pstop",
+    "stnmov",
+    "telept"
+   ],
+   "branches": [
+    "angle:eq",
+    "angle:gt",
+    "dist:close_below",
+    "getchannel:free",
+    "lump:first",
+    "map8:far",
+    "map8:near",
+    "origin:mobj",
+    "origin:player",
+    "origin:sector",
+    "outcome:started",
+    "pitch:draw",
+    "samexy",
+    "stop:finished",
+    "stopchannel:not_playing",
+    "stopsound:none",
+    "update:finished",
+    "update:params"
+   ]
+  },
+  "BOSS2": {
+   "sfx": [
+    "brsdth",
+    "pstop",
+    "stnmov",
+    "telept"
+   ],
+   "branches": [
+    "angle:eq",
+    "angle:gt",
+    "angle:lt",
+    "dist:close_below",
+    "getchannel:free",
+    "lump:first",
+    "map8:far",
+    "map8:near",
+    "origin:mobj",
+    "origin:sector",
+    "outcome:started",
+    "pitch:draw",
+    "samexy",
+    "stop:finished",
+    "stopchannel:not_playing",
+    "stopsound:none",
+    "update:finished",
+    "update:params"
+   ]
+  },
+  "BOSSM1": {
+   "sfx": [
+    "brsdth",
+    "telept"
+   ],
+   "branches": [
+    "angle:eq",
+    "angle:gt",
+    "dist:close_below",
+    "getchannel:free",
+    "inaudible:clip",
+    "inaudible:vol0",
+    "lump:first",
+    "origin:mobj",
+    "outcome:inaudible",
+    "outcome:started",
+    "pitch:draw",
+    "samexy",
+    "stop:finished",
+    "stopchannel:not_playing",
+    "stopsound:none",
+    "update:finished",
+    "update:params",
+    "vol:4",
+    "vol:8"
+   ]
+  },
+  "SPECH8": {
+   "sfx": [],
+   "branches": []
+  },
+  "SPECH9": {
+   "sfx": [],
+   "branches": []
+  },
+  "SKILL2": {
+   "sfx": [],
+   "branches": []
+  },
+  "SKILL3": {
+   "sfx": [
+    "telept"
+   ],
+   "branches": [
+    "angle:eq",
+    "angle:gt",
+    "dist:close_below",
+    "getchannel:free",
+    "inaudible:vol0",
+    "lump:first",
+    "origin:mobj",
+    "outcome:inaudible",
+    "outcome:started",
+    "pitch:draw",
+    "update:params",
+    "vol:8"
+   ]
+  },
+  "TELE2X": {
+   "sfx": [
+    "telept"
+   ],
+   "branches": [
+    "angle:eq",
+    "angle:gt",
+    "dist:close_below",
+    "getchannel:free",
+    "inaudible:vol0",
+    "lump:first",
+    "origin:mobj",
+    "outcome:inaudible",
+    "outcome:started",
+    "pitch:draw",
+    "sep:224",
+    "sep:33",
+    "update:params",
+    "vol:4",
+    "vol:8"
+   ]
+  },
+  "SAWBITE": {
+   "sfx": [
+    "dmpain",
+    "itemup",
+    "sawful",
+    "sawhit",
+    "sawidl",
+    "sawup",
+    "sgtatk",
+    "sgtdth",
+    "sgtsit",
+    "wpnup"
+   ],
+   "branches": [
+    "angle:gt",
+    "angle:lt",
+    "dist:close_below",
+    "getchannel:evict",
+    "getchannel:free",
+    "lump:first",
+    "origin:mobj",
+    "origin:none",
+    "origin:player",
+    "outcome:started",
+    "pitch:draw",
+    "pitch:nodraw",
+    "pitch:saw",
+    "stop:priority",
+    "stop:same_origin",
+    "stop:same_origin_null",
+    "stopchannel:playing",
+    "stopsound:none",
+    "update:local",
+    "update:params",
+    "vol:7",
+    "vol:8"
+   ]
+  },
+  "BTUNNEL": {
+   "sfx": [
+    "brssit",
+    "dmact",
+    "firsht",
+    "firxpl"
+   ],
+   "branches": [
+    "angle:eq",
+    "angle:gt",
+    "angle:lt",
+    "getchannel:free",
+    "lump:first",
+    "origin:mobj",
+    "outcome:started",
+    "pitch:draw",
+    "stop:finished",
+    "stopchannel:not_playing",
+    "stopsound:none",
+    "update:finished",
+    "update:params",
+    "vol:6",
+    "vol:7"
+   ]
+  },
+  "TELEZ": {
+   "sfx": [
+    "sgtsit",
+    "telept"
+   ],
+   "branches": [
+    "angle:lt",
+    "getchannel:free",
+    "lump:first",
+    "origin:mobj",
+    "outcome:started",
+    "pitch:draw",
+    "update:params",
+    "vol:3",
+    "vol:5"
+   ]
+  },
+  "M5STDIG": {
+   "sfx": [
+    "getpow",
+    "itemup",
+    "pistol",
+    "plpain",
+    "wpnup"
+   ],
+   "branches": [
+    "getchannel:free",
+    "lump:first",
+    "origin:none",
+    "origin:player",
+    "outcome:started",
+    "pitch:draw",
+    "pitch:nodraw",
+    "stop:finished",
+    "stop:same_origin",
+    "stopchannel:not_playing",
+    "stopchannel:playing",
+    "stopsound:none",
+    "update:finished",
+    "update:local"
+   ]
+  },
+  "M5STARM": {
+   "sfx": [
+    "itemup",
+    "sawidl",
+    "sawup",
+    "wpnup"
+   ],
+   "branches": [
+    "getchannel:free",
+    "lump:first",
+    "origin:none",
+    "origin:player",
+    "outcome:started",
+    "pitch:draw",
+    "pitch:nodraw",
+    "pitch:saw",
+    "stop:finished",
+    "stop:same_origin",
+    "stop:same_origin_null",
+    "stopchannel:not_playing",
+    "stopchannel:playing",
+    "stopsound:none",
+    "update:finished",
+    "update:local"
+   ]
+  },
+  "M5EVIL": {
+   "sfx": [
+    "plpain",
+    "sawidl",
+    "sawup",
+    "wpnup"
+   ],
+   "branches": [
+    "getchannel:free",
+    "lump:first",
+    "origin:none",
+    "origin:player",
+    "outcome:started",
+    "pitch:draw",
+    "pitch:saw",
+    "stop:finished",
+    "stop:same_origin",
+    "stopchannel:not_playing",
+    "stopchannel:playing",
+    "stopsound:none",
+    "update:finished",
+    "update:local"
+   ]
+  },
+  "M5OUCH": {
+   "sfx": [
+    "itemup",
+    "pistol",
+    "pldeth",
+    "plpain"
+   ],
+   "branches": [
+    "getchannel:free",
+    "lump:first",
+    "origin:none",
+    "origin:player",
+    "outcome:started",
+    "pitch:draw",
+    "pitch:nodraw",
+    "stop:finished",
+    "stop:same_origin",
+    "stopchannel:not_playing",
+    "stopchannel:playing",
+    "stopsound:none",
+    "update:finished",
+    "update:local"
+   ]
+  },
+  "M5LOOK": {
+   "sfx": [
+    "plpain"
+   ],
+   "branches": [
+    "getchannel:free",
+    "lump:first",
+    "origin:player",
+    "outcome:started",
+    "pitch:draw",
+    "stop:finished",
+    "stopchannel:not_playing",
+    "update:finished"
+   ]
+  },
+  "M5FACED": {
+   "sfx": [
+    "bgact",
+    "bgsit1",
+    "bgsit2",
+    "claw",
+    "firsht",
+    "firxpl",
+    "itemup",
+    "pldeth",
+    "plpain"
+   ],
+   "branches": [
+    "angle:gt",
+    "angle:lt",
+    "dist:close_below",
+    "getchannel:free",
+    "lump:first",
+    "origin:mobj",
+    "origin:none",
+    "origin:player",
+    "outcome:started",
+    "pitch:draw",
+    "pitch:nodraw",
+    "sep:224",
+    "sep:33",
+    "stop:finished",
+    "stop:same_origin",
+    "stopchannel:not_playing",
+    "stopchannel:playing",
+    "stopsound:none",
+    "update:finished",
+    "update:local",
+    "update:params",
+    "vol:5",
+    "vol:6",
+    "vol:7",
+    "vol:8"
+   ]
+  },
+  "M5PALRD": {
+   "sfx": [
+    "barexp",
+    "getpow",
+    "pistol"
+   ],
+   "branches": [
+    "angle:eq",
+    "dist:close_below",
+    "getchannel:free",
+    "lump:first",
+    "origin:mobj",
+    "origin:none",
+    "origin:player",
+    "outcome:started",
+    "pitch:draw",
+    "stop:finished",
+    "stop:remove",
+    "stop:same_origin",
+    "stopchannel:not_playing",
+    "stopchannel:playing",
+    "stopsound:found",
+    "stopsound:none",
+    "update:finished",
+    "update:local",
+    "update:params",
+    "vol:8"
+   ]
+  },
+  "M5PALBN": {
+   "sfx": [
+    "itemup"
+   ],
+   "branches": [
+    "getchannel:free",
+    "lump:first",
+    "origin:none",
+    "outcome:started",
+    "pitch:nodraw",
+    "stop:finished",
+    "stop:same_origin",
+    "stop:same_origin_null",
+    "stopchannel:not_playing",
+    "stopchannel:playing",
+    "stopsound:none",
+    "update:finished",
+    "update:local"
+   ]
+  },
+  "M5PALST": {
+   "sfx": [
+    "getpow"
+   ],
+   "branches": [
+    "getchannel:free",
+    "lump:first",
+    "origin:none",
+    "outcome:started",
+    "pitch:draw",
+    "stop:finished",
+    "stopchannel:not_playing",
+    "stopsound:none",
+    "update:finished",
+    "update:local"
+   ]
+  },
+  "M5MSG": {
+   "sfx": [
+    "getpow",
+    "itemup",
+    "oof",
+    "plpain",
+    "sawidl",
+    "sawup",
+    "wpnup"
+   ],
+   "branches": [
+    "getchannel:free",
+    "lump:first",
+    "origin:none",
+    "origin:player",
+    "outcome:started",
+    "pitch:draw",
+    "pitch:nodraw",
+    "pitch:saw",
+    "stop:finished",
+    "stopchannel:not_playing",
+    "stopsound:none",
+    "update:finished",
+    "update:local"
+   ]
+  },
+  "M5CHEAT": {
+   "sfx": [],
+   "branches": []
+  },
+  "SNDDIST": {
+   "sfx": [
+    "pistol",
+    "posit1",
+    "posit2",
+    "posit3"
+   ],
+   "branches": [
+    "angle:eq",
+    "angle:gt",
+    "dist:clip_exact",
+    "dist:clip_minus",
+    "dist:clip_plus",
+    "dist:close_below",
+    "dist:close_exact",
+    "dist:close_plus",
+    "getchannel:evict",
+    "getchannel:free",
+    "getchannel:refuse",
+    "inaudible:clip",
+    "inaudible:vol0",
+    "lump:first",
+    "origin:mobj",
+    "outcome:inaudible",
+    "outcome:no_channel",
+    "outcome:started",
+    "pitch:draw",
+    "sep:224",
+    "sep:33",
+    "stop:priority",
+    "stopchannel:playing",
+    "update:params",
+    "vol:1",
+    "vol:2",
+    "vol:3",
+    "vol:4",
+    "vol:5",
+    "vol:6",
+    "vol:7",
+    "vol:8"
+   ]
+  },
+  "SNDBUSY": {
+   "sfx": [
+    "doropn",
+    "oof",
+    "pistol",
+    "stnmov"
+   ],
+   "branches": [
+    "angle:gt",
+    "getchannel:evict",
+    "getchannel:free",
+    "getchannel:refuse",
+    "lump:first",
+    "origin:none",
+    "origin:player",
+    "origin:sector",
+    "outcome:no_channel",
+    "outcome:started",
+    "pitch:draw",
+    "starts:9_in_4_tics",
+    "stop:finished",
+    "stop:priority",
+    "stop:same_origin",
+    "stop:same_origin_null",
+    "stopchannel:not_playing",
+    "stopchannel:playing",
+    "stopsound:none",
+    "update:finished",
+    "update:local",
+    "update:params",
+    "vol:2",
+    "vol:3",
+    "vol:4",
+    "vol:5",
+    "vol:6",
+    "vol:7"
+   ]
+  },
+  "SNDMONST": {
+   "sfx": [
+    "barexp",
+    "bgact",
+    "bgdth1",
+    "bgdth2",
+    "bgsit1",
+    "bgsit2",
+    "dorcls",
+    "doropn",
+    "firsht",
+    "firxpl",
+    "getpow",
+    "itemup",
+    "noway",
+    "pistol",
+    "plpain",
+    "podth1",
+    "podth2",
+    "podth3",
+    "popain",
+    "posact",
+    "posit1",
+    "posit2",
+    "posit3",
+    "punch",
+    "rlaunc",
+    "shotgn",
+    "slop",
+    "wpnup"
+   ],
+   "branches": [
+    "angle:eq",
+    "angle:gt",
+    "angle:lt",
+    "dist:close_below",
+    "getchannel:evict",
+    "getchannel:free",
+    "inaudible:vol0",
+    "lump:first",
+    "origin:mobj",
+    "origin:none",
+    "origin:player",
+    "origin:sector",
+    "outcome:inaudible",
+    "outcome:started",
+    "pitch:draw",
+    "pitch:nodraw",
+    "samexy",
+    "sep:224",
+    "starts:9_in_4_tics",
+    "stop:finished",
+    "stop:priority",
+    "stop:same_origin",
+    "stop:same_origin_null",
+    "stopchannel:not_playing",
+    "stopchannel:playing",
+    "stopsound:none",
+    "update:finished",
+    "update:local",
+    "update:params",
+    "vol:1",
+    "vol:2",
+    "vol:3",
+    "vol:4",
+    "vol:5",
+    "vol:6",
+    "vol:7",
+    "vol:8"
+   ]
+  },
+  "SNDBTN1": {
+   "sfx": [
+    "dorcls",
+    "doropn",
+    "pstart",
+    "pstop",
+    "swtchn"
+   ],
+   "branches": [
+    "angle:gt",
+    "angle:lt",
+    "button:press_null",
+    "button:release_audible",
+    "button:release_inaudible",
+    "dist:close_below",
+    "getchannel:free",
+    "inaudible:clip",
+    "lump:first",
+    "origin:button",
+    "origin:none",
+    "origin:sector",
+    "outcome:inaudible",
+    "outcome:started",
+    "pitch:draw",
+    "stop:finished",
+    "stopchannel:not_playing",
+    "update:finished",
+    "update:local",
+    "update:params",
+    "vol:3",
+    "vol:4",
+    "vol:5",
+    "vol:7",
+    "vol:8"
+   ]
+  },
+  "SNDBTN2": {
+   "sfx": [
+    "pstart",
+    "pstop",
+    "swtchn"
+   ],
+   "branches": [
+    "angle:gt",
+    "button:press_null",
+    "button:press_slot0",
+    "button:release_audible",
+    "button:release_next_busy",
+    "dist:close_below",
+    "getchannel:free",
+    "lump:first",
+    "origin:button",
+    "origin:none",
+    "origin:sector",
+    "outcome:started",
+    "pitch:draw",
+    "stop:finished",
+    "stopchannel:not_playing",
+    "update:finished",
+    "update:local",
+    "update:params",
+    "vol:4",
+    "vol:6",
+    "vol:7",
+    "vol:8"
+   ]
+  }
+ }
+}
