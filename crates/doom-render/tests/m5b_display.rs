@@ -38,7 +38,9 @@ struct Counts {
 
 /// The 59 items split into `PARTS` groups of near-equal work (frames of both configurations,
 /// longest first onto the lightest group; ties by position, so the split is deterministic), so
-/// that the groups run in parallel test threads. Every item is in exactly one group.
+/// that the groups run in parallel test threads. Every item is in exactly one group, and
+/// `the_parts_sum_to_the_totals` compares the parts the `parts!` invocation generated tests for
+/// with `0..PARTS`, so a part whose test is deleted fails.
 fn part_items(part: usize) -> Vec<Item> {
     let results = results();
     let all = items();
@@ -96,6 +98,11 @@ fn the_parts_sum_to_the_totals() {
         ]
     });
     assert_eq!(sum, [2 * 21_176, 41_982, 300, 70, 0, 6]);
+    assert_eq!(
+        GENERATED_PARTS,
+        (0..PARTS).collect::<Vec<_>>(),
+        "a test per part"
+    );
 }
 
 fn run_part(part: usize) {
@@ -270,13 +277,18 @@ fn run_part(part: usize) {
     );
 }
 
+/// Generates one test per part and `GENERATED_PARTS`, the parts it generated tests for, in the
+/// order given.
 macro_rules! parts {
-    ($($name:ident = $n:expr),*) => {$(
-        #[test]
-        fn $name() {
-            run_part($n);
-        }
-    )*};
+    ($($name:ident = $n:expr),*) => {
+        $(
+            #[test]
+            fn $name() {
+                run_part($n);
+            }
+        )*
+        const GENERATED_PARTS: &[usize] = &[$($n),*];
+    };
 }
 
 parts!(

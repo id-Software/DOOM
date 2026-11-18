@@ -7,8 +7,9 @@
 //! Tests below the public API: none here. Everything runs through `Display`, `DisplayState`,
 //! `StatusBarState::tick`, `HudState::erase` and `status_inputs`, which are public. The
 //! mutants that no public route reaches (negative numbers, width-2 numbers, `val == false`
-//! binary icons, `copy_bg` range checks) are killed by unit tests in `src/st_lib.rs` and
-//! `src/v_video.rs`, each saying why.
+//! binary icons, two of the `copy_bg` range checks) are killed by unit tests in `src/st_lib.rs`
+//! and `src/v_video.rs`, each saying why; three other `copy_bg` checks are reached through a
+//! malformed PWAD and are pinned here.
 mod common;
 mod m5b;
 
@@ -208,6 +209,68 @@ fn a_multiple_icon_above_the_bar_is_refused_when_it_has_an_old_patch() {
         )))
     );
     assert_eq!(d.state().expect("state").encode(), before, "state kept");
+}
+
+// ---------------------------------------------------------------------------------------------
+// V_CopyRect's checks (v_video.c:158-196) through a status bar number's erase (st_lib.c:91-123),
+// reached by a malformed PWAD: `Patch::load` checks only that a patch's header and column
+// directory lie in its lump, and the app loads extra WADs (`doom-play --wad`), so a WAD whose
+// STTNUM0 or STYSNUM0 header gives an unusual width or height reaches these checks. The digit
+// patch's width and height size the erase: `V_CopyRect(x, y - ST_Y, BG, w*numdigits, h, x, y,
+// FG)` with `x = n->x - numdigits*w` (st_lib.c:111-123; STTNUM and STYSNUM, st_stuff.c:1136-1140).
+// (Review of the mutation dispositions: these three rows were first argued unreachable.)
+// ---------------------------------------------------------------------------------------------
+
+/// The first frame of M5STDIG (screenblocks 10) with `edit` applied to m5b_gfx.wad, and whether
+/// a refusal kept the display state.
+fn first_frame_with(
+    edit: &dyn Fn(&str) -> Option<(usize, i16)>,
+) -> (Result<(), DisplayRefusal>, bool) {
+    let (res, level, mut sim, commands) = load_edited(&item("M5STDIG"), edit);
+    let mut d = Display::new(res, level, DisplayConfig { screenblocks: 10 }).expect("display");
+    d.begin_level(&sim).expect("start");
+    step(&mut sim, commands[0]);
+    d.observe(&sim, &commands[0]).expect("observe");
+    let before = d.state().expect("state").encode();
+    let r = d.draw(&sim, &mut Frame::new()).map(|_| ());
+    let kept = d.state().expect("state").encode() == before;
+    (r, kept)
+}
+
+/// STTNUM0 width -50 (header offset 0): the ready ammunition (3 digits at `ST_AMMOX` 44,
+/// st_stuff.c:138-140) erases from x = 44 + 150 = 194 with width -150. It passes the range
+/// check (`srcx + width` = 44 <= 320, v_video.c:172-181) and then has a negative `memcpy` size
+/// with a positive height (v_video.c:190-195), undefined in C: the frame is refused as
+/// `CopyOutsideBackground` and the state is kept. Kills v_video.rs:159:21 `+`->`-` (344 > 320
+/// would refuse as `BadCopyRect` instead).
+#[test]
+fn a_negative_digit_width_from_a_wad_is_refused_after_the_range_check() {
+    let (r, kept) = first_frame_with(&|n| (n == "STTNUM0").then_some((0, -50)));
+    assert_eq!(
+        r,
+        Err(DisplayRefusal::Draw(DrawError::CopyOutsideBackground))
+    );
+    assert!(kept, "state kept");
+}
+
+/// STYSNUM0 height 9 (header offset 2): the ammunition counts at y 191 (`ST_AMMO2Y` and
+/// `ST_MAXAMMO2Y`, st_stuff.c:186-187, 202-203) erase BG rows 23 to 31, the last of the 32 the
+/// status bar background has: `srcy + height` = 32 <= 200 passes the range check (v_video.c:175)
+/// and the copy stays inside the background, so the frame is drawn. Kills v_video.rs:161:21
+/// `+`->`*` (23 * 9 = 207 > 200 would refuse as `BadCopyRect`).
+#[test]
+fn a_short_digit_nine_rows_tall_from_a_wad_erases_to_the_last_background_row() {
+    let (r, _) = first_frame_with(&|n| (n == "STYSNUM0").then_some((2, 9)));
+    assert_eq!(r, Ok(()));
+}
+
+/// STTNUM0 width 0 (header offset 0): every tall number's erase has width 0, a `memcpy` of no
+/// bytes per row (v_video.c:190-195), and the digits draw no column: the frame is drawn. Kills
+/// v_video.rs:172:18 `<`->`<=` (a zero width would refuse as `CopyOutsideBackground`).
+#[test]
+fn a_zero_digit_width_from_a_wad_is_an_empty_erase() {
+    let (r, _) = first_frame_with(&|n| (n == "STTNUM0").then_some((0, 0)));
+    assert_eq!(r, Ok(()));
 }
 
 // ---------------------------------------------------------------------------------------------

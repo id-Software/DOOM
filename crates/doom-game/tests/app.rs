@@ -5,10 +5,10 @@
 
 use doom_game::app::FrameRefusal;
 use doom_game::app::{
-    App, DemoCommands, Ending, GAMMA, GameData, Host, MAX_NAME_SUFFIX, MAX_TICS_PER_UPDATE, Mode,
-    PICTURE_BYTES, SAVE_FAILED_LABEL, SAVE_INTERVAL, SaveStatus, Screen, SessionConfig, TIC_CAP,
-    TicReport, Timestamp, UNRECORDED_LABEL, Witness, replay, replay_full_resolution, session_name,
-    wire24_admits,
+    APP_PALETTE, App, CLEAR, DemoCommands, Ending, GAMMA, GameData, Host, MAX_NAME_SUFFIX,
+    MAX_TICS_PER_UPDATE, Mode, PICTURE_BYTES, SAVE_FAILED_LABEL, SAVE_INTERVAL, SaveStatus, Screen,
+    SessionConfig, TIC_CAP, TicReport, Timestamp, UNRECORDED_LABEL, UNRECORDED_LABEL_TICS, Witness,
+    label_band, replay, replay_full_resolution, session_name, wire24_admits,
 };
 use doom_game::input::{MouseButton, keys};
 use doom_render::{DisplayRefusal, GameMode, RenderRefusal};
@@ -506,6 +506,9 @@ fn the_tic_cap_ends_the_session_with_the_demo_saved() {
     assert_eq!(SessionConfig::default().tic_cap, TIC_CAP);
 }
 
+/// The demo is rewritten every 30 seconds of tics, 30 x 35 = 1050 at `TICRATE` 35 (doomdef.h:122;
+/// M5b investigation §3.6): the tic counts here are literals, so the behaviour is pinned at 1050
+/// and not only at whatever `SAVE_INTERVAL` holds.
 #[test]
 fn the_demo_is_rewritten_every_thirty_seconds_and_a_failed_write_is_reported() {
     let mut d = Driver::new(load("m5a_wads/amp.wad", 1, 2), SessionConfig::default());
@@ -514,13 +517,13 @@ fn the_demo_is_rewritten_every_thirty_seconds_and_a_failed_write_is_reported() {
         "the file is created when the session begins"
     );
     assert_eq!(commands(d.demo(), 1).len(), 0);
-    for _ in 0..SAVE_INTERVAL - 1 {
+    for _ in 0..1049 {
         d.tic();
     }
-    assert_eq!(d.host.writes, 1);
+    assert_eq!(d.host.writes, 1, "not rewritten after 1049 tics");
     d.tic();
-    assert_eq!(d.host.writes, 2);
-    assert_eq!(commands(d.demo(), 1).len(), SAVE_INTERVAL);
+    assert_eq!(d.host.writes, 2, "rewritten after 1050 tics");
+    assert_eq!(commands(d.demo(), 1).len(), 1050);
     d.host.fail = true;
     d.tic();
     d.app.quit(&mut d.host);
@@ -531,8 +534,8 @@ fn the_demo_is_rewritten_every_thirty_seconds_and_a_failed_write_is_reported() {
     d.host.fail = false;
     d.app.quit(&mut d.host);
     assert_eq!(d.host.writes, 3, "a failed save is tried again on quit");
-    assert_eq!(d.app.save_status(), &SaveStatus::Saved(SAVE_INTERVAL + 1));
-    assert_eq!(commands(d.demo(), 1).len(), SAVE_INTERVAL + 1);
+    assert_eq!(d.app.save_status(), &SaveStatus::Saved(1051));
+    assert_eq!(commands(d.demo(), 1).len(), 1051);
     d.app.quit(&mut d.host);
     assert_eq!(d.host.writes, 3, "a saved session is not written again");
 }
@@ -894,6 +897,53 @@ fn an_unrecorded_session_executes_the_built_command_and_writes_nothing() {
         (u.host.writes, u.host.files.len(), u.app.save_status()),
         (0, 0, &SaveStatus::NotSaved)
     );
+}
+
+/// Review finding 12: with `--fullscreen` there is no window title, so the presented picture
+/// itself names an unrecorded session while it plays: a band with the exact label over the top
+/// of the picture before the first tic and for tics 0 to 174 (175 tics, five seconds at
+/// `TICRATE` 35), then not; again after a restart. The game frame is never changed (it equals
+/// a recorded session's frame of the same commands on every tic), the picture outside the band
+/// and under its clear pixels is the recorded session's picture, and a recorded session never
+/// shows the label.
+#[test]
+fn an_unrecorded_session_shows_its_label_over_the_picture_for_its_first_175_tics() {
+    assert_eq!(UNRECORDED_LABEL_TICS, 175);
+    let band = label_band(UNRECORDED_LABEL);
+    let mut u = Driver::new(load("m5a_wads/amp.wad", 1, 2), unrecorded());
+    let mut r = Driver::new(load("m5a_wads/amp.wad", 1, 2), SessionConfig::default());
+    let composed = |rec: &[u8], with_band: bool| -> Vec<u8> {
+        let mut want = rec.to_vec();
+        if with_band {
+            for (i, &c) in band.pixels().iter().enumerate() {
+                if c != CLEAR {
+                    let [r, g, b] = APP_PALETTE[usize::from(c)];
+                    want[i * 4..i * 4 + 4].copy_from_slice(&[r, g, b, 255]);
+                }
+            }
+        }
+        want
+    };
+    let (up, rp) = (picture(&u.app), picture(&r.app));
+    assert_eq!(up, composed(&rp, true), "before the first tic");
+    assert!(shows(&up, UNRECORDED_LABEL) && !shows(&rp, UNRECORDED_LABEL));
+    for t in 1..=176u64 {
+        u.tic();
+        r.tic();
+        assert_eq!(u.app.tic(), t);
+        assert_eq!(u.frames, r.frames, "the game frame is untouched (tic {t})");
+        let (up, rp) = (picture(&u.app), picture(&r.app));
+        assert_eq!(up, composed(&rp, t <= 175), "after {t} tics");
+        if matches!(t, 1 | 100 | 175 | 176) {
+            assert_eq!(shows(&up, UNRECORDED_LABEL), t <= 175, "after {t} tics");
+            assert!(!shows(&rp, UNRECORDED_LABEL), "recorded, after {t} tics");
+        }
+    }
+    // every unrecorded session: a restart shows it again
+    u.feed(In::Key(keys::KEY_ESCAPE, true));
+    u.feed(In::Key(b'r', true));
+    assert_eq!((u.app.mode(), u.app.tic()), (&Mode::Playing, 0));
+    assert!(shows(&picture(&u.app), UNRECORDED_LABEL));
 }
 
 #[test]

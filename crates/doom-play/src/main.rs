@@ -397,6 +397,7 @@ mod tests {
             assert_eq!(o.skill, value, "{named}");
         }
         assert!(HELP.contains("Hurt Me Plenty") && HELP.contains("-skill 3 and -skill 4"));
+        assert!(HELP.contains("dead player presses use") && HELP.contains("(175 tics)"));
         assert_eq!(
             (o.preset, o.square, o.fullscreen, o.quit_after),
             (Preset::Modern, true, true, Some(70))
@@ -444,6 +445,35 @@ mod tests {
             .collect();
         names.sort();
         assert_eq!(names, ["a.lmp", "d.lmp"]);
+        std::fs::remove_dir_all(&dir).unwrap();
+    }
+
+    /// Review finding 10: a first write that fails after the exclusive create removes the
+    /// file it created (and only that one), so the next claim of the name succeeds.
+    #[test]
+    fn a_failed_first_write_removes_the_file_it_created() {
+        let dir = std::env::temp_dir().join(format!("doom-play-claim-{}", std::process::id()));
+        let full = |f: &mut std::fs::File, b: &[u8]| {
+            f.write_all(&b[..2])?;
+            Err(std::io::Error::other("disk full"))
+        };
+        let r = claim_new(&dir, "a.lmp", b"demo", full);
+        assert!(r.as_ref().is_err_and(|e| e.ends_with("disk full")), "{r:?}");
+        assert!(!dir.join("a.lmp").exists(), "the partial file is removed");
+        // a file another claim made is never removed by a failing one
+        let mut host = FsHost { dir: dir.clone() };
+        assert_eq!(host.claim("b.lmp", b"kept"), Ok(true));
+        assert_eq!(claim_new(&dir, "b.lmp", b"x", full), Ok(false));
+        assert_eq!(std::fs::read(dir.join("b.lmp")).unwrap(), b"kept");
+        // the retry takes the freed name
+        assert_eq!(host.claim("a.lmp", b"demo"), Ok(true));
+        assert_eq!(std::fs::read(dir.join("a.lmp")).unwrap(), b"demo");
+        let mut names: Vec<_> = std::fs::read_dir(&dir)
+            .unwrap()
+            .map(|e| e.unwrap().file_name())
+            .collect();
+        names.sort();
+        assert_eq!(names, ["a.lmp", "b.lmp"]);
         std::fs::remove_dir_all(&dir).unwrap();
     }
 

@@ -149,7 +149,8 @@ fn render_never_writes_the_simulation(lump: &str, screenblocks: u8) -> usize {
 /// Rooms that exercise the stages with the most shared state: masked walls and sprites, fuzz
 /// (the persistent `fuzzpos`), a reusable switch, the drawseg drop and the weapon. Each room is
 /// its own test (`rendering_never_changes_the_simulation_in_room_*`), so the eight run on
-/// parallel threads; `the_eight_rooms_are_all_tested` fails if one is dropped from the list.
+/// parallel threads; `the_eight_rooms_are_all_tested` fails if one is dropped from the list or
+/// if a room's generated test is deleted from the `rooms!` invocation.
 const SHARED_STATE_ROOMS: [&str; 8] = [
     "M5AMP", "M5MASK", "M5SPRIT", "M5FUZZ", "M5SWTCH", "M5DSEG", "M5WEAP", "TELE1",
 ];
@@ -165,9 +166,12 @@ fn rendering_never_changes_the_simulation_in(room: usize) {
     eprintln!("{lump}: {total} frames rendered without a simulation change");
 }
 
+/// Generates one test per room and `GENERATED_ROOMS`, the rooms it generated tests for, in the
+/// order given.
 macro_rules! rooms {
     ($($name:ident: $room:expr),*) => {
         $(#[test] fn $name() { rendering_never_changes_the_simulation_in($room); })*
+        const GENERATED_ROOMS: &[usize] = &[$($room),*];
     };
 }
 
@@ -189,6 +193,11 @@ fn the_eight_rooms_are_all_tested() {
         [
             "M5AMP", "M5MASK", "M5SPRIT", "M5FUZZ", "M5SWTCH", "M5DSEG", "M5WEAP", "TELE1"
         ]
+    );
+    assert_eq!(
+        GENERATED_ROOMS,
+        (0..SHARED_STATE_ROOMS.len()).collect::<Vec<_>>(),
+        "a test per room"
     );
 }
 

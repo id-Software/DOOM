@@ -137,19 +137,29 @@ fn restore_and_continue(case: usize, sb: u8) {
     }
 }
 
+/// Generates one test per (case, screenblocks) and `GENERATED_CASES`, the pairs it generated
+/// tests for, in the order given.
 macro_rules! cases {
-    ($($name:ident = ($case:expr, $sb:expr)),*) => {$(
-        #[test]
-        fn $name() {
-            restore_and_continue($case, $sb);
-        }
-    )*};
+    ($($name:ident = ($case:expr, $sb:expr)),*) => {
+        $(
+            #[test]
+            fn $name() {
+                restore_and_continue($case, $sb);
+            }
+        )*
+        const GENERATED_CASES: &[(usize, u8)] = &[$(($case, $sb)),*];
+    };
 }
 
+/// The five cases, and a generated test for each at screenblocks 10 and 11: deleting one from
+/// the `cases!` invocation fails here.
 #[test]
 fn the_cases_are_the_five_of_the_generated_tests() {
     let lumps: Vec<&str> = CASES.iter().map(|c| c.0).collect();
     assert_eq!(lumps, ["M5MSG", "M5STARM", "M5STDIG", "M5LOOK", "M5PALST"],);
+    let every: Vec<(usize, u8)> = (0..CASES.len()).flat_map(|c| [(c, 10), (c, 11)]).collect();
+    assert_eq!(GENERATED_CASES.len(), CASES.len() * 2);
+    assert_eq!(GENERATED_CASES, every, "a test per case and screenblocks");
 }
 
 cases!(

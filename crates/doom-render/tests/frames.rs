@@ -32,7 +32,9 @@ use doom_render::{Frame, FrameReport, RenderRefusal};
 /// 10, 9: the item runs through the simulation once), except an item of more than
 /// `SPLIT_FRAMES` golden frames (M5AMPFL alone: 12,690), which is one unit per configuration.
 /// Each group is its items with the configurations it owns. Every (item, configuration) is in
-/// exactly one group; `PART_COUNTS` and `the_parts_sum_to_the_totals` make a skipped one fail.
+/// exactly one group; `PART_COUNTS` and `the_parts_sum_to_the_totals` make a skipped one fail,
+/// and the guard compares the parts the `parts!` invocation generated tests for with `0..PARTS`,
+/// so a part whose test is deleted fails too.
 fn part_units(part: usize) -> Vec<(common::Item, Vec<u8>)> {
     const SPLIT_FRAMES: usize = 4500;
     let all = items();
@@ -89,6 +91,11 @@ fn the_parts_sum_to_the_totals() {
         .iter()
         .fold([0; 3], |a, p| [a[0] + p.0, a[1] + p.1, a[2] + p.2]);
     assert_eq!(sum, [13_391 + 13_391 + 13_403, 3 * 35, 9]);
+    assert_eq!(
+        GENERATED_PARTS,
+        (0..PARTS).collect::<Vec<_>>(),
+        "a test per part"
+    );
 }
 
 fn run_part(part: usize) {
@@ -184,9 +191,12 @@ fn run_part(part: usize) {
     assert_eq!(ends.len(), limit_ends, "{ends:?}");
 }
 
+/// Generates one test per part and `GENERATED_PARTS`, the parts it generated tests for, in the
+/// order given.
 macro_rules! parts {
     ($($name:ident: $part:expr),*) => {
         $(#[test] fn $name() { run_part($part); })*
+        const GENERATED_PARTS: &[usize] = &[$($part),*];
     };
 }
 
