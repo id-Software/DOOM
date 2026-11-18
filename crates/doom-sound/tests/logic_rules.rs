@@ -446,3 +446,28 @@ fn level_start_and_removal_free_channels() {
     assert_eq!(stops.iter().map(|s| s.cnum).collect::<Vec<_>>(), [0]);
     assert!(w.logic.channels().iter().all(Option::is_none));
 }
+
+/// Review finding N3 (review-sound): the mixer's refusals come in the C's order. For a 0-byte lump
+/// (dbopn, 5, in the edge WAD) started with an out-of-range volume, the volume check of addsfx
+/// (i_sound.c:364-365) comes first; the short lump's byte would be read only at the next mix
+/// (i_sound.c:591). A pitch outside the table is read before both (i_sound.c:495).
+#[test]
+fn the_mixer_refuses_in_the_c_order() {
+    let w = edge_world();
+    let dbopn = doom_sound::sounds::SfxId::new(5).unwrap();
+    assert_eq!(
+        w.mixer.check_start(dbopn, 1000, 128, 128),
+        Err(MixRefusal::RightVolume {
+            vol: 1000,
+            sep: 128
+        })
+    );
+    assert_eq!(
+        w.mixer.check_start(dbopn, 1000, 128, 256),
+        Err(MixRefusal::Pitch { pitch: 256 })
+    );
+    assert_eq!(
+        w.mixer.check_start(dbopn, 8, 128, 128),
+        Err(MixRefusal::ShortLump { sfx: 5 })
+    );
+}

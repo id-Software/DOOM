@@ -11,9 +11,10 @@
 //! buffers; 2 advance `gametic` by `a`; 3 set `gametic` to `i32(a,b,c,d)`.
 //!
 //! Invariants: every start is `Ok` or a typed `MixRefusal`; the refusal is the first of pitch
-//! outside 0..=255 (i_sound.c:495), a sound with no sample byte (padded length 0, decision T11),
-//! `rightvol` outside 0..=127 (i_sound.c:364-365), `leftvol` outside 0..=127 (i_sound.c:367-368),
-//! the volumes recomputed here in 128-bit arithmetic from i_sound.c:352-361; `check_start` agrees
+//! outside 0..=255 (i_sound.c:495), `rightvol` outside 0..=127 (i_sound.c:364-365), `leftvol`
+//! outside 0..=127 (i_sound.c:367-368), a sound with no sample byte (padded length 0, read only at
+//! the mix, i_sound.c:591; decision T11), the C's order, with the volumes recomputed here in
+//! 128-bit arithmetic from i_sound.c:352-361; `check_start` agrees
 //! with `start`; a refused start leaves the mixer equal to a clone taken before it; an accepted
 //! start hands out `next_handle()` (0 becomes 100, 65535 wraps to 0, i_sound.c:335-340), takes a
 //! slot below 8 whose bit is then set, and returns the volumes the model computed; a silent mixer
@@ -89,14 +90,16 @@ fn run(set: &Arc<SoundSet>, start: i32, ops: &[u8]) -> u64 {
                 let before = mixer.clone();
                 let checked = mixer.check_start(sfx, vol, sep, pitch);
                 let (left, right) = model_volumes(vol, sep);
+                // The C's order: pitch (i_sound.c:495), right then left volume (364-368), the
+                // short lump's byte only at the mix (591).
                 let expected = if !(0..=255).contains(&pitch) {
                     Err(MixRefusal::Pitch { pitch })
-                } else if !set.sfx(sfx).has_first_byte() {
-                    Err(MixRefusal::ShortLump { sfx: sfx.get() })
                 } else if !(0..=127).contains(&right) {
                     Err(MixRefusal::RightVolume { vol, sep })
                 } else if !(0..=127).contains(&left) {
                     Err(MixRefusal::LeftVolume { vol, sep })
+                } else if !set.sfx(sfx).has_first_byte() {
+                    Err(MixRefusal::ShortLump { sfx: sfx.get() })
                 } else {
                     Ok(())
                 };

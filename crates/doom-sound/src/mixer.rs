@@ -359,6 +359,8 @@ impl Mixer {
     }
 
     /// Checks a start without changing anything: [`Self::start`] succeeds exactly when this does.
+    /// The refusals are made in the C's order: the pitch, the right then the left volume, then
+    /// the short lump.
     pub fn check_start(
         &self,
         sfx: SfxId,
@@ -366,11 +368,11 @@ impl Mixer {
         sep: i32,
         pitch: i32,
     ) -> Result<(), MixRefusal> {
+        // The C's order: `steptable[pitch]` is read in I_StartSound before addsfx
+        // (i_sound.c:495), the volume range checks end addsfx (i_sound.c:364-368), and the short
+        // lump's byte is read only when the next buffer mixes (i_sound.c:591).
         if !(0..=255).contains(&pitch) {
             return Err(MixRefusal::Pitch { pitch });
-        }
-        if !self.set.sfx(sfx).has_first_byte() {
-            return Err(MixRefusal::ShortLump { sfx: sfx.get() });
         }
         let (left, right) = volumes(vol, sep);
         if !(0..=127).contains(&right) {
@@ -378,6 +380,9 @@ impl Mixer {
         }
         if !(0..=127).contains(&left) {
             return Err(MixRefusal::LeftVolume { vol, sep });
+        }
+        if !self.set.sfx(sfx).has_first_byte() {
+            return Err(MixRefusal::ShortLump { sfx: sfx.get() });
         }
         Ok(())
     }
