@@ -2647,6 +2647,19 @@ Minimum Rust job as part of `--workspace`. The [mutation workflow](#ci-mutation-
 is left out); no mutation run of `doom-sound` has been made yet. The job failed at the T4 check at `216f976` for two uncommitted
 generated files, fixed in `a6f3b3b` ([record](validation/M5C.md#the-ci-record)).
 
+### M5c timings
+
+Recorded, never gated; run alone on an idle machine (check `uptime` and `ps -eo pcpu,comm --sort=-pcpu | head -5`
+first), built and run from ext4 (`CARGO_TARGET_DIR=~/scratch/m5c/step12/target`), never from `/mnt/*`, with the
+repository's release profile (set no `CARGO_PROFILE_RELEASE_*` variable). No IWAD, no audio device and no sound. The
+[M5c record](validation/M5C.md#step-12-timings) owns the results.
+
+```sh
+# per room and screenblocks: the sound session's tic, Mixer::mix_buffer, the frame step with sound and the same room
+# under the M5b contract (count, total, mean, median, p95, max in microseconds, and a workload line); run three times
+cargo run -p doom-game --release --example m5c_bench -- [--rooms SNDBUSY,SNDMONST,SNDBTN2,SLIDEB,M5AMP,M5STDIG] [--screenblocks 10,11] [--warmup 1]
+```
+
 ## Mutation testing
 
 M4a used cargo-mutants 27.1.0 with cargo-nextest 0.9.151. These are separate

@@ -12,7 +12,7 @@ on the branch: Phase 2 steps 1 and 2, the proof of the audio library (decision T
 comparisons), step 4 (the crate `doom-sound` with its session, detector and saved state), step 5 (the display contract
 with sound, the sound session in the game loop, the 61 real runs and the scripted app sessions), step 6 (restore and
 continue), step 7 (sound in `doom-play`), step 8 part 1 (the CI job and the mutation workflow) and step 11 part 1 (the
-fuzz targets), and the CI record. **Not done and not recorded here:** mutation testing of `doom-sound` (no result), timings,
+fuzz targets), and the CI record. **Not done and not recorded here:** mutation testing of `doom-sound` (no result),
 a fuzz target for `DDSP` version 2, the independent review and the final gates. With steps 5 to 7 on the branch **the
 face's idle glance gap (S15) is closed** under the owner's wording
 ([COMPATIBILITY](../COMPATIBILITY.md#the-status-bar-faces-idle-glance-is-closed-with-sound-decision-s15-t14)).
@@ -57,8 +57,9 @@ compiled; seed replay; a coverage-guided campaign; a sanitizer campaign.
 | Step 5 part 2: the 61 real runs through the whole pipeline (local only) | Recorded ([below](#step-5-part-2-the-61-real-runs-through-the-whole-pipeline-local-only)) |
 | Step 5 part 3: scripted app sessions against the genuine M5c runner | Recorded ([below](#step-5-part-3-scripted-app-sessions)) |
 | Step 7: sound in `doom-play` (device sink, flags, mute) and the start-up stall | Recorded ([below](#step-7-sound-in-doom-play)) |
+| Step 12: timings of the sound session, the mixer and the frame step | Recorded ([below](#step-12-timings)) |
 | The CI record | Recorded ([below](#the-ci-record)) |
-| Mutation testing of `doom-sound`, timings, a fuzz target for `DDSP` version 2, the independent review, the final gates | Not done; not recorded here |
+| Mutation testing of `doom-sound`, a fuzz target for `DDSP` version 2, the independent review, the final gates | Not done; not recorded here |
 
 No IWAD was read in step 1 except by `tools/local/m5c_real.py`, in step 2 except by `tools/local/m5c_mixer_real.py`,
 and in step 3 except by `tools/local/m5c_wire25_real.py`. Each read a scratch copy outside the repository; only counts,
@@ -850,6 +851,137 @@ binary stalls the same way with the same event order). Not run: the Wayland back
 focus order. **Nothing was changed for it**; the owner can decide whether to ignore a focus loss that arrives before the first
 focus gain (a change of M5b's input behaviour, left for the owner's own play of the focus rules).
 
+## Step 12: timings
+
+Recorded, never gated (no threshold and no CI step; decision R15 of M5a carries over). Observed 2026-11-18
+(America/Los_Angeles): the three runs started at 14:03:23, 14:03:34 and 14:03:45 and took 10.7 to 10.8 s each. Commit:
+`d43aa6f` (the new example on top of `ad13de5`; nothing else uncommitted). Machine: Intel Core i7-8750H @ 2.20 GHz, WSL2
+(kernel 6.18.58.1-microsoft-standard-WSL2); rustc 1.100.0 (0ef1bc386 2026-11-09); the repository's release profile
+(`cargo build -p doom-game --release --example m5c_bench`, no `CARGO_PROFILE_RELEASE_*` variable set). The binary was
+built in and run from the Linux filesystem (ext4): `CARGO_TARGET_DIR=~/scratch/m5c/step12/target`, binary
+`~/scratch/m5c/step12/target/release/examples/m5c_bench`; the committed synthetic WADs and demos it reads are in the
+worktree under `/home` (ext4); nothing ran from `/mnt/*`. The orchestrator started the step with no other agent running.
+After the build's own load (1-minute load average 2.16 at 14:02:36) the step waited 40 s (bounded at 10 minutes) until
+the load was below 1.2. Before each run `uptime` showed a 1-minute load average of 0.93, 0.94 and 1.03 (5-minute 1.76,
+1.73, 1.73, still decaying from the build) and the busiest processes were `claude` (3.0 %, the orchestrating session)
+and `rust-analyzer` (0.1 %, idle); nothing else was started while a run was going. No IWAD was read, no audio device was
+opened and no sound was played: every case is a committed synthetic room with the committed synthetic sound lumps
+(`m5c_sfx.wad`, `m5c_music.wad`) and `m5b_gfx.wad`.
+
+New example `m5c_bench` ([command](../TESTING.md#m5c-timings)), beside `m5b_bench`. For each room and screenblocks one
+unmeasured warm-up replay of each kind, then one measured replay of each kind, each on a freshly loaded simulation, to the
+end of the room's script; the simulation advance is outside every timer. The whole sequence ran 3 times and each cell is
+the three runs separated by `/`, in microseconds. Every replay ran to the end of its script with no refusal (stderr was
+empty). The four series:
+
+- **sound tic**: `Sound::tic_from_simulation` alone: the tic's sound records, `S_UpdateSounds`, the session's internal
+  copies of its logic and mixer (it works on copies and commits at the end), and the buffer when the schedule makes one due
+  (so a tic that mixes includes the mix). It runs on a session of its own, fed the `M_Random` index of the replay's real
+  frame source, which runs untimed between the timers; the example stops if the two sessions' tic reports ever differ
+  (none did).
+- **mix buffer**: `Mixer::mix_buffer` alone, per buffer. The mixer the buffer is mixed from is rebuilt outside the timer
+  (the mixer before the tic plus the tic's started sounds); the example stops if a rebuilt start or the rebuilt buffer
+  differs from the session's (none did). The count is buffers, not tics.
+- **frame step, sound**: `FrameSource::tic` under the M5c contract: the sound session, then the display's observe and draw
+  with the draws, including the per-tic staging copies of the display and the session. It excludes the simulation advance,
+  the app's input and event layer, the host report and the sink call that hands a buffer on.
+- **frame step, M5b**: the same call on the same room loaded without sound (the M5b contract: the display's observe and
+  draw), in a separate replay. Both frame series were timed in replays of their own, so a few microseconds between them is
+  inside the run-to-run spread seen in the same table.
+
+Rooms: `SNDBUSY` (many starts at once, evictions), `SNDMONST` (a fight), `SNDBTN2` (switches, with a lift),
+`SLIDEB` (a sliding door), `M5AMP` (the quiet room: one started sound in 124 tics) and `M5STDIG` (M5b's room, for
+comparison with its record; its replay here is the app's frame source with the M5c data, not M5b's `Display` calls, so its
+numbers are close to but not those of the M5b table).
+
+| Room | Screenblocks | Count | Series | Median | p95 | Max |
+| --- | --- | --- | --- | --- | --- | --- |
+| SNDBUSY | 10 | 125 | sound tic | 2.9/3.0/2.7 | 5.7/4.8/4.4 | 33.7/17.8/31.6 |
+| SNDBUSY | 10 | 77 | mix buffer | 2.3/2.3/2.2 | 3.5/3.5/3.4 | 13.5/13.6/13.3 |
+| SNDBUSY | 10 | 125 | frame step, sound | 409/410/395 | 479/451/495 | 531/544/668 |
+| SNDBUSY | 10 | 125 | frame step, M5b | 392/386/377 | 475/512/427 | 656/829/558 |
+| SNDBUSY | 11 | 125 | sound tic | 2.9/2.9/2.8 | 4.8/4.3/4.2 | 18.2/16.9/17.8 |
+| SNDBUSY | 11 | 77 | mix buffer | 2.3/2.2/2.3 | 3.5/3.4/3.5 | 13.6/13.2/13.2 |
+| SNDBUSY | 11 | 125 | frame step, sound | 427/422/419 | 475/567/480 | 532/846/806 |
+| SNDBUSY | 11 | 125 | frame step, M5b | 405/400/400 | 487/455/488 | 594/657/562 |
+| SNDMONST | 10 | 452 | sound tic | 2.8/2.8/2.9 | 6.0/6.2/6.2 | 28.2/47.8/49.1 |
+| SNDMONST | 10 | 279 | mix buffer | 2.3/2.3/2.4 | 4.7/5.6/4.8 | 21.3/25.9/10.4 |
+| SNDMONST | 10 | 452 | frame step, sound | 623/631/621 | 766/788/772 | 999/1064/1176 |
+| SNDMONST | 10 | 452 | frame step, M5b | 609/633/599 | 801/1127/772 | 1097/2526/1217 |
+| SNDMONST | 11 | 452 | sound tic | 2.8/2.9/2.9 | 5.9/6.8/6.4 | 17.6/63.6/26.8 |
+| SNDMONST | 11 | 279 | mix buffer | 2.3/2.3/2.3 | 4.7/6.1/6.0 | 10.4/22.9/31.2 |
+| SNDMONST | 11 | 452 | frame step, sound | 640/657/645 | 793/804/817 | 1058/1154/1030 |
+| SNDMONST | 11 | 452 | frame step, M5b | 627/634/627 | 786/792/781 | 1117/1270/1590 |
+| SNDBTN2 | 10 | 248 | sound tic | 2.7/2.7/2.7 | 3.5/4.2/3.6 | 8.8/9.0/14.6 |
+| SNDBTN2 | 10 | 153 | mix buffer | 2.2/2.3/2.2 | 3.4/3.5/3.4 | 19.8/6.3/7.1 |
+| SNDBTN2 | 10 | 248 | frame step, sound | 327/340/327 | 419/414/436 | 498/491/598 |
+| SNDBTN2 | 10 | 248 | frame step, M5b | 309/320/317 | 360/366/418 | 552/475/545 |
+| SNDBTN2 | 11 | 248 | sound tic | 2.7/2.8/2.7 | 3.9/4.1/3.8 | 8.5/24.3/8.9 |
+| SNDBTN2 | 11 | 153 | mix buffer | 2.2/2.3/2.2 | 3.4/3.5/3.4 | 6.1/6.3/6.1 |
+| SNDBTN2 | 11 | 248 | frame step, sound | 344/357/344 | 455/415/422 | 712/596/552 |
+| SNDBTN2 | 11 | 248 | frame step, M5b | 324/340/326 | 415/387/416 | 500/508/673 |
+| SLIDEB | 10 | 100 | sound tic | 2.8/2.9/2.8 | 4.1/4.5/4.1 | 13.1/18.8/12.5 |
+| SLIDEB | 10 | 62 | mix buffer | 2.2/2.3/2.2 | 3.3/3.5/3.6 | 3.6/3.6/289.0 |
+| SLIDEB | 10 | 100 | frame step, sound | 363/368/354 | 479/430/406 | 611/549/522 |
+| SLIDEB | 10 | 100 | frame step, M5b | 336/348/336 | 414/406/406 | 541/454/612 |
+| SLIDEB | 11 | 100 | sound tic | 2.8/2.8/2.8 | 4.2/4.3/4.3 | 5.0/15.8/19.1 |
+| SLIDEB | 11 | 62 | mix buffer | 2.2/2.2/2.2 | 3.4/3.3/3.2 | 3.6/3.6/3.6 |
+| SLIDEB | 11 | 100 | frame step, sound | 374/372/369 | 450/462/456 | 524/530/582 |
+| SLIDEB | 11 | 100 | frame step, M5b | 353/356/352 | 450/487/451 | 521/740/578 |
+| M5AMP | 10 | 124 | sound tic | 2.7/2.7/2.7 | 3.0/3.0/2.9 | 5.3/5.6/31.7 |
+| M5AMP | 10 | 77 | mix buffer | 2.2/2.2/2.2 | 2.3/2.3/2.3 | 3.4/3.6/3.4 |
+| M5AMP | 10 | 124 | frame step, sound | 336/336/344 | 423/411/495 | 509/489/782 |
+| M5AMP | 10 | 124 | frame step, M5b | 316/315/326 | 391/383/443 | 482/546/654 |
+| M5AMP | 11 | 124 | sound tic | 2.7/2.7/2.7 | 4.0/3.0/3.8 | 12.8/20.1/33.1 |
+| M5AMP | 11 | 77 | mix buffer | 2.2/2.2/2.3 | 3.4/2.3/2.5 | 19.9/3.4/15.4 |
+| M5AMP | 11 | 124 | frame step, sound | 354/358/364 | 434/449/488 | 501/537/805 |
+| M5AMP | 11 | 124 | frame step, M5b | 337/337/348 | 430/401/458 | 529/587/836 |
+| M5STDIG | 10 | 877 | sound tic | 2.8/2.8/2.8 | 4.5/4.7/4.6 | 33.8/24.8/13.7 |
+| M5STDIG | 10 | 540 | mix buffer | 2.3/2.3/2.3 | 3.5/3.5/3.5 | 32.7/41.4/19.5 |
+| M5STDIG | 10 | 877 | frame step, sound | 388/383/373 | 518/483/470 | 905/752/878 |
+| M5STDIG | 10 | 877 | frame step, M5b | 372/356/360 | 534/468/457 | 1371/775/740 |
+| M5STDIG | 11 | 877 | sound tic | 2.7/2.8/2.7 | 4.5/5.0/4.6 | 34.8/26.4/50.3 |
+| M5STDIG | 11 | 540 | mix buffer | 2.3/2.3/2.3 | 3.5/3.5/3.5 | 26.5/34.1/24.8 |
+| M5STDIG | 11 | 877 | frame step, sound | 396/420/392 | 494/570/504 | 811/929/715 |
+| M5STDIG | 11 | 877 | frame step, M5b | 375/382/374 | 469/513/477 | 626/752/955 |
+
+Workload of each room (identical at both screenblocks and in all three runs): started sounds (the mixer's start echoes),
+buffers mixed and busy mixer channels per mix.
+
+| Room | Tics | Started sounds | Buffers | Busy channels per mix: mean | max |
+| --- | --- | --- | --- | --- | --- |
+| SNDBUSY | 125 | 15 | 77 | 0.30 | 8 |
+| SNDMONST | 452 | 115 | 279 | 0.72 | 6 |
+| SNDBTN2 | 248 | 11 | 153 | 0.14 | 3 |
+| SLIDEB | 100 | 4 | 62 | 0.11 | 2 |
+| M5AMP | 124 | 1 | 77 | 0.03 | 1 |
+| M5STDIG | 877 | 137 | 540 | 0.41 | 1 |
+
+**Outliers.** Maxima are single-sample outliers of the shared host; the series' medians and 95th percentiles agree
+between runs. The largest are the 289 us `mix buffer` maximum of `SLIDEB` at screenblocks 10 in run 3 (the same case's
+maxima are 4 us in runs 1 and 2; one buffer of 62; the cause was not investigated), the 64 us `sound tic` maximum
+(`SNDMONST`, screenblocks 11, run 2) and the 2,526 us `frame step, M5b` maximum of `SNDMONST` at screenblocks 10 in run 2.
+Medians are printed to a tenth of a microsecond for the first two series, whose values are a few microseconds; the clock's
+own resolution was not measured.
+
+**Reading.** A tic of the game is 28,571 us. The sound session's tic had a median of 2.7 to 3.0 us, a 95th percentile of
+at most 6.8 us and a worst single tic of 64 us here; a mixed buffer had a median of 2.2 to 2.4 us, a 95th percentile of at
+most 6.1 us and a worst single buffer of 41 us apart from the one 289 us outlier above. The whole frame step with sound had
+medians of 327 to 657 us and a worst single step of 1,176 us. Against the same rooms under the M5b contract the median of
+the frame step with sound was between 1.4 us lower and 37.9 us higher (median difference 18.3 us over the 36 case-runs; the
+spread between runs of the same case is of similar size). In arithmetic against the tic: the sound tic's median is about
+0.01 % of 28,571 us, its worst single tic 0.22 %, the worst single mixed buffer 1.0 % (the outlier) and the worst single frame
+step with sound 4.1 %.
+
+**Limits.** Not measured: any real audio device or backend, the device thread and its queue lock, latency, underruns or
+overruns (this machine has no audio client library installed, so even the audio probe finds no backend there); the
+windowed loop's tic jitter with sound (the M5b jitter runs were not repeated with sound); the app's event layer and the
+host's own report; the layout detector's cost beyond the starts these rooms make; Windows and macOS; any
+real map (the rooms are small synthetic maps whose mixer channels are idle at most mixes, as the table above shows: a
+mix with all eight channels busy occurred in `SNDBUSY` only, and which sample it was is not known); anything on a cold
+cache or an unquiet machine. One run of each case per sequence on a shared host; nobody judged anything by ear.
+
+
 ## The CI record
 
 At `216f976` every required job was green (the macOS job took 42 minutes of its 60-minute limit) and the non-required job
@@ -945,6 +1077,5 @@ not playtested M5b, so input, pacing and presentation are not to change on a gue
 
 ## Still to come in this record
 
-Mutation testing of `doom-sound` and the other M5c code (results and survivors), timings (run alone on an idle machine from
-the Linux filesystem), a fuzz target for `DDSP` version 2, the optional melt (not built), the independent review, the final
+Mutation testing of `doom-sound` and the other M5c code (results and survivors), a fuzz target for `DDSP` version 2, the optional melt (not built), the independent review, the final
 gates and the CI record of the final head. No new animation is added in M5c (sound cannot be shown).
