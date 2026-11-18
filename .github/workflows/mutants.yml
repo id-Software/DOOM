@@ -108,8 +108,8 @@ jobs:
           # missed, 3 timeouts, 4 the unmutated baseline failed. This job is
           # informational: 2 and 3 are findings, reported by the summary job, so
           # they do not fail the shard; any other nonzero status does.
-          # -p is repeated so a diff that touches only the renderer (M5a) or the
-          # app core (M5b doom-game) is mutated too; doom-play (window code) is left out; --in-diff still limits mutation to the changed lines.
+          # -p is repeated so a diff that touches only the renderer (M5a), the
+          # app core (M5b doom-game) or the sound crate (M5c doom-sound) is mutated too; doom-play (window and device code) is left out; --in-diff still limits mutation to the changed lines.
           # Cap each test process (per process, not per job). The memory cap is what
           # protects the runner: a mutant that makes a loop endless and allocating must
           # abort instead of starving the runner of memory before any timeout fires. The
@@ -127,7 +127,7 @@ jobs:
           chmod +x "$RUNNER_TEMP/capped-runner.sh"
           export CARGO_TARGET_X86_64_UNKNOWN_LINUX_GNU_RUNNER="$RUNNER_TEMP/capped-runner.sh"
           set +e
-          cargo mutants -p doom-sim -p doom-render -p doom-game --test-tool nextest --jobs 2 \
+          cargo mutants -p doom-sim -p doom-render -p doom-sound -p doom-game --test-tool nextest --jobs 2 \
             --cargo-test-arg=--test-threads=2 \
             --timeout 300 --build-timeout 900 \
             --in-diff "$RUNNER_TEMP/mutants.patch" \
