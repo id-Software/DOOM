@@ -573,7 +573,18 @@ fn dsim41_reader_round_trip_and_refusals() {
     assert_eq!(first[..7], [1, 23, 0, 3, 0, 1, 0]);
     for (name, edit) in [
         ("sfx 0", record(|v| v[1] = 0)),
-        ("unplaced button", record(|v| v.truncate(6))),
+        // Placed 0 for a button origin, which is always positional
+        // (s_sound.c:304): the record is whole, so only the placed/positional
+        // rule refuses it.
+        (
+            "unplaced button",
+            record(|v| {
+                v.truncate(5);
+                v.push(0)
+            }),
+        ),
+        // Placed 1 without the 20 bytes of the placement: the length check.
+        ("short placed record", record(|v| v.truncate(6))),
         ("button y", record(|v| v[11] = 1)),
         ("tag", record(|v| v[0] = 3)),
     ] {
