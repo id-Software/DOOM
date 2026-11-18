@@ -14,11 +14,14 @@
 //!   floating point at run time.
 //! - [`lumps`]: the padded sound data (`getsfx` and `I_InitSound`'s load loop, i_sound.c:185-251,
 //!   799-813) and the lump lookup of `I_GetSfxLumpNum` (i_sound.c:451-456).
+//! - [`mixer`]: `I_StartSound` with `addsfx` and `I_UpdateSound` (i_sound.c:264-381, 470-521,
+//!   539-654).
 //!
 //! Every place where the C ends in `I_Error` or reads memory it does not own is a typed refusal
 //! made before any state changes (M5c decision T11). Every audible quirk of the source is
 //! reproduced as it is (decision T13).
 
 pub mod lumps;
+pub mod mixer;
 pub mod sounds;
 pub mod tables;
