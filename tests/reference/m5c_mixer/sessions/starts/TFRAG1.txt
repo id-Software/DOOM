@@ -1,0 +1,15 @@
+# Start list of TFRAG1.sound (sha256 3b3fd46b22ede14b7a93805f586737bb5ea079c815c5ab812ffcec91726de267), written by tools/reference/m5c_starts.py:
+# the 9 S rows with outcome started, in stream order; 10 S rows in all; 282 R rows.
+# handle convention: integrated (stated by the stream).
+schema DOOM-M5C-STARTS-v1
+config integrated
+tics 282
+s 63 2 63 35 8 129 133 64 100
+s 68 3 68 31 8 128 135 64 101
+s 84 5 84 32 8 128 128 64 102
+s 139 8 139 35 4 128 122 64 103
+s 139 9 139 35 8 129 130 64 104
+s 146 10 146 64 8 128 121 64 105
+s 223 13 223 35 4 128 129 64 106
+s 223 14 223 35 8 129 136 64 107
+s 231 15 231 67 8 128 127 64 108

@@ -1,0 +1,20 @@
+# Start list of SNDDIST.sound (sha256 fb22c94407d4db4cddb2dc0fb35accd17d6ee305fbb999151bf2dd7b11b1b0b9), written by tools/reference/m5c_starts.py:
+# the 14 S rows with outcome started, in stream order; 21 S rows in all; 48 R rows.
+# handle convention: integrated (stated by the stream).
+schema DOOM-M5C-STARTS-v1
+config integrated
+tics 48
+s 0 1 0 38 8 33 136 64 100
+s 0 2 0 37 2 33 131 64 101
+s 1 5 1 38 8 128 123 64 102
+s 2 6 2 37 7 128 127 64 103
+s 6 7 6 36 8 224 138 64 104
+s 7 8 7 36 7 128 143 64 105
+s 7 9 7 36 6 33 117 64 106
+s 9 12 9 37 5 61 119 64 107
+s 9 13 9 38 4 61 144 64 108
+s 16 15 16 37 3 128 123 64 109
+s 18 18 18 38 5 224 136 64 110
+s 18 19 18 36 1 224 137 64 111
+s 19 20 19 36 4 129 133 64 112
+s 47 21 47 1 6 61 136 64 113

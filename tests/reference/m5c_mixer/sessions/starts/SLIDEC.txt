@@ -1,0 +1,10 @@
+# Start list of SLIDEC.sound (sha256 6d79b539303428bceed27e7452b65cf0ce6da2ee003ab0b8ef54af19be0328e4), written by tools/reference/m5c_starts.py:
+# the 4 S rows with outcome started, in stream order; 5 S rows in all; 123 R rows.
+# handle convention: integrated (stated by the stream).
+schema DOOM-M5C-STARTS-v1
+config integrated
+tics 123
+s 0 2 0 33 8 128 136 64 100
+s 66 3 66 2 8 128 134 64 101
+s 67 4 67 60 7 129 135 64 102
+s 73 5 73 35 7 129 134 64 103

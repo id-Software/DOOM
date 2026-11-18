@@ -1,0 +1,8 @@
+# Start list of TSLIDE.sound (sha256 ef7dea5b5226ddf0fee339b004a87637085206b9451e40ec172bcd60c94dc71a), written by tools/reference/m5c_starts.py:
+# the 2 S rows with outcome started, in stream order; 3 S rows in all; 170 R rows.
+# handle convention: integrated (stated by the stream).
+schema DOOM-M5C-STARTS-v1
+config integrated
+tics 170
+s 110 2 110 35 8 196 126 64 100
+s 110 4 110 32 8 128 128 64 101

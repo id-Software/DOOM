@@ -1,0 +1,6 @@
+# Start list of SPECH9.sound (sha256 9885ee1f93613b405bd309d9d423d23fe82f60cbe25eefb46db90144aeafbd4c), written by tools/reference/m5c_starts.py:
+# the 0 S rows with outcome started, in stream order; 0 S rows in all; 75 R rows.
+# handle convention: integrated (stated by the stream).
+schema DOOM-M5C-STARTS-v1
+config integrated
+tics 75

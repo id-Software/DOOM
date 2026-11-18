@@ -1,0 +1,12 @@
+# Start list of BOSSM1.sound (sha256 1de0db2e3c39a16a7542d09c5703a5c4bedede6b588c28d82d3e8c755aa3e840), written by tools/reference/m5c_starts.py:
+# the 6 S rows with outcome started, in stream order; 8 S rows in all; 600 R rows.
+# handle convention: integrated (stated by the stream).
+schema DOOM-M5C-STARTS-v1
+config integrated
+tics 600
+s 64 2 64 35 8 129 120 64 100
+s 72 3 72 67 8 128 142 64 101
+s 175 6 175 35 4 128 137 64 102
+s 175 7 175 35 8 129 129 64 103
+s 183 8 183 67 8 128 120 64 104
+s 265 12 265 35 8 129 115 64 105

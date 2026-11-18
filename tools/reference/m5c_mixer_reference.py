@@ -55,6 +55,23 @@ coverage. --jobs sets the number of processes run at once (default 4).
 genuine mixer (every variant, both schedules) and the model on m5c_sfx.wad, requires identical rows, no sanitizer
 report and every handle equal to the sound-logic run's, and prints the digests; it writes nothing in the tree (the
 start lists go under --work). It is the path by which the goldens for the committed sound-logic streams are made.
+
+The session group (committed; part of every run without --only and of --check). For each committed sound-logic stream
+tests/reference/m5c_sound/<ITEM>.sound (the genuine runner under the recommended switches) the tool writes
+  tests/reference/m5c_mixer/sessions/starts/<ITEM>.txt    the start list, exactly as m5c_starts.py converts the stream
+                                                         (its header names the stream's SHA-256);
+  tests/reference/m5c_mixer/sessions/goldens/<ITEM>.golden the strict build's rows under ticbuffers (the same row kinds
+                                                         as the scenario goldens);
+  tests/reference/m5c_mixer_sessions_results.json         DOOM-M5C-MIXER-SESSIONS-RESULTS-v1: per item the SHA-256 of
+                                                         the stream, the counts (starts, tics, buffers), the stream
+                                                         digest under ticbuffers and, as digests only, under pertic.
+It requires: every stream converts; its SHA-256 equals the sound_sha256 m5c_results.json records for the item (and,
+with --check, the one the sessions results file records); the start list equals the committed one (--check); strict,
+overflow and address (and strict32 with --strict32) write identical rows under both schedules with no sanitizer report;
+the model's rows equal the genuine rows; no m row (every genuine handle equals the handle the sound-logic run recorded);
+with --check, the goldens and the sessions results file equal the strict run. --selftest adds two cases: a copy of
+SNDDIST.sound with one start's separation changed fails the stream and list comparison for that item only, and its
+genuine run first differs from the committed golden at that start's echo row (then only buffer rows and z).
 """
 import argparse, concurrent.futures as cf, hashlib, json, os, re, struct, subprocess, sys, tempfile
 from pathlib import Path
@@ -68,6 +85,12 @@ DIR = ROOT / 'tests/reference/m5c_mixer'
 GROUPS = {'golden': DIR / 'starts', 'witness': DIR / 'witness', 'probe': DIR / 'probes'}
 GOLDENS = DIR / 'goldens'
 RESULTS = ROOT / 'tests/reference/m5c_mixer_results.json'
+SOUND = ROOT / 'tests/reference/m5c_sound'
+SOUND_RESULTS = ROOT / 'tests/reference/m5c_results.json'
+SESSIONS = DIR / 'sessions'
+SESSION_RESULTS = ROOT / 'tests/reference/m5c_mixer_sessions_results.json'
+SESSION_SCHEMA = 'DOOM-M5C-MIXER-SESSIONS-RESULTS-v1'
+SELFTEST_SESSION = 'SNDDIST'
 MODEL = ROOT / 'tools/reference/m5c_mixer_model.py'
 SCHEMA = 'DOOM-M5C-MIXER-RESULTS-v1'
 WADS = {'main': ['tests/reference/m5c_sfx.wad'], 'edge': ['tests/reference/m5c_sfx_edge.wad']}
@@ -558,6 +581,11 @@ def main():
             GOLDENS.mkdir(parents=True, exist_ok=True)
             for p, t in files.items(): p.write_text(t)
             print(f'wrote {RESULTS.relative_to(ROOT)} and {len(goldens)} goldens ({doc["buffers"]} buffers, {doc["starts"]} starts)')
+    if a.only:
+        print('--only: the session group was not run')
+    else:
+        fails = session_group(bins, variants, work, jobs, a.check)
+        if fails: sys.exit('session group FAILED:\n  ' + '\n  '.join(fails))
     if a.strict32:
         same = [n for n in goldens if res[(n, 'strict32', GOLDEN_SCHEDULE)]['rows'] == goldens[n]
                 and res[(n, 'strict32', 'pertic')]['rows'] == res[(n, 'strict', 'pertic')]['rows']]
@@ -570,22 +598,35 @@ def main():
                   f"the LP64 builds' (the byte read past the block depends on the memory layout)")
             if [int(x) for x in o32 or []] != w['flagged_start']: sys.exit(f'strict32 witness {n}: not flagged at the same start')
     if a.selftest:
-        fails = selftest(bins['strict'], sc, work)
+        fails = selftest(bins['strict'], sc, work) + session_selftest(bins['strict'], work)
         if fails: sys.exit('selftest FAILED: ' + ', '.join(fails))
 
 
-def sessions(src, bins, variants, work, jobs):
-    """Every DOOM-M5C-SOUND-v1 stream (*.sound) in SRC through tools/reference/m5c_starts.py and then the genuine mixer
-    (every variant, both schedules) and the model, on m5c_sfx.wad. Writes nothing in the tree; prints one line per stream."""
+def session_lists(src):
+    """{item: (stream bytes, start list text)} for every *.sound in SRC, converted by m5c_starts.py; and the failures
+    (a refused stream, or a stream whose SHA-256 differs from the sound_sha256 m5c_results.json records for the item)."""
     import m5c_starts
-    lists = work / 'session_lists'
-    lists.mkdir(parents=True, exist_ok=True)
-    sc, fails = {}, []
+    rec = json.loads(SOUND_RESULTS.read_text())['items'] if SOUND_RESULTS.exists() else {}
+    out, fails = {}, []
     for f in sorted(src.glob('*.sound')):
-        try: text = m5c_starts.convert(f.read_text(), f.name)
-        except m5c_starts.Refused as e: fails.append(f'{f.name}: refused: {e}'); continue
-        (lists / f'{f.stem}.txt').write_text(text)
-        sc[f.stem] = dict(group='golden', wad='main', lumps=False, probe=False, text=text)
+        data = f.read_bytes()
+        try: text = m5c_starts.convert(data.decode(), f.name)
+        except m5c_starts.Refused as e: fails.append(f'{f.stem}: refused: {e}'); continue
+        want = rec.get(f.stem, {}).get('sound', {}).get('sound_sha256')
+        if src == SOUND and want != sha(data):
+            fails.append(f'{f.stem}: the stream\'s SHA-256 {sha(data)[:16]} differs from m5c_results.json ({str(want)[:16]})')
+        out[f.stem] = (data, text)
+    return out, fails
+
+
+def run_sessions(texts, bins, variants, work, jobs, lists):
+    """Run every start list (texts: {item: text}, written under LISTS) in every variant and the model under both
+    schedules. Returns (results by (item, variant, schedule), failures); prints one line per item."""
+    lists.mkdir(parents=True, exist_ok=True)
+    sc = {}
+    for n, text in texts.items():
+        (lists / f'{n}.txt').write_text(text)
+        sc[n] = dict(group='golden', wad='main', lumps=False, probe=False, text=text)
     todo = [(n, v, s) for n in sc for s in SCHEDULES for v in variants + ['model']]
 
     def job(j):
@@ -594,6 +635,7 @@ def sessions(src, bins, variants, work, jobs):
         return j, run_driver(bins[v], sc[n], lists / f'{n}.txt', s, work / 'runs')
     with cf.ThreadPoolExecutor(jobs) as pool:
         res = dict(pool.map(job, todo))
+    fails = []
     for n in sc:
         line = []
         for s in SCHEDULES:
@@ -601,14 +643,139 @@ def sessions(src, bins, variants, work, jobs):
             bad = [v for v in variants if res[(n, v, s)]['code'] or SANITIZER.search(res[(n, v, s)]['stderr'])
                    or res[(n, v, s)]['rows'] != ref['rows']]
             model_ok = res[(n, 'model', s)]['code'] == 0 and res[(n, 'model', s)]['rows'] == strip_device(ref['rows'])
-            m = len(re.findall(r'^m ', ref['rows'], re.M))
-            z = ref['rows'].splitlines()[-1].split()
+            m = re.findall(r'^m .*', ref['rows'], re.M)
+            z = ref['rows'].splitlines()[-1].split() if ref['rows'] else ['?', '?', '?']
             starts = sum(1 for l in sc[n]['text'].splitlines() if l.startswith('s '))
             line.append(f'{s}: {z[1]} buffers, stream {z[2][:16]}, rows {sha(ref["rows"])[:16]}')
             if bad: fails.append(f'{n} {s}: {bad} differ from strict or failed')
-            if not model_ok: fails.append(f'{n} {s}: the model differs')
-            if m: fails.append(f'{n} {s}: {m} handles differ from the sound-logic run')
+            if not model_ok:
+                d = diff_rows(strip_device(ref['rows']), res[(n, 'model', s)]['rows'], s)
+                fails.append(f'{n} {s}: the model differs, first at {d[0] if d else res[(n, "model", s)]["stderr"][-200:]}')
+            if m: fails.append(f'{n} {s}: {len(m)} handles differ from the sound-logic run, first {m[0]}')
         print(f'session {n}: {starts} starts; ' + '; '.join(line) + f'; variants and model identical: {"yes" if not any(x.startswith(n + " ") for x in fails) else "NO"}')
+    return res, fails
+
+
+def sessions(src, bins, variants, work, jobs):
+    """Every DOOM-M5C-SOUND-v1 stream (*.sound) in SRC through tools/reference/m5c_starts.py and then the genuine mixer
+    (every variant, both schedules) and the model, on m5c_sfx.wad. Writes nothing in the tree; prints one line per stream."""
+    conv, fails = session_lists(src)
+    fails = [f for f in fails if 'refused' in f]
+    _res, f2 = run_sessions({n: t for n, (_d, t) in conv.items()}, bins, variants, work, jobs, work / 'session_lists')
+    return fails + f2
+
+
+def session_compare(conv, recorded):
+    """The --check comparison of converted streams with the committed start lists and the stream digests the sessions
+    results file records. Returns the failures (each starts with the item's name)."""
+    fails = []
+    have = {p.stem for p in (SESSIONS / 'starts').glob('*.txt')}
+    for n in sorted(have - set(conv)): fails.append(f'{n}: a committed session start list without a stream')
+    for n, (data, text) in conv.items():
+        p = SESSIONS / 'starts' / f'{n}.txt'
+        if not p.exists() or p.read_text() != text: fails.append(f'{n}: the committed session start list differs from the conversion of the stream')
+        want = recorded.get(n, {}).get('sound_sha256')
+        if want != sha(data): fails.append(f'{n}: the stream\'s SHA-256 {sha(data)[:16]} differs from the recorded {str(want)[:16]}')
+    return fails
+
+
+def session_group(bins, variants, work, jobs, check):
+    """The committed session group: start lists and goldens for tests/reference/m5c_sound/*.sound."""
+    conv, fails = session_lists(SOUND)
+    if fails: return fails
+    if not conv: return ['no stream in tests/reference/m5c_sound']
+    if check:
+        recorded = json.loads(SESSION_RESULTS.read_text()).get('per_item', {}) if SESSION_RESULTS.exists() else {}
+        fails = session_compare(conv, recorded)
+        if fails: return fails
+    res, fails = run_sessions({n: t for n, (_d, t) in conv.items()}, bins, variants, work, jobs, work / 'session_group')
+    if fails: return fails
+    goldens, per = {}, {}
+    for n, (data, text) in conv.items():
+        rows = res[(n, 'strict', GOLDEN_SCHEDULE)]['rows']
+        prow = res[(n, 'strict', 'pertic')]['rows']
+        z, pz = rows.splitlines()[-1].split(), prow.splitlines()[-1].split()
+        goldens[n] = rows
+        per[n] = dict(sound_sha256=sha(data), starts=sum(1 for l in text.splitlines() if l.startswith('s ')),
+                      tics=int(next(l.split()[1] for l in text.splitlines() if l.startswith('tics '))),
+                      starts_sha256=sha(text), buffers=int(z[1]), stream_sha256=z[2], golden_sha256=sha(rows),
+                      golden_bytes=len(rows.encode()), end=next((' '.join(l.split()[:3]) for l in rows.splitlines()
+                                                                 if l.startswith('x ')), 'drained'),
+                      model='identical',
+                      pertic=dict(buffers=int(pz[1]), stream_sha256=pz[2], rows_sha256=sha(prow), model='identical'))
+    doc = dict(schema=SESSION_SCHEMA, contract_sha256=sha(mb.CONTRACT.read_bytes()),
+               source='tests/reference/m5c_sound/*.sound (DOOM-M5C-SOUND-v1; the genuine sound-logic runner under the '
+                      'recommended switches, tests/reference/m5c_results.json), converted by tools/reference/m5c_starts.py',
+               switches=dict(configuration='integrated', schedule=GOLDEN_SCHEDULE, frames_per_buffer=512, frames_per_tic=315,
+                             rule=mb.SCHEDULES[GOLDEN_SCHEDULE], also_recorded='pertic (digests only, never goldens)'),
+               wad=WADS['main'][0], variants=VARIANTS,
+               asan_options='detect_leaks=0 (leak detection disabled; not LeakSanitizer coverage)',
+               items=len(per), starts=sum(p['starts'] for p in per.values()), tics=sum(p['tics'] for p in per.values()),
+               buffers=sum(p['buffers'] for p in per.values()), golden_bytes=sum(p['golden_bytes'] for p in per.values()),
+               items_without_starts=sorted(n for n, p in per.items() if not p['starts']),
+               goldens_sha256=sha(''.join(f'{n}\n{g}' for n, g in sorted(goldens.items()))), per_item=per)
+    files = {SESSION_RESULTS: json.dumps(doc, indent=1) + '\n',
+             **{SESSIONS / 'starts' / f'{n}.txt': t for n, (_d, t) in conv.items()},
+             **{SESSIONS / 'goldens' / f'{n}.golden': g for n, g in goldens.items()}}
+    if check:
+        bad = [p for p, t in files.items() if not p.exists() or p.read_text() != t]
+        extra = [p for d in ('starts', 'goldens') for p in (SESSIONS / d).glob('*') if p not in files]
+        for p in bad[:5]:
+            if p.suffix == '.golden' and p.exists():
+                d = diff_rows(p.read_text(), goldens[p.stem], GOLDEN_SCHEDULE)
+                print(f'  session {p.stem}: first difference {d[0] if d else None}')
+        if bad or extra:
+            return [f'differs: {[str(p.relative_to(ROOT)) for p in bad[:20]]} ({len(bad)}); '
+                    f'not produced by this run: {[str(p.relative_to(ROOT)) for p in extra]}']
+        print(f'{SESSION_RESULTS.relative_to(ROOT)}, {len(conv)} session start lists and {len(goldens)} session goldens match '
+              f'({doc["starts"]} starts, {doc["buffers"]} buffers)')
+    else:
+        for d in ('starts', 'goldens'): (SESSIONS / d).mkdir(parents=True, exist_ok=True)
+        for p, t in files.items(): p.write_text(t)
+        print(f'wrote {SESSION_RESULTS.relative_to(ROOT)}, {len(conv)} session start lists and {len(goldens)} session goldens '
+              f'({doc["starts"]} starts, {doc["buffers"]} buffers)')
+    return []
+
+
+def session_selftest(binary, work):
+    """A copy of one committed stream with one start's separation changed must fail the stream and list comparison for
+    that item only, and its genuine run must first differ from the committed golden at that start's echo row."""
+    import shutil
+    fails = []
+    n = SELFTEST_SESSION
+    copy = work / 'selftest_sound'
+    if copy.exists(): shutil.rmtree(copy)
+    copy.mkdir(parents=True)
+    for f in SOUND.glob('*.sound'): shutil.copyfile(f, copy / f.name)
+    lines = (SOUND / f'{n}.sound').read_text().split('\n')
+    cols = next(l.split(',')[2:] for l in lines if l.startswith('#columns,S,'))
+    i = next(i for i, l in enumerate(lines) if l.startswith('S,') and l.split(',')[1 + cols.index('outcome')] == 'started')
+    f = lines[i].split(',')
+    sep = int(f[1 + cols.index('sep')])
+    f[1 + cols.index('sep')] = str(224 if sep <= 128 else 33)
+    tic, seq = f[1 + cols.index('tic')], f[1 + cols.index('seq')]
+    lines[i] = ','.join(f)
+    (copy / f'{n}.sound').write_text('\n'.join(lines))
+    recorded = json.loads(SESSION_RESULTS.read_text())['per_item']
+    clean = session_compare(session_lists(SOUND)[0], recorded)
+    conv, _f = session_lists(copy)
+    planted = session_compare(conv, recorded)
+    ok = not clean and len(planted) == 2 and all(x.startswith(n + ':') for x in planted)
+    print(f'selftest session stream: {n} tic {tic} seq {seq} separation {sep} -> {f[1 + cols.index("sep")]}; '
+          f'committed streams {len(clean)} failures, planted copy {len(planted)} (list and digest, {n} only): {"pass" if ok else "FAIL"}')
+    if not ok: fails.append('session stream digest')
+    lst = work / 'selftest_session.txt'
+    lst.write_text(conv[n][1])
+    sc = dict(group='golden', wad='main', lumps=False, probe=False)
+    rows = run_driver(binary, sc, lst, GOLDEN_SCHEDULE, work / 'runs')['rows']
+    d = diff_rows((SESSIONS / 'goldens' / f'{n}.golden').read_text(), rows, GOLDEN_SCHEDULE)
+    keys = [k for k, _x, _y in d]
+    nb = sum(1 for k in keys if k.startswith('b '))
+    ok = bool(keys) and keys[0] == f's {tic} {seq}' and keys[-1] == 'z' and nb >= 1 and len(keys) == nb + 2
+    print(f'selftest session golden: {n} first difference {keys[0] if keys else None}, {nb} buffer rows and '
+          f'{"z" if keys and keys[-1] == "z" else "no z"} after it: {"pass" if ok else "FAIL"}')
+    if not ok: fails.append('session golden')
+    shutil.rmtree(copy); lst.unlink()
     return fails
 
 

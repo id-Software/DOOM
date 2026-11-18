@@ -1,0 +1,7 @@
+# Start list of BINF1.sound (sha256 b74f006c514728b6c38f3732aae31b40fb6f749b8ce5dce37c56b9b7034a8f73), written by tools/reference/m5c_starts.py:
+# the 1 S rows with outcome started, in stream order; 15 S rows in all; 300 R rows.
+# handle convention: integrated (stated by the stream).
+schema DOOM-M5C-STARTS-v1
+config integrated
+tics 300
+s 8 1 8 41 2 129 141 64 100

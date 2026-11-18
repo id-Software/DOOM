@@ -1,0 +1,9 @@
+# Start list of TELE2X.sound (sha256 72352edb89744ba5a81ecac21b961f4289147ec1f7c0b29ad3ea534b067cffbe), written by tools/reference/m5c_starts.py:
+# the 3 S rows with outcome started, in stream order; 4 S rows in all; 65 R rows.
+# handle convention: integrated (stated by the stream).
+schema DOOM-M5C-STARTS-v1
+config integrated
+tics 65
+s 36 2 36 35 8 129 127 64 100
+s 36 3 36 35 4 224 134 64 101
+s 36 4 36 35 8 33 131 64 102

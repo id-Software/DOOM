@@ -1,0 +1,11 @@
+# Start list of M5LOOK.sound (sha256 c044bb7d9c98df28ecfb1df31e6666c1fcc505007d6ffca82002e06a8008f701), written by tools/reference/m5c_starts.py:
+# the 5 S rows with outcome started, in stream order; 5 S rows in all; 966 R rows.
+# handle convention: integrated (stated by the stream).
+schema DOOM-M5C-STARTS-v1
+config integrated
+tics 966
+s 195 1 195 25 8 128 114 64 100
+s 227 2 227 25 8 128 129 64 101
+s 419 3 419 25 8 128 113 64 102
+s 611 4 611 25 8 128 127 64 103
+s 803 5 803 25 8 128 139 64 104

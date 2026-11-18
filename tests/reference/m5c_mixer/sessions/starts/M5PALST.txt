@@ -1,0 +1,7 @@
+# Start list of M5PALST.sound (sha256 82db7334e37f590b4b7619a82c584bfef6b15fc3c02d3554ef2b3a8098b04d21), written by tools/reference/m5c_starts.py:
+# the 1 S rows with outcome started, in stream order; 1 S rows in all; 2148 R rows.
+# handle convention: integrated (stated by the stream).
+schema DOOM-M5C-STARTS-v1
+config integrated
+tics 2148
+s 27 2 27 93 8 128 141 64 100

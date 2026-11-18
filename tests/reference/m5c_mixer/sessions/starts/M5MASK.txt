@@ -1,0 +1,6 @@
+# Start list of M5MASK.sound (sha256 862734f8106f421c9809ceb8c21c774dab15839a40fa5c3edcb005919aa0ce9c), written by tools/reference/m5c_starts.py:
+# the 0 S rows with outcome started, in stream order; 0 S rows in all; 160 R rows.
+# handle convention: integrated (stated by the stream).
+schema DOOM-M5C-STARTS-v1
+config integrated
+tics 160

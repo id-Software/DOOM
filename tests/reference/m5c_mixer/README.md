@@ -20,7 +20,19 @@ The goldens come from the C only, never from Rust output and never from the inde
 - `probes/*.txt` hold the pitch-256 probe, outside what `s_sound.c` can pass: the address build must
   report `i_sound.c:495`. It is not a golden.
 
-The schedule `pertic` (one buffer per tic) is recorded in the results file as digests only.
+- `sessions/` holds the mixer's goldens for the committed sound-logic streams
+  ([`../m5c_sound/`](../m5c_sound/), one per item, from the genuine sound-logic runner under the
+  recommended switches). `sessions/starts/<ITEM>.txt` is the stream's start list, exactly as
+  [`m5c_starts.py`](../../../tools/reference/m5c_starts.py) converts it (the rows whose outcome is
+  `started`; the header names the stream's SHA-256). `sessions/goldens/<ITEM>.golden` is the strict
+  build's rows under `ticbuffers`, with the same row kinds as the scenario goldens. Every handle the
+  genuine mixer hands out must equal the handle the sound-logic run recorded (no `m` row). Items whose
+  sessions start no sound still have a golden: their buffers are silent. Per item,
+  [`m5c_mixer_sessions_results.json`](../m5c_mixer_sessions_results.json) records the SHA-256 of the
+  stream, the numbers of starts, tics and buffers, and the digests. If a stream is regenerated and
+  differs, `--check` reports that item.
+
+The schedule `pertic` (one buffer per tic) is recorded in the results files as digests only.
 
 The driver, its contract and the design are described in
 [`m5c_mixer_driver.c`](../../../tools/reference/m5c_mixer_driver.c),

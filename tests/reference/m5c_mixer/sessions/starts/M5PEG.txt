@@ -1,0 +1,7 @@
+# Start list of M5PEG.sound (sha256 23be8c010050ef26fab77263bdfadbbdaa96eeb0920d20fb243309854c6018cd), written by tools/reference/m5c_starts.py:
+# the 1 S rows with outcome started, in stream order; 1 S rows in all; 219 R rows.
+# handle convention: integrated (stated by the stream).
+schema DOOM-M5C-STARTS-v1
+config integrated
+tics 219
+s 128 1 128 20 8 129 143 64 100

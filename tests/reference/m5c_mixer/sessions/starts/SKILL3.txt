@@ -1,0 +1,7 @@
+# Start list of SKILL3.sound (sha256 33029a60472bc4d65fd0f9f4b2a1c07b1f6f1ea48d267fdb511dd6c41e45a67b), written by tools/reference/m5c_starts.py:
+# the 1 S rows with outcome started, in stream order; 2 S rows in all; 90 R rows.
+# handle convention: integrated (stated by the stream).
+schema DOOM-M5C-STARTS-v1
+config integrated
+tics 90
+s 64 2 64 35 8 129 120 64 100

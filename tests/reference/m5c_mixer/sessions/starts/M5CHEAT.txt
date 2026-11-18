@@ -1,0 +1,6 @@
+# Start list of M5CHEAT.sound (sha256 88bb6dcf12b169e9ee5cfd29821f78b33054683bcc5d85c59e6841a1477837eb), written by tools/reference/m5c_starts.py:
+# the 0 S rows with outcome started, in stream order; 0 S rows in all; 900 R rows.
+# handle convention: integrated (stated by the stream).
+schema DOOM-M5C-STARTS-v1
+config integrated
+tics 900

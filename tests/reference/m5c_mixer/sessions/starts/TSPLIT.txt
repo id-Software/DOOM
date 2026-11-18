@@ -1,0 +1,8 @@
+# Start list of TSPLIT.sound (sha256 329cda7fdae5fbdcdb9349038a0b97ac7abf55dceaceb81d30e5c651d5c2cac9), written by tools/reference/m5c_starts.py:
+# the 2 S rows with outcome started, in stream order; 3 S rows in all; 65 R rows.
+# handle convention: integrated (stated by the stream).
+schema DOOM-M5C-STARTS-v1
+config integrated
+tics 65
+s 36 2 36 35 8 33 127 64 100
+s 36 4 36 32 8 128 128 64 101

@@ -1,0 +1,9 @@
+# Start list of TELEZ.sound (sha256 54bc88a86c22933acd767d69df8c5d7b72761b7197c7e6c3f9a6a148b2c07f91), written by tools/reference/m5c_starts.py:
+# the 3 S rows with outcome started, in stream order; 3 S rows in all; 80 R rows.
+# handle convention: integrated (stated by the stream).
+schema DOOM-M5C-STARTS-v1
+config integrated
+tics 80
+s 10 1 10 41 5 130 138 64 100
+s 10 2 10 35 5 130 143 64 101
+s 10 3 10 35 3 130 143 64 102

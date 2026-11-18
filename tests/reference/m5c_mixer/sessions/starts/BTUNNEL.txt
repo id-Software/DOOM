@@ -1,0 +1,10 @@
+# Start list of BTUNNEL.sound (sha256 8e90927099ac1bf313fdd74bb81e89a17ebae35cf4b1921f0fa619aee2926b20), written by tools/reference/m5c_starts.py:
+# the 4 S rows with outcome started, in stream order; 4 S rows in all; 190 R rows.
+# handle convention: integrated (stated by the stream).
+schema DOOM-M5C-STARTS-v1
+config integrated
+tics 190
+s 10 1 10 43 7 129 138 64 100
+s 140 2 140 16 7 129 122 64 101
+s 157 3 157 77 6 109 127 64 102
+s 170 4 170 17 7 90 139 64 103
