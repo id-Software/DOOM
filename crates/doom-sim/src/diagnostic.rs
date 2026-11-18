@@ -681,14 +681,21 @@ impl<'a> Diagnostic<'a> {
         let sectors = u32::from_le_bytes(number(self.required("sectors.count")?)?);
         let mo = self.required("original_player.0.mo")?;
         let listener = (mo.len() == 13 && mo[0] == 1).then(|| &mo[1..]);
+        // The fields the group must hold: its two counts and their records.
+        let mut group = 2_usize;
+        // The pending records without their placements, for the cross-check with
+        // `events.pending` below.
+        let mut pending = Vec::new();
         for prefix in ["events.sounds.last", "events.sounds.pending"] {
             let count = u64::from_le_bytes(number(self.required(&format!("{prefix}.count"))?)?);
             let count = usize::try_from(count).map_err(|_| DiagnosticError::Limit)?;
             if count > self.fields.len() {
                 return Err(DiagnosticError::Limit);
             }
+            group += count;
             for i in 0..count {
                 let r = self.required(&format!("{prefix}.{i}"))?;
+                let mut bare = r;
                 match r.first() {
                     Some(1) => {
                         let sfx = u16::from_le_bytes(number(r.get(1..3).unwrap_or(&[]))?);
@@ -712,7 +719,11 @@ impl<'a> Diagnostic<'a> {
                                 (2, true)
                             }
                             3 => {
-                                if *r.get(4).ok_or(DiagnosticError::Structure)? >= 16 {
+                                // Slot 15's release reads past `buttonlist`
+                                // (MAXBUTTONS 16, p_spec.h:244; p_spec.c:1151):
+                                // the simulation refuses that tic, so no record
+                                // names it.
+                                if *r.get(4).ok_or(DiagnosticError::Structure)? >= 15 {
                                     return Err(DiagnosticError::Identity);
                                 }
                                 (1, true)
@@ -725,6 +736,7 @@ impl<'a> Diagnostic<'a> {
                         if placed > 1 || r.len() != expected || (placed == 1) != positional {
                             return Err(DiagnosticError::Structure);
                         }
+                        bare = &r[..placed_at];
                         if kind == 3 {
                             let x = i32::from_le_bytes(number(&r[placed_at + 1..placed_at + 5])?);
                             let y = i32::from_le_bytes(number(&r[placed_at + 5..placed_at + 9])?);
@@ -741,7 +753,61 @@ impl<'a> Diagnostic<'a> {
                     }
                     _ => return Err(DiagnosticError::Structure),
                 }
+                if prefix == "events.sounds.pending" {
+                    pending.push(bare);
+                }
             }
+        }
+        // No surplus record and no field outside the documented names: every
+        // required name was found above and paths are unique, so the counts agree
+        // exactly when the group holds nothing else.
+        if self
+            .fields
+            .iter()
+            .filter(|f| f.path.starts_with("events.sounds."))
+            .count()
+            != group
+        {
+            return Err(DiagnosticError::Structure);
+        }
+        // The pending records are the calls of `events.pending`, in order (what
+        // `sound::same_calls` requires before the next tic): a sound event
+        // (tag 12, sub-tag 3: the optional origin handle and the sound) is a
+        // start with an actor or NULL origin, a sector sound (tag 26, sub-tag 12:
+        // origin kind 1 sector or 2 button, index, sound) a start at that sector
+        // or button slot, and a `RemovalMarked` (tag 2: the handle) the stop of
+        // `P_RemoveMobj` (p_mobj.c:565-566). Placements are not compared.
+        let count = u64::from_le_bytes(number(self.required("events.pending.count")?)?);
+        let count = usize::try_from(count).map_err(|_| DiagnosticError::Limit)?;
+        if count > self.fields.len() {
+            return Err(DiagnosticError::Limit);
+        }
+        let mut calls = Vec::new();
+        for i in 0..count {
+            let e = self.required(&format!("events.pending.{i}"))?;
+            let mut call = Vec::new();
+            match e {
+                [12, 3, present @ (0 | 1), handle @ .., s0, s1] if handle.len() == 12 => {
+                    call.extend([1, *s0, *s1]);
+                    if *present == 1 {
+                        call.push(1);
+                        call.extend(handle);
+                    } else {
+                        call.push(0);
+                    }
+                }
+                [26, 12, 1, i0, i1, s0, s1] => call.extend([1, *s0, *s1, 2, *i0, *i1]),
+                [26, 12, 2, i0, 0, s0, s1] => call.extend([1, *s0, *s1, 3, *i0]),
+                [2, handle @ ..] if handle.len() == 12 => {
+                    call.push(2);
+                    call.extend(handle);
+                }
+                _ => continue,
+            }
+            calls.push(call);
+        }
+        if calls.len() != pending.len() || calls.iter().zip(&pending).any(|(c, p)| c != p) {
+            return Err(DiagnosticError::Identity);
         }
         Ok(())
     }
