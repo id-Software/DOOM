@@ -10,11 +10,12 @@ use std::sync::Arc;
 use doom_render::LumpDirectory;
 use doom_sound::lumps::{SoundCaps, SoundSet};
 use doom_sound::mixer::{Buffer, MixRefusal, Mixer, buffer_bytes};
-use doom_sound::sounds::{NUMSFX, S_SFX, SfxId};
+use doom_sound::sounds::{S_SFX, SfxId};
 use doom_sound::tables::table_bytes;
 use doom_test_evidence::sha256;
 
 pub mod gate;
+pub mod rows;
 
 /// doom-sim's item table and level setup of the 64 M5c items (one source for both crates).
 #[path = "../../../doom-sim/tests/wire25/mod.rs"]
@@ -22,7 +23,7 @@ pub mod wire25;
 
 /// The driver's lump rows (`l`, `L`, `P`), for the session harness.
 pub fn lump_rows_pub(set: &SoundSet, full: bool, out: &mut Vec<String>) {
-    lump_rows(set, full, out);
+    rows::lump_rows(set, full, out);
 }
 
 /// `tests/reference/<name>`.
@@ -208,52 +209,6 @@ impl Rep {
     }
 }
 
-/// The `l`, `L` and `P` rows of a loaded set (the driver's `lump_rows`).
-fn lump_rows(set: &SoundSet, full: bool, out: &mut Vec<String>) {
-    let mut all = String::new();
-    let mut lines = Vec::new();
-    for i in 0..NUMSFX {
-        let line = match SfxId::new(i as i64) {
-            None => format!("l {i} 0 -"),
-            Some(id) => {
-                let d = set.sfx(id);
-                format!("l {i} {} {}", d.len, sha256(&d.data[..d.len as usize]))
-            }
-        };
-        all.push_str(&line);
-        all.push('\n');
-        lines.push(line);
-    }
-    if full {
-        out.extend(lines);
-    }
-    out.push(format!("L {NUMSFX} {}", sha256(all.as_bytes())));
-    if !full {
-        return;
-    }
-    for (i, info) in S_SFX.iter().enumerate().skip(1) {
-        if info.link.is_some() {
-            continue;
-        }
-        let d = set.sfx(SfxId::new(i as i64).unwrap());
-        let own = d.source == doom_sound::lumps::SfxSource::Own;
-        let size = d.lump_size as i64;
-        let real = (size - 8).max(0);
-        let len = i64::from(d.len);
-        let n128 = d.data[real as usize..d.len as usize]
-            .iter()
-            .filter(|b| **b == 128)
-            .count();
-        if size - 8 != len || !own {
-            out.push(format!(
-                "P {i} {size} {len} {} {n128} {}",
-                len - real,
-                if own { "own" } else { "fallback" }
-            ));
-        }
-    }
-}
-
 /// Replays a start list through the Rust mixer under the declared schedule `ticbuffers`
 /// (decision T5: buffer k after tic floor(512k/315)), writing the driver's rows.
 pub fn replay(set: &Arc<SoundSet>, list: &StartList, lumps: bool, max_buffers: u64) -> Replay {
@@ -261,7 +216,7 @@ pub fn replay(set: &Arc<SoundSet>, list: &StartList, lumps: bool, max_buffers: u
     let (st, vl) = table_bytes();
     out.push(format!("T steptable {}", sha256(&st)));
     out.push(format!("T vol_lookup {}", sha256(&vl)));
-    lump_rows(set, lumps, &mut out);
+    rows::lump_rows(set, lumps, &mut out);
     let mut mixer = Mixer::new(set.clone());
     let mut rep = Rep {
         last: None,
