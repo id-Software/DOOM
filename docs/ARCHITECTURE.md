@@ -15,7 +15,7 @@ terms such as profile, fixture and admission.
 | [`doom-map`](../crates/doom-map/src/lib.rs) | Validated classic map records, BSP, REJECT and source BLOCKMAP data |
 | [`doom-sim`](../crates/doom-sim/src/lib.rs) | Headless deterministic gameplay profiles, actors, collision and canonical diagnostics |
 | [`doom-render`](../crates/doom-render/src/lib.rs) | The faithful software renderer for the 3D view (M5a), and since M5b the status bar, HUD messages, palette choice and the composed `Display`; reads a simulation, never writes it ([below](#software-renderer-m5a)) |
-| [`doom-sound`](../crates/doom-sound/src/lib.rs) | The sound effects of linuxdoom-1.10 without a device (M5c): the sound logic of `s_sound.c`, the in-process mixer of `i_sound.c`, the declared schedule, the layout detector, the session and its saved state; reads a simulation, never writes it; nothing depends on it yet ([below](#sound-effects-m5c)) |
+| [`doom-sound`](../crates/doom-sound/src/lib.rs) | The sound effects of linuxdoom-1.10 without a device (M5c): the sound logic of `s_sound.c`, the in-process mixer of `i_sound.c`, the declared schedule, the layout detector, the session and its saved state; reads a simulation, never writes it; `doom-game` runs it in the game loop ([below](#sound-effects-m5c)) |
 | [`doom-game`](../crates/doom-game/src/lib.rs) | The platform-free app core (M5b): the input path, the event layer, the 35 Hz loop on an injected clock, the session recorder, pause, the end and refusal screens ([below](#playable-app-m5b)) |
 | [`doom-play`](../crates/doom-play/src/main.rs) | The `doom-play` binary (M5b): the window, key and mouse translation, files and the clock; the only crate with a windowing dependency ([below](#playable-app-m5b)) |
 
@@ -290,9 +290,9 @@ line specials and button slots the simulation keeps only in its canonical snapsh
 
 Dependency chain: `doom-sim` and `doom-render` are as before (`doom-render` gains the status bar, HUD and
 `Display`, and its public API only grows; nothing depends on it from below). `doom-game` depends on
-`doom-sim`, `doom-render`, `doom-wad` and `doom-map` and on no third-party crate: it has no windowing, audio,
-thread or wall-clock dependency and takes DOOM key codes, never platform ones. `doom-play` depends on
-`doom-game` and on `miniquad` (pinned, see [COMPATIBILITY](COMPATIBILITY.md#platform-limits)); nothing depends on
+`doom-sim`, `doom-render`, `doom-wad`, `doom-map` and (since M5c) `doom-sound`, and on no third-party crate: it has no
+windowing, audio-device, thread or wall-clock dependency and takes DOOM key codes, never platform ones. `doom-play` depends on
+`doom-game` and on `miniquad` (and, since M5c, the audio library `maudio`; pinned, see [COMPATIBILITY](COMPATIBILITY.md#platform-limits)); nothing depends on
 it. Fuzzing, mutation testing and the headless tests therefore reach the input code and the loop without
 building the window library, and the simulation cannot reach presentation or platform code.
 
@@ -336,10 +336,10 @@ building the window library, and the simulation cannot reach presentation or pla
 ### Sound effects (M5c)
 
 Support and limits are in [COMPATIBILITY](COMPATIBILITY.md#sound-effects-m5c); this section is the structure. **As of
-2026-11-18 (America/Los_Angeles) the library exists and nothing is wired to it:** neither `doom-game` nor `doom-play`
-depends on `doom-sound`, the game loop does not call it, and no device plays what it mixes. The device file
-`crates/doom-play/src/audio.rs` (the library maudio, opened with an explicit list of real backends) exists only as the
-diagnostic `--audio-probe`.
+2026-11-18 (America/Los_Angeles) the library is wired into the game loop and the app:** `doom-game` depends on
+`doom-sound` and runs the session each tic, and `doom-play` hands the finished stream to the device
+(`crates/doom-play/src/audio.rs`, the library maudio, opened with an explicit list of real backends). Nobody has heard
+the result ([COMPATIBILITY](COMPATIBILITY.md#sound-effects-m5c)).
 
 **Dependency direction.** `doom-sound` depends on `doom-types`, `doom-sim` and `doom-render` (from `doom-render` only
 the original's fixed-point and angle helpers of `r_main` and the lump directory); its tests also use `doom-map`,
@@ -377,8 +377,8 @@ one and the listener and positions read after the tic, and the mixer's buffer if
 made, the advanced index and zero or one buffer of 512 stereo 16-bit frames. A refused tic (a typed
 `SessionRefusal`) leaves the session exactly as it was: the work runs on a copy of about 300 bytes, no simulation is
 cloned, and the caller's index is passed by value and returned only on success. Because a session and the display
-are separate values, the app (not written yet) would keep the whole tic atomic by restoring the session from a copy
-or from `state()`, about 1.5 KB, if the display refuses afterwards.
+are separate values, the app's frame source runs both on staged copies and commits them together after the frame is
+drawn (below).
 
 **What is canonical state and what is not.**
 
@@ -393,16 +393,38 @@ or from `state()`, about 1.5 KB, if the display refuses afterwards.
 
 #### Where the `M_Random` index lives
 
-Today the index belongs to the status bar's state in `doom-render` (`StatusBarState::rndindex`, `st_stuff.rs`), carried in the
-saved display state `DDSP` version 1: it is 0 at a new game and advanced only by `ST_Ticker`, once per tic, because in the
-M5b contract nothing else draws. The sound session does **not** own it: `Sound::tic` takes the index in, makes its draws
-at the points the C does (a started sound that passes its audibility test draws once, except two sounds that draw none;
-one that finds no channel still draws; an inaudible one does not), and hands back the advanced index and the number of
-draws. The plan (decision T16, confirmed by the owner; the note's [section 4.3](M5C_REFERENCE_INVESTIGATION.md#43-the-m_random-stream-and-the-per-tic-sequence)) keeps the index where it is: the display takes the session's draws before its
-own `ST_Ticker` draw each tic and adds the wipe's 320 after the frame of tic 0, and the display state goes to version 2
-only under the new contract so that M5b states stay byte-identical. **None of that display wiring is written yet**; the
-test that compares the session with the genuine engine adds the status bar's draw and the wipe's 320 itself. The `DDSP`
-version 2 is therefore not described in [STATE_FORMAT](STATE_FORMAT.md).
+The index belongs to the status bar's state in `doom-render` (`StatusBarState::rndindex`, `st_stuff.rs`). Under the M5b
+contract it is carried in the saved display state `DDSP` version 1, is 0 at a new game and is advanced only by `ST_Ticker`,
+once per tic. Under the M5c contract (`RandomContract::WithSound`, `DDSP` version 2, [STATE_FORMAT](STATE_FORMAT.md#display-state-ddsp-version-2-m5c))
+the display takes the session's draws before its own `ST_Ticker` draw each tic and adds the wipe's 320 after the frame of
+tic 0 (decision T16, the note's [section 4.3](M5C_REFERENCE_INVESTIGATION.md#43-the-m_random-stream-and-the-per-tic-sequence)).
+The sound session does **not** own the index: `Sound::tic` takes it in, makes its draws at the points the C does (a started
+sound that passes its audibility test draws once, except two sounds that draw none; one that finds no channel still draws;
+an inaudible one does not), and hands back the advanced index and the number of draws.
+
+#### The per-tic sequence with sound, and the audio seam
+
+`doom-game`'s `FrameSource::tic` runs, after the app's command has been recorded and the simulation advanced (the order is
+justified in [COMPATIBILITY](COMPATIBILITY.md#the-display-contract-with-sound-m5c)): (1) the **simulation's** tic;
+(2) the **sound session** (`Sound::tic_from_simulation`: the tic's records at `gametic` t, the update at t+1, the mixer's
+buffer if one is due); (3) the **status bar and HUD tickers** (`Display::observe_after`, taking the session's draws first,
+then `ST_Ticker`'s one); (4) the **frame** (`Display::draw`), and, on the level's first frame, the **wipe's 320 draws**;
+(5) the session and the display are committed together; the buffer, if any, goes to the audio sink; then the host's step.
+A sound or display refusal leaves both exactly as before the tic. The simulation's committed tic is **not** rolled back (no
+per-tic clone; M5b's rule S9 for frame refusals), so the demo keeps the tic and replays to the same refusal.
+
+**The audio seam** is the trait `AudioSink` in `doom-game` (`buffer(&[[i16; 2]; 512])`, `pause`, `resume`,
+`session_start`, all defaulting to no-ops), reached through `Host::audio`. Only the finished stream crosses it: 11,025 Hz
+stereo 16-bit frames, unscaled, zero or one buffer per tic, delivered before `Host::tic`; the implementation must never
+block. `RecordingSink` (tests) records every call. A host that returns no sink gets the same game: the session still runs
+and the face stays genuine. In `doom-play` the sink is `DeviceSink` or `Discard`: a queue behind a lock that the loop fills
+one buffer at a time and the **device thread** (the library's callback) drains one period at a time, resampling and
+the device's own format being the library's. The queue starts playing at one buffer, holds at most four (2,048 frames),
+drops its oldest frames on overrun, plays silence on underrun and is cleared on pause and on a new session; volume is
+a gain on the frames as they leave and mute drops them. None of this feeds back: nothing from the device, the queue or
+the gain reaches the simulation, the sound logic or the display, and a headless test shows eight settings of the options
+give identical tics, frames, indexes, reports and demos
+([evidence](validation/M5C.md#step-7-sound-in-doom-play)). `--no-sound` opens no device and prints nothing.
 
 **Harnesses and evidence.** The genuine sound logic and mixer are compiled whole into separate runners
 (`tools/reference/m5c_*`), the independent Python DSIM41 encoder and comparator check wire 25, and the gate in

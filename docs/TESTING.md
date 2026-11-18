@@ -2297,7 +2297,10 @@ own `-skill` counts from 1). The opt-in `--unrecorded-full-turning` writes no de
 
 For a measurement or a smoke run, `--quit-after-tics N` saves and quits after N tics; a session plays at 35 tics
 a second, so 350 tics take about 10 seconds. Run any timing from a binary built on and run from the Linux
-filesystem, never from `/mnt/*`.
+filesystem, never from `/mnt/*`. **Under WSLg an unattended run can hang:** the window occasionally reports a focus loss in its first moments and the
+game opens paused ([support](COMPATIBILITY.md#the-app-with-sound-and-what-is-presentation), [record](validation/M5C.md#step-7-sound-in-doom-play)),
+and then `--quit-after-tics` is never reached. Recognise it by a demo of 14 bytes (the header and the end marker) and no
+tic; use a timeout and retry (a SIGTERM from `timeout` saves nothing).
 
 **Fuzzing** (no IWAD; two targets, from `fuzz/`). Seed replay, a coverage-guided campaign and a sanitizer
 campaign are different things; the observed runs, their options and findings are in
@@ -2384,14 +2387,16 @@ cargo run -p doom-render --release --example m5b_bench -- [--rooms M5MSG,M5PALRD
 R=tests/reference
 cargo run --release -p doom-play -- --iwad $R/m5b_wads/stdigit.wad --wad $R/m5b_gfx.wad \
     --sessions ~/scratch/m5b/step13/sessions --quit-after-tics 3500 --tic-stats
+# a start-up pause under WSLg (above) makes this run hang until killed; a 14-byte demo and no tic identify it
 ```
 
 ## M5c sound effects: the genuine sound logic and mixer
 
 The M5c [reference investigation](M5C_REFERENCE_INVESTIGATION.md) (decisions T1-T16, confirmed by the owner on
 2026-11-18) is under way on the branch `feat/m5c-sound`. This section lists the commands of the pieces done so far:
-the genuine-engine tools (Phase 2 steps 1 and 2), wire 25 and its comparisons, the crate `doom-sound`, the fuzz targets
-and the audio probe. Everything committed is synthetic and runs on a clean checkout, except the commands marked local
+the genuine-engine tools (Phase 2 steps 1 and 2), wire 25 and its comparisons, the crate `doom-sound`, the display
+contract with sound and the game loop (`doom-render`, `doom-game`), the real-run and session tools, the device in
+`doom-play`, the fuzz targets and the audio probe. Everything committed is synthetic and runs on a clean checkout, except the commands marked local
 only (they read an IWAD). The observations are in [the M5c evidence record](validation/M5C.md). **The CI job
 `M5c genuine sound (not required)` runs the genuine-engine commands, [below](#the-ci-job-and-the-mutation-workflow);
 it is not a required check.** Every result is produced under the confirmed values of T2, T5 and T6 (the
@@ -2520,6 +2525,45 @@ strict digest and the genuine stream to give the committed `m5c_real_results.jso
 capture. `--report PATH` (scratch, never committed) writes every disagreement with both values. The captures go
 through a pipe, so none touches the disk.
 
+### M5c sound in the game: the display contract, the loop, the real runs and the sessions
+
+The Rust tests run in `cargo test --workspace` (every operating system in CI, and the Minimum Rust job); none needs a
+device, an IWAD or a C compiler. The comparisons are against committed genuine goldens.
+
+| Test | What it gates | Kind of evidence |
+| --- | --- | --- |
+| `doom-game` `tests/m5c_frames.rs` | **the frame gate:** the 64 items at screenblocks 10 and 11 through the app's own per-tic pipeline (45,540 frames: digest, face, index, status rows, counters, messages, endings), plus two planted faults (draw order, a wipe of 319) | source equivalence |
+| `doom-game` `tests/m5c_restore.rs` (4) | `DDSP` version 2 and `DSND` saved at several tics of 7 items, restored and continued equal to the unbroken run and to the goldens; a self-test that it can fail; forgeries refused; an M5b save is version 1 and restores as the M5b contract | Rust-only consistency; the continued rows are also equal to the genuine goldens |
+| `doom-game` `tests/m5c_app.rs` (3) | a scripted session twice (identical, the demo replays), pause, resume and restart reach the audio sink as specified, a sound refusal keeps the session as before the tic | Rust-only |
+| `doom-render` `tests/m5c_display.rs`, `tests/m5c_contract.rs` (3) | the same frames with the draws taken from the goldens (a fixture projection); the contract's rules, the `DDSP` version 2 encoding and its forgeries, a display-only restore | fixture projection; Rust-only |
+| `doom-play` `cargo test -p doom-play` (20, no window, no device) | the sink and queue arithmetic, the gain, the options and help text, the mute key, and `session_tests.rs`: the sound options change no tic, frame, index, sound report, stream or demo | Rust-only |
+
+```sh
+cargo test -p doom-game --release --test m5c_frames --test m5c_restore --test m5c_app   # about 22 s for the frame gate
+cargo test -p doom-render --test m5c_display --test m5c_contract
+cargo test -p doom-play
+# the 61 real runs, local only (reads an IWAD copy in scratch; only counts and digests are committed). First the example:
+cargo build -p doom-game --release --example m5c_real_rows
+python3 tools/local/m5c_real_full.py --rust TARGET/release/examples/m5c_real_rows --synthetic --selftest --work DIR --jobs 6   # no IWAD: the committed goldens through the same comparators (about 15 s)
+ASAN_OPTIONS=detect_leaks=0 python3 tools/local/m5c_real_full.py --rust TARGET/release/examples/m5c_real_rows --iwad SCRATCH/DOOM.WAD --work DIR --jobs 6 --selftest [--write | --check]   # tests/reference/m5c_real_full_results.json; about 13 minutes
+# the scripted app sessions against the genuine M5c runner, the input driver and the mixer (C and Rust; Linux; in CI)
+ASAN_OPTIONS=detect_leaks=0 python3 tools/reference/m5c_session.py --check --selftest --jobs 4 --work DIR   # tests/reference/m5c_session_results.json; writes nothing
+python3 tools/reference/m5c_session.py --work DIR [--only NAME]   # without --check: regenerates the results file
+```
+
+- `m5c_real_full.py` runs, per real run, the genuine runner at screenblocks 10 and 11, a 32-bit build for sound,
+  the genuine mixer and the example, and compares rows, frames and buffers; `--selftest` plants frame, face, mixer-buffer,
+  volume and serial faults and requires each to be caught. The address variant is not in it (`m5c_real.py` has it); the
+  `ASAN_OPTIONS` shown applies to the genuine runs it starts.
+- `m5c_session.py` plays the five scripts of `tests/reference/m5c_sessions` (its README cites the C) and the four M5b
+  scripts through the example `m5c_session`, and checks the pause (no tic and no buffer between a pause and its resume),
+  with `--selftest` planting seven faults. Address runs have **leak detection disabled**.
+- **A lesson of the T4 check:** `.gitignore` excludes `*.wad` and `*.lmp`, so a generated PWAD or lump is skipped by a plain
+  `git add` without a message, and a `--check` passes only where the file already lies. After adding a generator's
+  outputs, list them against the tracked files: for example `git ls-files tests/reference/m5c_t4` must show every file
+  the tool writes, and `git status --ignored` must not show one of the tool's outputs as ignored. CI found this on
+  2026-11-18 ([record](validation/M5C.md#the-ci-record)).
+
 ### M5c sound: the doom-sound crate
 
 `doom-sound` is platform-free (no device); its tests need no C compiler and no IWAD. They read the committed synthetic
@@ -2556,8 +2600,10 @@ doom-play --audio-probe        # a diagnostic: opens a playback device, writes a
 
 Exit 0 if a device opened (it prints the backend and device), 1 if none did (it prints every backend tried and each
 one's error), 2 if mixed with any other argument. It is the only code that can open a device, and CI never runs it (no
-runner has an audio device). On the development machine it exits 1 (no audio client library is installed); that is
-the expected and loud outcome there. The unit tests in `crates/doom-play/src/audio.rs` (the backend list names only
+runner has an audio device). On the development machine without the system's PulseAudio client library (`libpulse0`) it
+exits 1; that is the expected and loud outcome there. With the library (`sudo apt install libpulse0` under WSLg) it opened
+PulseAudio's "RDP Sink" and wrote about one second of silence; nobody has heard game sound. Windows: `doom-play.exe
+--audio-probe` (not run by anyone yet). The unit tests in `crates/doom-play/src/audio.rs` (the backend list names only
 real backends; an error names every backend tried) run in `cargo test -p doom-play` without opening a device.
 
 ### M5c fuzz targets of doom-sound
@@ -2593,11 +2639,13 @@ each with `--check`, and the table's `--self-test`); `m5c_starts.py --selftest` 
 against a fresh conversion of its stream; `m5c_reference.py --check --selftest --jobs 4` and
 `m5c_mixer_reference.py --check --selftest --jobs 4` (the address variants run with leak detection disabled, named in
 the step names); a release build of `player_level_run` and `m5c_rust_check.py`; a release build of `sound_records_run`,
-`m5c_wire25_check.py --check --selftest --jobs 4` and `m5c_t4.py --check`. It runs no IWAD tool, no `--strict32` and no
+`m5c_wire25_check.py --check --selftest --jobs 4`, `m5c_t4.py --check` and `m5c_session.py --check --selftest --jobs 4`
+(the scripted app sessions; leak detection disabled in its address runs). It runs no IWAD tool, no `--strict32` and no
 device command. The Rust tests of `doom-sound` run in the existing Stable job on all three operating systems and in the
 Minimum Rust job as part of `--workspace`. The [mutation workflow](#ci-mutation-workflow-m4b) now also mutates
 `doom-sound` (`-p doom-sound` beside `doom-sim`, `doom-render` and `doom-game`; `doom-play`, the window and device code,
-is left out); no mutation run of `doom-sound` has been made yet.
+is left out); no mutation run of `doom-sound` has been made yet. The job failed at the T4 check at `216f976` for two uncommitted
+generated files, fixed in `a6f3b3b` ([record](validation/M5C.md#the-ci-record)).
 
 ## Mutation testing
 

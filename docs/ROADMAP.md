@@ -544,21 +544,27 @@ monster/player behavior. Further stages require separate owner direction.
   - **M5c (sound effects matched to linuxdoom-1.10, and the closing of the status bar face's idle glance
     gap, S15).** In progress on the branch `feat/m5c-sound` (draft [PR #63](https://github.com/Copgunn/DOOM/pull/63);
     status on 2026-11-18). Sound starts and the level-start wipe draw `M_Random`, so modelling both makes the idle
-    face's left, ahead or right glance match a vanilla session with sound; until then, frames are identical to the
-    genuine engine only under the declared sound-free, wipe-free contract, and **S15 is not closed**. The owner
-    confirmed decisions T1-T16 on 2026-11-18 (the reference is "linuxdoom-1.10 built with its in-process sound code
-    (one define removed)"). **Done and recorded** in the [evidence record](validation/M5C.md): the genuine sound-logic
-    and mixer harnesses with their goldens (steps 1 and 2); the proof that the audio library compiles and links in
-    CI on all three systems, with the diagnostic `doom-play --audio-probe` (it found no backend on the development
-    machine; no device has been opened anywhere); wire 25, with canonical sound records, the corrected scream and the
-    THING-loading truncation, compared with the genuine engine on the 64 synthetic items and the 61 real runs (step 3);
-    the crate `doom-sound` with the sound tables, mixer, sound logic, schedule, session, layout detector and saved
-    state, reproducing every genuine row of the 64 items end to end (step 4); the CI job
-    `M5c genuine sound (not required)` and the mutation workflow's coverage of `doom-sound` (step 8, part 1); and four
-    fuzz targets (step 11, part 1). **In progress, not done:** the display contract with sound (the `M_Random` index
-    and the wipe's draws), the game loop, the device and the launch flags, the real-map runs of the full sound logic
-    and of the frames, mutation testing of `doom-sound`, timings, the reviews and the final gates. Nobody has heard any
-    sound from this project. Support is in [COMPATIBILITY](COMPATIBILITY.md#sound-effects-m5c). See the
+    face's left, ahead or right glance match the genuine engine replaying the session's demo. The owner confirmed
+    decisions T1-T16 on 2026-11-18 (the reference is "linuxdoom-1.10 built with its in-process sound code (one define
+    removed)"). **Done and recorded** in the [evidence record](validation/M5C.md): the genuine sound-logic and mixer
+    harnesses with their goldens (steps 1 and 2); the proof that the audio library compiles and links in CI on all
+    three systems (T7); wire 25 with canonical sound records, the corrected scream and the THING-loading truncation,
+    compared with the genuine engine on the 64 synthetic items and the 61 real runs (step 3); the crate `doom-sound`
+    (step 4); **the display contract with sound, `DDSP` version 2 and the sound session in the game loop, with every
+    frame of the 64 items (45,540) equal and the face equal on every frame (step 5 part 1); restore and continue
+    (step 6); the 61 real runs through the whole pipeline locally (158,966 tics: every sound row, every frame at both
+    sizes and 98,578 mixer buffers equal, step 5 part 2); nine scripted app sessions against the genuine engine (step 5
+    part 3); and sound in `doom-play` (a device sink that never blocks the loop, `--volume`, `--no-sound`, End to
+    mute, step 7)**; the CI job `M5c genuine sound (not required)` and the mutation workflow's coverage of `doom-sound`
+    (step 8, part 1); four fuzz targets (step 11, part 1). **The status bar face's idle glance gap (S15) is closed** in the
+    owner's T14 wording ([COMPATIBILITY](COMPATIBILITY.md#the-status-bar-faces-idle-glance-is-closed-with-sound-decision-s15-t14)).
+    **Not done:** mutation testing of the M5c code (no result, so no survivors yet), timings, a fuzz target for `DDSP`
+    version 2, the independent review and the final gates; the optional melt is not built. **Unobserved:** nobody has
+    heard any sound, and no game audio has reached any device (the one real device open was a second of digital silence);
+    nothing has run on Windows or macOS beyond CI builds and tests. Open for the owner: a game under WSLg occasionally
+    opens already paused (a start-up focus event, an M5b behaviour, not sound), the simulation's tic is not rolled back
+    when sound or display refuses, the uncompared listener columns of starts with no position, and the macOS job's time
+    against its limit. Support is in [COMPATIBILITY](COMPATIBILITY.md#sound-effects-m5c). See the
     [investigation note](M5C_REFERENCE_INVESTIGATION.md) and its
     [owner decisions](M5C_REFERENCE_INVESTIGATION.md#5-owner-decisions-t1t16-with-recommendations).
 - **Simulation follow-up (decided: the THING-loading truncation is closed under wire 25 only).** `P_LoadThings` ends the
