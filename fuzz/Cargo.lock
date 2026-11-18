@@ -72,6 +72,7 @@ dependencies = [
  "doom-map",
  "doom-render",
  "doom-sim",
+ "doom-sound",
  "doom-test-evidence",
  "doom-types",
  "doom-wad",
@@ -111,6 +112,15 @@ name = "doom-sim"
 version = "0.1.0"
 dependencies = [
  "doom-map",
+ "doom-types",
+]
+
+[[package]]
+name = "doom-sound"
+version = "0.1.0"
+dependencies = [
+ "doom-render",
+ "doom-sim",
  "doom-types",
 ]
 
