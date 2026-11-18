@@ -160,8 +160,8 @@ pub fn replay(
 
 /// [`replay`] of commands as they are, `angle_turn` at full resolution: the commands an
 /// unrecorded session executed ([`SessionConfig::unrecorded_full_turning`]) or the commands the
-/// injection evidence feeds (`tools/reference/m5b_inject.py`). A command outside wire 24 is
-/// refused by the simulation's own preflight.
+/// injection evidence feeds (`tools/reference/m5b_inject.py`). A command outside the data's wire
+/// (wire 24, or wire 25 for data loaded with sound) is refused by the simulation's own preflight.
 pub fn replay_full_resolution(
     data: &GameData,
     screenblocks: u8,
@@ -522,7 +522,7 @@ impl fmt::Display for Witness {
             Self::Record(e) => write!(f, "recorder: {e}"),
             Self::Simulation(e) => write!(f, "{e}"),
             Self::Frame(e) => write!(f, "{e}"),
-            Self::Sound(e) => write!(f, "sound: {e:?}"),
+            Self::Sound(e) => write!(f, "sound: {e}"),
         }
     }
 }

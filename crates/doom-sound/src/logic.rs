@@ -115,6 +115,28 @@ pub enum SoundRefusal {
     Config,
 }
 
+impl std::fmt::Display for SoundRefusal {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::SfxId { sfx } => write!(f, "sound number {sfx} is not in the sound table"),
+            Self::LumpMissing { sfx } => write!(f, "sound {sfx} has no lump in the WADs"),
+            Self::Mix(m) => write!(f, "mixer: {}", m.message()),
+            Self::ButtonPastArray { slot } => write!(
+                f,
+                "a switch release in button slot {slot} would read past the button list"
+            ),
+            Self::Placement => write!(f, "a sound start's positions do not fit its origin"),
+            Self::OriginGone { cnum } => write!(
+                f,
+                "the origin of the sound on channel {cnum} has no position to read"
+            ),
+            Self::Config => write!(f, "the sound volume or channel count is out of range"),
+        }
+    }
+}
+
+impl std::error::Error for SoundRefusal {}
+
 /// What `S_AdjustSoundParams` (s_sound.c:752-818) did.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum Adjusted {

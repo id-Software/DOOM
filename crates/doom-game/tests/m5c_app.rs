@@ -348,6 +348,26 @@ fn a_sound_refusal_ends_the_session_with_the_sound_state_preserved() {
         ),
         "{witness:?}"
     );
+    // review-app N6: the end screen's witness text is a plain message, not Debug text
+    let text = witness.to_string();
+    let SessionRefusal::Sound {
+        at: RefusedAt::Record(i),
+        ..
+    } = (match &witness {
+        Witness::Sound(r) => *r,
+        _ => unreachable!(),
+    })
+    else {
+        unreachable!()
+    };
+    assert_eq!(
+        text,
+        format!(
+            "sound: tic {tic}, sound call {i}: mixer: refused: sfx 1 has no sample byte at its \
+             start (i_sound.c:230-247, 591)"
+        )
+    );
+    assert!(!text.contains('{') && !text.contains("Sound"), "{text}");
     // the sound session is exactly as after the last reported tic, the one before the refusal
     let after = d.app.sound().expect("sound");
     assert_eq!(after.schedule().tic(), tic);

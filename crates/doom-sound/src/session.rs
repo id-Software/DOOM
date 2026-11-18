@@ -102,6 +102,38 @@ pub enum SessionRefusal {
     },
 }
 
+impl std::fmt::Display for SessionRefusal {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Sound {
+                tic,
+                at: RefusedAt::Record(i),
+                refusal,
+            } => write!(f, "tic {tic}, sound call {i}: {refusal}"),
+            Self::Sound {
+                tic,
+                at: RefusedAt::Update,
+                refusal,
+            } => write!(f, "tic {tic}, sound update: {refusal}"),
+            Self::TicLimit => write!(f, "the sound session reached its tic limit"),
+            Self::DrawCount { tic, record } => write!(
+                f,
+                "tic {tic}, sound call {record}: more than 65535 random draws in one tic"
+            ),
+            Self::NoListener => write!(f, "the player has no body to hear sounds"),
+            Self::TicMismatch {
+                session,
+                simulation,
+            } => write!(
+                f,
+                "the sound session is at tic {session} but the simulation at tic {simulation}"
+            ),
+        }
+    }
+}
+
+impl std::error::Error for SessionRefusal {}
+
 /// What one tic did.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct TicSound {
