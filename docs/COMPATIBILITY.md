@@ -2607,6 +2607,50 @@ genuine engine under wire 24, and the local real-map runs) are in
 `crates/doom-sim/src/baron_tests.rs` and `crates/doom-sim/src/hard_skill_tests.rs`; `crates/doom-sim/tests/episode1v2_mechanism_goldens.rs` replays the admitted M4b scripts against
 the goldens and fixtures in `cargo test`.
 
+## Original Episode 1, part 3: canonical sound records (wire 25)
+
+**Status: on the milestone branch `feat/m5c-sound` (draft [PR #63](https://github.com/Copgunn/DOOM/pull/63)), not merged; milestone status is in [ROADMAP](ROADMAP.md).** Wire 25 is wire 24 plus
+what sound needs, and **nothing else** (decisions T3 and T4, confirmed by the owner on 2026-11-18). It makes no
+sound: it lets the simulation say, tic by tic, which sounds the original would start and stop and from where, so
+that [the sound logic](#sound-effects-m5c) can run on them.
+
+`OriginalExecutionProfile::PlayerMonstersEpisode1V3` (wire 25, DSIM41, context `PLAYER-MONSTERS-EPISODE1-3-v1`)
+is a separate optional superset of `PlayerMonstersEpisode1V2` (wire 24). Select it with
+`Simulation::original_player_episode1_v3_map(map, map_number, skill, context)` (same arguments and same setup
+calls as wire 24). The canonical layout is the
+[STATE_FORMAT DSIM41 section](STATE_FORMAT.md#dsim-v41--wire-25-canonical-sound-records), read by
+`Diagnostic::decode_episode1_v3`. Wires 1-24, their goldens and DSIM1-40 are unchanged, and every earlier reader
+refuses 41.
+
+**What wire 25 adds to wire 24, and no more.**
+
+| Addition | What it is |
+| --- | --- |
+| Canonical sound records | Every `S_StartSound` the original makes (one record per call, in call order) and every `S_StopSound` that `P_RemoveMobj` makes, in the group `events.sounds`. A start whose origin is neither NULL nor the player's own body also carries the positions of the origin and the listener at the moment of the call, which the audibility rule needs and which the wire-24 events do not hold |
+| Sector sound origins | The point a door, lift or floor sound comes from is the middle of the sector's bounding box, computed once at load as `P_GroupLines` does (p_setup.c:536-557). A sector whose arithmetic would overflow refuses the map at load (`SoundError::SectorOriginOverflow`) |
+| The two switch origins | Press: the origin the original passes, `buttonlist[0].soundorg` read before the new button is stored (p_switch.c:228-256). Release: the declared 64-bit reading and the slot-15 refusal ([below](#the-two-switch-sounds-decision-t12)) |
+| The corrected scream | A player's hard death plays `sfx_pldeth`, as the original does outside commercial mode (p_enemy.c:1994-2007). Wires 22-24 name `sfx_pdiehi` ([known gap](#known-gap-the-players-hard-death-scream-in-the-sound-events-of-wires-22-24)) |
+| The THING-loading truncation | `P_LoadThings` stops at the first of ten Doom II types outside commercial mode (p_setup.c:317-337); wire 25 does the same ([known gap](#known-gap-thing-loading-stops-at-the-first-doom-ii-type-outside-commercial-mode)) |
+| New typed refusals | `SimError::Sound` with `SectorOriginOverflow`, `ButtonSlot15` and `Unplaced` (a start that should carry positions and does not, which no admitted path makes); each leaves the simulation's state as it was |
+
+**How "nothing else changes" was shown** (details in the [evidence record](validation/M5C.md#step-3a-wire-25-in-doom-sim)):
+every wire-25 capture, with the sound group and the three header fields removed, equals the wire-24 capture of the
+same run, and wire 25's events equal wire 24's except the scream. Rust against Rust, on the 64 synthetic items:
+22,976 captures, all equal. On the 61 real Episode 1 runs (local): 159,027 captures, all equal. No real or
+synthetic run reaches the scream's case, so that replacement is checked by a unit test, not by a run.
+
+**How the records were compared with the genuine engine.** A second encoder, written independently in Python
+(`tools/reference/level_snapshot_m5c.py`), builds the DSIM41 bytes from the genuine engine's dumps and from the
+genuine sound stream (linuxdoom-1.10 built with its in-process sound code, one define removed), never from Rust
+output. Wire 25 matches it on every capture of the 64 synthetic items (785 starts, 404 of them with positions, and
+378 stops) and of the 61 real runs (26,077 starts, 20,097 with positions, 10,470 stops), with no disagreement
+([synthetic](validation/M5C.md#step-3b-the-independent-dsim41-encoder-the-comparators-and-the-genuine-comparisons),
+[real maps, local only](validation/M5C.md#the-61-real-runs-local-only-wire-25)).
+
+**What this does not show.** Matching is a statement about those 64 items and 61 runs, not a proof for every
+possible input. It says nothing about what the sound logic does with the records (that is the next section) and
+nothing about how anything sounds.
+
 ## Software renderer (M5a)
 
 Milestone status is in [ROADMAP](ROADMAP.md). The crate
@@ -2950,6 +2994,130 @@ screen and demo loop, screen wipes, cheats, vanilla's in-game pause, easy and ni
 screenblocks below 10, multiplayer and joystick input. The modern renderer and the idle-glance fix (M5c) are
 listed in [ROADMAP](ROADMAP.md).
 
+## Sound effects (M5c)
+
+Milestone status is in [ROADMAP](ROADMAP.md). **As of 2026-11-18 (America/Los_Angeles) the sound logic and the mixer
+exist as a library and nothing plays.** The crate `doom-sound` ([architecture](ARCHITECTURE.md#sound-effects-m5c))
+decides which sounds start, on which channel, at what volume, stereo position and pitch, and computes the samples
+the original mixer would write; it opens no audio device. Not yet true, and not claimed anywhere on this page:
+
+- no frame, status bar face or `M_Random` index has been compared under the new contract in Rust, and **the status
+  bar face's idle glance gap (S15, [above](#the-status-bar-faces-idle-glance-differs-from-a-vanilla-session-declared))
+  is not closed**;
+- there is no audio output, no volume setting, no mute and no app that plays sound; **no audio device has been opened
+  on any system, and nobody has heard any sound from this project**;
+- the real Episode 1 runs have not yet been run through the full sound logic in Rust (the 61 runs have been compared
+  at the records, [above](#original-episode-1-part-3-canonical-sound-records-wire-25)).
+
+The facts are in the [investigation note](M5C_REFERENCE_INVESTIGATION.md) (decisions T1-T16, owner rulings
+2026-11-18), the observations in the [evidence record](validation/M5C.md) and the commands in
+[TESTING](TESTING.md#m5c-sound-effects-the-genuine-sound-logic-and-mixer).
+
+### The reference
+
+Every claim about sound means: identical to **linuxdoom-1.10 built with its in-process sound code (one define
+removed)** (decision T2). The one define is `SNDSERV` at `doomdef.h:84`: the source as shipped sends sound to an
+external `sndserver` program, and its own mixer in `i_sound.c` exists only with that define removed. So this is not a
+claim about the shipped binary and not a claim about what a 1997 player heard.
+
+### The declared sound schedule (decision T5)
+
+In the original, three things in the sound path follow passes of the main loop, and so the clock, not tics. This
+port ties all of them to tics, as the frame contract of M5a and M5b already does:
+
+1. One tic per pass: the tic's sound records run with `gametic` equal to the tic number `t`, then `S_UpdateSounds`
+   runs with `gametic` `t + 1` (d_main.c:392), after **every** tic.
+2. The mixer makes buffer k (k = 0, 1, 2, ...) of 512 frames after tic floor(512k / 315): none or one buffer per
+   tic, 315 buffers every 512 tics, the first after tic 0. A tic is worth 315 frames at 11,025 Hz. A start takes
+   effect in the next buffer mixed, so it is heard 0 to 511 frames (at most 46 ms) after its tic.
+3. A session is a fresh process started straight on the map (decision T15): `gametic` and the handle counter are 0
+   at its first tic, no channel is busy, and the mixer is silent.
+
+The claim is therefore: identical to the reference **under this schedule**. It is not a claim about a session paced
+by a real sound card. Every tool carries the other values as switches, and the committed results record what they
+give.
+
+### The level-start wipe (decision T6)
+
+Every start straight on a map wipes, and the wipe draws `M_Random` exactly 320 times after the first frame (f_wipe.c).
+Sound's draws and the wipe's draws are what make the status bar face's glance differ from a sound-free session. The
+port is to account for the 320 draws at the declared point, after the frame of tic 0 (the melt itself is not shown and
+takes no time). **That accounting is not written in Rust yet:** it belongs to the display contract, which is still in
+progress. The test that compares the sound session with the genuine engine adds the 320 to its expected index at that
+point. Where the `M_Random` index lives is in [ARCHITECTURE](ARCHITECTURE.md#where-the-m_random-index-lives).
+
+### Refusals instead of the original's errors (decision T11)
+
+Where the original stops with `I_Error`, or reads memory it does not own, this port refuses with a typed error **at
+the exact start, with every part of the state unchanged**. None of these is reachable on an Episode 1 map of the
+IWADs as far as the investigation found, and each has a synthetic witness in the tests.
+
+| Case | What the original does | Refusal | Source |
+| --- | --- | --- | --- |
+| Sound number 0, or 110 and above | `I_Error("Bad sfx #")` | `SfxId` | s_sound.c:277-278 |
+| Sound number 109 | passes that check and reads one entry past the `S_sfx` table | `SfxId` | s_sound.c:277-280 |
+| A start that obtains a channel, whose `ds` lump is missing | `W_GetNumForName` ends in `I_Error` | `LumpMissing` (a start that finds no channel never looks the lump up, as in the original) | s_sound.c:363-365, i_sound.c:451-456, w_wad.c:399-409 |
+| A lump of 8 bytes or fewer | the original reads one byte past its block, and the value depends on memory layout (it differed between builds) | `Mix(ShortLump)` | i_sound.c:230-247, 591, 606 |
+| A pitch outside 0..255 | indexes past the 256-entry step table | `Mix(Pitch)` (the sound logic cannot make one: it computes 128 plus at most 16 either way) | i_sound.c:495, s_sound.c:324-345 |
+| A volume or separation that makes a left or right volume outside 0..127 | `I_Error("rightvol out of bounds")`, then `leftvol` | `Mix(RightVolume)`, `Mix(LeftVolume)` | i_sound.c:364-368 |
+| A switch release in button slot 15 | reads one slot past `buttonlist` | the wire-25 tic is refused (`ButtonSlot15`); the sound session refuses too | p_spec.c:1151 |
+| A sector whose sound-origin arithmetic overflows | signed overflow in `P_GroupLines` | the map is refused at load (`SectorOriginOverflow`), wire 25 only | p_setup.c:536-557 |
+| No `dspistol` lump when the sound set loads | `I_InitSound` replaces every missing lump with it, then `W_GetNumForName` ends in `I_Error` | the load is refused (`PistolMissing`) | i_sound.c:213-214, w_wad.c:399-409 |
+
+The crate has a few further refusals that are not the original's behaviour: a start with positions but a NULL
+origin, an origin that no longer resolves when `S_UpdateSounds` needs its position, a volume or channel count
+outside the configuration bounds, and the limits on the size of sound data. They guard the Rust code's own
+invariants and are labelled Rust-only safety checks in the [evidence record](validation/M5C.md).
+
+### The two switch sounds (decision T12)
+
+- **Press.** The original passes `buttonlist->soundorg`, the value in button slot 0, **read before the new button is
+  stored** (p_switch.c:228-256). While slot 0 is free that value is NULL, so the click plays at full volume, centred,
+  from any distance; while slot 0 holds a button it is that other line's sector. Wire 25 does exactly this.
+- **Release.** `p_spec.c:1151` passes the address of the pointer field, not its value, so the position is read out
+  of the **next** button slot: on a 64-bit build x is that slot's timer and y is 0; on the original 32-bit layout x is
+  that slot's texture number and y is its timer. Both are within a hundredth of a map unit of the map's origin (0, 0),
+  so the click seems to come from the map's origin, not the switch, and whether it is heard (and so whether it draws a
+  random number) depends on how far the player is from that point. **This port follows the 64-bit reading, declared**:
+  x is the next slot's timer and y is 0. The two readings differ only while the next slot is busy.
+- **Slot 15 is refused**, because it reads past the array.
+- **The layout-dependent label.** At every switch release whose next slot is busy, and at every later
+  `S_UpdateSounds` read of that origin, the session works out what the 32-bit build could have read there (any
+  texture number of the loaded WADs as x, the next slot's timer as y) and compares it with the declared reading. If
+  any of them would change whether the sound is audible, its volume, its separation or the `M_Random` draws (at the
+  start), or whether it is audible (at a later read), the session is **labelled layout-dependent from that tic**
+  and the firing is counted. The session always continues on the 64-bit reading. **Every report counts
+  layout-dependent sessions separately.** The label and the count are part of the saved sound state.
+  So far the detector has fired 0 times over the 64 synthetic items, so none of them is a layout-dependent session; the
+  61 real runs have not been run through it yet, and the expectation (the owner's) is that it never fires there. On the
+  release where the genuine 32-bit and 64-bit builds read different values (the committed script SNDBTN2, where the next
+  slot is busy), the detector does not fire: no texture number of that room's WAD changes anything audible.
+
+### Audible quirks of this source, reproduced as they are (decision T13)
+
+None is "fixed": a fix would be a new profile needing its own decision. This is what a listener will hear that the
+original does, and each line is as the original's code behaves.
+
+| # | What the player will hear | Source |
+| --- | --- | --- |
+| 1 | Pitch varies at random on most sounds, by about 0.85 to 1.19 times normal speed (the chainsaw sounds vary less; `itemup` and `tink` not at all). Each variation is a random draw | s_sound.c:327-345 |
+| 2 | A sound keeps playing to its end after its source is gone, and its volume and stereo position are fixed when it starts: `I_StopSound` and `I_UpdateSoundParams` do nothing. "Playing" for the sound logic means `gametic` has not reached the sound's handle, which has nothing to do with its length | i_sound.c:505-513, 675-686, 517-521 |
+| 3 | A sound lump whose header declares a rate other than 11,025 Hz is still played at 11,025 Hz (a lump declaring 22,050 Hz is an octave low and twice as long; 1 such lump in `DOOM.WAD` and 4 in `DOOM2.WAD`, [counts](validation/M5C.md#step-2-the-genuine-mixer-harness-and-its-goldens)) | i_sound.c:99, 185-251 |
+| 4 | The switch-release click comes from near the map's origin, not the switch, so it can be silent or loud depending on where the player is. The press click comes from the origin of slot 0 (above) | p_spec.c:1151, p_switch.c:228-256 |
+| 5 | On map 8, nothing is ever out of earshot, and with the default sound volume of 8 a distant sound is **louder** (up to 15) than a near one (8) | s_sound.c:773, 800-806 |
+| 6 | The chaingun sound is linked to the pistol's and the link gives it length 0, so it would play one frame; no game code starts it | sounds.c:204, i_sound.c:801-811 |
+| 7 | The exit switch never plays its own sound, only the ordinary switch sound: the line's special is cleared at line 211-212, before line 221 tests it | p_switch.c:211-222 |
+| 8 | Only three sounds can be tracked by the sound logic at once (`snd_channels`), though the mixer plays eight, so a fourth sound either replaces a tracked one or, when none may be replaced, is not started (it still draws its random number) | m_misc.c:282, i_sound.c:94 |
+
+### What the sound logic has and has not been compared with
+
+Against the genuine engine (the reference above, under the declared schedule): the logic's every row on the 64
+synthetic items, end to end from the Rust wire-25 simulation (every start, stop, channel stop, per-update volume,
+separation and pitch, lump lookup and the `M_Random` index after each tic), and the mixer's every buffer on those
+items and on 23 scenarios. On the
+61 real Episode 1 runs the sound logic has **not** been run in Rust yet. Details and exceptions
+(381 start rows of 785 carry no listener position) are in the [evidence record](validation/M5C.md#step-4-part-2-the-session-the-detector-the-saved-state-and-the-end-to-end-gate).
+
 ## Known gap: THING loading stops at the first Doom II type outside commercial mode
 
 `P_LoadThings` (linuxdoom-1.10/p_setup.c:317-337) tests, when `gamemode != commercial`, each THING's type
@@ -2987,18 +3155,50 @@ registered engine tic for tic, which a truncation at a type-65 THING would have 
 ([M4a census](M4A_REFERENCE_INVESTIGATION.md#2-episode-1-census-medium-skill) for the admitted monsters). So no recorded
 comparison is affected. A map with a type-65 THING under a registered or shareware engine, for example a
 synthetic one, would diverge. The fix is
-planned as a new wire (see [ROADMAP](ROADMAP.md)).
+closed under wire 25 (below); wires 12-24 keep the gap.
 
-## Known gap: the player's hard-death scream in wire 24's sound events
+**Closed under wire 25 (decision T4, 2026-11-18).** Wire 25 breaks at the first of the ten types before the start
+handling, as the original does, and for no other change of behaviour. One synthetic map (`tests/reference/m5c_t4`,
+E1M1, things in lump order: the player start, a zombieman, a type-65 Former Human Commando, a second zombieman and a
+stimpack) shows it against the genuine engine, which loads 2 mobjs: wire 25 matches on all 93 tics, and wire 24
+diverges at the load capture (DSIM tic 0, first at `rng.gameplay`, with 5 actors at load, because its three extra
+spawns each draw a random number for their first state's duration, p_mobj.c:787-788)
+([observations](validation/M5C.md#the-thing-loading-truncation-decision-t4)). The wire 25 simulation is the only one
+that truncates; for wires 12-24 the gap above stands unchanged.
+
+## Known gap: the player's hard-death scream in the sound events of wires 22-24
 
 In the original, `A_PlayerScream` plays `sfx_pdiehi` for a player death below -50 health only in commercial mode
-(linuxdoom-1.10/p_enemy.c:1994-2007); otherwise it plays `sfx_pldeth`. The Rust simulation's sound event names
-`sfx_pdiehi` in every mode (crates/doom-sim/src/lifecycle.rs:1701-1708). Only that event's sound number is
-affected: the game state, positions, random numbers and every frame are as the original's, and no build plays a
-sound today, so nothing audible or visible is wrong yet.
+(linuxdoom-1.10/p_enemy.c:1994-2007); otherwise it plays `sfx_pldeth`. The Rust simulation's sound event, in wires
+22-24, names `sfx_pdiehi` in every mode (`PlayerScream` arm of `crates/doom-sim/src/lifecycle.rs`). Only that event's
+sound number is affected: the game state, positions, random numbers and every frame are as the original's, and no build
+plays a sound today, so nothing audible or visible is wrong.
 
-**Status: unpatched by rule.** The event is part of wire 24's canonical bytes and stays as it is. It was found by
-reading the code on 2026-11-18 and has not been confirmed by a genuine-engine comparison: no whole-engine run has
-ever compared sound events. Decision T3 of the
-[M5c investigation note](M5C_REFERENCE_INVESTIGATION.md#5-owner-decisions-t1t16-with-recommendations) proposes
-the correction in a new wire 25.
+**Status: a known gap, unpatched by rule.** The event is part of the canonical bytes of wires 22-24 and stays as it is,
+because historical profiles keep their behaviour. It was found by reading the code on 2026-11-18. **Wire 25 corrects
+it** (it plays `sfx_pldeth`, as an Episode 1 game does; decision T3). No run reaches the case: the 61 real Episode 1
+runs and the 64 synthetic items contain no hard player death, so the replacement count is 0 on all of them and the
+correction is tested by a unit test.
+
+### The sound events of wires 22-24 were never compared with the genuine engine
+
+Said plainly, as the owner asked: **until wire 25, no whole-engine run had ever compared the simulation's sound events
+with the genuine engine, and the events of wires 22, 23 and 24 themselves still have not been compared directly.** What
+was done is this. The first genuine comparison was made on **wire 25's records**, over 64 synthetic items and 61 real
+Episode 1 runs, and wire 25's events equal wire 24's apart from the scream on every one of those captures (Rust against
+Rust, [above](#original-episode-1-part-3-canonical-sound-records-wire-25)). So for those inputs the comparison is evidence
+about wire 24's events as well, and **it found no fault beyond the scream: the count of frozen-wire sound faults stands
+at one.** Wire 22 and 23 events have not been checked against wire 25 or the genuine engine on sound. Every further fault
+a later comparison finds is to be listed here, left unpatched in the frozen wires and fixed in wire 25 only.
+
+What the comparison covered, and did not:
+
+- **Compared:** for every start, its order, its tic, its sound number, its origin's kind and identity, and, for the
+  starts that carry positions, the origin and listener positions and the listener's angle; for every stop, its tic and
+  identity. Every capture of the run was also compared outside sound.
+- **Not compared:** for the 381 starts of the 64 synthetic items that carry no position (a NULL origin or the player's
+  own body: 785 starts, of which 404 carry positions), the genuine engine writes the listener's position and angle,
+  and the wire-25 record does not carry them. Those three columns are not compared, and the original does not read them
+  there (s_sound.c:304-324). The same holds for the 5,980 such starts of the 61 real runs (26,077 starts less 20,097 with
+  positions). Every other column of those starts is compared.
+
