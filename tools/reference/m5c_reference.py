@@ -465,11 +465,13 @@ def run_item(item, bins, frozen, runs, frozen_gold):
             a = run(bins['strict'], item, runs / f'{L}_{sb}_{name}', base + ex)
             ag = truncate(normalise(a['frames'])[0], last_tic_of(a), True)
             sf = sound_facts(a['sound'])
-            alts[name] = dict(frames_sha256=sha(ag.encode()), sound_sha256=sha(a['sound'].encode()), end=end_of(a),
+            # E rows dropped from the alternate's sound digest: M5OPEN's I_Error text varies run to run (section 3.1.4)
+            alts[name] = dict(frames_sha256=sha(ag.encode()), end=end_of(a),
+                              sound_sha256=sha(''.join(l for l in a['sound'].splitlines(keepends=True) if not l.startswith('E,')).encode()),
                               outcomes=sf['outcomes'], stop_reasons=sf['stop_reasons'], updates=sf['Z'].get('updates'),
                               start_rows_sha256=sha('\n'.join(','.join(x) for x in rows_of(a['sound'], 'S')).encode()),
                               rnd_rows_equal_recommended=[r[:5] for r in rows_of(a['sound'], 'R')] == [r[:5] for r in rows_of(s['r']['sound'], 'R')],
-                              face_frames_equal_recommended=[f[:7] for f in rows_of(ag, 'P')] == [f[:7] for f in rows_of(golden, 'P')])
+                              face_frames_equal_recommended=all(x[:7] == y[:7] for x, y in zip(rows_of(ag, 'P'), rows_of(golden, 'P'))))   # through the shorter stream
         rec['alternates'] = alts
         out['views'][str(sb)] = rec
         goldens[sb] = golden
@@ -616,7 +618,11 @@ def main():
         if a.check:
             bad = [str(p.relative_to(ROOT)) for p, t in files.items() if not p.exists() or p.read_text() != t]
             extra = [str(p.relative_to(ROOT)) for d in (FRAMES_DIR, SOUND_DIR) if d.exists() for p in d.iterdir() if p not in files]
-            if bad or extra: sys.exit(f'differs: {bad}; not produced by this run: {extra}')
+            if bad or extra:
+                for path, t in files.items():
+                    if str(path.relative_to(ROOT)) in bad:
+                        out = work / 'regenerated' / path.relative_to(ROOT); out.parent.mkdir(parents=True, exist_ok=True); out.write_text(t)
+                sys.exit(f'differs: {bad} (regenerated text under {work / "regenerated"}); not produced by this run: {extra}')
             print(f'{RESULTS.relative_to(ROOT)}, {COVERAGE.relative_to(ROOT)} and {len(files) - 2} golden files match ({len(results)} items)')
         else:
             FRAMES_DIR.mkdir(exist_ok=True); SOUND_DIR.mkdir(exist_ok=True)
