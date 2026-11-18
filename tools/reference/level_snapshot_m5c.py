@@ -26,7 +26,7 @@ sound code, one define removed, tools/reference/m5c_build.py), never from Rust o
 - start (tag 1): u16 sfx (1..NUMSFX-1, NUMSFX = 109 at sounds.h:288), u8 origin kind and
   identity: `none` (oid -1) kind 0; `player` and `mobj` kind 1 plus the 12-byte actor handle
   (u32 slot, u64 generation); `sector` kind 2 plus u16 index; `button` kind 3 plus u8 slot
-  (0..15, buttonlist[MAXBUTTONS], p_spec.h:438-444); then u8 placed and, when 1, the origin's
+  (0..15, buttonlist[MAXBUTTONS], MAXBUTTONS 16 at p_spec.h:244); then u8 placed and, when 1, the origin's
   x, y and the listener's x, y (i32, raw 16.16) and angle (u32), the S row's
   ox, oy, lx, ly, langle. A start is placed exactly when its origin is neither NULL nor the
   listener's body (`origin && origin != players[consoleplayer].mo`, s_sound.c:302), which is
