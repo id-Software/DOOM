@@ -334,13 +334,19 @@ impl<'a> Diagnostic<'a> {
     /// `events.sounds.last.N`, then `events.sounds.pending.count` and
     /// `events.sounds.pending.N`. A record is tag 1, a start: u16 sfx (1..=108);
     /// u8 origin kind 0 none, 1 actor (a 12-byte handle), 2 sector (u16, below
-    /// `sectors.count`), 3 button (u8, below 16); u8 placed (0 or 1), then when 1
+    /// `sectors.count`), 3 button (u8, below 15: slot 15's release reads past
+    /// `buttonlist`, p_spec.h:244, and is refused); u8 placed (0 or 1), then when 1
     /// origin x, origin y, listener x, listener y (i32) and the listener angle
     /// (u32). A start is placed exactly when its origin is a sector, a button, or
     /// an actor other than `original_player.0.mo` (s_sound.c:304); a button's
     /// origin y is 0 and its x a timer, 0..=35 (the declared 64-bit reading of
     /// p_spec.c:1151). Tag 2 is a stop: the 12-byte handle. Integers are little
-    /// endian.
+    /// endian. The group holds no other field, and the pending records, without
+    /// their placements, are exactly the sound calls of `events.pending` in order
+    /// (each sound event a start, each `RemovalMarked` a stop). The DSIM40 bounds,
+    /// totals and lump-order witnesses are counted over the THINGS records
+    /// `P_LoadThings` loads, those before the first of the ten Doom II types
+    /// (p_setup.c:317-337).
     pub fn decode_episode1_v3(
         bytes: &'a [u8],
         limits: DiagnosticLimits,
