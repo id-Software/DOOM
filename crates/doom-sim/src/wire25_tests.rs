@@ -595,3 +595,151 @@ fn dsim41_reader_round_trip_and_refusals() {
         Some(DiagnosticError::Structure)
     );
 }
+
+/// Encodes `fields` as a DSIM41 frame (the layout of `Snapshot::canonical_bytes`).
+fn encode41(fields: &[(String, Vec<u8>)]) -> Vec<u8> {
+    let mut out = b"DSIM".to_vec();
+    out.extend(41_u32.to_le_bytes());
+    out.extend((fields.len() as u64).to_le_bytes());
+    for (p, v) in fields {
+        out.extend((p.len() as u32).to_le_bytes());
+        out.extend(p.as_bytes());
+        out.extend((v.len() as u64).to_le_bytes());
+        out.extend(v);
+    }
+    out
+}
+
+/// The fields of a snapshot, in order.
+fn owned_fields(s: &Simulation) -> Vec<(String, Vec<u8>)> {
+    s.snapshot()
+        .fields()
+        .map(|f| (f.path().to_owned(), f.value().to_vec()))
+        .collect()
+}
+
+/// `fields` with the value at `path` replaced.
+fn set(fields: &mut [(String, Vec<u8>)], path: &str, value: Vec<u8>) {
+    fields.iter_mut().find(|(p, _)| p == path).unwrap().1 = value;
+}
+
+/// M5c review, MINOR 3: the DSIM41 reader refuses frames the writer never
+/// produces: a record beyond `events.sounds.last.count` or
+/// `events.sounds.pending.count`, a field of the group outside its documented
+/// names, a button start in slot 15 (whose release reads past `buttonlist`,
+/// MAXBUTTONS 16, p_spec.h:244; p_spec.c:1151; the simulation refuses that tic),
+/// and pending records that are not the calls of `events.pending` (a stop
+/// without its `RemovalMarked`, a removal without its stop, a stop of another
+/// actor), which the simulation would refuse at the next tic
+/// (`sound::same_calls`). A consistent pending stop (an explicit removal,
+/// p_mobj.c:565-566) and a release in slot 14 are read.
+#[test]
+fn dsim41_reader_refuses_forged_frames() {
+    let limits = DiagnosticLimits::default();
+    let read = |f: &[(String, Vec<u8>)]| Diagnostic::decode_episode1_v3(&encode41(f), limits).err();
+    // A pending stop: the first M3h9b room holding a removable actor.
+    let (s, victim) = cases()
+        .iter()
+        .find_map(|c| {
+            let mut s = setup(&with_start(room(c.map), 0, c.position, 0), V3);
+            let me = body(&s);
+            let order: Vec<ActorId> = s.actor_order().collect();
+            let victim = order
+                .into_iter()
+                .find(|id| *id != me && s.mark_remove(*id).is_ok())?;
+            Some((s, victim))
+        })
+        .expect("a room holds a removable actor");
+    assert_eq!(
+        s.pending_sound_records(),
+        [SoundRecord::Stop { actor: victim }]
+    );
+    let frame = owned_fields(&s);
+    assert_eq!(read(&frame), None);
+    let stop = crate::sound::record_bytes(&SoundRecord::Stop { actor: victim });
+    let other = crate::sound::record_bytes(&SoundRecord::Stop { actor: body(&s) });
+    let count = |n: u64| n.to_le_bytes().to_vec();
+    let with = |extra: &[(&str, &[u8])]| {
+        let mut f = frame.clone();
+        f.extend(extra.iter().map(|(p, v)| ((*p).to_owned(), v.to_vec())));
+        f
+    };
+    let last = u64::from_le_bytes(
+        frame
+            .iter()
+            .find(|(p, _)| p == "events.sounds.last.count")
+            .unwrap()
+            .1
+            .clone()
+            .try_into()
+            .unwrap(),
+    );
+    let surplus = format!("events.sounds.last.{last}");
+    assert_eq!(
+        read(&with(&[(surplus.as_str(), &stop)])),
+        Some(DiagnosticError::Structure),
+        "surplus last record"
+    );
+    assert_eq!(
+        read(&with(&[("events.sounds.pending.1", &stop)])),
+        Some(DiagnosticError::Structure),
+        "surplus pending record"
+    );
+    assert_eq!(
+        read(&with(&[("events.sounds.zzz", &[0])])),
+        Some(DiagnosticError::Structure),
+        "unknown field"
+    );
+    // A second stop with no second removal.
+    let mut f = with(&[("events.sounds.pending.1", &other)]);
+    set(&mut f, "events.sounds.pending.count", count(2));
+    assert_eq!(
+        read(&f),
+        Some(DiagnosticError::Identity),
+        "stop without removal"
+    );
+    // The removal without its stop.
+    let mut f: Vec<_> = frame
+        .iter()
+        .filter(|(p, _)| p != "events.sounds.pending.0")
+        .cloned()
+        .collect();
+    set(&mut f, "events.sounds.pending.count", count(0));
+    assert_eq!(
+        read(&f),
+        Some(DiagnosticError::Identity),
+        "removal without stop"
+    );
+    // The stop of another actor than the removed one.
+    let mut f = frame.clone();
+    set(&mut f, "events.sounds.pending.0", other);
+    assert_eq!(
+        read(&f),
+        Some(DiagnosticError::Identity),
+        "stop of another actor"
+    );
+
+    // A button release: tag 1, sfx 23, kind 3, slot 0, placed.
+    let mut s = setup(&base(), V3);
+    s.buttons[0] = Some(crate::use_lines::Button {
+        line: 0,
+        timer: 1,
+        sector: 0,
+    });
+    s.advance([TicCommand::default(); 4]).unwrap();
+    let frame = owned_fields(&s);
+    let release = frame
+        .iter()
+        .find(|(p, _)| p == "events.sounds.last.0")
+        .unwrap()
+        .1
+        .clone();
+    assert_eq!(release[..6], [1, 23, 0, 3, 0, 1]);
+    for (slot, expected) in [(14, None), (15, Some(DiagnosticError::Identity))] {
+        let mut f = frame.clone();
+        let mut r = release.clone();
+        r[4] = slot;
+        set(&mut f, "events.sounds.last.0", r);
+        assert_eq!(read(&f), expected, "slot {slot}");
+    }
+}
