@@ -38,7 +38,7 @@ inputs, which stay in sync only if every tic matches), speedrun and tool-assiste
 original engine. Vanilla behavior (the original unmodified game, quirks included) is the default, and game math stays in
 Doom's whole-number arithmetic (one division aside). Once a behavior is admitted, nothing quietly rounds it differently.
 
-**It is only playable in a limited way** (one Episode 1 map at a time, no sound or menus; see [Play
+**It is only playable in a limited way** (one Episode 1 map at a time, sound effects but no music or menus; see [Play
 it](#play-it-limited)). To really play Doom, use an established source port such as [Chocolate
 Doom](https://www.chocolate-doom.org/). Like every engine, this one needs your own game files.
 
@@ -62,16 +62,22 @@ this project and, locally, on all nine real Episode 1 maps. Today it can simulat
 - a software renderer for the 3D view that draws the same image as the original code on the test maps and on every frame of those
   scripted runs (local-only), leaving out screen columns where the original reads undefined memory and 105 test-map frames with an
   unrecorded switch state ([support](docs/COMPATIBILITY.md#software-renderer-m5a));
-- a status bar, messages, palette flashes, keyboard-and-mouse input and a window at 35 tics a second. Frames are identical to the
-  genuine engine under the declared sound-free, wipe-free contract, except 300 synthetic frames compared only on the columns it
-  defines, 70 not compared, and 494 and 552 real-map frames compared that way (size 10, size 11); the sessions checked replay in it
-  ([support](docs/COMPATIBILITY.md#playable-build-m5b), [evidence](docs/validation/M5B.md));
+- a status bar, messages, palette flashes, keyboard-and-mouse input and a window at 35 tics a second. Frames, including the
+  status bar face's idle glance, are identical to the genuine engine replaying the same session, with the same exceptions as
+  before (300 synthetic frames compared only on the columns it defines, 70 not compared, and 494 and 552 real-map frames compared
+  that way at the two screen sizes); the sessions checked replay in it ([support](docs/COMPATIBILITY.md#playable-build-m5b),
+  [evidence](docs/validation/M5B.md), [with sound](docs/validation/M5C.md));
+- Doom's sound effects (no music): which sounds start, on which channel and at what volume, stereo position and pitch, and the
+  16-bit samples of the original's own mixer, all identical to the original code built with its in-process sound code (one
+  define removed), on the 64 synthetic test runs, the 61 scripted real runs (local-only) and 9 scripted app sessions, under a
+  declared schedule of one sound update per tic. **Nobody has heard it yet**: no game sound has reached any audio device, and what
+  the speakers add (resampling, delay, volume) is not part of the claim ([support](docs/COMPATIBILITY.md#sound-effects-m5c));
 - on those maps, one tic of the simulation takes about 33–150 µs on an Intel Core i7-8750H laptop CPU (6 cores, 2.2 GHz, Linux under
   WSL2), 1.8 to 7 times faster than before, every result unchanged ([measurements](docs/validation/M4P.md#matched-timing)).
 
 What it cannot do yet:
 
-- draw the automap, play sound or offer menus, an intermission or a next level, or play back the original's recorded demos (only the
+- draw the automap, play music or offer menus, an intermission or a next level, or play back the original's recorded demos (only the
   one local `DEMO1`, as run by the original code, is covered);
 - claim a tic-for-tic match for every input (only the scripted runs recorded so far), handle the other episodes or easy or nightmare
   skill, or reach every corner of a map the scripted runs do not.
@@ -140,14 +146,23 @@ cargo run --release -p doom-play -- --iwad /path/to/DOOM.WAD --map 1 --skill hmp
   replayed", also in a band over the picture for the first five seconds); its evidence is the committed synthetic scripts and
   sessions only. With your IWAD and a C compiler, `python3 tools/local/m5b_session_real.py --iwad /path/to/DOOM.WAD --lmp FILE.lmp`
   replays a saved session in the genuine engine and prints `VERDICT: PASS` or the first tic that differs.
-- **Missing.** Sound, menus, automap, saving, intermission, next level, wipes, easy and nightmare skill, multiplayer.
-- **Limits.** The status bar face's idle left, ahead or right glance differs from a vanilla session with sound until sound is modelled;
-  nothing else on screen is affected (the level-start melt, not modelled either, shares its random numbers). **An OpenGL 2.1 (or OpenGL
-  ES 2) driver is required.** On focus loss the game pauses and releases every held key: seen under WSLg when a second window took the
+- **Sound.** Sound effects play through the first audio device that opens. Under WSLg or Linux that needs the system's PulseAudio
+  client library once: `sudo apt install libpulse0` (if it is missing, ALSA's `libasound.so.2` is tried next). `doom-play --audio-probe` checks the device
+  with a second of silence. `--volume N` (0 to 100) sets the volume, `--no-sound` opens no device (the game, the face and the demo
+  are the same), and **End** mutes and unmutes; pausing is silent. If no device opens, one line on standard error says so and
+  the game runs without sound. The Windows artifact needs nothing installed (it uses WASAPI, DirectSound or WinMM). **Not yet
+  heard by anyone**, and nothing of this has run on Windows or macOS beyond CI builds.
+- **Missing.** Music, menus, automap, saving, intermission, next level, the level-start screen melt (its random numbers are
+  counted, nothing is shown), easy and nightmare skill, multiplayer.
+- **Limits.** The status bar face's idle glance matches the genuine engine replaying your session's demo; a vanilla player's menu
+  keys (Esc, `-`, `=`, F1 to F10), which start menu sounds, are not part of a demo and are not modelled. **An OpenGL 2.1 (or OpenGL
+  ES 2) driver is required.** Under WSLg the game now and then opens already paused (the PAUSED box shows) because the window
+  reports a focus loss in its first moments; Esc or Pause resumes. It was seen in about 3 of 260 runs, also without any sound code,
+  and nobody has pressed a key in such a window. On focus loss the game pauses and releases every held key: seen under WSLg when a second window took the
   focus; Alt-Tab, minimising by hand, Windows, macOS and key release on screen are unchecked: press Esc first.
 - **Not yet judged.** Under Linux (WSLg) the window starts, loads the real game and has run idle sessions (no input) whose demos
-  replay with every frame identical to the genuine engine under the declared sound-free, wipe-free contract; scripted sessions ran
-  headless, not in the window. Nobody has looked at the picture, pressed a real key, moved a real mouse, tried mouse capture, or run
+  replay with every frame identical to the genuine engine (the M5b runs under the sound-free, wipe-free contract, the later checks
+  under the contract with sound); scripted sessions ran headless, not in the window. Nobody has looked at the picture, pressed a real key, moved a real mouse, tried mouse capture, or run
   it on Windows or macOS beyond CI builds: how it looks and feels is unknown.
 
 ## Try it
@@ -198,6 +213,7 @@ profiles](docs/COMPATIBILITY.md#versioned-gameplay-profiles).
 | `PlayerMonstersLevelV1` (22) | The player start at its place in the map's thing list, with its angle; the full player think, including damage-flash decay and the dead player's turn toward its attacker: the real E1M1 run | [Level runs](docs/COMPATIBILITY.md#original-level-runs-the-player-start-in-lump-order-and-the-full-player-think-wire-22) |
 | `PlayerMonstersEpisode1V1` (23) | Episode 1, part 1: every door, floor, lift, stair, donut, light and exit special, keys, powerups, chainsaw, rocket launcher and Spectre: the real E1M2-E1M4, E1M6 and E1M7 runs | [Episode 1, part 1](docs/COMPATIBILITY.md#original-episode-1-part-1-every-door-floor-plat-stair-donut-light-and-exit-special-keys-items-powers-chainsaw-rocket-launcher-and-spectre-wire-23) |
 | `PlayerMonstersEpisode1V2` (24) | Episode 1, part 2: teleporters, the Baron of Hell and the E1M8 boss floor, hard skill: the real E1M5, E1M8, E1M9 and `DEMO1` runs | [Episode 1, part 2](docs/COMPATIBILITY.md#original-episode-1-part-2-teleporters-the-baron-of-hell-a_bossdeath-and-hard-skill-wire-24) |
+| `PlayerMonstersEpisode1V3` (25) | Episode 1, part 3: wire 24 plus canonical sound records, the sound origins, the corrected hard-death scream and the original's THING-loading stop; it makes no sound itself, and `doom-play` runs on it | [Wire 25](docs/COMPATIBILITY.md#original-episode-1-part-3-canonical-sound-records-wire-25) |
 
 
 More developer reading:
