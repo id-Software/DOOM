@@ -360,6 +360,52 @@ impl SoundLogic {
         self.looked_up[sfx.index()]
     }
 
+    /// The "lump looked up" flag of every sound number (index 0 is always false).
+    pub fn looked_up(&self) -> &[bool; NUMSFX] {
+        &self.looked_up
+    }
+
+    /// A table rebuilt from saved state, after checking it (M5c note §4.8.2): the configuration
+    /// as [`Self::new`] checks it, exactly `config.channels` entries, at most one occupied
+    /// channel per origin (NULL included: s_sound.c:349 frees the first channel of the origin
+    /// before every start, M5c note §1.1.10 item 3), every handle in 100..=65535 (what
+    /// `addsfx` hands out, i_sound.c:335-340), a button origin below slot 15 (p_spec.c:1151),
+    /// and no flag for sound number 0. Whether actor and sector origins exist is the caller's
+    /// check, against the simulation.
+    pub fn from_parts(
+        config: LogicConfig,
+        channels: Vec<Option<ChannelEntry>>,
+        looked_up: [bool; NUMSFX],
+    ) -> Result<Self, SoundRefusal> {
+        let empty = Self::new(config)?;
+        if channels.len() != empty.channels.len() || looked_up[0] {
+            return Err(SoundRefusal::Config);
+        }
+        for (i, c) in channels.iter().enumerate() {
+            let Some(e) = c else { continue };
+            if !(100..=65535).contains(&e.handle) {
+                return Err(SoundRefusal::Config);
+            }
+            if let SoundOrigin::Button(slot) = e.origin {
+                if slot >= MAXBUTTONS - 1 {
+                    return Err(SoundRefusal::ButtonPastArray { slot });
+                }
+            }
+            if channels[..i]
+                .iter()
+                .flatten()
+                .any(|other| other.origin == e.origin)
+            {
+                return Err(SoundRefusal::Config);
+            }
+        }
+        Ok(Self {
+            config,
+            channels,
+            looked_up,
+        })
+    }
+
     /// `S_StopChannel(cnum)` (s_sound.c:708-742) on a channel known to be occupied.
     fn stop_channel(
         channels: &mut [Option<ChannelEntry>],

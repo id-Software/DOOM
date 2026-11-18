@@ -126,12 +126,80 @@ pub struct Mixer {
     handlenums: u16,
 }
 
+/// Two mixers are equal when they read the same loaded set and every busy channel and the
+/// handle counter are equal. The fields a free channel keeps from its last sound are not
+/// compared: nothing reads them again before a start rewrites the channel whole (`prev` in
+/// [`MixStart`] reads them only for a channel that was busy when that start began).
 impl PartialEq for Mixer {
     fn eq(&self, other: &Self) -> bool {
         Arc::ptr_eq(&self.set, &other.set)
-            && self.channels == other.channels
+            && self.channel_states() == other.channel_states()
             && self.handlenums == other.handlenums
     }
+}
+
+/// One busy mixer channel as the saved state holds it (M5c note §4.8.1): every field `addsfx`
+/// writes (i_sound.c:330-377) except `channelids`, which is always the sound's number
+/// (i_sound.c:377), and the left and right rows of `vol_lookup` as their indices.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct MixChannelState {
+    /// The sound whose data the channel reads (`channels[c]`, i_sound.c:330).
+    pub sfx: SfxId,
+    /// The read position as an offset into the padded data.
+    pub pos: u32,
+    /// `channelsend[c]` as an offset: the padded length (i_sound.c:332).
+    pub end: u32,
+    /// `channelstep[c]`: `steptable[pitch]` (i_sound.c:344).
+    pub step: u32,
+    /// `channelstepremainder[c]`, 0..=65535 (i_sound.c:346, 599-603).
+    pub frac: u32,
+    /// `channelstart[c]`: `gametic` at the start (i_sound.c:348).
+    pub start: i32,
+    /// `channelhandles[c]` (i_sound.c:340).
+    pub handle: i32,
+    /// The left volume row (i_sound.c:372), 0..=127.
+    pub left: u8,
+    /// The right volume row (i_sound.c:373), 0..=127.
+    pub right: u8,
+}
+
+/// Why [`Mixer::from_state`] refused a saved mixer. Each names the channel.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum MixStateError {
+    /// The padded end is not the sound's padded length in the loaded set, or the sound has no
+    /// sample byte (no start of it can be busy, [`MixRefusal::ShortLump`]).
+    End {
+        /// The channel.
+        slot: usize,
+    },
+    /// The position is not below the end (a channel is freed when it reaches it, i_sound.c:606).
+    Position {
+        /// The channel.
+        slot: usize,
+    },
+    /// The remainder is above 65535 (i_sound.c:603 keeps 16 bits).
+    Remainder {
+        /// The channel.
+        slot: usize,
+    },
+    /// The step is not one of the 256 `steptable` entries (i_sound.c:344, 495).
+    Step {
+        /// The channel.
+        slot: usize,
+    },
+    /// A volume row above 127 (i_sound.c:364-368 refuse it at the start).
+    Volume {
+        /// The channel.
+        slot: usize,
+    },
+    /// A handle outside 100..=65535 (`handlenums` is an unsigned short that skips 0..99,
+    /// i_sound.c:271, 335-340).
+    Handle {
+        /// The channel.
+        slot: usize,
+    },
+    /// The handle counter is 1..=99, a value `handlenums` never holds (i_sound.c:335-340).
+    Counter,
 }
 
 /// The single-instance sounds of `addsfx` (i_sound.c:285-290).
@@ -187,6 +255,76 @@ impl Mixer {
     /// The handle counter (`handlenums`, i_sound.c:271).
     pub fn handle_counter(&self) -> u16 {
         self.handlenums
+    }
+
+    /// The busy channels as the saved state holds them ([`MixChannelState`]).
+    pub fn channel_states(&self) -> [Option<MixChannelState>; NUM_CHANNELS] {
+        self.channels.map(|c| {
+            c.sfx.map(|sfx| MixChannelState {
+                sfx,
+                pos: c.pos,
+                end: c.end,
+                step: c.step,
+                frac: c.frac,
+                start: c.start,
+                handle: c.handle,
+                left: c.left,
+                right: c.right,
+            })
+        })
+    }
+
+    /// A mixer rebuilt from saved state over a loaded set, after checking every channel against
+    /// the set and the C's invariants (M5c note §4.8.2). A consistency check, not a proof that a
+    /// run reaches the state: the start tic is checked by the caller.
+    pub fn from_state(
+        set: Arc<SoundSet>,
+        handlenums: u16,
+        states: &[Option<MixChannelState>; NUM_CHANNELS],
+    ) -> Result<Self, MixStateError> {
+        if (1..100).contains(&handlenums) {
+            return Err(MixStateError::Counter);
+        }
+        let mut channels = [Channel::default(); NUM_CHANNELS];
+        for (slot, (c, s)) in channels.iter_mut().zip(states).enumerate() {
+            let Some(s) = s else { continue };
+            let data = set.sfx(s.sfx);
+            if s.end != data.len || !data.has_first_byte() {
+                return Err(MixStateError::End { slot });
+            }
+            if s.pos >= s.end {
+                return Err(MixStateError::Position { slot });
+            }
+            if s.frac > 0xffff {
+                return Err(MixStateError::Remainder { slot });
+            }
+            if !STEPTABLE.contains(&s.step) {
+                return Err(MixStateError::Step { slot });
+            }
+            if s.left > 127 || s.right > 127 {
+                return Err(MixStateError::Volume { slot });
+            }
+            if !(100..=65535).contains(&s.handle) {
+                return Err(MixStateError::Handle { slot });
+            }
+            *c = Channel {
+                sfx: Some(s.sfx),
+                pos: s.pos,
+                end: s.end,
+                step: s.step,
+                frac: s.frac,
+                start: s.start,
+                handle: s.handle,
+                id: s.sfx.get(),
+                left: s.left,
+                right: s.right,
+            };
+        }
+        Ok(Self {
+            set,
+            channels,
+            handlenums,
+        })
     }
 
     /// The handle `addsfx` will hand out next (i_sound.c:335-340), without changing anything.
@@ -246,6 +384,8 @@ impl Mixer {
                 .iter_mut()
                 .find(|c| c.sfx.is_some() && c.id == id)
             {
+                // The freed channel keeps its other fields: if this start then takes it, the
+                // echo reports its old `channelids` entry as `prev`.
                 c.sfx = None;
             }
         }

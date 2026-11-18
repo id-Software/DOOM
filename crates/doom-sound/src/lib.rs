@@ -18,6 +18,10 @@
 //!   539-654).
 //! - [`logic`]: the sound logic of `s_sound.c` (s_sound.c:254-484, 519-613, 708-875) over the
 //!   simulation's sound records, with the `M_Random` draw where the C makes it.
+//! - [`schedule`]: the declared schedule (decision T5): `S_UpdateSounds` after every tic and
+//!   buffer k after tic floor(512k/315).
+//! - [`session`]: [`session::Sound`], one per session, running each tic's records, the update
+//!   and the due buffer transactionally.
 //!
 //! Every place where the C ends in `I_Error` or reads memory it does not own is a typed refusal
 //! made before any state changes (M5c decision T11). Every audible quirk of the source is
@@ -26,5 +30,7 @@
 pub mod logic;
 pub mod lumps;
 pub mod mixer;
+pub mod schedule;
+pub mod session;
 pub mod sounds;
 pub mod tables;
