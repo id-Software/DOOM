@@ -23,7 +23,8 @@
 //! Part 1, `Display::restore`: an accepted block is restored into a fresh display of room `byte 1`
 //! at tic `k` next to its simulation (the contract is the block's). Either a typed refusal that
 //! leaves `state()` equal to its value before, or success, after which `state()` is the restored
-//! state, it re-encodes to the same bytes, and a clone restored again gives the same state.
+//! state, it re-encodes to the same bytes, a clone restored again gives the same state, and under
+//! `WithSound` the wipe flag is set at tic 0 and clear from tic 2.
 //!
 //! Part 2, `FrameSource::restore` (display and sound together, as `SavedPresentation`): over the
 //! committed synthetic item `SNDBUSY` with sound (`m5c_wads/sndbusy.wad`, `m5b_gfx.wad`,
@@ -204,6 +205,16 @@ fn part1(index: usize, k: u8, bytes: &[u8]) {
     );
     assert_eq!(d.state().map(|s| s.encode()).as_deref(), Some(bytes));
     assert_eq!(d.contract(), state.contract);
+    // Under the M5c contract only a wipe flag the original can hold at the tic is accepted: set
+    // at tic 0, clear from tic 2 (d_main.c:187, 223-227, 300; g_game.c:472-475).
+    if state.contract == RandomContract::WithSound {
+        let t = sim.tic();
+        assert!(
+            t == 1 || state.wipe == (t == 0),
+            "wipe flag {} at tic {t}",
+            state.wipe
+        );
+    }
     // The same state restored into a second display is the same state again.
     again
         .restore(state.clone(), &sim)

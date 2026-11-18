@@ -714,6 +714,11 @@ impl DisplayState {
     ///   (st_stuff.c:994), at most 200 (p_inter.c:385-386, 402-403, 412);
     /// - after tic 0, the key boxes and the ready ammunition as `ST_updateWidgets` derives them
     ///   from the player (st_stuff.c:932-958);
+    /// - under [`RandomContract::WithSound`] (`DDSP` version 2) only, the wipe flag: set at tic 0,
+    ///   clear from tic 2 (either at tic 1, between the first observe and the first draw): the
+    ///   wipe is due once, before the first `D_Display` (d_main.c:187, 223-227, 300; g_game.c:
+    ///   472-475), and its 320 draws would otherwise be made again; M5b's contract accepts any
+    ///   flag, as it always has;
     /// - `lastattackdown` -1 or 1..=`ST_RAMPAGEDELAY`: it is reset to 1 in the tic it reaches 0
     ///   (st_stuff.c:880-893);
     /// - the face, by `priority` (st_stuff.c:760-921): 0 a straight face (offset 0-2) with
@@ -779,11 +784,24 @@ fn consistency_error(d: &DisplayState, tic: u64, i: &StatusInputs) -> Option<&'s
         9 => s.faceindex == st_stuff::DEADFACE && s.facecount == 0,
         _ => false,
     };
-    let checks: [(bool, &'static str); 7] = [
+    // Under the M5c contract the wipe flag moves the M_Random index (the wipe's 320 draws after
+    // the frame), so it must be one the original could hold at the tic: a straight-on-map start
+    // makes `gamestate != wipegamestate` true once (wipegamestate starts as GS_DEMOSCREEN,
+    // d_main.c:187; G_DoLoadLevel, g_game.c:472-475) and the first D_Display clears it
+    // (d_main.c:223-227, 300), which the declared schedule runs after tic 0. So it is set at tic
+    // 0, either at tic 1 (between the first observe and the first draw), clear from tic 2.
+    // Version 1 (M5b's contract) is unchanged: there the flag changes only `redrawsbar`.
+    let wipe = match (d.contract, tic) {
+        (RandomContract::SoundFreeWipeFree, _) | (RandomContract::WithSound, 1) => true,
+        (RandomContract::WithSound, 0) => d.wipe,
+        (RandomContract::WithSound, _) => !d.wipe,
+    };
+    let checks: [(bool, &'static str); 8] = [
         (
             h.message_on == (h.message_counter != 0),
             "message_on and message_counter",
         ),
+        (wipe, "wipe"),
         (!h.must_show && !h.protected, "must_show or protected"),
         (
             s.oldhealth == if tic == 0 { -1 } else { i.health } && s.oldhealth <= 200,

@@ -241,3 +241,82 @@ fn a_version_2_state_restores_and_continues_exactly() {
         assert_eq!(encoded(&fresh), encoded(&d), "{lump}");
     }
 }
+
+/// Review finding M1 (review-app): under the M5c contract the wipe flag moves the `M_Random`
+/// index, so a version-2 state must hold the flag the original could hold at its tic: the wipe is
+/// due once, before the first `D_Display` (d_main.c:187, 223-227, 300; g_game.c:472-475). A forged
+/// state of tic 20 with the flag set (the reviewer's input: its next frame would make the 320 draws
+/// again, index 149 against 85) and one of tic 0 with it clear are refused with the target
+/// unchanged; the genuine state between the first observe and the first draw (tic 1, flag set)
+/// restores and makes the draws once. M5b's contract keeps accepting any flag (version 1 is
+/// frozen).
+#[test]
+fn a_version_2_wipe_flag_the_original_cannot_hold_is_refused() {
+    let mut it = load(index_of("SNDBUSY"));
+    let cfg = DisplayConfig { screenblocks: 10 };
+    let mut d = Display::new(it.res.clone(), it.level.clone(), cfg).expect("display");
+    d.begin_level(&it.sim).expect("level start");
+    d.set_contract(RandomContract::WithSound).expect("contract");
+    let start_sim = it.sim.clone();
+    let mut frame = Frame::new();
+    let refused = |state: DisplayState, sim: &doom_sim::Simulation| {
+        let mut target = Display::new(it.res.clone(), it.level.clone(), cfg).expect("display");
+        let before = target.state();
+        let r = target.restore(state, sim);
+        assert_eq!(
+            target.state(),
+            before,
+            "a refused restore changed the target"
+        );
+        r
+    };
+    // tic 0, before any observe: the genuine flag is set
+    let mut at0 = d.state().expect("state");
+    assert!(at0.wipe);
+    at0.wipe = false;
+    let at0 = DisplayState::decode_any(&at0.encode()).expect("decodes");
+    assert_eq!(
+        refused(at0, &start_sim),
+        Err(doom_render::d_display::DisplayRestoreError::Inconsistent(
+            "wipe"
+        ))
+    );
+    // tic 1 between the first observe and the first draw: set, genuine
+    tic(&mut it.sim, it.commands[0]);
+    d.observe_after(&it.sim, &it.commands[0], 1)
+        .expect("observe");
+    let between = d.state().expect("state");
+    assert!(between.wipe);
+    let mut r = Display::new(it.res.clone(), it.level.clone(), cfg).expect("display");
+    r.restore(between, &it.sim)
+        .expect("the genuine tic-1 state restores");
+    let mut f2 = Frame::new();
+    r.draw(&it.sim, &mut f2).expect("frame");
+    d.draw(&it.sim, &mut frame).expect("frame");
+    assert_eq!(
+        r.status().rndindex,
+        d.status().rndindex,
+        "the 320 draws once"
+    );
+    for cmd in &it.commands[1..20] {
+        tic(&mut it.sim, *cmd);
+        d.observe_after(&it.sim, cmd, 1).expect("observe");
+        d.draw(&it.sim, &mut frame).expect("frame");
+    }
+    let mut forged = d.state().expect("state");
+    assert!(!forged.wipe);
+    forged.wipe = true;
+    let forged = DisplayState::decode_any(&forged.encode()).expect("the bytes decode");
+    assert_eq!(
+        refused(forged.clone(), &it.sim),
+        Err(doom_render::d_display::DisplayRestoreError::Inconsistent(
+            "wipe"
+        ))
+    );
+    // the same flag under M5b's contract (version 1) is accepted, as M5b always accepted it
+    let mut v1 = forged;
+    v1.contract = RandomContract::SoundFreeWipeFree;
+    let mut m5b = Display::new(it.res.clone(), it.level.clone(), cfg).expect("display");
+    m5b.restore(v1, &it.sim)
+        .expect("version 1 keeps accepting the flag");
+}
