@@ -124,8 +124,9 @@
   virtual disk's ceiling, not real space: the real limit is the Windows drive that
   hosts it. Check `df -h /mnt/c` and keep at least 20 GB free there at all times.
 - Long sessions: use fresh subagents per step, never two writers on one tree, and never
-  leave background jobs running across the end of a reply. Run the C reference suite with
-  at most 2 parallel jobs on the owner's machine.
+  leave background jobs running across the end of a reply. Run at most 2 parallel C
+  reference jobs while the owner is using the machine; no limit when the owner says it is
+  idle (halve and re-run on an OOM kill).
 - Waiting on a process: wait on its PID (`wait PID`, or
   `while kill -0 PID 2>/dev/null; do sleep N; done`), never `pgrep -f PATTERN`, which
   matches its own command line and never exits. Every wait loop must have a timeout. An

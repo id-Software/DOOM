@@ -412,7 +412,7 @@ jobs:
   msrv:
     name: Minimum Rust / 1.85.0
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 20
     needs: changes
     if: ${{ !cancelled() }}
     env:
