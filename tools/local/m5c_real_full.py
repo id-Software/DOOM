@@ -46,7 +46,8 @@ genuine digests only; never a coordinate, a lump byte, audio or an image); --che
 comparator and the example agree where the evidence is already settled; M5CHEAT is left out (its two cheats reach
 the status bar only through replay_adjusted, decision S1). --selftest plants faults in copies of the genuine rows
 (one S row's volume, one frame digest, one face, one mixer buffer digest, one serial swapped) and requires each to
-be reported at exactly its place.
+be reported at exactly its place; the two sound faults are planted only where the stream has a started sound and two
+different monster serials (an idle run has neither), the other three in every run.
 
     python3 tools/local/m5c_real_full.py --rust PATH [--iwad PATH] [--work DIR] [--maps E1M1,..] [--only WALK,..]
                                          [--jobs N] [--write | --check] [--report PATH] [--selftest] [--cc CC]
@@ -281,7 +282,9 @@ def plant_and_check(rust_out, gsound, gframes, gmixer):
         x = compare_mixer(rust_out['mixer'], '\n'.join(ml[:bi] + [' '.join(f)] + ml[bi + 1:]) + '\n')
         res['mixer_buffer'] = x['differing_lines'] == 1
     for v in res.values(): ok &= v
-    return dict(planted=res, **{'pass': ok and len(res) >= 4})
+    # The frame, face and mixer faults can be planted in every run; the sound faults only where the genuine stream has
+    # a started sound (and two different monster serials): an idle run has neither.
+    return dict(planted=res, **{'pass': ok and {'frame_digest', 'face', 'mixer_buffer'} <= set(res)})
 
 
 # ------------------------------------------------------------------ the real runs
