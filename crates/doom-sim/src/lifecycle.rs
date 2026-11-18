@@ -1723,14 +1723,25 @@ impl<A: ActorAccess> LifeHost<'_, A> {
                         }
                     }
                     Some(OriginalAction::XScream) => self.sound(Some(id), sound_id("sfx_slop")),
-                    Some(OriginalAction::PlayerScream) => self.sound(
-                        Some(id),
-                        sound_id(if life.health < -50 {
-                            "sfx_pdiehi"
-                        } else {
-                            "sfx_pldeth"
-                        }),
-                    ),
+                    // p_enemy.c:1994-2007: `sfx_pdiehi` only when `gamemode ==
+                    // commercial` and the health is below -50. Wire 25 declares a
+                    // non-commercial game (its maps are E1M1-E1M9), so it always
+                    // plays `sfx_pldeth`; wires 22-24 keep their frozen events,
+                    // which test the health alone (M5c decision T3).
+                    Some(OriginalAction::PlayerScream) => {
+                        let wire25 = self
+                            .player
+                            .as_deref()
+                            .is_some_and(|p| p.policy.has_sound_records());
+                        self.sound(
+                            Some(id),
+                            sound_id(if !wire25 && life.health < -50 {
+                                "sfx_pdiehi"
+                            } else {
+                                "sfx_pldeth"
+                            }),
+                        );
+                    }
                     Some(OriginalAction::Scream) => {
                         let sound = info.sounds()[3];
                         if sound == 0 {
