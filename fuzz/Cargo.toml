@@ -411,6 +411,13 @@ doc = false
 bench = false
 
 [[bin]]
+name = "render_display_state_v2"
+path = "fuzz_targets/render_display_state_v2.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
 name = "sound_lumps"
 path = "fuzz_targets/sound_lumps.rs"
 test = false
