@@ -5,8 +5,8 @@
 
 use doom_game::app::{
     App, Ending, GAMMA, GameData, Host, MAX_TICS_PER_UPDATE, Mode, PICTURE_BYTES, SAVE_INTERVAL,
-    SaveStatus, SessionConfig, TIC_CAP, TicReport, Timestamp, Witness, replay, session_name,
-    wire24_admits,
+    SaveStatus, Screen, SessionConfig, TIC_CAP, TicReport, Timestamp, UNRECORDED_LABEL, Witness,
+    replay, session_name, wire24_admits,
 };
 use doom_game::input::{MouseButton, keys};
 use doom_render::GameMode;
@@ -702,4 +702,184 @@ fn the_load_refuses_outside_the_wire_24_domain() {
     );
     assert!(GameData::load(&[&wad[..20]], GameMode::Registered, 1, 2).is_err());
     let _ = SimError::LevelExited;
+}
+
+/// Decision S3 (ii): the opt-in unrecorded session at full turning resolution.
+fn unrecorded() -> SessionConfig {
+    SessionConfig {
+        unrecorded_full_turning: true,
+        ..SessionConfig::default()
+    }
+}
+
+/// Whether `text` is drawn (in any one colour on a differently coloured box) in the RGBA
+/// picture `pic`.
+fn shows(pic: &[u8], text: &str) -> bool {
+    let mut glyphs = Screen::filled(0);
+    glyphs.text(0, 0, text, 1);
+    let (w, h) = (text.chars().count() * 6 - 1, 7);
+    let px = |x: usize, y: usize| &pic[(y * 320 + x) * 4..(y * 320 + x) * 4 + 4];
+    let first = glyphs.pixels().iter().position(|&p| p == 1).unwrap_or(0);
+    (0..=200 - h).any(|y0| {
+        (0..=320 - w).any(|x0| {
+            let ink = px(x0 + first % 320, y0 + first / 320);
+            (0..h).all(|y| {
+                (0..w).all(|x| (glyphs.pixels()[y * 320 + x] == 1) == (px(x0 + x, y0 + y) == ink))
+            })
+        })
+    })
+}
+
+fn picture(app: &App) -> Vec<u8> {
+    let mut pic = vec![0; PICTURE_BYTES];
+    app.picture(0, &mut pic);
+    pic
+}
+
+#[test]
+fn the_default_session_is_recorded_and_unlabelled() {
+    assert!(!SessionConfig::default().unrecorded_full_turning);
+    let mut d = Driver::new(load("m5a_wads/amp.wad", 1, 2), SessionConfig::default());
+    d.run(&walk_script());
+    assert!(d.app.recorded());
+    d.feed(In::Key(keys::KEY_ESCAPE, true));
+    assert!(!shows(&picture(&d.app), UNRECORDED_LABEL));
+    d.app.quit(&mut d.host);
+    assert_eq!(d.host.writes, 1);
+}
+
+#[test]
+fn an_unrecorded_session_executes_the_built_command_and_writes_nothing() {
+    let mut u = Driver::new(load("m5a_wads/amp.wad", 1, 2), unrecorded());
+    u.run(&walk_script());
+    assert!(!u.app.recorded());
+    let mut r = Driver::new(load("m5a_wads/amp.wad", 1, 2), SessionConfig::default());
+    r.run(&walk_script());
+    let (full, demo): (Vec<_>, Vec<_>) = u
+        .host
+        .reports
+        .iter()
+        .zip(&r.host.reports)
+        .map(|(a, b)| (a.1, b.1))
+        .unzip();
+    // the built turns, each executed whole: the left key held 8 tics turns 320 while
+    // turnheld < SLOWTURNTICS (5 tics) and 640 after (g_game.c:177, 264-270, 298-305); the
+    // mouse motions of -37, 90 and 3 pixels post data2 = 4·dx and turn -8·data2 at
+    // sensitivity 5 (g_game.c:409, 579): +1184, -2880 and -96. Recorded, the same session
+    // executes 256, 768, 1280, -2816 and 0 (g_game.c:1500, 1512).
+    let turns: Vec<i16> = full
+        .iter()
+        .map(|c| c.angle_turn)
+        .filter(|&a| a != 0)
+        .collect();
+    assert_eq!(
+        turns,
+        [320, 320, 320, 320, 320, 640, 640, 640, 1184, -2880, -96]
+    );
+    for (f, d) in full.iter().zip(&demo) {
+        let round = ((((i32::from(f.angle_turn) + 128) >> 8) as u8 as u16) << 8) as i16;
+        assert_eq!(
+            (f.forward, f.side, round, f.buttons),
+            (d.forward, d.side, d.angle_turn, d.buttons)
+        );
+        assert!(wire24_admits(f));
+    }
+    assert_ne!(u.digests, r.digests, "the rounding matters on this script");
+    // a plain simulation fed the executed commands reaches the same state on every tic
+    let mut again = FakeHost::default();
+    assert_eq!(
+        replay(&load("m5a_wads/amp.wad", 1, 2), 10, &full, &mut again),
+        None
+    );
+    assert_eq!(again.reports, u.host.reports);
+    // determinism
+    let mut twice = Driver::new(load("m5a_wads/amp.wad", 1, 2), unrecorded());
+    twice.run(&walk_script());
+    assert_eq!(
+        (twice.frames, twice.digests),
+        (u.frames.clone(), u.digests.clone())
+    );
+    // the pause overlay carries the label; quit and restart write nothing
+    u.feed(In::Key(keys::KEY_ESCAPE, true));
+    assert!(shows(&picture(&u.app), UNRECORDED_LABEL));
+    u.feed(In::Key(b'r', true));
+    assert_eq!((u.app.mode(), u.app.tic()), (&Mode::Playing, 0));
+    u.app.quit(&mut u.host);
+    assert_eq!(
+        (u.host.writes, u.host.files.len(), u.app.save_status()),
+        (0, 0, &SaveStatus::NotSaved)
+    );
+}
+
+#[test]
+fn every_ending_of_an_unrecorded_session_writes_nothing_and_shows_the_label() {
+    let up: &[In] = &[In::Key(UP, true)];
+    let release: &[In] = &[In::Key(UP, false)];
+    let cap = SessionConfig {
+        tic_cap: 12,
+        ..unrecorded()
+    };
+    type Run<'a> = (&'a str, u8, SessionConfig, Vec<(u64, &'a [In])>);
+    let runs: [Run<'_>; 3] = [
+        (
+            "m4b_wads/boss8.wad",
+            8,
+            unrecorded(),
+            vec![
+                (60, up),
+                (60, release),
+                (60, up),
+                (30, release),
+                (60, up),
+                (60, release),
+                (70, up),
+                (200, release),
+            ],
+        ),
+        (
+            "m4b_wads/spech9.wad",
+            1,
+            unrecorded(),
+            vec![(68, up), (20, release)],
+        ),
+        ("m5a_wads/amp.wad", 1, cap, vec![(13, up)]),
+    ];
+    let mut endings = Vec::new();
+    for (wad, map, cfg, script) in runs {
+        let mut d = Driver::new(load(wad, map, 2), cfg);
+        d.run(&script);
+        endings.push(d.app.mode().clone());
+        assert!(shows(&picture(&d.app), UNRECORDED_LABEL), "{wad}");
+        d.feed(In::Key(b'q', true));
+        assert!(d.app.quit_requested());
+        assert_eq!((d.host.writes, d.host.files.len()), (0, 0), "{wad}");
+    }
+    assert_eq!(endings[0], Mode::Ended(Ending::Exit { secret: false }));
+    assert!(matches!(
+        endings[1],
+        Mode::Ended(Ending::Refused {
+            tic: 75,
+            witness: Witness::Simulation(_)
+        })
+    ));
+    assert_eq!(endings[2], Mode::Ended(Ending::TicCap));
+    // death: BARON1's walk, then waiting until dead, then use
+    let mut d = Driver::new(load("m4b_wads/baron.wad", 1, 2), unrecorded());
+    d.run(&[(42, up), (1, release)]);
+    for _ in 0..35 * 120 {
+        if d.app
+            .simulation()
+            .original_player(doom_sim::PlayerSlot::One)
+            .expect("player")
+            .health
+            <= 0
+        {
+            break;
+        }
+        d.tic();
+    }
+    d.run(&[(40, &[]), (3, &[In::Key(b' ', true)])]);
+    assert_eq!(d.app.mode(), &Mode::Ended(Ending::Died));
+    assert!(shows(&picture(&d.app), UNRECORDED_LABEL));
+    assert_eq!((d.host.writes, d.host.files.len()), (0, 0));
 }

@@ -11,7 +11,9 @@
 //! One tic (S8): the event layer's events are posted, `G_BuildTiccmd` builds the command, the
 //! demo write and re-read gives the executed command ([`RecordedTic`]), the recorder stores it
 //! and the simulation advances with the stored copy; the frame source then follows the tic and
-//! draws it. Every executed tic is drawn; the picture shown is the last one.
+//! draws it. Every executed tic is drawn; the picture shown is the last one. With the opt-in
+//! [`SessionConfig::unrecorded_full_turning`] (S3 (ii)) the built command itself is executed and
+//! nothing is recorded or written; every screen then carries [`UNRECORDED_LABEL`].
 
 mod frames;
 mod gamma;
@@ -21,7 +23,7 @@ mod screens;
 pub use frames::{FrameAssets, FrameRefusal, PALETTE_BYTES};
 pub use gamma::GAMMA;
 pub use recorder::{RecordError, Recorder, TIC_CAP, Timestamp, session_name, wire24_admits};
-pub use screens::{APP_PALETTE, CLEAR, Screen, glyph, pause_overlay};
+pub use screens::{APP_PALETTE, CLEAR, Screen, glyph, labelled_pause_overlay, pause_overlay};
 
 use crate::input::{Event, EventLayer, Input, InputError, MouseButton, Preset, RecordedTic, keys};
 use doom_render::hu_stuff::Message;
@@ -43,6 +45,9 @@ pub const MAX_TICS_PER_UPDATE: u64 = 5;
 /// The demo is rewritten every this many tics while playing (30 seconds), so a crash loses
 /// at most that much (M5b investigation §3.6).
 pub const SAVE_INTERVAL: usize = 35 * 30;
+/// The label of a session with [`SessionConfig::unrecorded_full_turning`], wherever its state is
+/// shown (decision S3 (ii), owner ruling 2026-11-17).
+pub const UNRECORDED_LABEL: &str = "not recorded: no demo, cannot be replayed";
 /// The bytes of [`App::picture`]: 320×200 RGBA.
 pub const PICTURE_BYTES: usize = SCREENWIDTH * SCREENHEIGHT * 4;
 
@@ -287,6 +292,11 @@ pub struct SessionConfig {
     pub preset: Preset,
     /// The session length bound in tics: [`TIC_CAP`] in the app; smaller only in tests.
     pub tic_cap: usize,
+    /// Opt-in, never the default (decision S3 (ii)): the simulation executes each built command
+    /// at full resolution, as a live game that does not record does (g_game.c:664-669), and
+    /// nothing is recorded: no demo, no file, so the session cannot be replayed. Off: every
+    /// session is recorded and executes the demo's re-read command (S3 (i)).
+    pub unrecorded_full_turning: bool,
 }
 
 impl Default for SessionConfig {
@@ -295,6 +305,7 @@ impl Default for SessionConfig {
             screenblocks: 10,
             preset: Preset::Vanilla,
             tic_cap: TIC_CAP,
+            unrecorded_full_turning: false,
         }
     }
 }
@@ -465,7 +476,11 @@ impl App {
         self.clock = TicClock::default();
         self.screen = None;
         self.mode = Mode::Playing;
-        self.name = Self::free_name(&self.data, host);
+        self.name = if self.recorded() {
+            Self::free_name(&self.data, host)
+        } else {
+            String::new()
+        };
         match FrameSource::start(&self.data.assets, self.cfg.screenblocks, &self.sim) {
             Ok(f) => self.frames = Some(f),
             Err(e) => {
@@ -513,7 +528,23 @@ impl App {
         &self.recorder
     }
 
-    /// The session's file name.
+    /// Whether sessions are recorded (the default); `false` with
+    /// [`SessionConfig::unrecorded_full_turning`].
+    pub fn recorded(&self) -> bool {
+        !self.cfg.unrecorded_full_turning
+    }
+
+    /// The tics this session has run: the recorded tics, or the simulation's tic count when
+    /// nothing is recorded.
+    fn played(&self) -> u64 {
+        if self.recorded() {
+            self.recorder.len() as u64
+        } else {
+            self.sim.tic()
+        }
+    }
+
+    /// The session's file name (empty when nothing is recorded).
     pub fn session_name(&self) -> &str {
         &self.name
     }
@@ -629,7 +660,7 @@ impl App {
     }
 
     fn run_tic(&mut self, host: &mut dyn Host) {
-        if self.recorder.full() {
+        if self.played() >= self.cfg.tic_cap as u64 {
             return self.end(Ending::TicCap, host);
         }
         let tic = self.sim.tic();
@@ -645,9 +676,16 @@ impl App {
             Ok(r) => r,
             Err(e) => return self.end(refuse(Witness::Input(e)), host),
         };
-        let executed = match self.recorder.record(recorded) {
-            Ok(c) => c,
-            Err(e) => return self.end(refuse(Witness::Record(e)), host),
+        let executed = if self.recorded() {
+            match self.recorder.record(recorded) {
+                Ok(c) => c,
+                Err(e) => return self.end(refuse(Witness::Record(e)), host),
+            }
+        } else if wire24_admits(&recorded.built) {
+            recorded.built
+        } else {
+            let witness = Witness::Record(RecordError::NotAdmitted);
+            return self.end(refuse(witness), host);
         };
         let none = TicCommand::default();
         if let Err(e) = self.sim.advance([executed, none, none, none]) {
@@ -684,6 +722,9 @@ impl App {
     }
 
     fn save(&mut self, host: &mut dyn Host) {
+        if !self.recorded() {
+            return;
+        }
         self.save = match self.recorder.bytes() {
             Ok(bytes) => match host.save(&self.name, &bytes) {
                 Ok(()) => SaveStatus::Saved(self.recorder.len()),
@@ -727,11 +768,12 @@ impl App {
                 "E1M{} SKILL {}  {} TICS",
                 self.data.map,
                 self.data.skill,
-                self.recorder.len()
+                self.played()
             ),
             WHITE,
         ));
         let saved = match &self.save {
+            _ if !self.recorded() => UNRECORDED_LABEL.into(),
             SaveStatus::Saved(_) => format!("DEMO SAVED: {}", self.name),
             SaveStatus::Failed(e) => format!("DEMO NOT SAVED: {e}"),
             SaveStatus::NotSaved => "DEMO NOT SAVED".into(),
@@ -759,7 +801,10 @@ impl App {
             return;
         }
         let palette = self.frame().and_then(|(_, n)| self.data.assets.palette(n));
-        let overlay = (self.mode == Mode::Paused).then(pause_overlay);
+        let overlay = (self.mode == Mode::Paused).then(|| match self.recorded() {
+            true => pause_overlay(),
+            false => labelled_pause_overlay(UNRECORDED_LABEL),
+        });
         for (i, px) in out.chunks_exact_mut(4).enumerate() {
             let rgb = match (&overlay, palette) {
                 (Some(o), _) if o.pixels()[i] != CLEAR => app(o.pixels()[i]),

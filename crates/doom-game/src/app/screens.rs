@@ -207,3 +207,14 @@ pub fn pause_overlay() -> Screen {
     s.centred(104, "ESC: RESUME   R: RESTART   Q: QUIT", WHITE);
     s
 }
+
+/// The pause overlay of an unrecorded session: the same box, taller, with `label` under the keys.
+pub fn labelled_pause_overlay(label: &str) -> Screen {
+    let mut s = Screen::filled(CLEAR);
+    s.fill_rect(20, 70, 300, 130, GREY);
+    s.fill_rect(22, 72, 298, 128, BACKGROUND);
+    s.centred(80, "PAUSED", YELLOW);
+    s.centred(96, "ESC: RESUME   R: RESTART   Q: QUIT", WHITE);
+    s.centred(112, label, YELLOW);
+    s
+}

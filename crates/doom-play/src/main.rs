@@ -7,7 +7,7 @@
 mod keys;
 mod window;
 
-use doom_game::app::{App, GameData, Host, SessionConfig, Timestamp};
+use doom_game::app::{App, GameData, Host, SessionConfig, Timestamp, UNRECORDED_LABEL};
 use doom_game::input::Preset;
 use doom_render::GameMode;
 use std::path::{Path, PathBuf};
@@ -29,11 +29,19 @@ usage: doom-play --iwad PATH [options]
   --fullscreen         borderless fullscreen instead of a window
   --screenblocks N     10 (default, status bar row) or 11 (full view)
   --quit-after-tics N  measurement aid: save and quit after N tics (or at a session end)
+  --unrecorded-full-turning
+                       opt-in, never implied by another option: mouse and keyboard turns
+                       are executed at full resolution instead of being rounded to demo
+                       resolution (multiples of 256), but nothing is recorded: no demo is
+                       written, so the session cannot be replayed or verified against the
+                       genuine engine afterwards. The window title, the pause overlay
+                       and the end screens say \"not recorded: no demo, cannot be replayed\".
   --help               this text
 
 Keys: Esc or Pause pauses (then Esc resumes, R restarts, Q quits); on an end screen
-R restarts and Q or Esc quits. Every session is recorded as a version-110 demo named
-E1M<map>-skill<n>-<yyyymmdd-hhmmss>.lmp (the time is UTC) in the sessions directory.
+R restarts and Q or Esc quits. Every session (unless --unrecorded-full-turning) is
+recorded as a version-110 demo named E1M<map>-skill<n>-<yyyymmdd-hhmmss>.lmp (the time
+is UTC) in the sessions directory.
 
 Limits: an OpenGL 2.1 (or OpenGL ES 2) driver is required. The window library reports
 no focus loss: a key held while you switch away stays held until pressed again; press
@@ -54,6 +62,7 @@ struct Options {
     fullscreen: bool,
     screenblocks: u8,
     quit_after: Option<u64>,
+    unrecorded: bool,
 }
 
 fn number<T: std::str::FromStr>(
@@ -83,6 +92,7 @@ fn parse(args: impl IntoIterator<Item = String>) -> Result<Option<Options>, Stri
         fullscreen: false,
         screenblocks: 10,
         quit_after: None,
+        unrecorded: false,
     };
     let mut it = args.into_iter();
     while let Some(flag) = it.next() {
@@ -117,6 +127,7 @@ fn parse(args: impl IntoIterator<Item = String>) -> Result<Option<Options>, Stri
                 }
             }
             "--fullscreen" => o.fullscreen = true,
+            "--unrecorded-full-turning" => o.unrecorded = true,
             "--screenblocks" => {
                 o.screenblocks = number(&flag, &value()?, |s| (10..=11).contains(s))?;
             }
@@ -126,6 +137,15 @@ fn parse(args: impl IntoIterator<Item = String>) -> Result<Option<Options>, Stri
     }
     o.iwad = iwad.ok_or("--iwad PATH is required (see --help)")?;
     Ok(Some(o))
+}
+
+/// The window title: the session's label when nothing is recorded (decision S3 (ii)).
+fn title(recorded: bool) -> String {
+    if recorded {
+        "doom-play".into()
+    } else {
+        format!("doom-play ({UNRECORDED_LABEL})")
+    }
 }
 
 /// The game mode linuxdoom's `IdentifyVersion` gives the IWAD's file name (d_main.c:618-632,
@@ -217,6 +237,7 @@ fn run(o: Options) -> Result<(), String> {
     let cfg = SessionConfig {
         screenblocks: o.screenblocks,
         preset: o.preset,
+        unrecorded_full_turning: o.unrecorded,
         ..SessionConfig::default()
     };
     let mut host = FsHost { dir: o.sessions };
@@ -224,6 +245,7 @@ fn run(o: Options) -> Result<(), String> {
     window::play(
         app,
         host,
+        title(!o.unrecorded),
         window::Presentation {
             gamma: o.gamma,
             square: o.square,
@@ -272,6 +294,25 @@ mod tests {
             (Preset::Vanilla, false, false)
         );
         assert_eq!(o.sessions, PathBuf::from("doom-sessions"));
+        assert!(!o.unrecorded, "recorded unless asked");
+        for other in [
+            "--bindings modern",
+            "--fullscreen",
+            "--screenblocks 11",
+            "--gamma 4",
+        ] {
+            let o = parse(args(&format!("--iwad a.wad {other}")))
+                .unwrap()
+                .unwrap();
+            assert!(!o.unrecorded, "{other} does not imply the unrecorded mode");
+        }
+        let o = parse(args("--iwad a.wad --unrecorded-full-turning"))
+            .unwrap()
+            .unwrap();
+        assert!(o.unrecorded);
+        assert_eq!(title(true), "doom-play");
+        assert!(title(false).contains(UNRECORDED_LABEL));
+        assert!(HELP.contains(UNRECORDED_LABEL) && HELP.contains("cannot be replayed or verified"));
         let o = parse(args(
             "--iwad a.wad --wad b.wad --wad c.wad --map E1M3 --skill 3 --sessions s \
              --bindings modern --gamma 4 --aspect square --fullscreen --screenblocks 11 \

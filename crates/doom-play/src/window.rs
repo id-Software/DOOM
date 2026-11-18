@@ -6,7 +6,7 @@
 
 use crate::FsHost;
 use crate::keys::doom_key;
-use doom_game::app::{App, Mode, PICTURE_BYTES, SaveStatus, TICRATE};
+use doom_game::app::{App, Mode, PICTURE_BYTES, SaveStatus, TICRATE, UNRECORDED_LABEL};
 use doom_game::input::MouseButton;
 use doom_render::{SCREENHEIGHT, SCREENWIDTH};
 use miniquad::conf::{Conf, LinuxBackend, Platform};
@@ -73,10 +73,10 @@ pub fn linux_backend(display: bool) -> LinuxBackend {
 }
 
 /// Opens the window and runs the app until it quits. Returns when the window is closed.
-pub fn play(app: App, host: FsHost, p: Presentation) {
+pub fn play(app: App, host: FsHost, title: String, p: Presentation) {
     let height = if p.square { 600 } else { 720 };
     let conf = Conf {
-        window_title: "doom-play".into(),
+        window_title: title,
         window_width: 960,
         window_height: height,
         fullscreen: p.fullscreen,
@@ -188,6 +188,7 @@ impl Stage {
         self.reported = true;
         let path = self.host.dir.join(self.app.session_name());
         match self.app.save_status() {
+            _ if !self.app.recorded() => eprintln!("doom-play: {UNRECORDED_LABEL}"),
             SaveStatus::Saved(tics) => {
                 eprintln!("doom-play: saved {} ({tics} tics)", path.display())
             }

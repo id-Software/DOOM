@@ -110,6 +110,56 @@
     "messages_full_resolution": 0
    },
    "script_sha256": "17b760fb57b3a7a6a7ed0037c782c9e676c98a070fbe8bffa6857df952d996b7"
+  },
+  "unrec_palbonus_keys": {
+   "tics": 115,
+   "low_byte_commands": 63,
+   "counts": {
+    "tics": 115,
+    "commands": 115,
+    "frames": 115,
+    "digests": 115,
+    "masked": 0,
+    "non_comparable": 0,
+    "fields": 575,
+    "messages": 2,
+    "dump_tics": 116
+   },
+   "genuine_end": "marker",
+   "variants_identical": true,
+   "golden_sha256": "157002482880735135f3d53e3ee1636122006f17aa038fddc318ad1ce0153a13",
+   "rounded_twin": {
+    "first_differing_dump_tic": 2,
+    "end": "marker",
+    "messages": 0,
+    "messages_full_resolution": 2
+   },
+   "script_sha256": "f42001ae2aec2af77c059902181186155bd6f250c405aef7fc4b91471cae1d72"
+  },
+  "unrec_palred_mouse": {
+   "tics": 84,
+   "low_byte_commands": 12,
+   "counts": {
+    "tics": 84,
+    "commands": 84,
+    "frames": 84,
+    "digests": 84,
+    "masked": 0,
+    "non_comparable": 0,
+    "fields": 420,
+    "messages": 0,
+    "dump_tics": 85
+   },
+   "genuine_end": "marker",
+   "variants_identical": true,
+   "golden_sha256": "8316b93dc5c3d8201d4b66fec1d58d09f48ec4e48ac124c18cd9eef469306ce8",
+   "rounded_twin": {
+    "first_differing_dump_tic": 23,
+    "end": "marker",
+    "messages": 0,
+    "messages_full_resolution": 0
+   },
+   "script_sha256": "ef7d9ac93c0a961d945f8ccdbcf2105aec0962cee0480672cb146e4d0ca3f53c"
   }
  }
 }

@@ -82,10 +82,11 @@ def rows_of(text):
     return out
 
 
-def run_app(exe, wads, out, sb, script=None, lmp=None, mapnum=1, skill=2):
+def run_app(exe, wads, out, sb, script=None, lmp=None, mapnum=1, skill=2, extra=()):
     if out.exists(): shutil.rmtree(out)
     cmd = [str(exe), *[a for w in wads for a in ('--wad', str(w))], '--out', str(out), '--screenblocks', str(sb), '--captures']
     cmd += ['--script', str(script), '--map', str(mapnum), '--skill', str(skill)] if script else ['--demo', str(lmp)]
+    cmd += list(extra)
     p = subprocess.run(cmd, capture_output=True, text=True)
     if p.returncode: return dict(error=f'app failed: {p.stderr.strip()[-500:]}')
     return dict(rows=rows_of((out / 'rows.txt').read_text()), lmp=(out / 'session.lmp').read_bytes(),

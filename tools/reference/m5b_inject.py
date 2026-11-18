@@ -24,6 +24,11 @@ and X rows) is written by a plain run and compared by --check; the Rust replay o
 executed command, the frame digest, the P row, the X rows and the game dump by the independent DSIM40 encoder
 (level_compare_m4b.py). The strict runner also plays the script's demo-resolution twin (every angleturn rounded as
 G_WriteDemoTiccmd and G_ReadDemoTiccmd do); the first tic whose dump differs is recorded, to show the low byte matters.
+Unrecorded app sessions (tests/reference/m5b_inject/sessions/*.txt, the platform-event scripts of m5b_session.py):
+the headless app plays each with --unrecorded (decision S3 (ii): the built command executed, nothing saved); the
+genuine input driver, fed the app's posted events with recording off (config record 0), must build and execute the
+same commands (events -> genuine G_BuildTiccmd); those commands are injected as above and the app's own live rows
+must match the genuine runner on every tic in the same way.
 Results: tests/reference/m5b_inject_results.json (DOOM-M5B-INJECT-RESULTS-v1). --selftest plants a changed low byte
 in one injected command and a changed frame row of Rust; each must be caught at its tic. Frames are identical to the
 genuine engine under the declared sound-free, wipe-free contract (decision S15), only for the committed scripts.
@@ -79,9 +84,9 @@ def rounded(a):
     return (v << 8) - (65536 if v >= 128 else 0)
 
 
-def golden_cmds(name, cols):
+def golden_cmds(name, cols, path=None):
     rows, prev = [], None
-    for l in (INPUT / f'{name}.golden').read_text().splitlines():
+    for l in (path or INPUT / f'{name}.golden').read_text().splitlines():
         w = l.split()
         if w and w[0] == 't': prev = [int(x) for x in w[cols]]; rows.append(prev)
         elif w and w[0] == 'r': rows += [prev] * int(w[1])
@@ -126,6 +131,14 @@ def rust(exe, h, cmds, work):
     return dict(rows=S.rows_of((work / 'out/rows.txt').read_text()), captures=work / 'out/captures')
 
 
+def driver_cmds(driver, rows, work):
+    """The commands the genuine input driver builds and executes for the app's posted events, recording off."""
+    work.mkdir(parents=True, exist_ok=True)
+    (work / 's.txt').write_text('config record 0\n' + S.driver_script(rows).replace('enddemo\n', ''))
+    p = subprocess.run([str(driver), 's.txt', '--out', 'golden.txt'], capture_output=True, text=True, cwd=work, env=S.ENV)
+    return p.returncode == 0 and [b + x for b, x in zip(golden_cmds('', slice(2, 6), work / 'golden.txt'), golden_cmds('', slice(6, 10), work / 'golden.txt'))]
+
+
 def golden_text(g):
     cmd = []
     for n in S.L.m3h9c_dump.snapshot_names(str(g['dumps'])):
@@ -135,12 +148,21 @@ def golden_text(g):
 
 
 def one(path, tools, work):
-    (exe, inj, demo_runner), (h, cmds, control) = tools, parse(path)
+    (exe, inj, demo_runner, driver), app, fails = tools, None, []
+    if path.parent.name == 'sessions':
+        h, control = S.header(path.read_text()), False
+        app = S.run_app(exe, h['wads'] + [R.GFX], work / 'app', h['screenblocks'], path, None, h['map'], h['skill'], ('--unrecorded',))
+        if 'error' in app: sys.exit(f"{path.name}: {app['error']}")
+        cmds = [[int(x) for x in l.split(',')[2:6]] for l in app['rows']['T']]
+        if app['lmp'] or driver_cmds(driver, app['rows'], work / 'driver') != [c + c for c in cmds]:
+            fails.append((-1, 'input', 'the app saved a file, or the genuine input driver built other commands'))
+    else:
+        h, cmds, control = parse(path)
     gs = {v: engine(inj[v], h, cmds, work / v) for v in R.VARIANTS}
-    s, fails = gs['strict'], []
+    s = gs['strict']
     same = all(x['full'] == s['full'] and x['snapshots'] == s['snapshots'] and x['end'] == s['end'] for x in gs.values())
     if not same: fails.append((-1, 'variants', {v: x['end'] for v, x in gs.items()}))
-    app = rust(exe, h, cmds, work / 'rust')
+    app = app or rust(exe, h, cmds, work / 'rust')
     counts, f = S.compare(app, s, h['wads'][0], h['skill'], h['map'])
     fails += f
     rec = dict(tics=len(cmds), low_byte_commands=sum(1 for c in cmds if c[2] & 0xff), counts=counts, genuine_end=s['end'],
@@ -157,7 +179,7 @@ def one(path, tools, work):
 
 
 def selftest(tools, kept, work):
-    exe, inj, _ = tools
+    exe, inj = tools[:2]
     h, cmds, app, s = kept
     k = next(i for i in range(5, len(cmds)) if cmds[i][2] & 0xff)
     bad = [list(c) for c in cmds]; bad[k][2] ^= 8
@@ -187,10 +209,10 @@ def main():
     if p.returncode: sys.exit(f'cargo build FAILED:\n{p.stderr[-2000:]}')
     with open(os.devnull, 'w') as q:
         so, sys.stdout = sys.stdout, q
-        try: inj, demo_runner = build(work, a.cc)
+        try: inj, demo_runner = build(work, a.cc); driver = S.ib.build('strict', work / 'inputbuild', a.cc, quiet=True)
         finally: sys.stdout = so
-    tools = (ROOT / 'target/release/examples/m5b_session', inj, demo_runner)
-    paths = sorted(DIR.glob('*.txt'))
+    tools = (ROOT / 'target/release/examples/m5b_session', inj, demo_runner, driver)
+    paths = sorted(DIR.glob('*.txt')) + sorted(DIR.glob('sessions/*.txt'))
     with cf.ThreadPoolExecutor(max(1, a.jobs)) as pool:
         out = dict(zip((p.stem for p in paths), pool.map(lambda p: one(p, tools, work / 'runs' / p.stem), paths)))
     failures, files = [], {}
@@ -204,7 +226,7 @@ def main():
     if failures: sys.exit('FAILED:\n  ' + '\n  '.join(failures))
     doc = dict(schema='DOOM-M5B-INJECT-RESULTS-v1', contract=f'frames {S.CONTRACT}, for these scripts only', variants=R.VARIANTS,
                inject_contract_sha256=sha(CONTRACT.read_bytes()), gfx_sha256=sha(R.GFX.read_bytes()), asan_options='detect_leaks=0 (leak detection disabled)',
-               scripts={n: dict(r[0], script_sha256=sha((DIR / f'{n}.txt').read_bytes())) for n, r in out.items()})
+               scripts={n: dict(r[0], script_sha256=sha(p.read_bytes())) for p, (n, r) in zip(paths, out.items())})
     files[RESULTS] = json.dumps(doc, indent=1) + '\n'
     if a.check:
         bad = [str(p.relative_to(ROOT)) for p, t in files.items() if not p.exists() or p.read_text() != t]

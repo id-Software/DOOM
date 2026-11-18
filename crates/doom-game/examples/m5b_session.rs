@@ -10,6 +10,8 @@
 //! example one written by doom-play) is replayed through [`replay`] only. With `--commands`,
 //! tic commands at full resolution (one line `forward side angleturn buttons` per tic, step 7b)
 //! are fed to [`replay`] as they are, for `tools/reference/m5b_inject.py`; no demo is written.
+//! `--unrecorded` plays `--script` with [`SessionConfig::unrecorded_full_turning`] (S3 (ii)): the
+//! app must save nothing, and the replay of its executed commands must give the same rows.
 //!
 //! Writes to `--out`: `session.lmp` (the demo the app saved), `rows.txt` (per tic `E` the events
 //! posted, `T` the executed command and the state digest, `F` the frame digest, the digest with
@@ -38,6 +40,7 @@ struct Rows {
     text: String,
     captures: Option<PathBuf>,
     demo: Vec<u8>,
+    executed: Vec<TicCommand>,
 }
 
 impl Host for Rows {
@@ -53,6 +56,7 @@ impl Host for Rows {
     }
     fn tic(&mut self, r: &TicReport<'_>) {
         let (t, c, d) = (r.tic, r.executed, r.display);
+        self.executed.push(c);
         let w = &mut self.text;
         for e in r.events {
             let _ = match *e {
@@ -209,6 +213,7 @@ fn main() -> Res<()> {
     let (mut wads, mut out, mut script, mut demo) = (Vec::new(), None, None, None);
     let mut commands: Option<Vec<TicCommand>> = None;
     let (mut map, mut skill, mut sb, mut captures) = (1u8, 2u8, 10u8, false);
+    let mut unrecorded = false;
     let mut args = std::env::args().skip(1);
     while let Some(a) = args.next() {
         let mut v = || args.next().ok_or(format!("{a} needs a value"));
@@ -221,6 +226,7 @@ fn main() -> Res<()> {
             "--skill" => skill = v()?.parse()?,
             "--screenblocks" => sb = v()?.parse()?,
             "--captures" => captures = true,
+            "--unrecorded" => unrecorded = true,
             "--commands" => commands = Some(parse_commands(&std::fs::read_to_string(v()?)?)?),
             _ => return Err(format!("unknown argument {a}").into()),
         }
@@ -250,15 +256,24 @@ fn main() -> Res<()> {
     } else if let Some(text) = &script {
         let cfg = SessionConfig {
             screenblocks: sb,
+            unrecorded_full_turning: unrecorded,
             ..SessionConfig::default()
         };
         let mut app = App::new(data.clone(), cfg, &mut host);
         let ending = run_script(&mut app, &mut host, text)?;
-        // live equals recorded: the replay of the saved demo gives the same rows
-        let commands = parse_demo_episode1_v2(&host.demo, map)
-            .map_err(|e| format!("{e:?}"))?
-            .1
-            .commands;
+        // live equals recorded: the replay of the saved demo (unrecorded: of the executed
+        // commands, and nothing was saved) gives the same rows
+        let commands = if unrecorded {
+            if !host.demo.is_empty() {
+                return Err("an unrecorded session saved a file".into());
+            }
+            host.executed.clone()
+        } else {
+            parse_demo_episode1_v2(&host.demo, map)
+                .map_err(|e| format!("{e:?}"))?
+                .1
+                .commands
+        };
         let mut again = Rows::default();
         replay(&data, sb, &commands, &mut again);
         let live: Vec<&str> = host.text.lines().filter(|l| !l.starts_with("E,")).collect();
