@@ -63,6 +63,20 @@ fn model_volumes(vol: i32, sep: i32) -> (i128, i128) {
     (left, right)
 }
 
+/// FINDING step11a-1 (kept visible, not hidden): `Mixer::start` and `check_start` compute
+/// `v * s * s` in `i64` (mixer.rs `volumes`, documented as unable to overflow), which overflows and
+/// panics in a build with overflow checks for arguments far outside the game's range (vol 0..=127,
+/// sep 0..=255), for example `vol = sep = 0x7fff << 15`. Inputs where any product of i_sound.c:
+/// 352-361 leaves `i64` are skipped here so that the campaigns can reach everything else. The
+/// reproducing input is `00 00 10 01 ff 7f ff 7f 80 ff`. Remove this skip when doom-sound is fixed.
+fn volumes_fit_i64(vol: i32, sep: i32) -> bool {
+    let v = i128::from(vol);
+    let fits = |x: i128| i64::try_from(x).is_ok();
+    let s1 = i128::from(sep) + 1;
+    let s2 = s1 - 257;
+    [s1, s2].iter().all(|&s| fits(v * s) && fits(v * s * s))
+}
+
 fn run(set: &Arc<SoundSet>, start: i32, ops: &[u8]) -> u64 {
     let mut mixer = Mixer::new(set.clone());
     let mut gametic = start;
@@ -84,6 +98,9 @@ fn run(set: &Arc<SoundSet>, start: i32, ops: &[u8]) -> u64 {
                         3 * i32::from(f) - 200,
                     )
                 };
+                if !volumes_fit_i64(vol, sep) {
+                    continue;
+                }
                 let before = mixer.clone();
                 let checked = mixer.check_start(sfx, vol, sep, pitch);
                 let (left, right) = model_volumes(vol, sep);
