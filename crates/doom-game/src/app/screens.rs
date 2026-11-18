@@ -164,15 +164,22 @@ impl Screen {
 }
 
 /// Splits `text` into lines of at most [`COLUMNS`] characters, breaking after spaces and
-/// commas where it can.
+/// commas where it can (the spaces at a break are dropped).
 pub fn wrap(text: &str) -> Vec<String> {
+    wrap_to(text, COLUMNS)
+}
+
+/// [`wrap`] at `columns` characters; every pass takes at least one character, so it ends for
+/// any `columns`, 0 included (taken as 1).
+fn wrap_to(text: &str, columns: usize) -> Vec<String> {
+    let columns = columns.max(1);
     let mut lines = Vec::new();
     let mut rest: Vec<char> = text.chars().collect();
-    while rest.len() > COLUMNS {
-        let cut = rest[..COLUMNS]
+    while rest.len() > columns {
+        let cut = rest[..columns]
             .iter()
             .rposition(|c| *c == ' ' || *c == ',')
-            .map_or(COLUMNS, |p| p + 1);
+            .map_or(columns, |p| p + 1);
         lines.push(
             rest[..cut]
                 .iter()
@@ -217,4 +224,36 @@ pub fn labelled_pause_overlay(label: &str) -> Screen {
     s.centred(96, "ESC: RESUME   R: RESTART   Q: QUIT", WHITE);
     s.centred(112, label, YELLOW);
     s
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn wrap_keeps_every_line_within_the_columns_and_the_text_whole() {
+        assert_eq!((SCREENWIDTH, ADVANCE, COLUMNS), (320, 6, 51));
+        let long = "x".repeat(130);
+        let texts = [
+            String::new(),
+            "short".to_string(),
+            "the simulation refused the tic: a witness, with a reason that runs past one line"
+                .to_string(),
+            format!("before {long} after,comma"),
+        ];
+        let squeeze = |t: &str| t.chars().filter(|c| *c != ' ').collect::<String>();
+        for columns in [COLUMNS, 7, 1, 0] {
+            for t in &texts {
+                let lines = wrap_to(t, columns);
+                assert!(!lines.is_empty());
+                assert!(
+                    lines.iter().all(|l| l.chars().count() <= columns.max(1)),
+                    "{columns}: {lines:?}"
+                );
+                assert_eq!(squeeze(&lines.concat()), squeeze(t), "{columns}");
+            }
+        }
+        assert_eq!(wrap(""), [""]);
+        assert_eq!(wrap(&long), [&long[..51], &long[51..102], &long[102..]]);
+    }
 }
