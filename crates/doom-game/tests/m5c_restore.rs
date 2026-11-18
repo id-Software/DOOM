@@ -296,7 +296,7 @@ fn forged_and_mismatched_saves_are_refused() {
     let at = 40;
     let good = &saves[at];
     let refused = |data: &GameData, sim: &Simulation, s: &SavedPresentation| {
-        FrameSource::restore(data, sim, s).err().expect("refused")
+        FrameSource::restore(data, sim, s).expect_err("refused")
     };
     // the M5b contract's version-1 display state with sound data, and the reverse
     let v1 = SavedPresentation {
