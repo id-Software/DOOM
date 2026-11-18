@@ -2388,14 +2388,16 @@ cargo run --release -p doom-play -- --iwad $R/m5b_wads/stdigit.wad --wad $R/m5b_
 
 ## M5c sound effects: the genuine sound logic and mixer
 
-The M5c [reference investigation](M5C_REFERENCE_INVESTIGATION.md) (decisions T1-T16, all open on 2026-11-18) is at
-Phase 2 steps 1 and 2: the genuine-engine tools and their evidence, with no Rust sound code yet. They compare
-nothing with Rust except one wire-24 check of the new rooms. Everything committed is synthetic and runs on a clean
-checkout; the observations are in [the M5c evidence record](validation/M5C.md). **The tools are not in CI yet
-(step 8), so none of these commands is required of a pull request today.** Every result is produced under the
-recommended values of T2, T5 and T6 (the `--handle`, `--update-schedule` and `--wipe` switches of
-`m5c_build.py`); a different ruling means regenerating the goldens. "Identical to the genuine engine" means the
-integrated, in-process build of T2.
+The M5c [reference investigation](M5C_REFERENCE_INVESTIGATION.md) (decisions T1-T16, confirmed by the owner on
+2026-11-18) is under way on the branch `feat/m5c-sound`. This section lists the commands of the pieces done so far:
+the genuine-engine tools (Phase 2 steps 1 and 2), wire 25 and its comparisons, the crate `doom-sound`, the fuzz targets
+and the audio probe. Everything committed is synthetic and runs on a clean checkout, except the commands marked local
+only (they read an IWAD). The observations are in [the M5c evidence record](validation/M5C.md). **The CI job
+`M5c genuine sound (not required)` runs the genuine-engine commands, [below](#the-ci-job-and-the-mutation-workflow);
+it is not a required check.** Every result is produced under the confirmed values of T2, T5 and T6 (the
+`--handle integrated`, `--update-schedule tic` and `--wipe genuine` switches of `m5c_build.py`; the tools take the
+other values as switches). "Identical to the genuine engine" means linuxdoom-1.10 built with its in-process sound code
+(one define removed), under the declared schedule.
 
 ```sh
 # generators, verifiers and contracts (Python only, no compiler)
@@ -2435,8 +2437,8 @@ Notes:
   detect). `--work` and every `--out` must lie outside the repository. The sound-logic runner reads the M5a, M5b
   and M5c synthetic WADs and `tests/reference/m5b_gfx.wad`; no IWAD.
 - `ASAN_OPTIONS=detect_leaks=0` means LeakSanitizer is disabled for the address variant: an address-checked run
-  is not LeakSanitizer coverage, and every record must say so. No fuzz target and no coverage-guided campaign
-  exists for M5c.
+  is not LeakSanitizer coverage, and every record must say so. The fuzz targets of `doom-sound` are
+  [below](#m5c-fuzz-targets-of-doom-sound).
 - `--strict32` is a local opt-in and never required. In `m5c_mixer_reference.py` it adds the 32-bit build to
   `--check` (and to `--sessions`). In `m5c_reference.py` it is a mode of its own: it builds the strict32 runner,
   compares its sound and frame streams with the strict ones at screenblocks 10, prints every differing row and
@@ -2461,6 +2463,141 @@ ASAN_OPTIONS=detect_leaks=0 python3 tools/local/m5c_mixer_real.py [--iwad SCRATC
 
 `m5c_mixer_real.py` prints one skip line and exits 0 without an IWAD. Both tools write counts, pass/fail facts and
 digests only.
+
+### M5c wire 25: the sound records, against the genuine engine
+
+Wire 25 (`PlayerMonstersEpisode1V3`, DSIM41; [support](COMPATIBILITY.md#original-episode-1-part-3-canonical-sound-records-wire-25),
+[layout](STATE_FORMAT.md#dsim-v41--wire-25-canonical-sound-records)) is compared with the genuine engine through an
+independent Python encoder. The Rust side is the example `sound_records_run`, which the caller builds into a
+`CARGO_TARGET_DIR` outside the tree:
+
+```sh
+# Rust only (no C): wire 25 against wire 24 on the 64 synthetic items (stripped captures equal; events equal except the scream), and the item table against the 64 committed streams
+cargo test -p doom-sim --release --test wire25_projection -- --nocapture
+# Rust only: the nine unit tests of wire 25 (scream, sector origin arithmetic and overflow, release origin and slot 15, stop records, record order and the Unplaced refusals, THING truncation, the DSIM41 round trip and four forged records)
+cargo test -p doom-sim --lib wire25
+CARGO_TARGET_DIR=$HOME/scratch/m5c-target cargo build -p doom-sim --release --locked --example sound_records_run
+# one run: wire 24 and wire 25 side by side with checks 1 and 2; --out writes the records, --captures DIR or --capture-stream PATH the DSIM41 captures, --alone runs wire 25 without wire 24
+sound_records_run --wad WAD --map E1M1 --demo LMP [--out FILE] [--captures DIR | --capture-stream PATH] [--alone]
+
+# every synthetic item, genuine engine against wire 25 over DSIM41 with every sound record, plus the self-test (C and Rust; Linux)
+python3 tools/reference/m5c_wire25_check.py --binary $HOME/scratch/m5c-target/release/examples/sound_records_run --work DIR --check --selftest --jobs 4
+python3 tools/reference/m5c_wire25_check.py --binary PATH --work DIR [--only LUMP[,LUMP]] [--write]   # --write regenerates tests/reference/m5c_wire25_results.json
+
+# decision T4: the THING-loading truncation map, wire 25 (matches) against wire 24 (diverges at the load capture) (C and Rust; Linux; the caller builds both examples)
+CARGO_TARGET_DIR=$HOME/scratch/m5c-target cargo build -p doom-sim --release --locked --example player_level_run
+python3 tools/reference/m5c_t4.py --sound-records PATH --player-level PATH --work DIR --check      # without --check it writes the map, script and results
+
+# the encoder and the comparator on one run (the caller has the dumps, the genuine stream and a capture directory or stream)
+python3 tools/reference/level_snapshot_m5c.py DUMPDIR --wad WAD --demo LMP --sound STREAM [--out DIR] [--compare40]
+python3 tools/reference/level_compare_m5c.py DUMPDIR RUST --wad WAD --demo LMP --sound STREAM [--values] [--json FILE]
+```
+
+- `m5c_wire25_check.py --check --selftest` took 29 seconds with `--jobs 4` once the binary was built. `--check`
+  regenerates every item's genuine dumps and sound stream, requires the M4b scripts' dumps to equal their committed
+  digests and each fresh genuine stream's rows to equal the committed golden's through its last tic, compares the Rust
+  captures with the encoder, and compares `tests/reference/m5c_wire25_results.json` (counts and digests). M5CHEAT's
+  stream is recorded, not required: its golden was made with cheat keys that the frozen runner and the simulation do
+  not see.
+- `--selftest` (73 checks) shows the comparison can fail: DSIM41 equals DSIM40 outside the three header fields and the
+  sound group on every capture of all 64 items; a changed sound number moves the group at that tic only; an unknown
+  actor, a start without positions, a stop of a sector origin, and a stream cut 10 tics short are each refused at the
+  right tic; and four planted faults on BARON1 (a position bit, a swapped pair, a dropped stop, an actor origin made
+  NULL) are each reported at exactly that tic.
+- `m5c_t4.py` writes `tests/reference/m5c_t4/truncate.wad`, `TRUNC.txt` and `TRUNC.lmp` and
+  `tests/reference/m5c_t4_results.json`; `--check` regenerates the map and script in memory and compares all of them.
+
+**Local only: the 61 real runs under wire 25** (reads an IWAD; use a scratch copy, delete it afterwards, and the
+results file holds counts, pass/fail facts and digests only):
+
+```sh
+python3 tools/local/m5c_wire25_real.py --binary PATH --iwad SCRATCH/DOOM.WAD --work DIR --jobs 6 [--maps E1M1,..] [--only NAME,..] [--write | --check] [--report PATH]
+```
+
+It takes about 50 minutes with `--jobs 6` to write `tests/reference/m5c_wire25_real_results.json`; `--check` takes
+about an hour and has not been run since the file was written. Per run it requires the dump set to equal the M4b
+strict digest and the genuine stream to give the committed `m5c_real_results.json` sound digest, then compares every
+capture. `--report PATH` (scratch, never committed) writes every disagreement with both values. The captures go
+through a pipe, so none touches the disk.
+
+### M5c sound: the doom-sound crate
+
+`doom-sound` is platform-free (no device); its tests need no C compiler and no IWAD. They read the committed synthetic
+goldens under `tests/reference` and run in `cargo test --workspace` on every operating system in CI:
+
+```sh
+cargo test -p doom-sound [--release]       # 36 tests; the end-to-end gate takes about 7 seconds in a debug build
+python3 tools/reference/m5c_sounds_table.py --check        # crates/doom-sound/src/sounds_table.rs and steptable.rs against sounds.c, sounds.h and the genuine digest 95f2209c...6dde; writes nothing
+python3 tools/reference/m5c_sounds_table.py --self-test    # shows --check fails on a changed byte of each file
+python3 tools/reference/m5c_sounds_table.py                # without a flag: writes both generated files
+```
+
+| Test file | What it gates | Kind of evidence |
+| --- | --- | --- |
+| `tables_and_lumps.rs` (6) | the sound names against the simulation's source list; one linked sound and the documented priorities; the step table as the exact integer floor of the genuine expression; both table digests; edge lumps padded as `getsfx` does; the load refusals | digests and goldens of the genuine tables; Rust-only for the refusals |
+| `mixer_goldens.rs` (5) | every row of the 23 scenario goldens and the 64 session goldens of the genuine mixer except the two device rows; the refused scenarios stop where the genuine code ends in `I_Error`; the short-lump witnesses and the pitch-256 probe are refused | source equivalence against genuine traces |
+| `adjust_streams.rs` (1) | `S_AdjustSoundParams` on all 404 positional start rows of the 64 genuine streams | source equivalence |
+| `logic_rules.rs` (8) | channel allocation and priority and the draw rule as the genuine runs observed them, pitches from the drawn values, a centred origin on the listener, every refusal leaving state unchanged, one lump lookup per sound, updates freeing finished and inaudible channels, level start and removal | genuine observations for the first two; Rust-only for the rest |
+| `stream_replay.rs` (1) | the sound logic replayed on the 64 genuine streams, as far as each holds the positions it needs | source equivalence |
+| `session_rules.rs` (5) | a session is a fresh process; records run at `gametic` t and the update at t+1; a removal's stop frees the channel within the tic; a refused record and a refused update each leave the session equal to its clone | Rust-only (the C facts cited) |
+| `detector_rules.rs` (4) | the T12 detector fires on an audibility flip at the clipping edge and on a separation-only change, does not fire on SNDBTN2's busy-slot release, and labels a session from the tic and continues | Rust-only, built from cited C facts |
+| `session_gate.rs` (1) | **the gate:** every genuine row of the 64 items, end to end from the Rust wire-25 simulation | source equivalence |
+| `state_restore.rs` (3) | saving and restoring at several tics of every item continues exactly as the unbroken run; forged states are each refused; restore checks the simulation | Rust-only (consistency of the saved state; the continued rows are also equal to the genuine streams) |
+| unit tests in `src/` (2) | the schedule rule, and the mixer's volume arithmetic far outside the game's range (a fuzz finding) | Rust-only |
+
+`cargo test -p doom-sim --release --test wire25_projection` and the wire-25 unit tests above are also part of
+`cargo test --workspace`.
+
+### The audio probe
+
+```sh
+doom-play --audio-probe        # a diagnostic: opens a playback device, writes about one second of silence, never plays a sound
+```
+
+Exit 0 if a device opened (it prints the backend and device), 1 if none did (it prints every backend tried and each
+one's error), 2 if mixed with any other argument. It is the only code that can open a device, and CI never runs it (no
+runner has an audio device). On the development machine it exits 1 (no audio client library is installed); that is
+the expected and loud outcome there. The unit tests in `crates/doom-play/src/audio.rs` (the backend list names only
+real backends; an error names every backend tried) run in `cargo test -p doom-play` without opening a device.
+
+### M5c fuzz targets of doom-sound
+
+Four targets in the fuzz workspace, each with a deterministic seed tool, no IWAD and no id data:
+
+```sh
+python3 tools/seed_sound_fuzz.py lumps DIR     # sound_lumps (max_len 4096): SoundSet::load against an independent model of I_InitSound's loop and getsfx
+python3 tools/seed_sound_fuzz.py mixer DIR     # sound_mixer (max_len 2050): refusal order and mixing
+python3 tools/seed_sound_fuzz.py logic DIR     # sound_logic (max_len 1060): the sound logic's invariants
+python3 tools/seed_sound_fuzz.py state DIR     # sound_state (max_len 2048): the DSND decoder and the session
+python3 tools/seed_sound_fuzz.py --check [DIR_LUMPS DIR_MIXER DIR_LOGIC DIR_STATE]   # writes nothing; with directories, requires them to hold exactly the seeds the tool writes
+python3 tools/seed_sound_fuzz.py --self-test   # shows --check fails on a flipped byte, a missing file and an extra file
+# build one target at a time, into a CARGO_TARGET_DIR on ext4 and with debug info off:
+cargo +nightly fuzz build --fuzz-dir fuzz --target-dir S/target-asan --sanitizer address sound_mixer   # also --sanitizer none into S/target-none; BIN below is the built target binary
+# seed replay (not a campaign); ASAN_OPTIONS=detect_leaks=0 means LeakSanitizer is disabled, not passed
+ASAN_OPTIONS=detect_leaks=0 BIN SEEDS -runs=0 -max_len=2050 -timeout=20 -rss_limit_mb=2048
+# bounded coverage-guided campaign on a fresh copy of the seeds
+BIN CORPUS -max_total_time=300 -max_len=2050 -seed=1 -timeout=20 -rss_limit_mb=2048
+```
+
+The first four commands above are the seed tool's; the build, replay and campaign lines show the form with one
+target (`sound_mixer`); the others differ in the name and the `max_len`. The state target also has a second mode that
+runs a session on arbitrary records. What was run and found is in the
+[evidence record](validation/M5C.md#step-11-part-1-the-fuzz-targets).
+
+### The CI job and the mutation workflow
+
+The Linux-only job `M5c genuine sound (not required)` (`m5c-genuine-sound` in `.github/workflows/rust.yml`; it keeps
+the documentation-only fast path and is not a required check) runs: the generator and contract checks (`m5c_sfx.py`,
+`m5c_check_sfx.py` and its self-test, `m5c_wad.py`, `m5c_build.py`, `m5c_mixer_build.py` and `m5c_sounds_table.py`
+each with `--check`, and the table's `--self-test`); `m5c_starts.py --selftest` and each of the 64 committed start lists
+against a fresh conversion of its stream; `m5c_reference.py --check --selftest --jobs 4` and
+`m5c_mixer_reference.py --check --selftest --jobs 4` (the address variants run with leak detection disabled, named in
+the step names); a release build of `player_level_run` and `m5c_rust_check.py`; a release build of `sound_records_run`,
+`m5c_wire25_check.py --check --selftest --jobs 4` and `m5c_t4.py --check`. It runs no IWAD tool, no `--strict32` and no
+device command. The Rust tests of `doom-sound` run in the existing Stable job on all three operating systems and in the
+Minimum Rust job as part of `--workspace`. The [mutation workflow](#ci-mutation-workflow-m4b) now also mutates
+`doom-sound` (`-p doom-sound` beside `doom-sim`, `doom-render` and `doom-game`; `doom-play`, the window and device code,
+is left out); no mutation run of `doom-sound` has been made yet.
 
 ## Mutation testing
 
