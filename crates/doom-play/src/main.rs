@@ -4,6 +4,7 @@
 //! and presents the picture. Nothing here reaches the simulation except through
 //! [`doom_game::app::App`]'s input calls. No `unsafe` (forbidden by the workspace lints).
 
+mod audio;
 mod keys;
 mod tic_stats;
 mod window;
@@ -20,6 +21,7 @@ doom-play: play one Episode 1 map of DOOM in a window, with the Linux DOOM 1.10 
 (no cheats, menu or sound; see Limits).
 
 usage: doom-play --iwad PATH [options]
+       doom-play --audio-probe
 
   --iwad PATH          the IWAD (required; read only, never copied)
   --wad PATH           an extra WAD loaded after the IWAD (repeatable; later files win)
@@ -47,6 +49,10 @@ usage: doom-play --iwad PATH [options]
                        and so does a band over the top of the picture for the first five
                        seconds (175 tics) of every session, in a window or fullscreen.
   --help               this text
+  --audio-probe        diagnostic, taking no other option: open the audio device from the
+                       listed real backends only, play digital silence (no sound) for about
+                       one second, print which backend opened and exit 0; or print why
+                       none opened and exit 1. The game does not use the device yet.
 
 Keys: Esc or Pause pauses (then Esc or Pause resumes, R restarts, Q quits); on an end screen
 R restarts and Q or Esc quits. When the window library reports that the window was
@@ -159,6 +165,18 @@ fn parse(args: impl IntoIterator<Item = String>) -> Result<Option<Options>, Stri
     }
     o.iwad = iwad.ok_or("--iwad PATH is required (see --help)")?;
     Ok(Some(o))
+}
+
+/// Whether the arguments ask for the audio probe: `Ok(true)` for `--audio-probe` alone,
+/// `Ok(false)` when it is absent, an error when it is mixed with other arguments.
+fn audio_probe_requested(args: &[String]) -> Result<bool, String> {
+    match args {
+        [only] if only == "--audio-probe" => Ok(true),
+        _ if args.iter().any(|a| a == "--audio-probe") => {
+            Err("--audio-probe takes no other argument (see --help)".into())
+        }
+        _ => Ok(false),
+    }
 }
 
 /// The window title: the session's label when nothing is recorded (decision S3 (ii)).
@@ -325,7 +343,30 @@ fn run(o: Options) -> Result<(), String> {
 }
 
 fn main() {
-    let code = match parse(std::env::args().skip(1)) {
+    let args: Vec<String> = std::env::args().skip(1).collect();
+    let code = match audio_probe_requested(&args) {
+        Ok(true) => match audio::probe() {
+            Ok(line) => {
+                println!("{line}");
+                0
+            }
+            Err(e) => {
+                eprintln!("doom-play: audio probe: {e}");
+                1
+            }
+        },
+        Ok(false) => play(args),
+        Err(e) => {
+            eprintln!("doom-play: {e}");
+            2
+        }
+    };
+    std::process::exit(code);
+}
+
+/// Parses the arguments and plays; the process exit code.
+fn play(args: Vec<String>) -> i32 {
+    match parse(args) {
         Ok(None) => {
             println!("{HELP}");
             0
@@ -341,8 +382,7 @@ fn main() {
             eprintln!("doom-play: {e}");
             2
         }
-    };
-    std::process::exit(code);
+    }
 }
 
 #[cfg(test)]
@@ -421,6 +461,19 @@ mod tests {
         ] {
             assert!(parse(args(bad)).is_err(), "{bad}");
         }
+    }
+
+    #[test]
+    fn the_audio_probe_is_asked_for_alone() {
+        assert_eq!(audio_probe_requested(&args("--audio-probe")), Ok(true));
+        for absent in ["", "--iwad a.wad", "--help"] {
+            assert_eq!(audio_probe_requested(&args(absent)), Ok(false), "{absent}");
+        }
+        for mixed in ["--audio-probe --iwad a.wad", "--iwad a.wad --audio-probe"] {
+            assert!(audio_probe_requested(&args(mixed)).is_err(), "{mixed}");
+        }
+        assert!(parse(args("--iwad a.wad --audio-probe")).is_err());
+        assert!(HELP.contains("--audio-probe") && HELP.contains("digital silence"));
     }
 
     #[test]
