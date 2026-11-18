@@ -195,10 +195,16 @@ impl InputState {
     }
 
     /// `G_Responder`'s game switch (g_game.c:558-597), reached by every event the app posts
-    /// (with the [`keys::WITHHELD`] keys withheld, `M_Responder`, the spy branch,
-    /// `HU_Responder`, `ST_Responder` and `AM_Responder` pass every such event through
-    /// unchanged; M5b investigation §2.2.4 "Never forwarding these keys"). Returns whether the
-    /// event was eaten, as the C does:
+    /// (with the [`keys::WITHHELD`] keys withheld, `M_Responder`, the spy branch, `HU_Responder`
+    /// and `AM_Responder` pass every such event through unchanged; M5b investigation §2.2.4
+    /// "Never forwarding these keys"). `ST_Responder` also passes every event on (it always
+    /// returns false, st_stuff.c:518-725), but it first runs the cheat matcher on every keydown
+    /// (st_stuff.c:541-723), which is not ported (decision S5): the app forwards a cheat's keys
+    /// as ordinary keys with no cheat effect. The genuine engine acts on a completed cheat: most
+    /// change only the player's state, but `idclev` reloads the level (st_stuff.c:676-721), and
+    /// the reload's `G_DoLoadLevel` clears `gamekeydown` and the mouse state (g_game.c:490-496),
+    /// so the genuine commands differ from the app's from then on (golden
+    /// `s5_cheat_idclev12`, from tic 8). Returns whether the event was eaten, as the C does:
     ///
     /// - keydown: `gamekeydown[data1] = true`, eaten (g_game.c:566-568);
     /// - keyup: `gamekeydown[data1] = false`, not eaten (g_game.c:570-573);

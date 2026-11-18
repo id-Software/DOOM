@@ -22,7 +22,9 @@ mod screens;
 
 pub use frames::{FrameAssets, FrameRefusal, PALETTE_BYTES};
 pub use gamma::GAMMA;
-pub use recorder::{RecordError, Recorder, TIC_CAP, Timestamp, session_name, wire24_admits};
+pub use recorder::{
+    DemoCommands, RecordError, Recorder, TIC_CAP, Timestamp, session_name, wire24_admits,
+};
 pub use screens::{APP_PALETTE, CLEAR, Screen, glyph, labelled_pause_overlay, pause_overlay};
 
 use crate::input::{Event, EventLayer, Input, InputError, MouseButton, Preset, RecordedTic, keys};
@@ -48,6 +50,11 @@ pub const SAVE_INTERVAL: usize = 35 * 30;
 /// The label of a session with [`SessionConfig::unrecorded_full_turning`], wherever its state is
 /// shown (decision S3 (ii), owner ruling 2026-11-17).
 pub const UNRECORDED_LABEL: &str = "not recorded: no demo, cannot be replayed";
+/// The pause overlay's label while the last write of the demo failed (the reason is on the end
+/// screen and on doom-play's standard error).
+pub const SAVE_FAILED_LABEL: &str = "LAST DEMO SAVE FAILED";
+/// The most names [`App`] tries for a session file: the base name, then `-2` to `-9999`.
+pub const MAX_NAME_SUFFIX: u32 = 9999;
 /// The bytes of [`App::picture`]: 320×200 RGBA.
 pub const PICTURE_BYTES: usize = SCREENWIDTH * SCREENHEIGHT * 4;
 
@@ -57,7 +64,17 @@ pub trait Host {
     fn timestamp(&mut self) -> Timestamp;
     /// Whether a session file of this name already exists.
     fn exists(&mut self, name: &str) -> bool;
-    /// Writes (or rewrites) the session file `name` whole.
+    /// Creates the session file `name` with `bytes`, never replacing an existing file:
+    /// `Ok(false)` when the name is taken. The default checks [`Host::exists`] and then saves,
+    /// which is enough for a host no other process writes to; a host on a shared directory
+    /// creates the file atomically (doom-play opens it with `create_new`).
+    fn claim(&mut self, name: &str, bytes: &[u8]) -> Result<bool, String> {
+        if self.exists(name) {
+            return Ok(false);
+        }
+        self.save(name, bytes).map(|()| true)
+    }
+    /// Rewrites the session file `name`, which [`Host::claim`] created, whole.
     fn save(&mut self, name: &str, bytes: &[u8]) -> Result<(), String>;
     /// Called after every committed and drawn tic, for headless session verification (M5b
     /// investigation §2.3); a window has no use for it.
@@ -85,11 +102,23 @@ pub struct TicReport<'a> {
     pub rndindex: u8,
 }
 
-/// Replays recorded commands (a session's demo) through the simulation and the app's frame
-/// source as play does, reporting every tic to `host`: the headless check of a recorded
-/// session (M5b investigation §2.3). Returns how the replay ended early, or `None` after the
-/// last command.
+/// Replays a session's demo through the simulation and the app's frame source as play does,
+/// reporting every tic to `host`: the headless check of a recorded session (M5b investigation
+/// §2.3). Returns how the replay ended early, or `None` after the last command.
 pub fn replay(
+    data: &GameData,
+    screenblocks: u8,
+    commands: &DemoCommands,
+    host: &mut dyn Host,
+) -> Option<Ending> {
+    replay_full_resolution(data, screenblocks, commands.commands(), host)
+}
+
+/// [`replay`] of commands as they are, `angle_turn` at full resolution: the commands an
+/// unrecorded session executed ([`SessionConfig::unrecorded_full_turning`]) or the commands the
+/// injection evidence feeds (`tools/reference/m5b_inject.py`). A command outside wire 24 is
+/// refused by the simulation's own preflight.
+pub fn replay_full_resolution(
     data: &GameData,
     screenblocks: u8,
     commands: &[TicCommand],
@@ -344,7 +373,9 @@ pub enum Ending {
     },
     /// The dead player pressed use (the reborn, decision S10).
     Died,
-    /// A tic was refused (decision S9).
+    /// A tic was refused (decision S9). A tic the simulation refused is not in the demo; a tic
+    /// whose frame was refused after the simulation committed it is, and the demo replays to
+    /// the same refusal.
     Refused {
         /// The refused tic: the simulation's tic count when it was attempted.
         tic: u64,
@@ -426,6 +457,8 @@ pub struct App {
     drawn: bool,
     recorder: Recorder,
     name: String,
+    started: Timestamp,
+    claimed: bool,
     save: SaveStatus,
     mode: Mode,
     clock: TicClock,
@@ -448,6 +481,8 @@ impl App {
             drawn: false,
             recorder: Recorder::new(data.map, data.skill, cfg.tic_cap),
             name: String::new(),
+            started: Timestamp::default(),
+            claimed: false,
             save: SaveStatus::NotSaved,
             mode: Mode::Playing,
             clock: TicClock::default(),
@@ -476,11 +511,12 @@ impl App {
         self.clock = TicClock::default();
         self.screen = None;
         self.mode = Mode::Playing;
-        self.name = if self.recorded() {
-            Self::free_name(&self.data, host)
-        } else {
-            String::new()
-        };
+        self.name = String::new();
+        self.claimed = false;
+        self.started = host.timestamp();
+        // the file is created at once (an empty demo), so an unwritable directory shows at
+        // the first pause, not at the session's end
+        self.save(host);
         match FrameSource::start(&self.data.assets, self.cfg.screenblocks, &self.sim) {
             Ok(f) => self.frames = Some(f),
             Err(e) => {
@@ -496,16 +532,27 @@ impl App {
         }
     }
 
-    fn free_name(data: &GameData, host: &mut dyn Host) -> String {
-        let base = session_name(data.map, data.skill, host.timestamp());
-        let mut name = base.clone();
-        for n in 2..1000 {
-            if !host.exists(&name) {
-                break;
+    /// Creates the session's file under the first free name made from the session's start
+    /// time: the base name, then `-2`, `-3` and so on up to [`MAX_NAME_SUFFIX`]. No existing
+    /// file is ever replaced; when every name is taken, nothing is written and the save fails
+    /// visibly.
+    fn claim(&mut self, bytes: &[u8], host: &mut dyn Host) -> Result<(), String> {
+        let base = session_name(self.data.map, self.data.skill, self.started);
+        let stem = base.trim_end_matches(".lmp");
+        for n in 1..=MAX_NAME_SUFFIX {
+            let name = match n {
+                1 => base.clone(),
+                n => format!("{stem}-{n}.lmp"),
+            };
+            if host.claim(&name, bytes)? {
+                self.name = name;
+                self.claimed = true;
+                return Ok(());
             }
-            name = format!("{}-{n}.lmp", base.trim_end_matches(".lmp"));
         }
-        name
+        Err(format!(
+            "every name from {base} to {stem}-{MAX_NAME_SUFFIX}.lmp exists"
+        ))
     }
 
     /// The current mode.
@@ -544,7 +591,8 @@ impl App {
         }
     }
 
-    /// The session's file name (empty when nothing is recorded).
+    /// The session's file name: empty when nothing is recorded, or while no write has succeeded
+    /// (the file is created when the session begins).
     pub fn session_name(&self) -> &str {
         &self.name
     }
@@ -554,7 +602,8 @@ impl App {
         &self.save
     }
 
-    /// Whether the player asked to quit (the demo is already saved).
+    /// Whether the player asked to quit (the save was attempted; see [`App::save_status`]). No
+    /// tic runs after it.
     pub fn quit_requested(&self) -> bool {
         self.quit
     }
@@ -596,7 +645,8 @@ impl App {
         }
     }
 
-    /// Relative mouse motion in window pixels (`dy` positive downward); ignored unless playing.
+    /// Relative mouse motion in the platform's raw device units (doom-play passes miniquad's raw
+    /// mouse motion, which is not in pixels), `dy` positive downward; ignored unless playing.
     pub fn mouse_motion(&mut self, dx: i32, dy: i32) {
         if self.mode == Mode::Playing {
             self.layer.mouse_motion(dx, dy);
@@ -610,7 +660,11 @@ impl App {
         }
     }
 
-    /// The window was minimised or lost focus: pauses a playing session.
+    /// The platform reports that the window was minimised or lost the input focus: pauses a
+    /// playing session, which releases every held key. doom-play calls it on miniquad's
+    /// `window_minimized_event`, which that library's source sends on focus loss as well as on
+    /// minimising (X11 FocusOut, Wayland keyboard leave, Windows `WM_ACTIVATE` inactive, macOS
+    /// resign-key and window move).
     pub fn focus_lost(&mut self) {
         if self.mode == Mode::Playing {
             self.pause();
@@ -625,26 +679,31 @@ impl App {
         self.clock.origin = None;
     }
 
-    /// Restarts: saves the current session if it has not ended, then begins a new one.
+    /// Restarts: saves the current session unless its file already holds every tic (a failed
+    /// save at the session's end is retried here), then begins a new one.
     pub fn restart(&mut self, host: &mut dyn Host) {
-        if !matches!(self.mode, Mode::Ended(_)) {
-            self.save(host);
-        }
+        self.save_if_behind(host);
         self.begin(host);
     }
 
-    /// Quits: saves the session if it has not ended.
+    /// Quits: saves the session unless its file already holds every tic (a failed save at the
+    /// session's end is retried here). No tic runs afterwards.
     pub fn quit(&mut self, host: &mut dyn Host) {
-        if !matches!(self.mode, Mode::Ended(_)) {
+        self.save_if_behind(host);
+        self.quit = true;
+    }
+
+    fn save_if_behind(&mut self, host: &mut dyn Host) {
+        if self.save != SaveStatus::Saved(self.recorder.len()) {
             self.save(host);
         }
-        self.quit = true;
     }
 
     /// Runs the tics due at monotonic time `now_us`: at most [`MAX_TICS_PER_UPDATE`], the rest
     /// dropped. The first call only starts the clock; the first tic falls due 1/35 s later.
+    /// After [`App::quit`] no tic runs.
     pub fn update(&mut self, now_us: u64, host: &mut dyn Host) -> Update {
-        if self.mode != Mode::Playing {
+        if self.mode != Mode::Playing || self.quit {
             return Update::default();
         }
         let due = self.clock.due(now_us);
@@ -681,8 +740,8 @@ impl App {
                 Ok(c) => c,
                 Err(e) => return self.end(refuse(Witness::Record(e)), host),
             }
-        } else if wire24_admits(&recorded.built) {
-            recorded.built
+        } else if wire24_admits(&recorded.built()) {
+            recorded.built()
         } else {
             let witness = Witness::Record(RecordError::NotAdmitted);
             return self.end(refuse(witness), host);
@@ -714,6 +773,8 @@ impl App {
                     rndindex: frames.rndindex(),
                 });
             }
+            // The simulation committed the tic, so its command stays in the demo (only a
+            // simulation refusal drops it): the demo replays to this same frame refusal.
             Err(e) => return self.end(refuse(Witness::Frame(e)), host),
         }
         if self.recorder.len() % SAVE_INTERVAL == 0 {
@@ -721,16 +782,20 @@ impl App {
         }
     }
 
+    /// Writes the demo: the first successful write creates the file ([`App::claim`]), later
+    /// ones rewrite it.
     fn save(&mut self, host: &mut dyn Host) {
         if !self.recorded() {
             return;
         }
-        self.save = match self.recorder.bytes() {
-            Ok(bytes) => match host.save(&self.name, &bytes) {
-                Ok(()) => SaveStatus::Saved(self.recorder.len()),
-                Err(e) => SaveStatus::Failed(e),
-            },
-            Err(e) => SaveStatus::Failed(format!("the demo writer refused: {e:?}")),
+        let written = match self.recorder.bytes() {
+            Ok(bytes) if self.claimed => host.save(&self.name, &bytes),
+            Ok(bytes) => self.claim(&bytes, host),
+            Err(e) => Err(format!("the demo writer refused: {e:?}")),
+        };
+        self.save = match written {
+            Ok(()) => SaveStatus::Saved(self.recorder.len()),
+            Err(e) => SaveStatus::Failed(e),
         };
     }
 
@@ -786,10 +851,11 @@ impl App {
         screens::page(&lines)
     }
 
-    /// The picture to present, as 320×200 RGBA in `out` ([`PICTURE_BYTES`] bytes): the game
+    /// The picture to present, as 320×200 RGBA in `out` ([`PICTURE_BYTES`] bytes; a shorter
+    /// buffer receives the leading whole pixels and a longer one keeps its tail): the game
     /// frame through its PLAYPAL palette and gamma table `gamma` (0–4, decision S13; larger
-    /// values use 4), with the pause overlay composed on top while paused, or the end screen
-    /// in the app's palette. The game frame itself is never changed.
+    /// values use 4), with the pause overlay composed on top while paused (naming a failed save
+    /// of the demo), or the end screen in the app's palette. The game frame is never changed.
     pub fn picture(&self, gamma: usize, out: &mut [u8]) {
         let ramp = &GAMMA[gamma.min(GAMMA.len() - 1)];
         let app = |c: u8| APP_PALETTE[usize::from(c)];
@@ -801,11 +867,13 @@ impl App {
             return;
         }
         let palette = self.frame().and_then(|(_, n)| self.data.assets.palette(n));
-        let overlay = (self.mode == Mode::Paused).then(|| match self.recorded() {
-            true => pause_overlay(),
-            false => labelled_pause_overlay(UNRECORDED_LABEL),
+        let overlay = (self.mode == Mode::Paused).then(|| match (self.recorded(), &self.save) {
+            (false, _) => labelled_pause_overlay(UNRECORDED_LABEL),
+            (true, SaveStatus::Failed(_)) => labelled_pause_overlay(SAVE_FAILED_LABEL),
+            (true, _) => pause_overlay(),
         });
-        for (i, px) in out.chunks_exact_mut(4).enumerate() {
+        let pixels = out.chunks_exact_mut(4).take(SCREENWIDTH * SCREENHEIGHT);
+        for (i, px) in pixels.enumerate() {
             let rgb = match (&overlay, palette) {
                 (Some(o), _) if o.pixels()[i] != CLEAR => app(o.pixels()[i]),
                 (_, Some(pal)) => {

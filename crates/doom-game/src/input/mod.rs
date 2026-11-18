@@ -16,7 +16,8 @@
 //!
 //! # Which commands can come out (wire 24)
 //!
-//! Every [`BuiltCommand`], and therefore every [`RecordedTic::executed`], is admitted by the
+//! Every [`BuiltCommand`], and therefore every [`RecordedTic::executed`] (only
+//! [`BuiltCommand::record`] makes a [`RecordedTic`]), is admitted by the
 //! simulation's wire 24 (`PlayerMonstersEpisode1V2`): `forward` and `side` are clamped to
 //! ±`MAXPLMOVE` = ±50 (g_game.c:171, 413-420) before the narrowing to `char`, so neither is
 //! ever −128 or outside −127..127; the buttons are only ever ORed from `BT_ATTACK`, `BT_USE`
@@ -150,7 +151,8 @@ pub enum Event {
     },
 }
 
-/// A refused input. The refusing call leaves every state unchanged.
+/// A refused input. The refusing call leaves the responder and command-building state
+/// unchanged; [`Input`] drops the refused event from its ring.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum InputError {
     /// A keydown of a [`keys::WITHHELD`] key: linuxdoom would act on it outside the command
@@ -210,8 +212,9 @@ impl Input {
     }
 
     /// `D_ProcessEvents` (d_main.c:161-177) with only `G_Responder`'s game part behind it,
-    /// calling `delivered` for each event before it is responded to. On an error the refused
-    /// event stays at the head of the ring and nothing about it has changed.
+    /// calling `delivered` for each event after it is responded to. On an error the responder
+    /// state is unchanged by the refused event, which is dropped from the ring; the events
+    /// after it stay queued, so the next call goes on with them.
     pub fn process_events_with(
         &mut self,
         mut delivered: impl FnMut(&Event),

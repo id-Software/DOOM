@@ -399,14 +399,15 @@ fn withheld_keydowns_are_refused_keyups_accepted() {
         keys::is_withheld(KEY_PAUSE) && keys::is_withheld(b'q') && keys::is_withheld(KEY_F[11])
     );
     assert!(!keys::is_withheld(KEY_BACKSPACE) && !keys::is_withheld(b'w'));
-    // a refused event stays at the ring's head
+    // a refused event stops the walk and is dropped; the events after it come next
     let mut i = Input::new(c);
     i.post(Event::KeyDown(b'5'));
     i.post(Event::KeyDown(KEY_PAUSE));
     i.post(Event::KeyDown(b'6'));
     assert_eq!(i.process_events(), Err(InputError::WithheldKey(KEY_PAUSE)));
     assert!(i.state().key_down(b'5') && !i.state().key_down(b'6'));
-    assert_eq!(i.process_events(), Err(InputError::WithheldKey(KEY_PAUSE)));
+    assert_eq!(i.process_events(), Ok(()));
+    assert!(i.state().key_down(b'6'));
 }
 
 #[test]
@@ -583,10 +584,22 @@ fn input_tic_records_the_built_command() {
     let mut i = Input::new(Controls::vanilla());
     hold(&mut i, KEY_LEFTARROW);
     let r = i.tic().unwrap();
-    assert_eq!(r.built.angle_turn, 320);
-    assert_eq!(r.demo, [0, 0, 1, 0]);
-    assert_eq!(r.executed.angle_turn, 256);
+    assert_eq!(r.built().angle_turn, 320);
+    assert_eq!(r.demo(), [0, 0, 1, 0]);
+    assert_eq!(r.executed().angle_turn, 256);
     assert_eq!(i.controls(), &Controls::vanilla());
     i.load_level();
     assert_eq!(i.state().keys_down().count(), 0);
+}
+
+#[test]
+fn a_refused_event_is_dropped_and_the_events_after_it_are_processed_next() {
+    let mut input = Input::new(Controls::vanilla());
+    input.post(Event::KeyDown(keys::KEY_ESCAPE));
+    input.post(Event::KeyDown(keys::KEY_UPARROW));
+    let before = input.state().clone();
+    assert_eq!(input.tic(), Err(InputError::WithheldKey(keys::KEY_ESCAPE)));
+    assert_eq!(input.state(), &before, "the refusal changed nothing");
+    assert_eq!(input.tic().expect("not wedged").executed().forward, 25);
+    assert_eq!(input.tic().expect("held").executed().forward, 25);
 }

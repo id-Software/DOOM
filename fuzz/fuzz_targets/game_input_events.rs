@@ -62,15 +62,19 @@ fn wire24_admits(c: &TicCommand) -> bool {
 
 fn check_tic(r: &RecordedTic) {
     assert!(
-        wire24_admits(&r.built) && wire24_admits(&r.executed),
+        wire24_admits(&r.built()) && wire24_admits(&r.executed()),
         "{r:?}"
     );
-    assert_eq!(r.demo, write_ticcmd_bytes(&r.built));
-    assert_eq!(Some(r.executed), read_ticcmd_bytes(r.demo));
-    assert_eq!(r.executed.angle_turn & 0xff, 0);
+    assert_eq!(r.demo(), write_ticcmd_bytes(&r.built()));
+    assert_eq!(Some(r.executed()), read_ticcmd_bytes(r.demo()));
+    assert_eq!(r.executed().angle_turn & 0xff, 0);
     assert_eq!(
-        (r.built.forward, r.built.side, r.built.buttons),
-        (r.executed.forward, r.executed.side, r.executed.buttons)
+        (r.built().forward, r.built().side, r.built().buttons),
+        (
+            r.executed().forward,
+            r.executed().side,
+            r.executed().buttons
+        )
     );
 }
 
@@ -148,7 +152,7 @@ fn run(data: &[u8]) -> Outcome {
                 }
                 let r = input.tic().expect("the layer's events are never refused");
                 check_tic(&r);
-                trace.push(r.demo);
+                trace.push(r.demo());
             }
             6 | 7 | 8 => {
                 let event = match op[0] % 11 {
@@ -181,7 +185,7 @@ fn run(data: &[u8]) -> Outcome {
             9 => {
                 let r = core.build_ticcmd(&controls).record();
                 check_tic(&r);
-                trace.push(r.demo);
+                trace.push(r.demo());
             }
             _ => {
                 core.load_level();

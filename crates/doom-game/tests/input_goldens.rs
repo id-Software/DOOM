@@ -41,20 +41,20 @@ fn t_row(input: &Input, rec: &RecordedTic, record: bool) -> TRow {
     let s = input.state();
     let (executed, demo) = if record {
         (
-            rec.executed,
-            rec.demo
+            rec.executed(),
+            rec.demo()
                 .iter()
                 .map(|b| format!("{b:02x}"))
                 .collect::<String>(),
         )
     } else {
-        (rec.built, "-".to_owned())
+        (rec.built(), "-".to_owned())
     };
     let keys: Vec<String> = s.keys_down().map(|k| format!("{k:x}")).collect();
     let d = s.double_click();
     let d2 = s.strafe_double_click();
     TRow {
-        built: fields(&rec.built),
+        built: fields(&rec.built()),
         executed: fields(&executed),
         demo,
         // the driver caps turnheld at SLOWTURNTICS and the timers at 21 (m5b_input_driver.c, dump_tic)
@@ -182,7 +182,7 @@ fn run_script(name: &str) -> (usize, usize) {
                     let want = Row::T(tic, t_row(&input, &rec, script.record));
                     assert_eq!(rows.next(), Some(&want), "{name}: tic {tic}");
                     cmp += 18;
-                    assert!(wire24_admits(&rec.built) && wire24_admits(&rec.executed));
+                    assert!(wire24_admits(&rec.built()) && wire24_admits(&rec.executed()));
                     tic += 1;
                 }
             }
@@ -299,8 +299,9 @@ enum NotExact {
     /// The golden delivers a keydown of a withheld key to the switch, which
     /// [`doom_game::input::InputState::respond`] refuses ([`InputError::WithheldKey`]).
     Refused(u8),
-    /// Genuine state outside the input path changes the input state.
-    Differs,
+    /// Genuine state outside the input path changes the input state; the first differing `t`
+    /// row is at this tic.
+    Differs(i64),
 }
 
 /// The `x_` and `s5_` scripts on which the core is deliberately not exact, with the reason. All
@@ -380,7 +381,7 @@ const NOT_EXACT: &[(&str, NotExact, &str)] = &[
     ),
     (
         "s5_cheat_idclev12",
-        NotExact::Differs,
+        NotExact::Differs(8),
         "the cheat's G_DeferedInitNew reloads the level in G_Ticker, whose G_DoLoadLevel clears the input (g_game.c:490-496) with no loadlevel row; cheats are not ported (S5)",
     ),
 ];
@@ -404,7 +405,9 @@ fn x_and_s5_scripts_at_the_event_level() {
                 Replay::Refused(InputError::WithheldKey(k)),
                 Some((_, NotExact::Refused(want), _)),
             ) if k == *want => seen.push(name),
-            (Replay::Differs { .. }, Some((_, NotExact::Differs, _))) => seen.push(name),
+            (Replay::Differs { tic }, Some((_, NotExact::Differs(want), _))) if tic == *want => {
+                seen.push(name)
+            }
             (outcome, listed) => panic!("{name}: {outcome:?}, listed as {listed:?}"),
         }
     }

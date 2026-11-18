@@ -3,13 +3,15 @@
 //! by scripted events and a fake monotonic clock: no window, no file system inside the app, no
 //! wall clock.
 
+use doom_game::app::FrameRefusal;
 use doom_game::app::{
-    App, Ending, GAMMA, GameData, Host, MAX_TICS_PER_UPDATE, Mode, PICTURE_BYTES, SAVE_INTERVAL,
-    SaveStatus, Screen, SessionConfig, TIC_CAP, TicReport, Timestamp, UNRECORDED_LABEL, Witness,
-    replay, session_name, wire24_admits,
+    App, DemoCommands, Ending, GAMMA, GameData, Host, MAX_NAME_SUFFIX, MAX_TICS_PER_UPDATE, Mode,
+    PICTURE_BYTES, SAVE_FAILED_LABEL, SAVE_INTERVAL, SaveStatus, Screen, SessionConfig, TIC_CAP,
+    TicReport, Timestamp, UNRECORDED_LABEL, Witness, replay, replay_full_resolution, session_name,
+    wire24_admits,
 };
 use doom_game::input::{MouseButton, keys};
-use doom_render::GameMode;
+use doom_render::{DisplayRefusal, GameMode, RenderRefusal};
 use doom_sim::demo::parse_demo_episode1_v2;
 use doom_sim::{SimError, TicCommand};
 use std::collections::BTreeMap;
@@ -260,7 +262,12 @@ fn the_written_demo_replays_to_the_same_state_at_every_tic() {
     );
     let mut again = FakeHost::default();
     assert_eq!(
-        replay(&load("m5a_wads/amp.wad", 1, 2), 10, &cmds, &mut again),
+        replay(
+            &load("m5a_wads/amp.wad", 1, 2),
+            10,
+            &DemoCommands::parse(d.demo(), 1).expect("demo"),
+            &mut again
+        ),
         None
     );
     assert_eq!(&again.reports, live);
@@ -502,20 +509,78 @@ fn the_tic_cap_ends_the_session_with_the_demo_saved() {
 #[test]
 fn the_demo_is_rewritten_every_thirty_seconds_and_a_failed_write_is_reported() {
     let mut d = Driver::new(load("m5a_wads/amp.wad", 1, 2), SessionConfig::default());
+    assert_eq!(
+        d.host.writes, 1,
+        "the file is created when the session begins"
+    );
+    assert_eq!(commands(d.demo(), 1).len(), 0);
     for _ in 0..SAVE_INTERVAL - 1 {
         d.tic();
     }
-    assert_eq!(d.host.writes, 0);
-    d.tic();
     assert_eq!(d.host.writes, 1);
+    d.tic();
+    assert_eq!(d.host.writes, 2);
     assert_eq!(commands(d.demo(), 1).len(), SAVE_INTERVAL);
     d.host.fail = true;
+    d.tic();
     d.app.quit(&mut d.host);
     assert_eq!(d.app.save_status(), &SaveStatus::Failed("disk full".into()));
+    let before = d.app.tic();
+    assert_eq!(d.app.update(at(d.clock + 3), &mut d.host).ran, 0);
+    assert_eq!(d.app.tic(), before, "no tic runs after quit");
+    d.host.fail = false;
+    d.app.quit(&mut d.host);
+    assert_eq!(d.host.writes, 3, "a failed save is tried again on quit");
+    assert_eq!(d.app.save_status(), &SaveStatus::Saved(SAVE_INTERVAL + 1));
+    assert_eq!(commands(d.demo(), 1).len(), SAVE_INTERVAL + 1);
+    d.app.quit(&mut d.host);
+    assert_eq!(d.host.writes, 3, "a saved session is not written again");
 }
 
 #[test]
-fn file_names_come_from_the_injected_date_and_never_overwrite() {
+fn a_failed_save_shows_on_the_pause_box_and_the_end_screen_and_is_retried_on_restart() {
+    let cfg = SessionConfig {
+        tic_cap: 3,
+        ..SessionConfig::default()
+    };
+    let mut host = FakeHost {
+        fail: true,
+        ..FakeHost::default()
+    };
+    let mut ok = Driver::new(load("m5a_wads/amp.wad", 1, 2), cfg);
+    let mut d = Driver::new(load("m5a_wads/amp.wad", 1, 2), cfg);
+    std::mem::swap(&mut d.host, &mut host);
+    d.app = App::new(load("m5a_wads/amp.wad", 1, 2), cfg, &mut d.host);
+    d.app.update(0, &mut d.host);
+    assert!(matches!(d.app.save_status(), SaveStatus::Failed(_)));
+    assert_eq!(d.app.session_name(), "", "no file was created");
+    d.run(&[(1, &[])]);
+    ok.run(&[(1, &[])]);
+    for x in [&mut d, &mut ok] {
+        x.feed(In::Key(keys::KEY_ESCAPE, true));
+    }
+    assert!(shows(&picture(&d.app), SAVE_FAILED_LABEL));
+    assert!(!shows(&picture(&ok.app), SAVE_FAILED_LABEL));
+    d.feed(In::Key(keys::KEY_ESCAPE, true));
+    d.run(&[(5, &[])]);
+    assert_eq!(d.app.mode(), &Mode::Ended(Ending::TicCap));
+    d.host.fail = false;
+    d.feed(In::Key(b'r', true));
+    let first = session_name(1, 2, Timestamp::default());
+    assert_eq!(
+        commands(&d.host.files[&first], 1).len(),
+        3,
+        "saved on restart"
+    );
+    assert_eq!(
+        d.app.session_name(),
+        "E1M1-skill2-00000000-000000-2.lmp",
+        "the new session never takes the old file's name"
+    );
+}
+
+#[test]
+fn file_names_come_from_the_injected_date_and_an_existing_file_is_never_replaced() {
     let t = Timestamp {
         year: 2026,
         month: 1,
@@ -539,6 +604,26 @@ fn file_names_come_from_the_injected_date_and_never_overwrite() {
         &mut host,
     );
     assert_eq!(app.session_name(), "E1M1-skill3-20260102-030405-3.lmp");
+    assert_eq!(host.files["E1M1-skill3-20260102-030405-2.lmp"], b"");
+    // every name taken (as with a clock stuck before 1970, which gives every session one
+    // date): nothing is written, no file changes, and the failure is reported
+    let all: BTreeMap<String, Vec<u8>> = (1..=MAX_NAME_SUFFIX)
+        .map(|n| match n {
+            1 => "E1M1-skill3-20260102-030405.lmp".to_string(),
+            n => format!("E1M1-skill3-20260102-030405-{n}.lmp"),
+        })
+        .map(|name| (name, vec![7]))
+        .collect();
+    host.files = all.clone();
+    let mut app = App::new(
+        load("m5a_wads/amp.wad", 1, 3),
+        SessionConfig::default(),
+        &mut host,
+    );
+    app.quit(&mut host);
+    assert_eq!(host.files, all);
+    assert_eq!(app.session_name(), "");
+    assert!(matches!(app.save_status(), SaveStatus::Failed(e) if e.contains("-9999.lmp exists")));
 }
 
 #[test]
@@ -745,7 +830,7 @@ fn the_default_session_is_recorded_and_unlabelled() {
     d.feed(In::Key(keys::KEY_ESCAPE, true));
     assert!(!shows(&picture(&d.app), UNRECORDED_LABEL));
     d.app.quit(&mut d.host);
-    assert_eq!(d.host.writes, 1);
+    assert_eq!(d.host.writes, 2, "created at the start, saved at quit");
 }
 
 #[test]
@@ -788,7 +873,7 @@ fn an_unrecorded_session_executes_the_built_command_and_writes_nothing() {
     // a plain simulation fed the executed commands reaches the same state on every tic
     let mut again = FakeHost::default();
     assert_eq!(
-        replay(&load("m5a_wads/amp.wad", 1, 2), 10, &full, &mut again),
+        replay_full_resolution(&load("m5a_wads/amp.wad", 1, 2), 10, &full, &mut again),
         None
     );
     assert_eq!(again.reports, u.host.reports);
@@ -882,4 +967,51 @@ fn every_ending_of_an_unrecorded_session_writes_nothing_and_shows_the_label() {
     assert_eq!(d.app.mode(), &Mode::Ended(Ending::Died));
     assert!(shows(&picture(&d.app), UNRECORDED_LABEL));
     assert_eq!((d.host.writes, d.host.files.len()), (0, 0));
+}
+
+#[test]
+fn a_frame_refused_after_the_simulation_committed_its_tic_stays_in_the_demo() {
+    // The M5a solidsegs room turned left 256 a tic (its demo M5SSEG): the genuine run ends at
+    // tic 15 with SolidSegOverflow (tests/reference/m5b_results.json). A mouse motion of -8 is
+    // a built turn of 256 at sensitivity 5 (g_game.c:579, 409), the same executed command.
+    let data = load("m5a_wads/solidsegs.wad", 1, 2);
+    let mut d = Driver::new(data.clone(), SessionConfig::default());
+    d.run(&[(2, &[])]);
+    while d.app.mode() == &Mode::Playing {
+        d.feed(In::Motion(-8, 0));
+        d.tic();
+    }
+    let ending = Ending::Refused {
+        tic: 15,
+        witness: Witness::Frame(FrameRefusal::Draw(DisplayRefusal::Render(
+            RenderRefusal::SolidSegOverflow,
+        ))),
+    };
+    assert_eq!(d.app.mode(), &Mode::Ended(ending.clone()));
+    let pic = picture(&d.app);
+    assert!(shows(&pic, "TIC REFUSED") && shows(&pic, "TIC 15, WITNESS:"));
+    assert!(shows(&pic, "16 TICS"));
+    let demo = DemoCommands::parse(d.demo(), 1).expect("demo");
+    assert_eq!(demo.commands().len(), 16, "the refused tic is in the demo");
+    assert_eq!(demo.commands()[15].angle_turn, 256);
+    assert_eq!(d.app.save_status(), &SaveStatus::Saved(16));
+    let mut again = FakeHost::default();
+    assert_eq!(replay(&data, 10, &demo, &mut again), Some(ending));
+    assert_eq!(again.reports, d.host.reports);
+}
+
+#[test]
+fn the_picture_fills_any_buffer_length_without_a_panic() {
+    let mut d = Driver::new(load("m5a_wads/amp.wad", 1, 2), SessionConfig::default());
+    d.run(&[(2, &[])]);
+    let whole = picture(&d.app);
+    let mut long = vec![9; PICTURE_BYTES + 6];
+    d.app.picture(0, &mut long);
+    assert_eq!(
+        (&long[..PICTURE_BYTES], &long[PICTURE_BYTES..]),
+        (&whole[..], &[9; 6][..])
+    );
+    let mut short = vec![0; 10];
+    d.app.picture(0, &mut short);
+    assert_eq!((&short[..8], &short[8..]), (&whole[..8], &[0, 0][..]));
 }

@@ -40,15 +40,14 @@ fn decode(bytes: [u8; 4]) -> TicCommand {
 /// One recorded tic: the command `G_BuildTiccmd` built, the four demo bytes and the command
 /// the game executes, which while recording is the command re-read from those bytes into the
 /// same `ticcmd_t` (g_game.c:664-669, 1514, 1522; M5b investigation §1.2.2 fact 4).
+///
+/// Only [`super::BuiltCommand::record`] makes one, so every value comes from `G_BuildTiccmd`
+/// and its round trip; the fields are read through the accessors.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct RecordedTic {
-    /// The built command, `angle_turn` at full 16 bits.
-    pub built: TicCommand,
-    /// The four bytes written to the demo.
-    pub demo: [u8; 4],
-    /// The executed command: `angle_turn` is `256 * ⌊(built + 128) / 256⌋` wrapped into
-    /// −32768..=32512; `forward`, `side` and `buttons` equal the built ones.
-    pub executed: TicCommand,
+    built: TicCommand,
+    demo: [u8; 4],
+    executed: TicCommand,
 }
 
 impl RecordedTic {
@@ -62,6 +61,32 @@ impl RecordedTic {
             built,
             demo,
             executed: decode(demo),
+        }
+    }
+
+    /// The built command, `angle_turn` at full 16 bits.
+    pub fn built(&self) -> TicCommand {
+        self.built
+    }
+
+    /// The four bytes written to the demo.
+    pub fn demo(&self) -> [u8; 4] {
+        self.demo
+    }
+
+    /// The executed command: `angle_turn` is `256 * ⌊(built + 128) / 256⌋` wrapped into
+    /// −32768..=32512; `forward`, `side` and `buttons` equal the built ones.
+    pub fn executed(&self) -> TicCommand {
+        self.executed
+    }
+
+    /// A forged value for the recorder's own refusal tests.
+    #[cfg(test)]
+    pub(crate) fn forged(built: TicCommand, demo: [u8; 4], executed: TicCommand) -> Self {
+        Self {
+            built,
+            demo,
+            executed,
         }
     }
 }

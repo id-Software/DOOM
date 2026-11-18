@@ -2,7 +2,7 @@
 //! (i_video.c:97-160): named keys to their `KEY_*` codes, both Shift, Ctrl and Alt keys to one
 //! code each, printable keys to lower-case ASCII. A key `xlatekey` would leave as a keysym of
 //! 256 or more (keypad digits, Insert, Home and so on) never reaches `gamekeydown`
-//! (g_game.c:586-587), so it is not forwarded.
+//! (the `data1 < NUMKEYS` tests, g_game.c:566 and 571), so it is not forwarded.
 
 use doom_game::input::keys::{
     KEY_BACKSPACE, KEY_DOWNARROW, KEY_ENTER, KEY_EQUALS, KEY_ESCAPE, KEY_F, KEY_LEFTARROW,

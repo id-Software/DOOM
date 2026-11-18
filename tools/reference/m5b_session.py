@@ -62,17 +62,27 @@ def header(text):
     return h
 
 
-def build(work, cc, cargo):
-    p = subprocess.run([cargo, 'build', '--release', '--locked', '-p', 'doom-game', '--example', 'm5b_session'], cwd=ROOT,
-                       capture_output=True, text=True)
+def build_example(cargo):
+    """Builds the m5b_session example (release) and returns the executable cargo itself reports, so the run uses
+    the binary just built wherever CARGO_TARGET_DIR or a cargo configuration puts it."""
+    p = subprocess.run([cargo, 'build', '--release', '--locked', '-p', 'doom-game', '--example', 'm5b_session',
+                        '--message-format=json-render-diagnostics'], cwd=ROOT, capture_output=True, text=True)
     if p.returncode: sys.exit(f'cargo build FAILED:\n{p.stderr[-2000:]}')
+    exes = [m['executable'] for m in map(json.loads, p.stdout.splitlines())
+            if m.get('reason') == 'compiler-artifact' and m['target']['name'] == 'm5b_session' and m.get('executable')]
+    if len(exes) != 1: sys.exit(f'cargo reported {len(exes)} m5b_session executables')
+    return Path(exes[0])
+
+
+def build(work, cc, cargo):
+    exe = build_example(cargo)
     with open(os.devnull, 'w') as q:
         so, sys.stdout = sys.stdout, q
         try:
             bins = {v: m5b_build.build(v, work / 'build', cc) for v in VARIANTS}
             driver = ib.build('strict', work / 'inputbuild', cc, quiet=True)
         finally: sys.stdout = so
-    return ROOT / 'target/release/examples/m5b_session', bins, driver
+    return exe, bins, driver
 
 
 def rows_of(text):

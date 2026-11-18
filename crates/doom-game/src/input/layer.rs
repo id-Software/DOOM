@@ -10,9 +10,11 @@ use super::queue::MAXEVENTS;
 use super::{Event, NUMKEYS, keys};
 use std::collections::VecDeque;
 
-/// The clamp of the motion in one mouse event, in pixels each way: the most a 320-pixel-wide
-/// linuxdoom window can report in one X motion event (decision S4 (d); M5b investigation
-/// §2.2.4: with a 320×200 window `|dx| ≤ 319`, so `|data2| ≤ 1276`).
+/// The clamp of the motion in one mouse event, each way: the most a 320-pixel-wide linuxdoom
+/// window can report in one X motion event (decision S4 (d); M5b investigation §2.2.4: with a
+/// 320×200 window `|dx| ≤ 319`, so `|data2| ≤ 1276`). doom-play's motion is in raw device
+/// units, not pixels (see [`EventLayer::mouse_motion`]); the bound keeps the genuine scaling
+/// far from `int` overflow either way.
 pub const MOUSE_CLAMP_PIXELS: i32 = 319;
 
 /// The most events one [`EventLayer::drain`] produces: one fewer than `MAXEVENTS`
@@ -95,7 +97,10 @@ enum Raw {
 /// - keys: a keydown of a key already down is a repeat and is dropped; a keyup of a key not down
 ///   is dropped; a keyup whose keydown was posted in the same drain is held back to the next
 ///   drain, together with every later input of that key, so a tap shorter than a tic still
-///   lasts one tic (S6). The same rules apply to the mouse buttons.
+///   lasts one tic (S6). With always-run the physical `key_speed` is inverted, so its tap is a
+///   keyup then a keydown: that keydown is held back by the same rule, and a tap of the run
+///   key shorter than a tic still gives one walking tic. The same rules apply to the mouse
+///   buttons.
 /// - mouse: one [`Event::Mouse`] at most, after the keys, carrying the current buttons and the
 ///   motion accumulated since the previous drain, each axis clamped to
 ///   ±[`MOUSE_CLAMP_PIXELS`] and scaled `<< 2` as linuxdoom's X layer does, with vertical motion
@@ -175,8 +180,10 @@ impl EventLayer {
         })
     }
 
-    /// Relative mouse motion in window pixels, `dy` positive downward as on screen. It is added
-    /// up (saturating) until the next drain.
+    /// Relative mouse motion in the platform's units, `dy` positive downward as on screen. It is
+    /// added up (saturating) until the next drain. linuxdoom's X layer reports window pixels;
+    /// doom-play passes miniquad's raw mouse motion, which is in device units, not pixels, so
+    /// the [`MOUSE_CLAMP_PIXELS`] bound applies to those units.
     pub fn mouse_motion(&mut self, dx: i32, dy: i32) {
         self.motion = (
             self.motion.0.saturating_add(dx),
@@ -251,6 +258,8 @@ impl EventLayer {
 
     fn drain_pending(&mut self, out: &mut Vec<Event>, mut budget: usize) {
         let mut down_now = [false; NUMKEYS];
+        let mut up_now = [false; NUMKEYS];
+        let inverted = |k: usize| self.options.always_run && k == usize::from(self.speed_key);
         let mut blocked = [false; NUMKEYS];
         let (mut buttons_down_now, mut buttons_blocked) = (0u8, 0u8);
         let mut carry = VecDeque::new();
@@ -268,6 +277,11 @@ impl EventLayer {
                     } else if down {
                         if self.held[k] {
                             continue; // a repeat
+                        }
+                        if up_now[k] && inverted(k) {
+                            blocked[k] = true; // the release of an always-run tap
+                            carry.push_back(raw);
+                            continue;
                         }
                         if budget == 0 {
                             full = true;
@@ -295,6 +309,7 @@ impl EventLayer {
                         out.push(Event::KeyUp(code));
                         budget -= 1;
                         self.held[k] = false;
+                        up_now[k] = true;
                     }
                 }
                 Raw::Button { bit, down } => {

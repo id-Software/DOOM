@@ -10,18 +10,23 @@ mod window;
 use doom_game::app::{App, GameData, Host, SessionConfig, Timestamp, UNRECORDED_LABEL};
 use doom_game::input::Preset;
 use doom_render::GameMode;
+use std::io::Write as _;
 use std::path::{Path, PathBuf};
 use std::time::{SystemTime, UNIX_EPOCH};
 
 const HELP: &str = "\
-doom-play: play one Episode 1 map of DOOM (Linux DOOM 1.10 rules) in a window.
+doom-play: play one Episode 1 map of DOOM in a window, with the Linux DOOM 1.10 game rules
+(no cheats, menu or sound; see Limits).
 
 usage: doom-play --iwad PATH [options]
 
   --iwad PATH          the IWAD (required; read only, never copied)
   --wad PATH           an extra WAD loaded after the IWAD (repeatable; later files win)
   --map N              E1M<N>, 1-9 (default 1); E1M1..E1M9 is also accepted
-  --skill N            2 or 3 (default 2)
+  --skill N            2 or hmp: Hurt Me Plenty (default); 3 or uv: Ultra-Violence.
+                       N is the skill value stored in the demo header and the file
+                       name. Vanilla's own -skill option counts from 1, so these are
+                       its -skill 3 and -skill 4.
   --sessions DIR       where session demos are written (default doom-sessions/)
   --bindings NAME      vanilla (default) or modern (WASD, E use, always run)
   --gamma N            gamma table 0-4 (default 0, as the original)
@@ -39,14 +44,17 @@ usage: doom-play --iwad PATH [options]
   --help               this text
 
 Keys: Esc or Pause pauses (then Esc resumes, R restarts, Q quits); on an end screen
-R restarts and Q or Esc quits. Every session (unless --unrecorded-full-turning) is
-recorded as a version-110 demo named E1M<map>-skill<n>-<yyyymmdd-hhmmss>.lmp (the time
-is UTC) in the sessions directory.
+R restarts and Q or Esc quits. When the window library reports that the window was
+minimised or lost focus, the game pauses and every held key is released. Every session
+(unless --unrecorded-full-turning) is recorded as a version-110 demo named
+E1M<map>-skill<n>-<yyyymmdd-hhmmss>.lmp (the time is UTC) in the sessions directory; an
+existing file is never replaced (a suffix -2, -3, ... is added). If writing the demo fails,
+the pause box says so, the end screen and the exit message give the reason, and the write
+is tried again on quit and restart.
 
-Limits: an OpenGL 2.1 (or OpenGL ES 2) driver is required. The window library reports
-no focus loss: a key held while you switch away stays held until pressed again; press
-Esc first to pause, which releases every key. There is no sound, menu, automap,
-intermission or next level; the session ends at the level's exit or the player's death.";
+Limits: an OpenGL 2.1 (or OpenGL ES 2) driver is required. There is no sound, menu,
+automap, intermission or next level; the session ends at the level's exit or the player's
+death. Cheat codes have no effect: their keys reach the game as ordinary keys.";
 
 /// The parsed command line.
 #[derive(Debug)]
@@ -109,7 +117,13 @@ fn parse(args: impl IntoIterator<Item = String>) -> Result<Option<Options>, Stri
                     .unwrap_or(&v);
                 o.map = number(&flag, n, |m| (1..=9).contains(m))?;
             }
-            "--skill" => o.skill = number(&flag, &value()?, |s| (2..=3).contains(s))?,
+            "--skill" => {
+                o.skill = match value()?.as_str() {
+                    "hmp" => 2,
+                    "uv" => 3,
+                    v => number(&flag, v, |s| (2..=3).contains(s))?,
+                }
+            }
             "--sessions" => o.sessions = PathBuf::from(value()?),
             "--bindings" => {
                 o.preset = match value()?.as_str() {
@@ -177,13 +191,38 @@ impl Host for FsHost {
     fn exists(&mut self, name: &str) -> bool {
         self.dir.join(name).exists()
     }
+    /// Creates the file with `create_new`, so a name another session (or process) took is
+    /// never replaced.
+    fn claim(&mut self, name: &str, bytes: &[u8]) -> Result<bool, String> {
+        let path = self.dir.join(name);
+        let fail = |e: std::io::Error| format!("{}: {e}", path.display());
+        std::fs::create_dir_all(&self.dir).map_err(fail)?;
+        let file = std::fs::OpenOptions::new()
+            .write(true)
+            .create_new(true)
+            .open(&path);
+        match file {
+            Err(e) if e.kind() == std::io::ErrorKind::AlreadyExists => Ok(false),
+            Err(e) => Err(fail(e)),
+            Ok(mut f) => {
+                let written = f.write_all(bytes).and_then(|()| f.sync_all());
+                written.map(|()| true).map_err(fail)
+            }
+        }
+    }
+    /// Writes a temporary file whose name holds the process id (two processes never share
+    /// it), flushes it to the disk and renames it over the session's file; a failed write
+    /// removes the temporary file.
     fn save(&mut self, name: &str, bytes: &[u8]) -> Result<(), String> {
         let path = self.dir.join(name);
-        let tmp = self.dir.join(format!("{name}.tmp"));
-        std::fs::create_dir_all(&self.dir)
-            .and_then(|()| std::fs::write(&tmp, bytes))
-            .and_then(|()| std::fs::rename(&tmp, &path))
-            .map_err(|e| format!("{}: {e}", path.display()))
+        let tmp = self.dir.join(format!("{name}.{}.tmp", std::process::id()));
+        let written = std::fs::File::create(&tmp)
+            .and_then(|mut f| f.write_all(bytes).and_then(|()| f.sync_all()))
+            .and_then(|()| std::fs::rename(&tmp, &path));
+        if written.is_err() {
+            let _ = std::fs::remove_file(&tmp);
+        }
+        written.map_err(|e| format!("{}: {e}", path.display()))
     }
 }
 
@@ -322,6 +361,13 @@ mod tests {
         .unwrap();
         assert_eq!(o.wads, [PathBuf::from("b.wad"), PathBuf::from("c.wad")]);
         assert_eq!((o.map, o.skill, o.gamma, o.screenblocks), (3, 3, 4, 11));
+        for (named, value) in [("hmp", 2), ("uv", 3), ("2", 2), ("3", 3)] {
+            let o = parse(args(&format!("--iwad a.wad --skill {named}")))
+                .unwrap()
+                .unwrap();
+            assert_eq!(o.skill, value, "{named}");
+        }
+        assert!(HELP.contains("Hurt Me Plenty") && HELP.contains("-skill 3 and -skill 4"));
         assert_eq!(
             (o.preset, o.square, o.fullscreen, o.quit_after),
             (Preset::Modern, true, true, Some(70))
@@ -334,6 +380,7 @@ mod tests {
             "--iwad a --map E1M10",
             "--iwad a --skill 1",
             "--iwad a --skill 4",
+            "--iwad a --skill nightmare",
             "--iwad a --gamma 5",
             "--iwad a --screenblocks 9",
             "--iwad a --aspect wide",
@@ -344,6 +391,31 @@ mod tests {
         ] {
             assert!(parse(args(bad)).is_err(), "{bad}");
         }
+    }
+
+    #[test]
+    fn session_files_are_created_once_and_rewritten_through_a_synced_temporary() {
+        let dir = std::env::temp_dir().join(format!("doom-play-test-{}", std::process::id()));
+        let mut host = FsHost { dir: dir.clone() };
+        assert_eq!(host.claim("a.lmp", b"one"), Ok(true));
+        assert_eq!(
+            host.claim("a.lmp", b"two"),
+            Ok(false),
+            "an existing file is kept"
+        );
+        assert_eq!(std::fs::read(dir.join("a.lmp")).unwrap(), b"one");
+        host.save("a.lmp", b"three").unwrap();
+        assert_eq!(std::fs::read(dir.join("a.lmp")).unwrap(), b"three");
+        // a failed rename (the target is a directory) leaves no temporary file
+        std::fs::create_dir(dir.join("d.lmp")).unwrap();
+        assert!(host.save("d.lmp", b"x").is_err());
+        let mut names: Vec<_> = std::fs::read_dir(&dir)
+            .unwrap()
+            .map(|e| e.unwrap().file_name())
+            .collect();
+        names.sort();
+        assert_eq!(names, ["a.lmp", "d.lmp"]);
+        std::fs::remove_dir_all(&dir).unwrap();
     }
 
     #[test]

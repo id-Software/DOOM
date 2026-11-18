@@ -205,13 +205,12 @@ def main():
     if CONTRACT.read_text() != text: sys.exit(f'{CONTRACT.relative_to(ROOT)} differs from the regenerated contract')
     work = a.work.resolve()
     if work == ROOT or ROOT in work.parents: sys.exit('--work must lie outside the repository')
-    p = subprocess.run([a.cargo, 'build', '--release', '--locked', '-p', 'doom-game', '--example', 'm5b_session'], cwd=ROOT, capture_output=True, text=True)
-    if p.returncode: sys.exit(f'cargo build FAILED:\n{p.stderr[-2000:]}')
+    exe = S.build_example(a.cargo)
     with open(os.devnull, 'w') as q:
         so, sys.stdout = sys.stdout, q
         try: inj, demo_runner = build(work, a.cc); driver = S.ib.build('strict', work / 'inputbuild', a.cc, quiet=True)
         finally: sys.stdout = so
-    tools = (ROOT / 'target/release/examples/m5b_session', inj, demo_runner, driver)
+    tools = (exe, inj, demo_runner, driver)
     paths = sorted(DIR.glob('*.txt')) + sorted(DIR.glob('sessions/*.txt'))
     with cf.ThreadPoolExecutor(max(1, a.jobs)) as pool:
         out = dict(zip((p.stem for p in paths), pool.map(lambda p: one(p, tools, work / 'runs' / p.stem), paths)))

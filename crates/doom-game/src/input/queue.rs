@@ -50,15 +50,17 @@ impl EventQueue {
 
     /// `D_ProcessEvents`' walk from the tail to the head (d_main.c:170-176), calling
     /// `respond` on each event in order. The store-demo guard (d_main.c:166-168) applies only
-    /// to `commercial` without `map01` and is not modelled. On an error the tail stays on the
-    /// refused event, which is not consumed.
+    /// to `commercial` without `map01` and is not modelled. On an error the walk stops: the
+    /// refused event is consumed (dropped, so a later call does not refuse it again) and the
+    /// events after it stay queued for the next call.
     pub fn process(
         &mut self,
         mut respond: impl FnMut(Event) -> Result<(), InputError>,
     ) -> Result<(), InputError> {
         while self.tail != self.head {
-            respond(self.events[self.tail])?;
+            let event = self.events[self.tail];
             self.tail = (self.tail + 1) & (MAXEVENTS - 1);
+            respond(event)?;
         }
         Ok(())
     }

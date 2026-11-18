@@ -283,6 +283,9 @@ impl EventHandler for Stage {
         }
     }
 
+    /// miniquad 0.4.11 sends this on minimising and, by its source, on focus loss too (X11
+    /// FocusOut, Wayland keyboard leave, Windows `WM_ACTIVATE` inactive, macOS resign-key and
+    /// window move): the app pauses and releases every held key.
     fn window_minimized_event(&mut self) {
         self.app.focus_lost();
     }

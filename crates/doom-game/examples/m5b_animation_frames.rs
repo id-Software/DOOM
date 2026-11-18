@@ -5,12 +5,12 @@
 //! frame source ([`replay`]: the simulation and the composed `Display`) and writes, per tic,
 //! `DIR/frame_NNNNN.raw` (320x200 palette indices, row-major, the same name and layout as the
 //! genuine runner's `--frames-raw`) and one line `tic,palette` per tic in `DIR/palettes.txt`.
-//! Frames are identical to the genuine engine under the declared sound-free, wipe-free contract
-//! (decision S15).
+//! Frames are identical to the genuine engine under the declared sound-free, wipe-free contract (decision S15),
+//! with the evidence's two exclusions: 300 frames compared only on a masked digest and 70 not
+//! compared (counts asserted in crates/doom-render/tests/m5b_display.rs).
 
-use doom_game::app::{GameData, Host, TicReport, Timestamp, replay};
+use doom_game::app::{DemoCommands, GameData, Host, TicReport, Timestamp, replay};
 use doom_render::GameMode;
-use doom_sim::demo::parse_demo_episode1_v2;
 use std::fmt::Write as _;
 use std::path::PathBuf;
 
@@ -63,10 +63,7 @@ fn main() -> Res<()> {
     std::fs::create_dir_all(&out)?;
     let refs: Vec<&[u8]> = wads.iter().map(Vec::as_slice).collect();
     let data = GameData::load(&refs, GameMode::Registered, map, skill)?;
-    let commands = parse_demo_episode1_v2(&d, map)
-        .map_err(|e| format!("{e:?}"))?
-        .1
-        .commands;
+    let commands = DemoCommands::parse(&d, map).map_err(|e| format!("{e:?}"))?;
     let mut host = Dump {
         out: out.clone(),
         palettes: String::new(),

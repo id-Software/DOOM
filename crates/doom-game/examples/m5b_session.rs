@@ -9,26 +9,31 @@
 //! the app reached equals the replay of its own demo). With `--demo`, a recorded session (for
 //! example one written by doom-play) is replayed through [`replay`] only. With `--commands`,
 //! tic commands at full resolution (one line `forward side angleturn buttons` per tic, step 7b)
-//! are fed to [`replay`] as they are, for `tools/reference/m5b_inject.py`; no demo is written.
+//! are fed to [`replay_full_resolution`] as they are, for `tools/reference/m5b_inject.py`; no demo is written.
 //! `--unrecorded` plays `--script` with [`SessionConfig::unrecorded_full_turning`] (S3 (ii)): the
-//! app must save nothing, and the replay of its executed commands must give the same rows.
+//! app must save nothing, and the replay of its executed commands ([`replay_full_resolution`])
+//! must give the same rows.
 //!
 //! Writes to `--out`: `session.lmp` (the demo the app saved), `rows.txt` (per tic `E` the events
 //! posted, `T` the executed command and the state digest, `F` the frame digest, the digest with
 //! the flagged columns zeroed, those columns and the parity flag, `P` and `X` as the genuine
-//! runner's frame stream) and, with `--captures`, `captures/tic_NNNNN.bin`. Frames are identical
-//! to the genuine engine under the declared sound-free, wipe-free contract (decision S15).
+//! runner's frame stream) and, with `--captures`, `captures/tic_NNNNN.bin`. Frames are
+//! identical to the genuine engine under the declared sound-free, wipe-free contract (decision S15),
+//! with the evidence's two exclusions: 300 frames compared only on a masked digest and 70 not
+//! compared (counts asserted in crates/doom-render/tests/m5b_display.rs).
 //!
 //! Script lines (`#` comments): `TIME_MS key K down|up` (K: up, down, left, right, fire, use,
 //! speed, strafe, esc, pause, one character or 0xNN), `TIME_MS motion DX DY`, `TIME_MS button
 //! left|middle|right down|up`, `TIME_MS focus`, `TIME_MS end`; `frame US` sets the frame period
 //! (default 16,667 µs).
 
-use doom_game::app::{App, GameData, Host, Mode, SessionConfig, TicReport, Timestamp, replay};
+use doom_game::app::{
+    App, DemoCommands, GameData, Host, Mode, SessionConfig, TicReport, Timestamp, replay,
+    replay_full_resolution,
+};
 use doom_game::input::{Event, MouseButton, keys};
 use doom_render::{GameMode, SCREENWIDTH};
 use doom_sim::TicCommand;
-use doom_sim::demo::parse_demo_episode1_v2;
 use std::fmt::Write as _;
 use std::path::PathBuf;
 
@@ -252,7 +257,10 @@ fn main() -> Res<()> {
         )?;
     }
     let ending = if let Some(commands) = &commands {
-        format!("{:?}", replay(&data, sb, commands, &mut host))
+        format!(
+            "{:?}",
+            replay_full_resolution(&data, sb, commands, &mut host)
+        )
     } else if let Some(text) = &script {
         let cfg = SessionConfig {
             screenblocks: sb,
@@ -263,19 +271,16 @@ fn main() -> Res<()> {
         let ending = run_script(&mut app, &mut host, text)?;
         // live equals recorded: the replay of the saved demo (unrecorded: of the executed
         // commands, and nothing was saved) gives the same rows
-        let commands = if unrecorded {
+        let mut again = Rows::default();
+        if unrecorded {
             if !host.demo.is_empty() {
                 return Err("an unrecorded session saved a file".into());
             }
-            host.executed.clone()
+            replay_full_resolution(&data, sb, &host.executed, &mut again);
         } else {
-            parse_demo_episode1_v2(&host.demo, map)
-                .map_err(|e| format!("{e:?}"))?
-                .1
-                .commands
-        };
-        let mut again = Rows::default();
-        replay(&data, sb, &commands, &mut again);
+            let commands = DemoCommands::parse(&host.demo, map).map_err(|e| format!("{e:?}"))?;
+            replay(&data, sb, &commands, &mut again);
+        }
         let live: Vec<&str> = host.text.lines().filter(|l| !l.starts_with("E,")).collect();
         if live != again.text.lines().collect::<Vec<_>>() {
             return Err("the replay of the saved demo differs from the live session".into());
@@ -283,10 +288,7 @@ fn main() -> Res<()> {
         ending
     } else {
         let d = demo.ok_or("--script FILE or --demo LMP is required")?;
-        let commands = parse_demo_episode1_v2(&d, map)
-            .map_err(|e| format!("{e:?}"))?
-            .1
-            .commands;
+        let commands = DemoCommands::parse(&d, map).map_err(|e| format!("{e:?}"))?;
         host.demo = d;
         format!("{:?}", replay(&data, sb, &commands, &mut host))
     };

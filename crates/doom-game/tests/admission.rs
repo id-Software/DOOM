@@ -32,11 +32,11 @@ impl Rng {
 }
 
 fn check(r: &RecordedTic, all: &mut Vec<doom_sim::TicCommand>) {
-    assert!(wire24_admits(&r.built), "built {:?}", r.built);
-    assert!(wire24_admits(&r.executed), "executed {:?}", r.executed);
-    assert_eq!(r.executed.angle_turn & 0xff, 0);
-    assert!(r.built.buttons & 0x80 == 0 && r.built.forward != -128 && r.built.side != -128);
-    all.push(r.executed);
+    assert!(wire24_admits(&r.built()), "built {:?}", r.built());
+    assert!(wire24_admits(&r.executed()), "executed {:?}", r.executed());
+    assert_eq!(r.executed().angle_turn & 0xff, 0);
+    assert!(r.built().buttons & 0x80 == 0 && r.built().forward != -128 && r.built().side != -128);
+    all.push(r.executed());
 }
 
 fn flush(all: &mut Vec<doom_sim::TicCommand>) {

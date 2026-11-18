@@ -5,7 +5,9 @@
 //! in `D_Display`'s order, and the palette number `ST_doPaletteStuff` chooses. Frames are
 //! identical to the genuine engine under the declared sound-free, wipe-free contract (decision
 //! S15): the `M_Random` index starts at 0 with every session and only the status bar ticker
-//! advances it.
+//! advances it (a vanilla session would also draw it for sound and for the level-start wipe).
+//! The evidence has two exclusions: 300 frames are compared only on a masked digest and 70 are
+//! not compared (counts asserted in crates/doom-render/tests/m5b_display.rs).
 
 use doom_map::Map;
 use doom_render::hu_stuff::Message;

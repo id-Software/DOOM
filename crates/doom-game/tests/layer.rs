@@ -172,6 +172,45 @@ fn always_run_holds_and_inverts_the_speed_key() {
 }
 
 #[test]
+fn an_always_run_tap_shorter_than_a_tic_gives_one_walking_tic() {
+    // The physical tap is a keyup then a keydown of key_speed; the keydown is held back to the
+    // next build, as the keyup of an ordinary tap is (S6), so G_BuildTiccmd, which reads only
+    // the key state at build time (g_game.c:258), sees one walking tic.
+    let p = Preset::Modern;
+    let mut l = modern();
+    let mut input = doom_game::input::Input::new(p.controls());
+    l.key(b'w', true);
+    let mut forward = Vec::new();
+    for tic in 0..4 {
+        if tic == 1 {
+            l.key(KEY_RSHIFT, true);
+            l.key(KEY_RSHIFT, false);
+        }
+        for e in drain(&mut l) {
+            input.post(e);
+        }
+        forward.push(input.tic().expect("admitted").executed().forward);
+    }
+    assert_eq!(forward, [50, 25, 50, 50]);
+    // the same tap without always-run is one running tic
+    let mut v = vanilla();
+    let mut input = doom_game::input::Input::new(Controls::vanilla());
+    v.key(KEY_UPARROW, true);
+    let mut forward = Vec::new();
+    for tic in 0..3 {
+        if tic == 1 {
+            v.key(KEY_RSHIFT, true);
+            v.key(KEY_RSHIFT, false);
+        }
+        for e in drain(&mut v) {
+            input.post(e);
+        }
+        forward.push(input.tic().expect("admitted").executed().forward);
+    }
+    assert_eq!(forward, [25, 50, 25]);
+}
+
+#[test]
 fn release_all_on_pause_or_focus_loss() {
     // S6: a keyup for every held key (ascending) and a zero mouse event; pending input and
     // motion are forgotten
