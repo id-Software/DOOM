@@ -527,21 +527,22 @@ monster/player behavior. Further stages require separate owner direction.
     menus, palette flashes, window, input, sound, low detail, a modern renderer.
   - **M5b (playable: window, input, status bar, HUD messages, palette flashes and the real-time loop on
     the wire-24 simulation and the M5a renderer).** Phase 1, the investigation, is done (2026-11-17); owner
-    decisions S1–S23 were confirmed by the owner on 2026-11-17, and Phase 2 is well under way (status on
-    2026-11-17). Done and recorded in the [evidence record](validation/M5B.md): the genuine status bar, HUD and
-    input harnesses, the Rust status bar, HUD and `Display`, the input core, the app core and the `doom-play`
-    window (a first play check ran under WSLg), session verification against the genuine engine, the CI jobs
-    and the first input fuzz target; [support](COMPATIBILITY.md#playable-build-m5b) is written. Remaining: real
-    maps through the app, the unrecorded full-resolution mode if the size cap allows, the second fuzz target,
-    mutation testing, timings, independent review and the final gates. Nobody has yet seen the picture or
-    played with a real key or mouse; see the
+    decisions S1–S23 were confirmed by the owner on 2026-11-17, and Phase 2 is at the review stage (draft
+    [PR #62](https://github.com/Copgunn/DOOM/pull/62); status on 2026-11-17). Done and recorded in the
+    [evidence record](validation/M5B.md): the genuine status bar, HUD and input harnesses, the Rust status bar,
+    HUD and `Display`, the input core, the app core and the `doom-play` window (a first play check and a
+    focus-loss check ran under WSLg), session verification against the genuine engine, all 61 real Episode 1
+    runs through the Rust display, the opt-in unrecorded full-resolution turning mode (S3 (ii)), the CI jobs
+    and the Windows artifact job (it ran successfully on the pull request), both fuzz targets, the README
+    animation, and two independent reviews with their fixes; the first mutation run is recorded as an interim
+    result. Remaining: the dispositions of the mutation survivors and the second run, timings, the final gates
+    and the owner's review. [Support](COMPATIBILITY.md#playable-build-m5b) is written. Nobody has yet seen the
+    picture or played with a real key or mouse; a human has to judge feel, latency and looks. See the
     [investigation note](M5B_REFERENCE_INVESTIGATION.md#4-owner-decisions-s1s23-with-recommendations).
-  - **M5c (proposed; not started, owner-approved items only).** Two items so far. (1) Close the status bar
-    face's idle glance gap (S15): model the `M_Random` draws of sound starts and of the level-start wipe so
+  - **M5c (proposed; not started, owner-approved items only).** One item so far: close the status bar
+    face's idle glance gap (S15). Model the `M_Random` draws of sound starts and of the level-start wipe so
     that the idle face's left, ahead or right glance matches a vanilla session with sound; until then, frames
-    are identical to the genuine engine only under the declared sound-free, wipe-free contract. (2) The
-    full-resolution unrecorded turning mode (S3 (ii), labelled "not recorded: no demo, cannot be replayed"):
-    the first item of M5c if the M5b size cap does not allow it in M5b.
+    are identical to the genuine engine only under the declared sound-free, wipe-free contract.
 - **Simulation follow-up (proposed, pending the owner): model the THING-loading truncation under a new
   wire.** `P_LoadThings` ends the whole THINGS loop at the first Doom II type (doomednums 64-69, 71, 84,
   88, 89) when `gamemode != commercial` (p_setup.c:317-337); wires 12-24 spawn such a type-65 THING and

@@ -1962,6 +1962,26 @@ with frame deltas, and the script decodes its own output and compares every disp
 timestamp or path, so a rerun writes the same bytes. `--check` regenerates the animation and compares it with the
 committed file; it builds the C runner and runs cargo, so it is a local check and not part of CI.
 
+The status bar animation (`docs/media/m5b-status-bar-side-by-side.gif`) is generated the same way:
+
+```sh
+python3 tools/media/m5b_readme_visual.py [--work DIR] [--cargo-target DIR] [--check]   # --work defaults to ~/scratch/m5b-readme-visual
+```
+
+It builds the strict genuine M5b runner (`m5b_build.py`, a C compiler) and the release examples `m5b_session`
+and `m5b_animation_frames`. It plays the committed session `palred_damage` (synthetic `palred.wad` and
+`m5b_gfx.wad`, screenblocks 10, no IWAD) through the headless app and replays the app's demo through the genuine
+runner and through the app's composed `Display`. It requires the script and the app's demo to match
+`tests/reference/m5b_session_results.json` (`script_sha256`, `driver_demo_sha256`), the genuine normalised frame
+stream to hash to the committed `frames_sha256`, every raw genuine frame to equal its stream digest, and all 155
+tics to be identical between the genuine and Rust frames (palette indices) and palette numbers. On the first
+difference it exits with the tic and pixel and writes nothing. Each frame is drawn through the PLAYPAL palette of
+its tic, so the pickup and damage flashes show; the difference panel and the differing-pixel count in the caption
+are computed from the frames. The GIF has no timestamp or path, so a rerun writes the same bytes; `--check`
+regenerates it and compares it with the committed file (a local check, not part of CI). The art is our own
+generated test art on a synthetic room, not the game's, and the frames are identical to the genuine engine under
+the declared sound-free, wipe-free contract, not to a vanilla session.
+
 ## M5a synthetic renderer rooms
 
 The M5a [reference investigation](M5A_REFERENCE_INVESTIGATION.md) (decisions R1-R16, §5) compares
@@ -2190,6 +2210,10 @@ python3 tools/reference/m5b_input_reference.py --work DIR --summary       # whic
 
 # scripted app sessions replayed through the genuine input driver and engine (C and a release build of the headless app; Linux)
 ASAN_OPTIONS=detect_leaks=0 python3 tools/reference/m5b_session.py --work DIR --check [--selftest] [--only NAME] [--jobs N]
+
+# full-resolution commands injected into the genuine runner (the unrecorded mode's evidence; C and a release build of the headless app; Linux)
+ASAN_OPTIONS=detect_leaks=0 python3 tools/reference/m5b_inject.py --work DIR --check [--selftest] [--jobs N]
+python3 tools/reference/m5b_inject.py --contract                          # rewrites tests/reference/m5b_inject_contract.json (every other mode first requires it to equal the regenerated text)
 ```
 
 What each asserts:
@@ -2213,6 +2237,16 @@ What each asserts:
 - `m5b_session.py --check` plays the four scripts of `tests/reference/m5b_sessions` through the headless app
   (`crates/doom-game/examples/m5b_session.rs`) and compares every tic with the genuine engine as described in
   the evidence record; `--selftest` plants four faults. The scripts were written by hand, not played by a person.
+- `m5b_inject.py --check` runs each script of `tests/reference/m5b_inject/*.txt` (a literal or golden-derived command
+  per tic, with a nonzero low byte of the turn that no demo can carry) in `tools/reference/m5b_inject.c`, the M5b
+  runner's unchanged driver with a declared command-injection mode, in the strict, overflow and address variants
+  (frame streams, dumps and endings must be identical); compares the C-only goldens
+  `tests/reference/m5b_inject/goldens`; requires the Rust replay (`m5b_session --commands`) to equal them tic for
+  tic (command, frame, status fields, messages and the game dump through the independent DSIM40 encoder); checks
+  that the control (zero low bytes) equals plain demo replay and that each script's demo-resolution twin diverges;
+  and checks the two unrecorded app sessions in `tests/reference/m5b_inject/sessions` as described in the evidence
+  record. `--selftest` plants two faults (a low byte and a frame digest). The tool takes the headless example's
+  path from cargo's JSON output, so it honours `CARGO_TARGET_DIR`.
 
 The Rust side (all in `cargo test --workspace`, so on every OS and in the Minimum Rust job):
 
@@ -2235,32 +2269,72 @@ python3 tools/local/m5b_session_real.py --iwad /path/to/DOOM.WAD --script SESSIO
 
 Add `--screenblocks 11` if the session was played at 11. With a script, the app's demo must also equal the one
 the genuine input driver records (that header is E1M1 at skill 2; for other maps only commands are compared).
+Any session saved by `doom-play` can be checked this way; the check is not a guarantee about other sessions.
+
+The real-map display check compares the genuine status bar, HUD, palette and 3D view with the Rust display on all
+61 runs of `tests/reference/m4b_real_results.json`, every tic at screenblocks 10 and 11 (a full run took about 45
+minutes at 4 jobs; use at most 2 C jobs on the owner's machine unless told otherwise):
+
+```sh
+cargo build --release -p doom-render --example m5b_real
+ASAN_OPTIONS=detect_leaks=0 python3 tools/local/m5b_real.py --work DIR --rust target/release/examples/m5b_real --jobs N [--iwad /path/to/DOOM.WAD] [--maps E1M1,E1M2] [--only NAME[,NAME]] [--screenblocks 10,11] [--selftest] [--check | --write]
+```
+
+`--check` compares the run with `tests/reference/m5b_real_results.json` (counts, pass/fail facts and digests only);
+`--write` rewrites it; `--selftest` plants faults in a copy of one strict stream and requires them to be found. The
+IWAD is read from a scratch copy, and nothing it contains is committed.
 
 **Playing** (a window; a human judges the result):
 
 ```sh
-cargo run --release -p doom-play -- --iwad /path/to/DOOM.WAD --map 1 --skill 2 --sessions /path/for/sessions
+cargo run --release -p doom-play -- --iwad /path/to/DOOM.WAD --map 1 --skill hmp --sessions /path/for/sessions
 cargo run --release -p doom-play -- --help          # every flag and the stated limits
 ```
+
+`--skill 2` or `hmp` is Hurt Me Plenty and `--skill 3` or `uv` is Ultra-Violence (the demo-header values; vanilla's
+own `-skill` counts from 1). The opt-in `--unrecorded-full-turning` writes no demo and cannot be replayed (see
+[support](COMPATIBILITY.md#unrecorded-full-turning-mode-opt-in)).
 
 For a measurement or a smoke run, `--quit-after-tics N` saves and quits after N tics; a session plays at 35 tics
 a second, so 350 tics take about 10 seconds. Run any timing from a binary built on and run from the Linux
 filesystem, never from `/mnt/*`.
 
-**Fuzzing** (target `game_input_events`: layer and core events, controls, refusals, determinism; no IWAD):
+**Fuzzing** (no IWAD; two targets, from `fuzz/`). Seed replay, a coverage-guided campaign and a sanitizer
+campaign are different things; the observed runs, their options and findings are in
+[the evidence record](validation/M5B.md#step-12-fuzz-targets), which also says where leak detection was disabled.
+
+- [`game_input_events`](../fuzz/fuzz_targets/game_input_events.rs): layer and core events, controls, refusals,
+  determinism. Seeds in `fuzz/corpus/game_input_events/`.
 
 ```sh
-cargo +nightly fuzz build game_input_events                                  # from fuzz/; add --sanitizer none for the plain build
+cargo +nightly fuzz build game_input_events                                  # add --sanitizer none for the plain build
 ASAN_OPTIONS=detect_leaks=0 cargo +nightly fuzz run game_input_events --sanitizer address CORPUS -- -runs=0 -max_len=1017   # seed replay; leak detection disabled
 ```
 
-Seeds are committed in `fuzz/corpus/game_input_events/`. A coverage-guided campaign is the same binary with
-`-fork=4 -max_total_time=N -max_len=1017 -timeout=20 -rss_limit_mb=2048`; the observed campaigns, their
-options and findings are in the evidence record.
+A coverage-guided campaign is the same binary with `-fork=4 -max_total_time=N -max_len=1017 -timeout=20
+-rss_limit_mb=2048`.
+
+- [`render_display_state`](../fuzz/fuzz_targets/render_display_state.rs): `DDSP` decode, canonical re-encode and
+  restore refusals, and driven runs on the M5b rooms with `observe_with` perturbations, per-tic state round trips
+  and save, restore and continue equality. Seeds in `fuzz/corpus/render_display_state/` (inputs are up to about
+  64 KB, so executions are slow: a few per second).
+
+```sh
+cargo +nightly fuzz build render_display_state                               # add --sanitizer none for the plain build
+cargo +nightly fuzz run render_display_state --sanitizer address CORPUS -- -runs=0 -max_len=70000 -timeout=60   # seed replay
+cargo +nightly fuzz run render_display_state --sanitizer none CORPUS -- -fork=2 -max_total_time=N -max_len=70000 -timeout=60 -rss_limit_mb=2048
+```
+
+`cargo fuzz` defaults to the address sanitizer, so name `--sanitizer none` for a campaign without one. Set
+`ASAN_OPTIONS=detect_leaks=0` or `=1` explicitly and say which; whether LeakSanitizer actually ran is a separate
+fact to check.
 
 **Mutation testing.** The `Mutants` workflow covers `-p doom-game` as well as `-p doom-sim -p doom-render`
 (see [CI mutation workflow](#ci-mutation-workflow-m4b)); `doom-play` is deliberately out of scope (a window
-shell with no logic a test could pin). The shard count is one value in the workflow's `Mutants plan` job.
+shell with no logic a test could pin). The shard count is one value in the workflow's `Mutants plan` job. Each
+test process runs under a memory and time cap (below), because one first-run mutant made `wrap()` allocate without
+bound. The first run is recorded as an interim result in
+[the evidence record](validation/M5B.md#step-11-mutation-testing-interim-the-first-run).
 
 **CI.** The Rust frame, input and app tests run in the ordinary workspace tests (the `Stable` job on Linux,
 Windows and macOS and `Minimum Rust / 1.85.0`), which also build `doom-game` and `doom-play`. The genuine runs
@@ -2273,6 +2347,7 @@ python3 tools/reference/m5b_input_scripts.py --check && python3 tools/reference/
 ASAN_OPTIONS=detect_leaks=0 python3 tools/reference/m5b_reference.py --check --pngs --selftest --jobs 4 --work DIR
 ASAN_OPTIONS=detect_leaks=0 python3 tools/reference/m5b_input_reference.py --check --selftest --work DIR
 ASAN_OPTIONS=detect_leaks=0 python3 tools/reference/m5b_session.py --check --selftest --work DIR
+ASAN_OPTIONS=detect_leaks=0 python3 tools/reference/m5b_inject.py --check --selftest --work DIR
 ```
 
 The job reports on a documentation-only push through the same fast path as the M5a job. No required check was
@@ -2282,6 +2357,17 @@ a statically linked C runtime and uploads it as the 30-day artifact `doom-play-w
 `LICENSE.TXT` and a generated `README.txt`; no game data). It starts when the repository label `windows-artifact`
 is put on a pull request (remove and re-add the label for a new head) or by `workflow_dispatch` once the file is
 on `master`; it is informational and not a required check.
+
+### Windows build artifact
+
+To get a Windows build of a pull request: put the repository label `windows-artifact` on the pull request (remove
+and re-add it for a new head). The `Windows artifact` workflow run appears under the pull request's checks and in
+the Actions tab; when it succeeds, open that run and download the artifact `doom-play-windows-x86_64` from its
+Artifacts section. It is a zip of `doom-play.exe` (statically linked C runtime), `LICENSE.TXT` and a generated
+`README.txt` that names the commit; it contains no game data. Unzip it and, from a command prompt, run it with the
+path to your own `DOOM.WAD` as an argument, for example `doom-play.exe --iwad C:\path\to\DOOM.WAD --map 1 --skill hmp`
+(`doom-play.exe --help` lists every option; an OpenGL 2.1 or OpenGL ES 2 driver is required). The job ran
+successfully on the M5b pull request on 2026-11-17. **Nobody has downloaded the artifact or run it on Windows.**
 
 ## Mutation testing
 
@@ -2388,6 +2474,25 @@ usage error or a failing baseline; missed mutants and timeouts are findings,
 triaged as above (the local procedure and the M4a rules for timeouts and
 equivalent mutants apply unchanged). Since M5a the run covers the `doom-render` lines of the diff too
 (`-p doom-render`), the crate whose diff M5a adds.
+
+Since M5b each shard caps its test processes: the step writes a runner script and exports it as
+`CARGO_TARGET_X86_64_UNKNOWN_LINUX_GNU_RUNNER`, so cargo starts every test executable (not `rustc`) through it,
+and passes `--cargo-test-arg=--test-threads=2` to cargo-mutants:
+
+```sh
+cat > "$RUNNER_TEMP/capped-runner.sh" <<'EOS'
+#!/bin/bash
+ulimit -v 1500000        # per process, in KiB: about 1.5 GB of address space
+exec timeout 240 "$@"
+EOS
+chmod +x "$RUNNER_TEMP/capped-runner.sh"
+export CARGO_TARGET_X86_64_UNKNOWN_LINUX_GNU_RUNNER="$RUNNER_TEMP/capped-runner.sh"
+```
+
+A mutant that loops and allocates then aborts its test process and is reported as caught, instead of exhausting
+the runner's memory before any timeout fires. The cap is per process, so the bound is jobs x test threads x cap
+(2 x 2 x 1.5 GB); keep that product under the runner's memory, and note that a 3 GB cap with default parallelism
+did not protect a 7 GB host locally. Use the same runner and `--test-threads` when re-running a shard locally.
 
 #### Re-running one shard or the survivors locally (M5a)
 

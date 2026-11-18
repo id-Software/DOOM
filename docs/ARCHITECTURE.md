@@ -300,20 +300,28 @@ building the window library, and the simulation cannot reach presentation or pla
   message flag; per tic `observe` runs the status bar and HUD tickers after the simulation. It reads the
   simulation only through its public API and the executed command; the status bar and HUD history that the
   simulation does not keep is `Display`'s own state, saved with the render state as
-  [`DDSP`](STATE_FORMAT.md#display-state-ddsp-version-1-m5b).
+  [`DDSP`](STATE_FORMAT.md#display-state-ddsp-version-1-m5b). `restore` checks the saved fields against each
+  other and the simulation (`DisplayState::check`); the app never restores a state, and the public
+  `observe_with` hook, used by tests and fuzzing, refuses inputs the simulation cannot produce.
 - **`doom-game`: `input`.** The genuine event-to-command path ported (`EventQueue`, `InputState::respond`,
   `build_ticcmd`, the demo write and re-read) and the app's `EventLayer` in front of it. `BuiltCommand` has a
   private constructor and every command it yields is wire-24 admitted.
 - **`doom-game`: `app`.** `App` owns the session: the platform feeds it key, mouse and focus events and the
   monotonic time in microseconds, and shows `App::picture`; files and the date come in through the `Host`
-  trait. Pause, restart, the end and refusal screens and the recorder live here.
+  trait (`Host::claim` creates a session file exclusively, so a name is never replaced). A minimise or
+  focus-loss event from the window pauses the app and releases every key. Pause, restart, the end and refusal
+  screens and the recorder live here.
 - **Per-tic order in the app loop.** (1) the event layer drains into the 64-slot queue; (2) the responder and
   `G_BuildTiccmd` build the command; (3) the demo write and re-read gives the command the game executes (a
   `RecordedTic`); (4) the recorder stores it; (5) the simulation advances with the stored copy; (6) the
   display observes the tic with that executed command and draws it. At most 5 tics run per update.
-- **Nothing can alter a command after it is recorded.** The recorder stores the re-read command and refuses a
-  tic whose executed command differs from the re-read of its bytes, or that wire 24 does not admit; the
-  simulation runs the stored copy, so the saved demo is, byte for byte, what the game executed.
+- **Nothing can alter a command after it is recorded.** A `RecordedTic` has private fields and only
+  `BuiltCommand::record` makes one; the recorder keeps its own checks as a second guard, refusing a tic whose
+  executed command differs from the re-read of its bytes, or that wire 24 does not admit. The simulation runs
+  the stored copy, so the saved demo is, byte for byte, what the game executed. `replay` takes only demo
+  commands (made by the demo reader or the recorder); injected full-resolution commands go through the
+  separately named `replay_full_resolution`. In the opt-in unrecorded mode the executed command is the built
+  one (after the wire-24 check) and nothing is recorded or written.
 - **What is saved where.** A session's only durable file is its demo (version-110 `.lmp`, rewritten whole). The
   simulation's canonical state is DSIM, the 3D renderer's history is `DRST`, the status bar and HUD history
   is `DDSP` (which embeds `DRST`); the app itself does not save or load games, and the app's pause, end
