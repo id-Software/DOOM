@@ -163,6 +163,30 @@ pub struct MixChannelState {
     pub right: u8,
 }
 
+impl MixChannelState {
+    /// The checks that need no sound set, for channel `slot`: the position below the end, the
+    /// remainder in 16 bits, a `steptable` step, volume rows up to 127 and a handle in
+    /// 100..=65535 ([`MixStateError`]).
+    pub fn check(&self, slot: usize) -> Result<(), MixStateError> {
+        if self.pos >= self.end {
+            return Err(MixStateError::Position { slot });
+        }
+        if self.frac > 0xffff {
+            return Err(MixStateError::Remainder { slot });
+        }
+        if !STEPTABLE.contains(&self.step) {
+            return Err(MixStateError::Step { slot });
+        }
+        if self.left > 127 || self.right > 127 {
+            return Err(MixStateError::Volume { slot });
+        }
+        if !(100..=65535).contains(&self.handle) {
+            return Err(MixStateError::Handle { slot });
+        }
+        Ok(())
+    }
+}
+
 /// Why [`Mixer::from_state`] refused a saved mixer. Each names the channel.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum MixStateError {
@@ -288,24 +312,10 @@ impl Mixer {
         let mut channels = [Channel::default(); NUM_CHANNELS];
         for (slot, (c, s)) in channels.iter_mut().zip(states).enumerate() {
             let Some(s) = s else { continue };
+            s.check(slot)?;
             let data = set.sfx(s.sfx);
             if s.end != data.len || !data.has_first_byte() {
                 return Err(MixStateError::End { slot });
-            }
-            if s.pos >= s.end {
-                return Err(MixStateError::Position { slot });
-            }
-            if s.frac > 0xffff {
-                return Err(MixStateError::Remainder { slot });
-            }
-            if !STEPTABLE.contains(&s.step) {
-                return Err(MixStateError::Step { slot });
-            }
-            if s.left > 127 || s.right > 127 {
-                return Err(MixStateError::Volume { slot });
-            }
-            if !(100..=65535).contains(&s.handle) {
-                return Err(MixStateError::Handle { slot });
             }
             *c = Channel {
                 sfx: Some(s.sfx),

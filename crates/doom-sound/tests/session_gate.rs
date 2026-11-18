@@ -38,8 +38,7 @@ fn every_genuine_row_of_the_64_items_is_reproduced_end_to_end() {
             Carry::default(),
             genuine.len(),
             Some(&mut golden),
-            &[],
-            |_, _, _| {},
+            |_, _, _, _| {},
         );
         if let Some((tic, e)) = &out.refused {
             panic!("{}: the simulation refused tic {tic}: {e}", item.name);

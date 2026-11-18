@@ -23,6 +23,7 @@
 //!   buffer k after tic floor(512k/315).
 //! - [`session`]: [`session::Sound`], one per session, running each tic's records, the update
 //!   and the due buffer transactionally.
+//! - [`state`]: the saved state `DSND` version 1, its checks and restore.
 //!
 //! Every place where the C ends in `I_Error` or reads memory it does not own is a typed refusal
 //! made before any state changes (M5c decision T11). Every audible quirk of the source is
@@ -35,4 +36,5 @@ pub mod mixer;
 pub mod schedule;
 pub mod session;
 pub mod sounds;
+pub mod state;
 pub mod tables;

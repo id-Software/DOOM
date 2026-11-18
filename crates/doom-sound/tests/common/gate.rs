@@ -383,9 +383,9 @@ pub struct Checkpoint {
     pub carry: Carry,
 }
 
-/// Runs `item` from `sim` (after `start` tics) with `sound`, for at most `tics` tics in all,
-/// writing rows; at each tic in `save_at` (tics run), `save` is called before that tic runs.
-#[allow(clippy::too_many_arguments)]
+/// Runs the commands from `sim` and `sound` (which have run the same number of tics) up to
+/// `tics` tics in all, writing rows; before each tic, `before` sees the tics run, the
+/// simulation, the session and the carry (to take checkpoints).
 pub fn run(
     commands: &[TicCommand],
     mut sim: Simulation,
@@ -393,8 +393,7 @@ pub fn run(
     mut carry: Carry,
     tics: usize,
     golden: Option<&mut GoldenWriter>,
-    save_at: &[u64],
-    mut save: impl FnMut(&Simulation, &Sound, Carry),
+    mut before: impl FnMut(u64, &Simulation, &Sound, Carry),
 ) -> RunOutput {
     let mut out = RunOutput {
         stream: Vec::new(),
@@ -408,9 +407,7 @@ pub fn run(
     let mut golden = golden;
     let start = sound.schedule().tic() as usize;
     for (i, c) in commands.iter().enumerate().take(tics).skip(start) {
-        if save_at.contains(&(i as u64)) {
-            save(&sim, &sound, carry);
-        }
+        before(i as u64, &sim, &sound, carry);
         let cmd = [
             *c,
             TicCommand::default(),
