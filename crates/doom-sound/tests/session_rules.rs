@@ -270,3 +270,31 @@ fn a_refused_update_leaves_the_session_unchanged() {
     assert_eq!(s.mixer().mask(), 0);
     assert_eq!(s.schedule().tic(), 0);
 }
+
+/// Review finding N3 (review-app): the tic's draw count cannot saturate silently. 65,535 starts
+/// that each draw once (a NULL-origin pistol, s_sound.c:337-346) are counted exactly; one more is
+/// refused at that record with the session unchanged.
+#[test]
+fn the_draw_count_is_exact_or_refused() {
+    let at = Positions { actor: None };
+    let pistol = SoundRecord::Start {
+        sfx: PISTOL,
+        origin: SoundOrigin::None,
+        at: None,
+    };
+    let mut s = session();
+    let records = vec![pistol; 65_535];
+    let t = s.tic(&records, 0, &listener(), &at).expect("65,535 draws");
+    assert_eq!((t.draws, t.rndindex), (65_535, 255));
+    let mut s = session();
+    let before = s.clone();
+    let records = vec![pistol; 65_536];
+    assert_eq!(
+        s.tic(&records, 0, &listener(), &at),
+        Err(SessionRefusal::DrawCount {
+            tic: 0,
+            record: 65_535
+        })
+    );
+    assert_eq!(s, before);
+}

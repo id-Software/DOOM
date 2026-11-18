@@ -100,6 +100,27 @@ pub enum FrameRefusal {
     Draw(DisplayRefusal),
     /// The display chose a palette the WADs do not hold.
     Palette(u8),
+    /// The sound session's `M_Random` index after the tic is not the display's index advanced by
+    /// the tic's draws: the two views of the one index (m_random.c:63-67) disagree, a broken
+    /// invariant of the seam, refused rather than drawn.
+    SoundIndex {
+        /// The display's index advanced by the session's draws.
+        display: u8,
+        /// The index the session returned.
+        session: u8,
+    },
+}
+
+/// Checks that the display's `M_Random` index `before` the tic, advanced by the session's
+/// `draws` (`rndindex = (rndindex+1)&0xff` per draw, m_random.c:63-67), is the index `session`
+/// the sound session returned ([`FrameRefusal::SoundIndex`] otherwise).
+pub(crate) fn check_sound_index(before: u8, draws: u16, session: u8) -> Result<(), FrameRefusal> {
+    let display = before.wrapping_add((draws & 0xff) as u8);
+    if display == session {
+        Ok(())
+    } else {
+        Err(FrameRefusal::SoundIndex { display, session })
+    }
 }
 
 impl fmt::Display for FrameRefusal {
@@ -110,6 +131,10 @@ impl fmt::Display for FrameRefusal {
             Self::Observe(e) => write!(f, "{e}"),
             Self::Draw(e) => write!(f, "{e}"),
             Self::Palette(n) => write!(f, "palette {n} is not in PLAYPAL"),
+            Self::SoundIndex { display, session } => write!(
+                f,
+                "the sound session's random index {session} is not the display's {display}"
+            ),
         }
     }
 }
@@ -300,9 +325,11 @@ impl FrameSource {
             });
         };
         let mut staged_sound = sound.clone();
+        let before = self.display.status().rndindex;
         let ticked = staged_sound
-            .tic_from_simulation(sim, self.display.status().rndindex)
+            .tic_from_simulation(sim, before)
             .map_err(Witness::Sound)?;
+        check_sound_index(before, ticked.draws, ticked.rndindex).map_err(Witness::Frame)?;
         let mut staged = self.display.clone();
         let message = observe(&mut staged, Some(ticked.draws))?;
         let display = draw(&mut staged, &data.assets, sim, frame)?;
@@ -400,4 +427,26 @@ fn draw(
         .map(|_| ())
         .ok_or(Witness::Frame(FrameRefusal::Palette(drawn.palette)))?;
     Ok(drawn)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// Review finding N3 (review-app): the display's index advanced by the tic's draws must be
+    /// the session's returned index; a mismatch is a typed refusal. The index wraps at 256
+    /// (m_random.c:63-67).
+    #[test]
+    fn the_two_views_of_the_random_index_must_agree() {
+        assert_eq!(check_sound_index(7, 3, 10), Ok(()));
+        assert_eq!(check_sound_index(255, 1, 0), Ok(()));
+        assert_eq!(check_sound_index(200, 300, 244), Ok(()));
+        assert_eq!(
+            check_sound_index(7, 3, 11),
+            Err(FrameRefusal::SoundIndex {
+                display: 10,
+                session: 11
+            })
+        );
+    }
 }

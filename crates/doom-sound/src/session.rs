@@ -79,6 +79,16 @@ pub enum SessionRefusal {
     },
     /// The session has run [`crate::schedule::MAX_TIC`] tics: `gametic` would leave `int`.
     TicLimit,
+    /// The tic's starts would make more than 65,535 `M_Random` draws, which [`TicSound::draws`]
+    /// cannot count (a declared bound of this port: each start draws at most once,
+    /// s_sound.c:327-346, so this needs more than 65,535 start records in one tic; the C has no
+    /// such count). Refused at the record that would exceed it, with nothing changed.
+    DrawCount {
+        /// The session tic.
+        tic: u64,
+        /// The record.
+        record: usize,
+    },
     /// [`Sound::tic_from_simulation`]: the simulation has no listener to read (no bound console
     /// player body), which `S_UpdateSounds` dereferences (s_sound.c:529, 584-590).
     NoListener,
@@ -255,7 +265,9 @@ impl Sound {
                 .apply(record, &mut rng, &mut mixer, gametic)
                 .map_err(|r| refused(RefusedAt::Record(i), r))?;
             if let RecordEcho::Start(s) = &echo {
-                draws = draws.saturating_add(u16::from(s.draws()));
+                draws = draws
+                    .checked_add(u16::from(s.draws()))
+                    .ok_or(SessionRefusal::DrawCount { tic, record: i })?;
                 // Decision T12: a release start that reached S_AdjustSoundParams.
                 if let (SoundOrigin::Button(_), Some(at), Some(_)) =
                     (s.origin, at_of(record), s.adjusted)
