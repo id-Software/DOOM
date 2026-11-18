@@ -5,7 +5,7 @@
 //! falls due, runs it and presents the result.
 
 use crate::FsHost;
-use crate::keys::doom_key;
+use crate::keys::key_event;
 use crate::tic_stats::TicStats;
 use doom_game::app::{App, Mode, PICTURE_BYTES, SaveStatus, TICRATE, UNRECORDED_LABEL};
 use doom_game::input::MouseButton;
@@ -193,6 +193,13 @@ impl Stage {
         self.reported = true;
         if let Some(s) = &self.stats {
             eprintln!("doom-play: {}", s.summary());
+            if let Some((backend, c)) = self.host.audio.device_counters() {
+                eprintln!(
+                    "doom-play: audio ({backend}): {} underruns ({} frames of silence), {} \
+                     overruns ({} frames dropped)",
+                    c.underruns, c.underrun_frames, c.overruns, c.dropped_frames
+                );
+            }
         }
         let path = self.host.dir.join(self.app.session_name());
         match self.app.save_status() {
@@ -260,15 +267,11 @@ impl EventHandler for Stage {
     }
 
     fn key_down_event(&mut self, key: KeyCode, _mods: KeyMods, repeat: bool) {
-        if let (false, Some(code)) = (repeat, doom_key(key)) {
-            self.app.key(code, true, &mut self.host);
-        }
+        key_event(&mut self.app, &mut self.host, key, true, repeat);
     }
 
     fn key_up_event(&mut self, key: KeyCode, _mods: KeyMods) {
-        if let Some(code) = doom_key(key) {
-            self.app.key(code, false, &mut self.host);
-        }
+        key_event(&mut self.app, &mut self.host, key, false, false);
     }
 
     fn raw_mouse_motion(&mut self, dx: f32, dy: f32) {
