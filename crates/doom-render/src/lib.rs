@@ -48,6 +48,7 @@ pub mod view;
 
 pub use d_display::{
     Display, DisplayConfig, DisplayFrame, DisplayObserveError, DisplayRefusal, DisplayState,
+    RandomContract, WIPE_DRAWS,
 };
 pub use r_data::{GameMode, LumpDirectory, ResourceError, Resources};
 pub use r_main::{SCREENHEIGHT, SCREENWIDTH};

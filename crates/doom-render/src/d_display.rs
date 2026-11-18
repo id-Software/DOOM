@@ -19,6 +19,20 @@
 //! Use: [`Display::new`], [`Display::begin_level`] at tic 0, then after every committed
 //! `Simulation::advance` [`Display::observe`] with the command fed, and [`Display::draw`] for a
 //! frame and its palette number. [`Display::state`] and [`Display::restore`] save and restore.
+//!
+//! M5c adds a second, explicit contract value, [`RandomContract::WithSound`] (M5c note §4.3.4,
+//! decisions T6 and T16), chosen with [`Display::set_contract`] before the first tic; the default
+//! stays the M5b contract above, so every M5b caller, frame and saved state is unchanged. Under it
+//! the one `M_Random` index (m_random.c:63-67) follows the C order of a tic: the caller's sound
+//! starts first (`S_StartSoundAtVolume` inside `P_Ticker`, g_game.c:730; their number is passed to
+//! [`Display::observe_after`]), then `ST_Ticker`'s own draw (g_game.c:731, st_stuff.c:992);
+//! `S_UpdateSounds` after the tic draws nothing (d_main.c:392); and the frame of tic 0 is followed by
+//! the level-start wipe's 320 draws ([`WIPE_DRAWS`]: `D_Display` wipes because `gamestate !=
+//! wipegamestate`, d_main.c:223, and after composing the frame calls `wipe_ScreenWipe`,
+//! d_main.c:327-340, whose first call runs `wipe_initMelt`, f_wipe.c:280-286, drawing once for
+//! column 0 and once for each of columns 1..319, f_wipe.c:159-166). The melt's pictures are not
+//! drawn (decisions T5 and T6: no melt); the frame shown is the composed frame, which is the
+//! melt's final picture. Its saved state is `DDSP` version 2 ([`DisplayState::encode`]).
 use crate::hu_stuff::{self, HudState, Message};
 use crate::st_stuff::{self, Attacker, StatusBarState, StatusGraphics, StatusInputs};
 use crate::v_video::{BG_ROWS, Canvas, DrawError, Patch};
@@ -29,6 +43,30 @@ use crate::{
 use doom_sim::{PickupMessage, PlayerSlot, Simulation, TicCommand};
 use std::fmt;
 use std::sync::Arc;
+
+/// How the display accounts for the `M_Random` index (M5c note §4.3.4; decisions S15, T6, T16).
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub enum RandomContract {
+    /// M5b's declared contract (decision S15): the index is 0 at a new game and only `ST_Ticker`
+    /// advances it; no sound, no wipe. Saved as `DDSP` version 1. The default.
+    #[default]
+    SoundFreeWipeFree,
+    /// M5c: per tic the caller's sound draws ([`Display::observe_after`]) before `ST_Ticker`'s
+    /// draw, and the wipe's [`WIPE_DRAWS`] after the frame of tic 0 (see the module
+    /// documentation). Saved as `DDSP` version 2.
+    WithSound,
+}
+
+/// The level-start wipe's `M_Random` draws under [`RandomContract::WithSound`]: `wipe_initMelt`
+/// draws once for `y[0]` (f_wipe.c:159) and once for each `y[i]`, i = 1..width-1 (f_wipe.c:160-166),
+/// with `width` = `SCREENWIDTH` 320 (d_main.c:339-340, f_wipe.c:285); only 160 values are used.
+pub const WIPE_DRAWS: u16 = 320;
+
+/// The index after `draws` calls of `M_Random` (m_random.c:63-67: `rndindex = (rndindex+1)&0xff`
+/// per call).
+fn advanced(index: u8, draws: u16) -> u8 {
+    index.wrapping_add((draws & 0xff) as u8)
+}
 
 /// The display configuration.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -54,6 +92,11 @@ pub enum DisplayObserveError {
     /// The face would read the position of an attacker whose thing has been freed
     /// (st_stuff.c:814-817; decision S17).
     AttackerRemoved,
+    /// The call does not fit the display's [`RandomContract`]: [`Display::observe`] or
+    /// [`Display::observe_with`] under [`RandomContract::WithSound`] (sound draws would be
+    /// skipped silently), [`Display::observe_after`] with draws under
+    /// [`RandomContract::SoundFreeWipeFree`], or [`Display::set_contract`] after a tic was observed.
+    Contract,
     /// [`Display::observe_with`]'s adjustment gave a status bar input no genuine player state
     /// holds (health or armour outside 0..=200, ammunition outside 0..=its maximum, a maximum
     /// other than the table or its double, a weapon number of 9 or more, a damage count outside
@@ -149,8 +192,12 @@ pub struct DisplayState {
     /// `D_Display`'s `fullscreen` (d_main.c:198, 247).
     pub fullscreen: bool,
     /// A wipe is due: `gamestate != wipegamestate` (d_main.c:223; `G_DoLoadLevel` forces one,
-    /// g_game.c:472-473). Only its `redrawsbar` effect is modelled; the melt is not drawn.
+    /// g_game.c:472-473). Only its `redrawsbar` effect is modelled, and under
+    /// [`RandomContract::WithSound`] its [`WIPE_DRAWS`]; the melt is not drawn.
     pub wipe: bool,
+    /// The random contract ([`RandomContract::SoundFreeWipeFree`] encodes as `DDSP` version 1,
+    /// [`RandomContract::WithSound`] as version 2).
+    pub contract: RandomContract,
 }
 
 /// The composed display of one level.
@@ -165,6 +212,7 @@ pub struct Display {
     hud: HudState,
     fullscreen: bool,
     wipe: bool,
+    contract: RandomContract,
     inputs: Option<StatusInputs>,
     bg: Vec<u8>,
     bg_defined: Vec<bool>,
@@ -251,6 +299,7 @@ impl Display {
             playpal,
             fullscreen: false,
             wipe: true,
+            contract: RandomContract::SoundFreeWipeFree,
             inputs: None,
             bg: vec![0; SCREENWIDTH * BG_ROWS],
             bg_defined: vec![false; SCREENWIDTH * BG_ROWS],
@@ -289,9 +338,28 @@ impl Display {
         Ok(())
     }
 
+    /// The random contract.
+    pub fn contract(&self) -> RandomContract {
+        self.contract
+    }
+
+    /// Chooses the random contract (the default is [`RandomContract::SoundFreeWipeFree`]). Only
+    /// before the first observed tic of a level (before [`Self::begin_level`] or right after it);
+    /// later it is refused with [`DisplayObserveError::Contract`] and nothing changes, since a
+    /// change mid-level would mix two accountings of one index.
+    pub fn set_contract(&mut self, contract: RandomContract) -> Result<(), DisplayObserveError> {
+        if self.renderer.state().is_some_and(|s| s.tic != 0) {
+            return Err(DisplayObserveError::Contract);
+        }
+        self.contract = contract;
+        Ok(())
+    }
+
     /// Observes the simulation's next committed tic (exactly once per tic, in order), with the
     /// command fed to `advance`: `ST_Ticker` and `HU_Ticker` with the derived message. Returns
-    /// the message `HU_Ticker` took in this tic, if any.
+    /// the message `HU_Ticker` took in this tic, if any. Refused under
+    /// [`RandomContract::WithSound`], whose caller must pass the tic's sound draws
+    /// ([`Self::observe_after`]).
     pub fn observe(
         &mut self,
         sim: &Simulation,
@@ -300,16 +368,61 @@ impl Display {
         self.observe_with(sim, fed, |_, _| {})
     }
 
+    /// [`Self::observe`] under [`RandomContract::WithSound`]: `draws` is the number of `M_Random`
+    /// calls the tic's sound starts made inside `P_Ticker` (g_game.c:730), which come before
+    /// `ST_Ticker`'s own draw (g_game.c:731, st_stuff.c:992); the index advances by them first
+    /// (m_random.c:63-67). Under [`RandomContract::SoundFreeWipeFree`] only `draws == 0` is
+    /// accepted (then it is exactly [`Self::observe`]); anything else is refused with
+    /// [`DisplayObserveError::Contract`]. On an error nothing changes.
+    pub fn observe_after(
+        &mut self,
+        sim: &Simulation,
+        fed: &TicCommand,
+        draws: u16,
+    ) -> Result<Option<Message>, DisplayObserveError> {
+        self.observe_after_with(sim, fed, draws, |_, _| {})
+    }
+
+    /// [`Self::observe_after`] with [`Self::observe_with`]'s adjustment, for the bespoke cheat
+    /// scenario of decision S1 under the M5c contract (its frame test) only; the app never calls
+    /// it.
+    pub fn observe_after_with(
+        &mut self,
+        sim: &Simulation,
+        fed: &TicCommand,
+        draws: u16,
+        adjust: impl FnOnce(&mut StatusInputs, &mut Option<Message>),
+    ) -> Result<Option<Message>, DisplayObserveError> {
+        if self.contract == RandomContract::SoundFreeWipeFree && draws != 0 {
+            return Err(DisplayObserveError::Contract);
+        }
+        self.observe_inner(sim, fed, draws, adjust)
+    }
+
     /// [`Self::observe`] with the derived inputs adjusted by `adjust` before the tickers. For
     /// the bespoke cheat scenario of decision S1 only (its golden test applies the cheats'
     /// effect on the status bar inputs, `powers` and `godmode`, and the message, since cheats
     /// are outside wire 24), the display's own refusal tests and the fuzz target; the app never
     /// calls it. Adjusted inputs that no genuine player state holds are refused with
     /// [`DisplayObserveError::AdjustedInputOutOfRange`] before any state changes.
+    /// Refused under [`RandomContract::WithSound`] (use [`Self::observe_after_with`]).
     pub fn observe_with(
         &mut self,
         sim: &Simulation,
         fed: &TicCommand,
+        adjust: impl FnOnce(&mut StatusInputs, &mut Option<Message>),
+    ) -> Result<Option<Message>, DisplayObserveError> {
+        if self.contract == RandomContract::WithSound {
+            return Err(DisplayObserveError::Contract);
+        }
+        self.observe_inner(sim, fed, 0, adjust)
+    }
+
+    fn observe_inner(
+        &mut self,
+        sim: &Simulation,
+        fed: &TicCommand,
+        draws: u16,
         adjust: impl FnOnce(&mut StatusInputs, &mut Option<Message>),
     ) -> Result<Option<Message>, DisplayObserveError> {
         let mut inputs = status_inputs(sim)?;
@@ -330,6 +443,9 @@ impl Display {
             }
         }
         let mut status = self.status;
+        // The tic's sound draws inside P_Ticker come before ST_Ticker's (g_game.c:730-731); 0
+        // under the M5b contract.
+        status.rndindex = advanced(status.rndindex, draws);
         status
             .tick(&inputs)
             .map_err(|_| DisplayObserveError::AttackerRemoved)?;
@@ -359,7 +475,9 @@ impl Display {
 
     /// Draws the simulation's current (observed) tic into `out` in `D_Display`'s order and
     /// returns the palette number and the frame's report. On refusal the display state is
-    /// unchanged and `out` is unspecified.
+    /// unchanged and `out` is unspecified. Under [`RandomContract::WithSound`] the frame that
+    /// wipes (the first of the level) is followed by the wipe's [`WIPE_DRAWS`] (d_main.c:327-340,
+    /// f_wipe.c:159-166); the frame itself does not depend on them.
     pub fn draw(
         &mut self,
         sim: &Simulation,
@@ -410,6 +528,11 @@ impl Display {
             },
         )?;
         let st = st.expect("drawn");
+        if self.wipe && self.contract == RandomContract::WithSound {
+            // wipe_EndScreen and the melt loop after the composed frame (d_main.c:327-340): the
+            // first wipe_ScreenWipe call runs wipe_initMelt's draws (f_wipe.c:280-286, 159-166).
+            status.rndindex = advanced(status.rndindex, WIPE_DRAWS);
+        }
         self.status = status;
         self.hud = hud;
         self.bg = bg;
@@ -453,6 +576,7 @@ impl Display {
             hud: self.hud.clone(),
             fullscreen: self.fullscreen,
             wipe: self.wipe,
+            contract: self.contract,
         })
     }
 
@@ -488,6 +612,7 @@ impl Display {
         next.hud = state.hud;
         next.fullscreen = state.fullscreen;
         next.wipe = state.wipe;
+        next.contract = state.contract;
         next.inputs = Some(inputs);
         *self = next;
         Ok(())
@@ -683,18 +808,32 @@ fn consistency_error(d: &DisplayState, tic: u64, i: &StatusInputs) -> Option<&'s
 
 /// Encoding magic of a display state.
 pub const MAGIC: &[u8; 4] = b"DDSP";
-/// Encoding version.
+/// Encoding version of [`RandomContract::SoundFreeWipeFree`] (M5b), the only version
+/// [`DisplayState::decode`] reads.
 pub const VERSION: u32 = 1;
+/// Encoding version of [`RandomContract::WithSound`] (M5c): version 1's layout with one contract
+/// byte after the version (M5c note §4.8.1); read by [`DisplayState::decode_any`].
+pub const VERSION_WITH_SOUND: u32 = 2;
+/// The contract byte of a version-2 encoding: 1 for [`RandomContract::WithSound`], the only value
+/// written (a version-2 encoding of the M5b contract is never written and is refused).
+const CONTRACT_WITH_SOUND: u8 = 1;
 
 impl DisplayState {
-    /// The `DDSP` version 1 encoding (docs/STATE_FORMAT.md, "Display state"): the magic, the
-    /// version, the DRST version 2 bytes length-prefixed, then the display, status bar and HUD
-    /// fields (little-endian).
+    /// The `DDSP` encoding (docs/STATE_FORMAT.md, "Display state"): the magic, the version, under
+    /// [`RandomContract::WithSound`] one contract byte (version 2, M5c), the DRST version 2 bytes
+    /// length-prefixed, then the display, status bar and HUD fields (little-endian). Under
+    /// [`RandomContract::SoundFreeWipeFree`] it is version 1, byte for byte as M5b wrote it.
     pub fn encode(&self) -> Vec<u8> {
         let drst = self.render.encode();
         let mut o = Vec::with_capacity(drst.len() + 256);
         o.extend_from_slice(MAGIC);
-        o.extend(VERSION.to_le_bytes());
+        match self.contract {
+            RandomContract::SoundFreeWipeFree => o.extend(VERSION.to_le_bytes()),
+            RandomContract::WithSound => {
+                o.extend(VERSION_WITH_SOUND.to_le_bytes());
+                o.push(CONTRACT_WITH_SOUND);
+            }
+        }
         o.extend((drst.len() as u32).to_le_bytes());
         o.extend(drst);
         let s = &self.status;
@@ -739,8 +878,44 @@ impl DisplayState {
         o
     }
 
-    /// Decodes a `DDSP` version 1 encoding: the embedded DRST with its own decoder, then every
-    /// field with its bounds.
+    /// Decodes a `DDSP` version 1 or version 2 encoding (M5c): version 1 as [`Self::decode`]
+    /// ([`RandomContract::SoundFreeWipeFree`]); version 2 with contract byte 1 as the same layout
+    /// and field rules under [`RandomContract::WithSound`]. A version-2 contract byte other than 1
+    /// is refused as `Invalid("contract")`, any other version as `Version`.
+    pub fn decode_any(bytes: &[u8]) -> Result<Self, StateDecodeError> {
+        if bytes.get(..4).ok_or(StateDecodeError::Truncated)? != MAGIC {
+            return Err(StateDecodeError::Magic);
+        }
+        let version = u32::from_le_bytes(
+            bytes
+                .get(4..8)
+                .ok_or(StateDecodeError::Truncated)?
+                .try_into()
+                .expect("4"),
+        );
+        match version {
+            VERSION => Self::decode(bytes),
+            VERSION_WITH_SOUND => {
+                let contract = *bytes.get(8).ok_or(StateDecodeError::Truncated)?;
+                if contract != CONTRACT_WITH_SOUND {
+                    return Err(StateDecodeError::Invalid("contract"));
+                }
+                // The rest is version 1's layout: decode it with version 1's rules.
+                let mut v1 = Vec::with_capacity(bytes.len() - 1);
+                v1.extend_from_slice(MAGIC);
+                v1.extend(VERSION.to_le_bytes());
+                v1.extend_from_slice(&bytes[9..]);
+                let mut state = Self::decode(&v1)?;
+                state.contract = RandomContract::WithSound;
+                Ok(state)
+            }
+            v => Err(StateDecodeError::Version(v)),
+        }
+    }
+
+    /// Decodes a `DDSP` version 1 encoding (M5b's contract): the embedded DRST with its own
+    /// decoder, then every field with its bounds. Any other version, version 2 included, is
+    /// refused as `Version` ([`Self::decode_any`] reads both).
     pub fn decode(bytes: &[u8]) -> Result<Self, StateDecodeError> {
         let mut at = 0usize;
         let mut take = |n: usize| -> Result<&[u8], StateDecodeError> {
@@ -831,6 +1006,7 @@ impl DisplayState {
             hud,
             fullscreen: flag(dflags, 0),
             wipe: flag(dflags, 1),
+            contract: RandomContract::SoundFreeWipeFree,
         })
     }
 }
