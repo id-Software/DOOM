@@ -146,21 +146,50 @@ fn render_never_writes_the_simulation(lump: &str, screenblocks: u8) -> usize {
     rendered
 }
 
-#[test]
-fn rendering_never_changes_the_simulation() {
-    // Rooms that exercise the stages with the most shared state: masked walls and sprites,
-    // fuzz (the persistent `fuzzpos`), a reusable switch, the drawseg drop and the weapon.
+/// Rooms that exercise the stages with the most shared state: masked walls and sprites, fuzz
+/// (the persistent `fuzzpos`), a reusable switch, the drawseg drop and the weapon. Each room is
+/// its own test (`rendering_never_changes_the_simulation_in_room_*`), so the eight run on
+/// parallel threads; `the_eight_rooms_are_all_tested` fails if one is dropped from the list.
+const SHARED_STATE_ROOMS: [&str; 8] = [
+    "M5AMP", "M5MASK", "M5SPRIT", "M5FUZZ", "M5SWTCH", "M5DSEG", "M5WEAP", "TELE1",
+];
+
+fn rendering_never_changes_the_simulation_in(room: usize) {
+    let lump = SHARED_STATE_ROOMS[room];
     let mut total = 0;
-    for lump in [
-        "M5AMP", "M5MASK", "M5SPRIT", "M5FUZZ", "M5SWTCH", "M5DSEG", "M5WEAP", "TELE1",
-    ] {
-        for screenblocks in [11, 10, 9] {
-            let n = render_never_writes_the_simulation(lump, screenblocks);
-            assert!(n > 0, "{lump} sb{screenblocks}: no frame rendered");
-            total += n;
-        }
+    for screenblocks in [11, 10, 9] {
+        let n = render_never_writes_the_simulation(lump, screenblocks);
+        assert!(n > 0, "{lump} sb{screenblocks}: no frame rendered");
+        total += n;
     }
-    eprintln!("{total} frames rendered without a simulation change");
+    eprintln!("{lump}: {total} frames rendered without a simulation change");
+}
+
+macro_rules! rooms {
+    ($($name:ident: $room:expr),*) => {
+        $(#[test] fn $name() { rendering_never_changes_the_simulation_in($room); })*
+    };
+}
+
+rooms!(
+    rendering_never_changes_the_simulation_in_room_m5amp: 0,
+    rendering_never_changes_the_simulation_in_room_m5mask: 1,
+    rendering_never_changes_the_simulation_in_room_m5sprit: 2,
+    rendering_never_changes_the_simulation_in_room_m5fuzz: 3,
+    rendering_never_changes_the_simulation_in_room_m5swtch: 4,
+    rendering_never_changes_the_simulation_in_room_m5dseg: 5,
+    rendering_never_changes_the_simulation_in_room_m5weap: 6,
+    rendering_never_changes_the_simulation_in_room_tele1: 7
+);
+
+#[test]
+fn the_eight_rooms_are_all_tested() {
+    assert_eq!(
+        SHARED_STATE_ROOMS,
+        [
+            "M5AMP", "M5MASK", "M5SPRIT", "M5FUZZ", "M5SWTCH", "M5DSEG", "M5WEAP", "TELE1"
+        ]
+    );
 }
 
 #[test]
