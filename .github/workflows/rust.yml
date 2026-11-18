@@ -564,6 +564,9 @@ jobs:
       - name: THING-loading truncation map (decision T4), genuine engine against wire 25 (match) and wire 24 (the recorded gap)
         if: env.DOCS_ONLY != 'true'
         run: python3 tools/reference/m5c_t4.py --sound-records target/release/examples/sound_records_run --player-level target/release/examples/player_level_run --work "$RUNNER_TEMP/m5c_t4" --check
+      - name: Scripted app sessions under the new contract replayed through the genuine input driver, the genuine M5c runner (strict, overflow and address variants identical; address runs with leak detection DISABLED, detect_leaks=0) and the genuine mixer, every tic, frame, sound row and buffer compared, results and self-test
+        if: env.DOCS_ONLY != 'true'
+        run: ASAN_OPTIONS=detect_leaks=0 python3 tools/reference/m5c_session.py --check --selftest --jobs 4 --work "$RUNNER_TEMP/m5c_session"
       - name: Documentation-only fast path
         if: env.DOCS_ONLY == 'true'
         run: echo "documentation-only change, so the genuine sound-logic and mixer runs were skipped"
