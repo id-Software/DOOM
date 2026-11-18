@@ -69,7 +69,7 @@ fn every_item_restores_and_continues_exactly() {
             let state = SoundState::decode(&cp.sound)
                 .unwrap_or_else(|e| panic!("{} tic {}: decode {e:?}", item.name, cp.tic));
             assert_eq!(state.encode(), cp.sound, "{}: re-encoding", item.name);
-            let restored = Sound::restore(set.clone(), &state, &cp.sim)
+            let restored = Sound::restore(set.clone(), &state, &cp.sim, item.config)
                 .unwrap_or_else(|e| panic!("{} tic {}: restore {e:?}", item.name, cp.tic));
             busy_saves += u64::from(busy(&restored));
             let rest = run(
@@ -196,7 +196,7 @@ fn a_valid_state_round_trips_and_every_forgery_is_refused() {
     let bytes = good.encode();
     assert!(bytes.len() <= MAX_BYTES);
     assert_eq!(SoundState::decode(&bytes), Ok(good.clone()));
-    assert!(Sound::from_state(set.clone(), &good).is_ok());
+    assert!(Sound::from_state(set.clone(), &good, good.config).is_ok());
     let refuse = |b: &[u8], want: StateError| {
         assert_eq!(SoundState::decode(b), Err(want), "{want:?}");
     };
@@ -345,7 +345,7 @@ fn a_valid_state_round_trips_and_every_forgery_is_refused() {
     wrong_end.mixer[2] = Some(m);
     let decoded = SoundState::decode(&wrong_end.encode()).unwrap();
     assert_eq!(
-        Sound::from_state(set.clone(), &decoded),
+        Sound::from_state(set.clone(), &decoded, good.config),
         Err(StateError::Mixer(MixStateError::End { slot: 2 }))
     );
     let missing = (1..NUMSFX)
@@ -355,7 +355,7 @@ fn a_valid_state_round_trips_and_every_forgery_is_refused() {
     let mut ghost = good.clone();
     ghost.looked_up[missing.index()] = true;
     assert_eq!(
-        Sound::from_state(set.clone(), &ghost),
+        Sound::from_state(set.clone(), &ghost, good.config),
         Err(StateError::LookedUp { sfx: missing.get() })
     );
 }
@@ -377,9 +377,9 @@ fn restore_checks_the_simulation() {
     );
     let sim = out.sim;
     let state = out.sound.state();
-    assert!(Sound::restore(set.clone(), &state, &sim).is_ok());
+    assert!(Sound::restore(set.clone(), &state, &sim, item.config).is_ok());
     assert_eq!(
-        Sound::restore(set.clone(), &state, &item.sim),
+        Sound::restore(set.clone(), &state, &item.sim, item.config),
         Err(StateError::TicMismatch {
             state: 3,
             simulation: 0
@@ -392,7 +392,7 @@ fn restore_checks_the_simulation() {
         handle: 100,
     });
     assert_eq!(
-        Sound::restore(set.clone(), &s, &sim),
+        Sound::restore(set.clone(), &s, &sim, item.config),
         Err(StateError::ActorGone { cnum: 0 })
     );
     s.channels[0] = Some(ChannelEntry {
@@ -401,7 +401,55 @@ fn restore_checks_the_simulation() {
         handle: 100,
     });
     assert_eq!(
-        Sound::restore(set.clone(), &s, &sim),
+        Sound::restore(set.clone(), &s, &sim, item.config),
         Err(StateError::Sector { cnum: 0 })
+    );
+}
+
+/// Review finding M2 (review-sound): the bytes never choose the session's configuration. A
+/// state whose map number, volume, channel count or texture count differs from the caller's
+/// decodes (each value is in range) but is refused on restore with the caller's configuration
+/// named, and a hand-built state whose detector counts other textures than its configuration
+/// is refused.
+#[test]
+fn restore_refuses_a_configuration_other_than_the_callers() {
+    let set = sound_set("m5c_sfx.wad");
+    let good = sample();
+    let expected = good.config;
+    let edits: [&dyn Fn(&mut SoundState); 4] = [
+        &|s| s.config.logic.gamemap = 8,
+        &|s| s.config.logic.sfx_volume = 0,
+        &|s| {
+            s.config.logic.channels = 64;
+            s.channels.resize(64, None);
+        },
+        &|s| {
+            s.config.textures = 0;
+            s.detector = doom_sound::detector::LayoutDetector::new(0).unwrap();
+        },
+    ];
+    for (i, edit) in edits.iter().enumerate() {
+        let mut s = good.clone();
+        edit(&mut s);
+        let decoded = SoundState::decode(&s.encode()).unwrap_or_else(|e| panic!("{i}: {e:?}"));
+        assert_eq!(
+            Sound::from_state(set.clone(), &decoded, expected),
+            Err(StateError::ConfigMismatch {
+                saved: decoded.config,
+                expected
+            }),
+            "edit {i}"
+        );
+        // The same state restores into a session that runs with its configuration.
+        assert!(
+            Sound::from_state(set.clone(), &decoded, decoded.config).is_ok(),
+            "edit {i}"
+        );
+    }
+    let mut skew = good.clone();
+    skew.detector = doom_sound::detector::LayoutDetector::from_parts(81, Some(12), 3).unwrap();
+    assert_eq!(
+        Sound::from_state(set.clone(), &skew, expected),
+        Err(StateError::Detector)
     );
 }

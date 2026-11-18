@@ -350,6 +350,14 @@ fn forged_and_mismatched_saves_are_refused() {
         refused(&data, &sims[at], &b),
         PresentationRestoreError::Sound(StateError::Truncated)
     ));
+    // review-sound M2: the DSND bytes never choose the session's configuration; a state saved on
+    // map 8 (the map number at offset 24) is refused against the data's own map
+    let mut b = good.clone();
+    b.sound.as_mut().expect("DSND")[24..28].copy_from_slice(&8i32.to_le_bytes());
+    assert!(matches!(
+        refused(&data, &sims[at], &b),
+        PresentationRestoreError::Sound(StateError::ConfigMismatch { .. })
+    ));
     // a simulation of another tic: the sound session's check comes first, then the display's
     assert!(matches!(
         refused(&data, &sims[at + 1], good),

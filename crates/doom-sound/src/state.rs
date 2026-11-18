@@ -29,7 +29,9 @@
 //! same rows. A mixer channel's `channelids` entry is its sfx (i_sound.c:377) and is not stored.
 //!
 //! Decoding checks every count, index, handle and offset ([`StateError`]); restoring
-//! ([`Sound::restore`]) also checks the state against the loaded sound set and the simulation.
+//! ([`Sound::restore`]) also checks the state against the caller's own configuration (the bytes
+//! never choose the map, volume, channel count or texture count of the session they restore
+//! into), the loaded sound set and the simulation.
 //! These are consistency checks, not a proof that a run reaches the state: they trust that the
 //! occupied channels, positions and remainders came from some sequence of starts.
 
@@ -153,6 +155,17 @@ pub enum StateError {
     Sector {
         /// The channel.
         cnum: usize,
+    },
+    /// Restore: the saved configuration (map number, `snd_SfxVolume`, `numChannels`, texture
+    /// count) is not the one the caller's session runs with. The bytes are never trusted to
+    /// choose it: a state of another map would change the map-8 rule (s_sound.c:773-777,
+    /// 800-808), another volume or channel count the draws and the channel choice, another
+    /// texture count the layout detector of decision T12.
+    ConfigMismatch {
+        /// The configuration in the state.
+        saved: SoundConfig,
+        /// The configuration the caller expects.
+        expected: SoundConfig,
     },
 }
 
@@ -414,9 +427,26 @@ impl Sound {
     }
 
     /// A session rebuilt from saved state over a loaded sound set, checking the state against
-    /// the set: each busy mixer channel's end is its sound's padded length and the sound has a
-    /// sample byte, and no "looked up" flag is set for a sound whose lump is missing.
-    pub fn from_state(set: Arc<SoundSet>, state: &SoundState) -> Result<Self, StateError> {
+    /// the caller's configuration and the set: the saved configuration must equal `expected`
+    /// (the configuration the caller's own session was built with, for example
+    /// [`Sound::config`] of its fresh session; [`StateError::ConfigMismatch`]) and the
+    /// detector's texture count the configuration's; each busy mixer channel's end is its
+    /// sound's padded length and the sound has a sample byte, and no "looked up" flag is set for
+    /// a sound whose lump is missing.
+    pub fn from_state(
+        set: Arc<SoundSet>,
+        state: &SoundState,
+        expected: SoundConfig,
+    ) -> Result<Self, StateError> {
+        if state.config != expected {
+            return Err(StateError::ConfigMismatch {
+                saved: state.config,
+                expected,
+            });
+        }
+        if state.detector.textures() != state.config.textures {
+            return Err(StateError::Detector);
+        }
         for (n, _) in state.looked_up.iter().enumerate().filter(|(_, b)| **b) {
             let id = SfxId::new(n as i64).ok_or(StateError::LookedUp { sfx: n as u16 })?;
             if set.lump_num(id).is_none() {
@@ -437,15 +467,16 @@ impl Sound {
         })
     }
 
-    /// [`Self::from_state`], also checked against the simulation the session continues with:
-    /// it has completed exactly the state's tics (`Simulation::tic`), every actor origin
-    /// resolves (live or marked, `Simulation::sound_origin_xy`) and every sector origin is a
-    /// sector of the map (`Simulation::sector_sound_origin`). The map number is not checked
-    /// (the simulation does not expose it under wire 25).
+    /// [`Self::from_state`] against `expected`, also checked against the simulation the session
+    /// continues with: it has completed exactly the state's tics (`Simulation::tic`), every
+    /// actor origin resolves (live or marked, `Simulation::sound_origin_xy`) and every sector
+    /// origin is a sector of the map (`Simulation::sector_sound_origin`). The map number is
+    /// checked only against `expected` (the simulation does not expose it under wire 25).
     pub fn restore(
         set: Arc<SoundSet>,
         state: &SoundState,
         sim: &Simulation,
+        expected: SoundConfig,
     ) -> Result<Self, StateError> {
         if sim.tic() != state.schedule.tic() {
             return Err(StateError::TicMismatch {
@@ -464,6 +495,6 @@ impl Sound {
                 _ => {}
             }
         }
-        Self::from_state(set, state)
+        Self::from_state(set, state, expected)
     }
 }

@@ -343,8 +343,10 @@ impl FrameSource {
     /// A frame source rebuilt from `saved` next to `sim`, a simulation of the same tic (a clone
     /// of the one the state was saved with), over `data` at the saved screen size. Every decoder
     /// and restore check of doom-render (`DisplayState::decode_any`, `Display::restore`) and
-    /// doom-sound (`SoundState::decode`, `Sound::restore`) applies; the display's contract must be
-    /// the data's (with sound exactly when the data has sound). On an error nothing is built.
+    /// doom-sound (`SoundState::decode`, `Sound::restore`) applies, the sound state against the
+    /// data's own configuration (map, volume, channels and texture count: the bytes never choose
+    /// them); the display's contract must be the data's (with sound exactly when the data has
+    /// sound). On an error nothing is built.
     pub fn restore(
         data: &super::GameData,
         sim: &Simulation,
@@ -364,7 +366,7 @@ impl FrameSource {
             (Some(assets), Some(bytes)) => {
                 let s = SoundState::decode(bytes).map_err(PresentationRestoreError::Sound)?;
                 Some(
-                    Sound::restore(assets.set().clone(), &s, sim)
+                    Sound::restore(assets.set().clone(), &s, sim, assets.config())
                         .map_err(PresentationRestoreError::Sound)?,
                 )
             }

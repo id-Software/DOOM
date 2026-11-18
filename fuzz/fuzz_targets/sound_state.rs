@@ -6,8 +6,9 @@
 //!
 //! - Mode 0, the decoder: the rest is `DSND` bytes. `SoundState::decode` never panics; when it
 //!   accepts, the bytes are canonical (`encode` of the result gives them back) and
-//!   `decode(encode(s)) == s`; `Sound::from_state` on the set accepts or refuses with a typed
-//!   error, and an accepted session's `state()` is `s` again.
+//!   `decode(encode(s)) == s`; `Sound::from_state` on the set with the state's own configuration
+//!   accepts or refuses with a typed error, an accepted session's `state()` is `s` again, and with
+//!   any other expected configuration it refuses with `ConfigMismatch`.
 //! - Mode 1, the session: byte 1 the map (`% 3`: 1, 8 or 3), byte 2 the texture count of the T12
 //!   detector (0..=255), then eight-byte ops `op a b c d e f g`, at most 128 (`-max_len=2048`).
 //!   `op % 4`: 0 queue a start of sound `a` (any `u8`: 0 and 109 and above are refused) with
@@ -25,7 +26,7 @@
 //! (a buffer is returned exactly then), the returned index is the given one advanced by the
 //! reported draws, and the detector's count never falls and its first tic never changes once set;
 //! at every save, `decode(encode(state)) == state`, the encoding is at most `MAX_BYTES`, and
-//! `Sound::from_state` rebuilds a session equal to the running one.
+//! `Sound::from_state` with the session's configuration rebuilds a session equal to the running one.
 use std::sync::Arc;
 
 use doom_render::LumpDirectory;
@@ -36,7 +37,7 @@ use doom_sound::logic::{
 use doom_sound::lumps::{SoundCaps, SoundSet};
 use doom_sound::mixer::buffers_due;
 use doom_sound::session::{Sound, SoundConfig};
-use doom_sound::state::{MAX_BYTES, SoundState};
+use doom_sound::state::{MAX_BYTES, SoundState, StateError};
 use doom_types::DoomRng;
 use libfuzzer_sys::fuzz_target;
 
@@ -82,9 +83,19 @@ fn decoder(bytes: &[u8]) {
     let again = state.encode();
     assert_eq!(again, bytes, "an accepted encoding is not canonical");
     assert_eq!(SoundState::decode(&again).as_ref(), Ok(&state));
-    if let Ok(sound) = Sound::from_state(set().clone(), &state) {
+    if let Ok(sound) = Sound::from_state(set().clone(), &state, state.config) {
         assert_eq!(sound.state(), state, "a restored session's state differs");
     }
+    // The bytes never choose the configuration: any other expected one is refused.
+    let mut other = state.config;
+    other.logic.gamemap = other.logic.gamemap.wrapping_add(1);
+    assert_eq!(
+        Sound::from_state(set().clone(), &state, other),
+        Err(StateError::ConfigMismatch {
+            saved: state.config,
+            expected: other
+        })
+    );
 }
 
 fn session(map: u8, textures: u8, ops: &[u8]) {
@@ -179,8 +190,8 @@ fn session(map: u8, textures: u8, ops: &[u8]) {
                     Ok(&state),
                     "round trip"
                 );
-                let restored =
-                    Sound::from_state(set().clone(), &state).expect("a reached state restores");
+                let restored = Sound::from_state(set().clone(), &state, sound.config())
+                    .expect("a reached state restores");
                 assert_eq!(restored, sound, "a restored session differs");
             }
             _ => {}
