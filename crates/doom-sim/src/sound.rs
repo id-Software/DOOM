@@ -298,6 +298,30 @@ pub(crate) fn same_calls(
     calls.iter().zip(records).all(|(a, b)| bare(a) == bare(b))
 }
 
+/// `M_ClearBox` (m_bbox.c:39-43): `[top, bottom, left, right]` (m_bbox.h's
+/// `BOXTOP` 0, `BOXBOTTOM` 1, `BOXLEFT` 2, `BOXRIGHT` 3) = `MININT`, `MAXINT`,
+/// `MAXINT`, `MININT` (doomtype.h:48, 54).
+pub(crate) const CLEAR_BOX: [i32; 4] = [i32::MIN, i32::MAX, i32::MAX, i32::MIN];
+/// `M_AddToBox` (m_bbox.c:46-58), with its `else if` on each axis.
+pub(crate) fn add_to_box(b: &mut [i32; 4], [x, y]: [i32; 2]) {
+    if x < b[2] {
+        b[2] = x;
+    } else if x > b[3] {
+        b[3] = x;
+    }
+    if y < b[1] {
+        b[1] = y;
+    } else if y > b[0] {
+        b[0] = y;
+    }
+}
+/// `soundorg.x = (bbox[BOXRIGHT]+bbox[BOXLEFT])/2` and `soundorg.y =
+/// (bbox[BOXTOP]+bbox[BOXBOTTOM])/2` (p_setup.c:556-557), the division
+/// truncating toward zero; `None` where a sum overflows `int`.
+pub(crate) fn box_origin(b: &[i32; 4]) -> Option<[i32; 2]> {
+    Some([b[3].checked_add(b[2])? / 2, b[0].checked_add(b[1])? / 2])
+}
+
 /// Every sector's sound origin, exactly as `P_GroupLines` computes
 /// `sector->soundorg` (p_setup.c:536-557): `M_ClearBox` (m_bbox.c:39-43: top and
 /// right `MININT`, bottom and left `MAXINT`), then for every line in `lines`
@@ -313,8 +337,6 @@ pub(crate) fn same_calls(
 pub(crate) fn sector_sound_origins(
     map: &doom_map::Map,
 ) -> Result<Vec<[doom_types::Fixed; 2]>, crate::SimError> {
-    const MININT: i32 = i32::MIN;
-    const MAXINT: i32 = i32::MAX;
     let sectors = map.sectors().len();
     // [top, bottom, left, right], m_bbox.h's BOXTOP 0, BOXBOTTOM 1, BOXLEFT 2,
     // BOXRIGHT 3.
@@ -322,7 +344,7 @@ pub(crate) fn sector_sound_origins(
     boxes
         .try_reserve_exact(sectors)
         .map_err(|_| crate::SimError::from(crate::StoreError::Capacity))?;
-    boxes.resize(sectors, [MININT, MAXINT, MAXINT, MININT]);
+    boxes.resize(sectors, CLEAR_BOX);
     let sector_of = |side: Option<u16>| {
         side.and_then(|s| map.sidedefs().get(usize::from(s)))
             .map(|s| s.sector)
@@ -353,17 +375,8 @@ pub(crate) fn sector_sound_origins(
                 .ok_or(crate::SimError::from(
                     crate::GeometryError::InvalidReference,
                 ))?;
-            for [x, y] in points {
-                if x < b[2] {
-                    b[2] = x;
-                } else if x > b[3] {
-                    b[3] = x;
-                }
-                if y < b[1] {
-                    b[1] = y;
-                } else if y > b[0] {
-                    b[0] = y;
-                }
+            for point in points {
+                add_to_box(b, point);
             }
         }
     }
@@ -377,8 +390,7 @@ pub(crate) fn sector_sound_origins(
                 sector: sector as u16,
             })
         };
-        let x = b[3].checked_add(b[2]).ok_or_else(overflow)? / 2;
-        let y = b[0].checked_add(b[1]).ok_or_else(overflow)? / 2;
+        let [x, y] = box_origin(b).ok_or_else(overflow)?;
         origins.push([
             doom_types::Fixed::from_bits(x),
             doom_types::Fixed::from_bits(y),
