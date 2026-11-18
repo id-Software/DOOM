@@ -977,7 +977,11 @@ fn a_frame_refused_after_the_simulation_committed_its_tic_stays_in_the_demo() {
     let data = load("m5a_wads/solidsegs.wad", 1, 2);
     let mut d = Driver::new(data.clone(), SessionConfig::default());
     d.run(&[(2, &[])]);
+    let mut fed = 0;
     while d.app.mode() == &Mode::Playing {
+        // bounded, so that a session that never refuses fails here and does not run to its cap
+        assert!(fed < 60, "no refusal after {fed} tics");
+        fed += 1;
         d.feed(In::Motion(-8, 0));
         d.tic();
     }
@@ -1014,4 +1018,268 @@ fn the_picture_fills_any_buffer_length_without_a_panic() {
     let mut short = vec![0; 10];
     d.app.picture(0, &mut short);
     assert_eq!((&short[..8], &short[8..]), (&whole[..8], &[0, 0][..]));
+}
+
+// ---------------------------------------------------------------------------------------
+// Tests added for the mutants of M5b step 11 (cargo-mutants survivors in the app). Each names
+// what it pins.
+
+/// Pins `GameData::map` and `GameData::skill` (values other than 0 and 1) and `PICTURE_BYTES`.
+#[test]
+fn the_game_data_reports_its_map_and_skill_and_the_picture_is_320_by_200_rgba() {
+    let data = load("m4b_wads/boss8.wad", 8, 3);
+    assert_eq!((data.map(), data.skill()), (8, 3));
+    let data = load("m5a_wads/amp.wad", 1, 2);
+    assert_eq!((data.map(), data.skill()), (1, 2));
+    assert_eq!(PICTURE_BYTES, 320 * 200 * 4);
+}
+
+/// Pins `SAVE_INTERVAL`: the demo is rewritten every 30 seconds, 30 x 35 = 1050 tics at
+/// `TICRATE` 35 (doomdef.h:122).
+#[test]
+fn the_save_interval_is_thirty_seconds_of_tics() {
+    assert_eq!(SAVE_INTERVAL, 1050);
+}
+
+/// Pins `FrameAssets::palette`: palette n is bytes 768n..768(n+1) of the PLAYPAL lump of the
+/// loaded WADs (the graphics WAD is loaded last and wins), for 0..=13, and nothing beyond.
+#[test]
+fn palette_n_is_the_nth_768_byte_block_of_playpal() {
+    let gfx = std::fs::read(reference("m5b_gfx.wad")).expect("gfx WAD");
+    let wad = doom_wad::Wad::parse(&gfx, doom_wad::Limits::default()).expect("WAD");
+    let playpal = wad
+        .data(wad.find("PLAYPAL").expect("PLAYPAL"))
+        .expect("data");
+    assert_eq!(playpal.len(), 14 * 768);
+    let data = load("m5a_wads/amp.wad", 1, 2);
+    for n in 0..14u8 {
+        let at = usize::from(n) * 768;
+        assert_eq!(
+            data.assets().palette(n),
+            Some(&playpal[at..at + 768]),
+            "{n}"
+        );
+    }
+    assert_eq!(data.assets().palette(14), None);
+    assert_eq!(data.assets().palette(255), None);
+}
+
+/// Pins `FrameSource::rndindex`, through `Host::tic`: with no sound and no wipe the `ST_Ticker`
+/// of tic t has seen `rndindex = (t + 1) & 0xff` (M5b investigation §1.5 item 5: `M_Random`
+/// pre-increments `rndindex`, m_random.c:63-66, and `ST_Ticker` draws once per tic,
+/// st_stuff.c:992), through the wrap at 256.
+#[test]
+fn the_reported_rndindex_after_tic_t_is_t_plus_one_modulo_256() {
+    let mut d = Driver::new(load("m5a_wads/amp.wad", 1, 2), SessionConfig::default());
+    for _ in 0..300 {
+        d.tic();
+    }
+    assert_eq!(d.host.reports.len(), 300);
+    for (tic, _, _, _, rndindex) in &d.host.reports {
+        assert_eq!(u64::from(*rndindex), (tic + 1) & 0xff, "tic {tic}");
+    }
+}
+
+/// Pins `App::wants_mouse_capture` (true while playing) and `App::quit_requested` (false until
+/// quit).
+#[test]
+fn the_mouse_is_captured_while_playing_and_quit_is_off_until_asked() {
+    let mut d = Driver::new(load("m5a_wads/amp.wad", 1, 2), SessionConfig::default());
+    assert!(d.app.wants_mouse_capture());
+    assert!(!d.app.quit_requested());
+    d.feed(In::Key(keys::KEY_ESCAPE, true));
+    assert!(!d.app.wants_mouse_capture());
+    assert!(!d.app.quit_requested());
+    d.feed(In::Key(keys::KEY_ESCAPE, true));
+    assert!(d.app.wants_mouse_capture());
+}
+
+/// Pins `App::key` while paused: Esc or Pause (down) resumes, `q` (down) quits, `r` (down)
+/// restarts; a release or any other key does nothing.
+#[test]
+fn keys_while_paused_act_only_on_their_presses() {
+    let paused = || {
+        let mut d = Driver::new(load("m5a_wads/amp.wad", 1, 2), SessionConfig::default());
+        d.run(&[(3, &[])]);
+        d.feed(In::Key(keys::KEY_ESCAPE, true));
+        assert_eq!(d.app.mode(), &Mode::Paused);
+        d
+    };
+    for (code, down) in [
+        (b'q', false),
+        (b'x', true),
+        (b'x', false),
+        (b'Q', true),
+        (b'r', false),
+        (keys::KEY_ESCAPE, false),
+    ] {
+        let mut d = paused();
+        d.feed(In::Key(code, down));
+        assert_eq!(d.app.mode(), &Mode::Paused, "{code:#x} {down}");
+        assert!(!d.app.quit_requested(), "{code:#x} {down}");
+        assert_eq!(d.app.tic(), 3, "{code:#x} {down}");
+    }
+    let mut d = paused();
+    d.feed(In::Key(b'q', true));
+    assert!(d.app.quit_requested());
+    assert_eq!(d.app.mode(), &Mode::Paused);
+    let mut d = paused();
+    d.feed(In::Key(b'r', true));
+    assert_eq!((d.app.mode(), d.app.tic()), (&Mode::Playing, 0));
+    let mut d = paused();
+    d.feed(In::Key(keys::KEY_PAUSE, true));
+    assert_eq!(d.app.mode(), &Mode::Playing);
+}
+
+/// Pins `App::key` on an end screen: `q` or Esc (down) quits, `r` (down) restarts; a release,
+/// or any other key, does nothing.
+#[test]
+fn keys_on_the_end_screen_act_only_on_their_presses() {
+    let ended = || {
+        let cfg = SessionConfig {
+            tic_cap: 1,
+            ..SessionConfig::default()
+        };
+        let mut d = Driver::new(load("m5a_wads/amp.wad", 1, 2), cfg);
+        d.run(&[(2, &[])]);
+        assert_eq!(d.app.mode(), &Mode::Ended(Ending::TicCap));
+        d
+    };
+    for (code, down) in [
+        (b'q', false),
+        (keys::KEY_ESCAPE, false),
+        (b'x', true),
+        (b'x', false),
+        (keys::KEY_PAUSE, true),
+        (b'r', false),
+    ] {
+        let mut d = ended();
+        d.feed(In::Key(code, down));
+        assert!(!d.app.quit_requested(), "{code:#x} {down}");
+        assert_eq!(
+            d.app.mode(),
+            &Mode::Ended(Ending::TicCap),
+            "{code:#x} {down}"
+        );
+    }
+    for code in [b'q', keys::KEY_ESCAPE] {
+        let mut d = ended();
+        d.feed(In::Key(code, true));
+        assert!(d.app.quit_requested(), "{code:#x}");
+    }
+    let mut d = ended();
+    d.feed(In::Key(b'r', true));
+    assert_eq!(d.app.mode(), &Mode::Playing);
+    assert!(!d.app.quit_requested());
+}
+
+/// Pins `App::mouse_motion`: motion while playing reaches the command and is ignored while paused.
+/// A motion of dx = 30 posts data2 = 30 << 2 = 120 (i_video.c:250), `G_Responder` scales it by
+/// (mouseSensitivity + 5) / 10 = 1 at the default 5 (g_game.c:579), `G_BuildTiccmd` subtracts
+/// mousex * 8 = 960 from `angleturn` (g_game.c), and the demo round trip stores
+/// (-960 + 128) >> 8 = -4 as the byte, which reads back as -4 << 8 = -1024 (g_game.c:1501, 1512).
+#[test]
+fn mouse_motion_turns_while_playing_and_is_ignored_while_paused() {
+    let mut d = Driver::new(load("m5a_wads/amp.wad", 1, 2), SessionConfig::default());
+    d.feed(In::Motion(30, 0));
+    d.tic();
+    assert_eq!(d.app.recorder().commands()[0].angle_turn, -1024);
+    d.feed(In::Key(keys::KEY_ESCAPE, true));
+    d.feed(In::Motion(500, 0));
+    d.feed(In::Key(keys::KEY_ESCAPE, true));
+    // the resume re-bases the clock: this update only starts it
+    d.clock += 1;
+    assert_eq!(d.app.update(at(d.clock), &mut d.host).ran, 0);
+    d.tic();
+    assert_eq!(d.app.recorder().commands()[1].angle_turn, 0);
+}
+
+/// Pins the loop of `App::update`: the update that runs the tic reaching the cap runs one more
+/// call that ends the session (4 for a cap of 3), then stops (the loop does not go on with an
+/// ended session) and reports the surplus due tics as dropped; the end writes the demo once.
+#[test]
+fn an_update_stops_at_the_tic_that_ends_the_session() {
+    let cfg = SessionConfig {
+        tic_cap: 3,
+        ..SessionConfig::default()
+    };
+    let mut d = Driver::new(load("m5a_wads/amp.wad", 1, 2), cfg);
+    assert_eq!(d.host.writes, 1);
+    let u = d.app.update(at(5), &mut d.host);
+    assert_eq!(d.app.mode(), &Mode::Ended(Ending::TicCap));
+    assert_eq!(d.app.tic(), 3);
+    assert_eq!((u.ran, u.dropped), (4, 1));
+    assert_eq!(d.host.writes, 2, "the end saved once");
+    assert_eq!(d.app.save_status(), &SaveStatus::Saved(3));
+}
+
+/// Pins `App::end_screen` on E1M8: the exit of the last map of the episode says so.
+#[test]
+fn the_exit_of_e1m8_shows_the_episode_complete_heading() {
+    let up: &[In] = &[In::Key(UP, true)];
+    let release: &[In] = &[In::Key(UP, false)];
+    let mut d = Driver::new(load("m4b_wads/boss8.wad", 8, 2), SessionConfig::default());
+    d.run(&[
+        (60, up),
+        (60, release),
+        (60, up),
+        (30, release),
+        (60, up),
+        (60, release),
+        (70, up),
+        (200, release),
+    ]);
+    assert_eq!(d.app.mode(), &Mode::Ended(Ending::Exit { secret: false }));
+    let pic = picture(&d.app);
+    assert!(shows(&pic, "EPISODE 1 COMPLETE"));
+    assert!(!shows(&pic, "LEVEL COMPLETE"));
+}
+
+/// Pins `App::picture`'s gamma clamp: levels above 4 use level 4 (decision S13), and level 3
+/// differs from level 4 on a lit frame.
+#[test]
+fn gamma_levels_above_four_use_four() {
+    let mut d = Driver::new(load("m5a_wads/amp.wad", 1, 2), SessionConfig::default());
+    d.run(&[(2, &[])]);
+    let at = |g: usize| {
+        let mut pic = vec![0; PICTURE_BYTES];
+        d.app.picture(g, &mut pic);
+        pic
+    };
+    let four = at(4);
+    assert_eq!(at(5), four);
+    assert_eq!(at(6), four);
+    assert_eq!(at(usize::MAX), four);
+    assert_ne!(at(3), four);
+}
+
+/// Pins the pause overlay on the presented picture: the box's grey frame, dark inside and
+/// yellow heading are in the app's palette, and the game picture around the box is shown at
+/// half brightness (each colour channel halved, rounding down).
+#[test]
+fn the_pause_overlay_is_composed_on_a_half_bright_game_picture() {
+    let mut d = Driver::new(load("m5a_wads/amp.wad", 1, 2), SessionConfig::default());
+    d.run(&[(2, &[])]);
+    let playing = picture(&d.app);
+    d.feed(In::Key(keys::KEY_ESCAPE, true));
+    let paused = picture(&d.app);
+    let px = |p: &[u8], x: usize, y: usize| p[(y * 320 + x) * 4..(y * 320 + x) * 4 + 4].to_vec();
+    assert_eq!(px(&paused, 40, 76), [150, 160, 190, 255]);
+    assert_eq!(px(&paused, 279, 123), [150, 160, 190, 255]);
+    assert_eq!(px(&paused, 50, 80), [16, 24, 64, 255]);
+    // 'P' of "PAUSED" starts at column 142 on row 86 with "####."
+    assert_eq!(px(&paused, 142, 86), [250, 210, 60, 255]);
+    let mut lit = 0;
+    for y in 0..200 {
+        for x in 0..320 {
+            if (40..280).contains(&x) && (76..124).contains(&y) {
+                continue;
+            }
+            let was = px(&playing, x, y);
+            let want = [was[0] / 2, was[1] / 2, was[2] / 2, 255];
+            assert_eq!(px(&paused, x, y), want, "({x},{y})");
+            lit += usize::from(was[0] > 1 || was[1] > 1 || was[2] > 1);
+        }
+    }
+    assert!(lit > 1000, "the frame is not black");
 }

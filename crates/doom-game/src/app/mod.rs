@@ -891,3 +891,62 @@ impl App {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use screens::YELLOW;
+    use std::path::Path;
+
+    struct NullHost;
+
+    impl Host for NullHost {
+        fn timestamp(&mut self) -> Timestamp {
+            Timestamp::default()
+        }
+        fn exists(&mut self, _name: &str) -> bool {
+            false
+        }
+        fn save(&mut self, _name: &str, _bytes: &[u8]) -> Result<(), String> {
+            Ok(())
+        }
+    }
+
+    fn app_on(map_wad: &str, map: u8) -> App {
+        let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../tests/reference");
+        let wad = std::fs::read(root.join(map_wad)).expect("map WAD");
+        let gfx = std::fs::read(root.join("m5b_gfx.wad")).expect("gfx WAD");
+        let data = GameData::load(&[&wad, &gfx], GameMode::Registered, map, 2).expect("data");
+        App::new(data, SessionConfig::default(), &mut NullHost)
+    }
+
+    /// The number of heading-coloured pixels of `text` drawn alone.
+    fn yellow_of(text: &str) -> usize {
+        let mut s = Screen::filled(0);
+        s.text(0, 0, text, YELLOW);
+        s.pixels().iter().filter(|p| **p == YELLOW).count()
+    }
+
+    /// Pins `App::end_screen`'s heading for a secret exit and for E1M8 (a private function: the
+    /// public API reaches only the exits the synthetic maps contain, and none of them is a secret
+    /// exit): the heading is the only yellow text of an exit screen, so the screen's yellow
+    /// pixel count is the heading's. E1M8 says "EPISODE 1 COMPLETE" for either exit; any other
+    /// map says "LEVEL COMPLETE", with ": SECRET EXIT" after a secret exit.
+    #[test]
+    fn the_exit_headings_follow_the_map_and_the_secret_flag() {
+        let level = yellow_of("LEVEL COMPLETE");
+        let secret = yellow_of("LEVEL COMPLETE: SECRET EXIT");
+        let episode = yellow_of("EPISODE 1 COMPLETE");
+        assert!(level != secret && level != episode && secret != episode);
+        let yellow = |app: &App, secret: bool| {
+            let s = app.end_screen(&Ending::Exit { secret });
+            s.pixels().iter().filter(|p| **p == YELLOW).count()
+        };
+        let one = app_on("m5a_wads/amp.wad", 1);
+        assert_eq!(yellow(&one, false), level);
+        assert_eq!(yellow(&one, true), secret);
+        let eight = app_on("m4b_wads/boss8.wad", 8);
+        assert_eq!(yellow(&eight, false), episode);
+        assert_eq!(yellow(&eight, true), episode);
+    }
+}
