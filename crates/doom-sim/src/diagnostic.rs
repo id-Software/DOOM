@@ -458,6 +458,20 @@ impl<'a> Diagnostic<'a> {
     fn required(&self, path: &str) -> Result<&'a [u8], DiagnosticError> {
         self.field(path).ok_or(DiagnosticError::Structure)
     }
+    /// The frame's `map.things` as the source loaded it: under DSIM41 (wire 25)
+    /// the records before the first Doom II type, which `P_LoadThings` of a
+    /// non-commercial game never reaches (p_setup.c:317-337; M5c review MAJOR 1),
+    /// so that every bound, total and lump-order witness counts the spawned
+    /// things only (`totalkills`, `totalitems`: p_mobj.c:790, 792); the whole
+    /// lump for every older version.
+    fn loaded_things(&self) -> Result<&'a [u8], DiagnosticError> {
+        let things = self.required("map.things")?;
+        Ok(if self.sounds {
+            crate::spawning::loaded_thing_records(things)
+        } else {
+            things
+        })
+    }
     /// DSIM39: the per-map bounds counted from the frame's `map.things`; `None`
     /// for every other version (and for a malformed lump, which the THINGS
     /// validators refuse).
@@ -469,7 +483,7 @@ impl<'a> Diagnostic<'a> {
             // Wire 24 counts the Baron (doomednum 3003) in `K` (M4b step 5), and
             // counts with the option bit of the frame's skill (step 6).
             return Episode1Bounds::from_thing_records_v2(
-                self.field("map.things")?,
+                self.loaded_things().ok()?,
                 self.v40_skill(),
             );
         }
@@ -1721,7 +1735,7 @@ impl<'a> Diagnostic<'a> {
         }
         // Lump order: each decoration of the thinker list matches the next unused
         // THINGS record with its spawnpoint bytes (x, y, angle, type, options).
-        let things = self.required("map.things")?;
+        let things = self.loaded_things()?;
         let mut records = things.chunks_exact(10);
         for handle in self.required("thinker.order")?.chunks_exact(12) {
             let slot = u32::from_le_bytes(number(&handle[..4])?) as usize;
@@ -1862,7 +1876,7 @@ impl<'a> Diagnostic<'a> {
         }
         // Lump order: each barrel of the thinker list matches the next unused THINGS
         // record with its spawnpoint bytes (a barrel is spawned only from the lump).
-        let things = self.required("map.things")?;
+        let things = self.loaded_things()?;
         let mut records = things.chunks_exact(10);
         for handle in self.required("thinker.order")?.chunks_exact(12) {
             let slot = u32::from_le_bytes(number(&handle[..4])?) as usize;
@@ -2040,7 +2054,7 @@ impl<'a> Diagnostic<'a> {
     /// slot (allocated in spawn order on the fresh store) lies between the number
     /// of those actors and the number of those records.
     fn validate_level_body(&self) -> Result<(), DiagnosticError> {
-        let things = self.required("map.things")?;
+        let things = self.loaded_things()?;
         if things.len() % 10 != 0 {
             return Err(DiagnosticError::Structure);
         }
@@ -2285,6 +2299,8 @@ impl<'a> Diagnostic<'a> {
         if things.len() % 10 != 0 || things.len() > bound {
             return Err(DiagnosticError::Limit);
         }
+        // DSIM41: the totals count the loaded prefix only (p_setup.c:317-337).
+        let things = self.loaded_things()?;
         let raw = || {
             things.chunks_exact(10).map(|t| {
                 (
