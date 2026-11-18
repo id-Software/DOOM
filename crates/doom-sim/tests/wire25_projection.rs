@@ -79,3 +79,45 @@ fn wire25_projects_to_wire24_on_every_m5c_item() {
         items.len()
     );
 }
+
+/// M5c review, MAJOR 1: under wire 25 the DSIM41 reader counts its per-map bounds
+/// (`K`, the counted items, the decorations and barrels) over the THINGS records
+/// `P_LoadThings` loads, the prefix before the first of the ten Doom II types
+/// (p_setup.c:317-337), since `totalkills` and `totalitems` count spawned things
+/// only (p_mobj.c:790, 792). Every capture of the committed T4 map and script
+/// (tests/reference/m5c_t4: a zombieman, type 65, a second zombieman and a
+/// stimpack after the start) is read back by `decode_episode1_v3`; wire 25 spawns
+/// the player and the first zombieman only, so `level.total_kills` is 1 although
+/// the lump places three monsters.
+#[test]
+fn every_t4_capture_decodes_with_the_dsim41_reader() {
+    let reference = root().join("tests/reference/m5c_t4");
+    let bytes = std::fs::read(reference.join("truncate.wad")).expect("wad");
+    let wad = doom_wad::Wad::parse(&bytes, doom_wad::Limits::default()).expect("wad parse");
+    let demo = std::fs::read(reference.join("TRUNC.lmp")).expect("demo");
+    let number = demo[3];
+    let map = doom_map::Map::from_wad(
+        &wad,
+        &format!("E1M{number}"),
+        doom_map::MapLimits::default(),
+    )
+    .expect("map");
+    let (header, demo) = parse_demo_episode1_v2(&demo, number).expect("demo parse");
+    assert_eq!(header.skill, 2);
+    let mut decoded = 0;
+    let out = wire25::run_alone(&map, number, Skill::Medium, &demo.commands, |tic, s| {
+        if tic == 0 {
+            assert_eq!(s.actor_order().count(), 2, "the player and one zombieman");
+            assert_eq!(s.level_statistics().expect("statistics").total_kills, 1);
+        }
+        let bytes = s.snapshot().canonical_bytes();
+        Diagnostic::decode_episode1_v3(&bytes, DiagnosticLimits::default())
+            .unwrap_or_else(|e| panic!("tic {tic}: DSIM41 reader: {e:?}"));
+        decoded += 1;
+    })
+    .expect("run");
+    assert_eq!(out.refused, None);
+    assert_eq!(decoded, out.captures);
+    assert_eq!(decoded, demo.commands.len() + 1);
+    println!("m5c_t4: {decoded} captures decoded by decode_episode1_v3");
+}
