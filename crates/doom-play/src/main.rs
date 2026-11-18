@@ -373,7 +373,8 @@ fn run(o: Options) -> Result<(), String> {
         unrecorded_full_turning: o.unrecorded,
         ..SessionConfig::default()
     };
-    // after the checks that can still refuse the launch; never waits during play
+    // after the checks that can still refuse the launch; during play the loop never waits for
+    // the device: it takes the queue's lock, which the callback holds only to copy one period
     let (audio, line) = Output::for_launch(o.no_sound, o.volume);
     if let Some(line) = line {
         eprintln!("{line}");

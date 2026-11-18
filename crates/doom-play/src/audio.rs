@@ -9,8 +9,10 @@
 //! why it failed, so the failure is loud.
 //!
 //! [`DeviceSink`] is the game's sink (§4.7.2): the game loop pushes each mixed buffer into a
-//! bounded [`Queue`] and never waits for the device; the device's callback, on the library's own
-//! thread, pulls frames from it. Underrun gives silence, overrun drops the oldest frames, and
+//! bounded [`Queue`] and never waits for the device to play anything; it does take the queue's
+//! lock, which the device's callback, on the library's own thread, holds only while it copies
+//! one period out (and the loop only while it copies one buffer in), so the loop can wait for
+//! at most one such copy. Underrun gives silence, overrun drops the oldest frames, and
 //! the player's volume and mute are a gain applied as frames leave the queue. All of this is
 //! presentation (decision T8): it receives the finished, proven stream and nothing flows back
 //! from it into the game. When no device opens, or with `--no-sound`, [`Output::Discard`]
@@ -176,9 +178,25 @@ pub const BUFFER_FRAMES: usize = 512;
 /// drops the oldest frames.
 pub const CAP_FRAMES: usize = 4 * BUFFER_FRAMES;
 
-/// The start threshold: the device's callback takes nothing from the queue until it holds one
-/// whole buffer, 512 frames, 46.4 ms (§4.7.2), and again after every underrun.
-pub const START_FRAMES: usize = BUFFER_FRAMES;
+/// The start threshold: the device's callback takes nothing from the queue until it holds two
+/// whole buffers, 1,024 frames, 92.9 ms at 11,025 Hz, and again after every underrun and every
+/// resume.
+///
+/// Why two (arithmetic, not measured): under the declared schedule (decision T5 part 2,
+/// doom-sound's `schedule` module) buffer k is handed over after tic floor(512k/315), that is at
+/// floor(512k/315)/35 s on the loop's clock, while a device running at exactly 11,025 Hz plays
+/// buffer k from 512k/11,025 s = (512k/315)/35 s after it starts: the two rates are equal, so
+/// the hand-over is never later than the device needs it but early only by the fraction
+/// (512k mod 315)/315 of a tic, which falls to 0 at every k that is a multiple of 315 (every
+/// 14.6 s). With one buffer as the threshold the margin after the start is therefore that
+/// fraction plus the callback's phase, at worst about one frame, and any sleep jitter of the
+/// loop or drift of the device's clock gives an underrun (a gap) early in every session and
+/// after every pause. Two buffers keep one whole buffer, 512 frames (46.4 ms), in hand at the
+/// worst point; the price is 46.4 ms more latency than one buffer (92.9 ms queued at the start,
+/// before the device's own buffering). The cap of four buffers is unchanged. This is
+/// presentation (decision T8): nothing here reaches the game, and none of it has been measured
+/// on a device.
+pub const START_FRAMES: usize = 2 * BUFFER_FRAMES;
 
 /// The player's volume, a percentage 0–100 applied to the finished stream at the device
 /// (decision T9). It never reaches the sound logic, whose volume stays the original default.
@@ -569,10 +587,24 @@ mod tests {
 
     #[test]
     fn the_numbers_are_those_of_the_specification() {
-        // §4.7.2: a start of 1 buffer (46.4 ms), a cap of 4 buffers (186 ms)
-        assert_eq!((BUFFER_FRAMES, START_FRAMES, CAP_FRAMES), (512, 512, 2048));
+        // a start of 2 buffers (92.9 ms; review-app N5), a cap of 4 buffers (186 ms, §4.7.2)
+        assert_eq!((BUFFER_FRAMES, START_FRAMES, CAP_FRAMES), (512, 1024, 2048));
         // latency by arithmetic (not measured): frames x 1000 / 11,025 in tenths of a ms
-        assert_eq!(START_FRAMES * 10_000 / 11_025, 464);
+        assert_eq!(START_FRAMES * 10_000 / 11_025, 928);
+        assert_eq!(BUFFER_FRAMES * 10_000 / 11_025, 464);
+        // the declared schedule hands buffer k over after tic floor(512k/315), never after the
+        // device needs it (512k/315 tics at 11,025 Hz), with no slack at k = 315: one buffer of
+        // threshold leaves no margin there, two leave one whole buffer
+        for k in 0..=630u64 {
+            let handed = (512 * k / 315) * 11_025; // in units of 1/(35 x 11,025) s
+            let needed = 512 * k * 35;
+            assert!(handed <= needed, "buffer {k}");
+        }
+        assert_eq!(
+            (512 * 315 / 315) * 11_025,
+            512 * 315 * 35,
+            "k = 315: no slack"
+        );
         assert_eq!(CAP_FRAMES * 10_000 / 11_025, 1857);
         assert_eq!(PERIOD_FRAMES as usize, BUFFER_FRAMES);
     }
@@ -588,18 +620,22 @@ mod tests {
         );
         q.push(&ramp(1));
         assert_eq!(q.len(), 512);
+        // one buffer is below the threshold of two: silence, no underrun
+        assert!(pull(&mut q, 100).iter().all(|f| *f == [0, 0]), "one buffer");
+        assert_eq!((q.len(), q.counters()), (512, Counters::default()));
+        q.push(&ramp(513));
         let got = pull(&mut q, 300);
         assert_eq!(got[0], [1, -1]);
         assert_eq!(got[299], [300, -300]);
-        // 212 frames left; a pull of 300 gives them and 88 frames of silence
-        let got = pull(&mut q, 300);
-        assert_eq!(got[211], [512, -512]);
-        assert!(got[212..].iter().all(|f| *f == [0, 0]));
+        // 724 frames left; a pull of 800 gives them and 76 frames of silence
+        let got = pull(&mut q, 800);
+        assert_eq!(got[723], [1024, -1024]);
+        assert!(got[724..].iter().all(|f| *f == [0, 0]));
         assert_eq!(
             q.counters(),
             Counters {
                 underruns: 1,
-                underrun_frames: 88,
+                underrun_frames: 76,
                 ..Counters::default()
             }
         );
@@ -610,8 +646,18 @@ mod tests {
         let mut next = [[0i16; 2]; BUFFER_FRAMES];
         next[0] = [7, 7];
         q.push(&next);
+        assert_eq!(
+            pull(&mut q, 1),
+            vec![[0, 0]],
+            "one buffer does not restart it"
+        );
+        q.push(&ramp(1));
         q.pull(&mut []);
-        assert_eq!(pull(&mut q, 1), vec![[7, 7]], "a whole buffer restarts it");
+        assert_eq!(
+            pull(&mut q, 1),
+            vec![[7, 7]],
+            "two whole buffers restart it"
+        );
         // an odd slice: the last sample is silence
         let mut out = [5i16; 3];
         q.pull(&mut out);
@@ -658,6 +704,7 @@ mod tests {
         assert!(pull(&mut q, 600).iter().all(|f| *f == [0, 0]), "silent");
         q.resume();
         q.push(&ramp(9));
+        q.push(&ramp(9));
         assert_eq!(
             pull(&mut q, 1),
             vec![[9, -9]],
@@ -666,6 +713,7 @@ mod tests {
         q.session_start();
         assert!(q.is_empty());
         assert!(pull(&mut q, 10).iter().all(|f| *f == [0, 0]));
+        q.push(&ramp(3));
         q.push(&ramp(3));
         assert_eq!(pull(&mut q, 1), vec![[3, -3]]);
         assert_eq!(q.counters(), Counters::default(), "no underrun was counted");
@@ -694,6 +742,7 @@ mod tests {
         // the gain is applied as frames leave the queue
         let mut q = Queue::new(half);
         q.push(&ramp(100));
+        q.push(&ramp(100));
         assert_eq!(pull(&mut q, 2), vec![[50, -50], [50, -50]]);
         assert!(q.toggle_mute());
         assert_eq!(pull(&mut q, 1), vec![[0, 0]], "muted frames still leave");
@@ -706,6 +755,7 @@ mod tests {
         let mut d = DeviceSink::headless(Volume::FULL);
         assert!(d._device.is_none());
         d.session_start();
+        d.buffer(&ramp(1));
         d.buffer(&ramp(1));
         let mut out = [0i16; 4];
         d.pull(&mut out);
