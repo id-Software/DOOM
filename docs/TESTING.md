@@ -2200,7 +2200,7 @@ python3 tools/reference/m5b_input_build.py --check                        # test
 
 # the genuine status bar, HUD and palette (C; Linux); the address variant runs with ASAN_OPTIONS=detect_leaks=0 (leak detection disabled)
 ASAN_OPTIONS=detect_leaks=0 python3 tools/reference/m5b_reference.py --work DIR --check [--pngs] [--selftest] [--jobs N]
-python3 tools/reference/m5b_reference.py --work DIR --strict32            # local opt-in (-m32, genuine text); never required
+python3 tools/reference/m5b_build.py --variant strict32 --out DIR         # local opt-in: builds the -m32 genuine-text runner only; m5b_reference.py has no --strict32 option (this line listed one until 2026-11-18)
 python3 tools/reference/m5b_reference.py --work DIR --only NAME[,NAME]    # a subset; writes nothing
 
 # the genuine input path (C; Linux)
