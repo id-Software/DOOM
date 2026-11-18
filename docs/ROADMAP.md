@@ -536,7 +536,9 @@ monster/player behavior. Further stages require separate owner direction.
     and the Windows artifact job (it ran successfully on the pull request), both fuzz targets, the README
     animation, two pairs of independent reviews with their fixes, the mutation runs (every survivor of the first
     three is killed by a test or argued equivalent), and frame-time and tic-jitter timings (WSLg only, recorded, not
-    gated). Remaining: the final gates (including a fourth mutation run on the final head) and the owner's review. [Support](COMPATIBILITY.md#playable-build-m5b) is written. Nobody has yet seen the
+    gated). The final gates were all run from a clean clone at `d5a4c4a` (2026-11-17/18; every one passed, including the
+    fourth mutation run; see [step 15](validation/M5B.md#step-15-final-gates-from-clean)). Remaining: CI on the exact final head, the
+    Windows artifact rebuilt on it, the pull request marked ready and the owner's review. [Support](COMPATIBILITY.md#playable-build-m5b) is written. Nobody has yet seen the
     picture or played with a real key or mouse; a human has to judge feel, latency and looks. See the
     [investigation note](M5B_REFERENCE_INVESTIGATION.md#4-owner-decisions-s1s23-with-recommendations).
   - **M5c (proposed; not started, owner-approved items only).** One item so far: close the status bar

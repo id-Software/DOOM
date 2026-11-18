@@ -9,10 +9,10 @@ source facts, the decisions S1-S23 (confirmed by the owner on 2026-11-17) and th
 render state and the `Display` state are saved as described in
 [STATE_FORMAT](../STATE_FORMAT.md#display-state-ddsp-version-1-m5b). Exact review state and CI belong to GitHub.
 
-This is the third documentation pass, written on 2026-11-17 (America/Los_Angeles). It adds the mutation record,
-the second pair of reviews and the CI notes. The final gates (step 15) and the fourth mutation run are not yet
-recorded; the "Not run" line of a step says what that step had not run when it was written, and later steps may have
-run it.
+This record was last extended on 2026-11-18 (America/Los_Angeles) with step 15, the final gates from a clean clone,
+and the fourth mutation run. The Windows artifact on the final head and CI on the exact head are not recorded here
+(GitHub holds them); the "Not run" line of a step says what that step had not run when it was written, and later
+steps may have run it.
 
 **Wording rule.** A frame is described as identical to the genuine engine under the declared sound-free,
 wipe-free contract (decision S15), never as identical to a vanilla session without that qualifier.
@@ -32,11 +32,11 @@ wipe-free contract (decision S15), never as identical to a vanilla session witho
 | 8 | 2026-11-17 | Recorded: the first play check and the focus-loss check ([below](#step-8-the-first-play-check)) |
 | 9 | 2026-11-17 | Recorded: CI ([below](#step-9-ci)) |
 | 10 | 2026-11-17 | Documentation: three passes and the status bar animation ([below](#step-10-the-status-bar-animation)) |
-| 11 | 2026-11-17 | Recorded: three mutation runs and every survivor's disposition ([below](#step-11-mutation-testing)); the fourth run, on the final head, is pending |
+| 11 | 2026-11-17 | Recorded: four mutation runs and every survivor's disposition ([below](#step-11-mutation-testing)); the fourth ran on the head of the final gates |
 | 12 | 2026-11-17 | Recorded: both fuzz targets ([below](#step-12-fuzz-targets)) |
 | 13 | 2026-11-17 | Recorded: frame time and tic jitter, WSLg only ([below](#step-13-timings)) |
 | 14 | 2026-11-17 | Recorded: two pairs of independent reviews and their fixes ([below](#independent-reviews-and-their-fixes)) |
-| 15 | not yet run | The final gates from a clean clone on ext4, the pull request body, the Windows artifact on the final head and CI on the exact head |
+| 15 | 2026-11-17 and 2026-11-18 | Recorded: the final gates from a clean clone on ext4 at `d5a4c4a` ([below](#step-15-final-gates-from-clean)). Still outside this record: the Windows artifact on the final head, CI on the exact head and the owner's review |
 
 No IWAD was read in steps 1 to 4, 6, 7 (except the one local real-map run named there), 7b, 9, 11 and 12. Steps
 5 and 8 and the local real-map run of step 7 read a scratch copy of the IWAD outside the repository; only counts,
@@ -479,13 +479,14 @@ Method and commands: [TESTING](../TESTING.md#ci-mutation-workflow-m4b). The `Mut
 with nextest, 16 shards, started by the `run-mutants` label on pull request #62; `-p doom-sim -p doom-render -p
 doom-game`, `--in-diff` against `origin/master`) was run three times on 2026-11-17. The disposition tables were
 written in scratch and are not committed (scratch is deleted at the end of the milestone), so this section carries
-their counts and reasons. A fourth run on the final head is listed last.
+their counts and reasons. The fourth run, on the head of the final gates, is listed last.
 
 | Run | Head | Mutants | Caught | Missed | Timeouts | Unviable |
 | --- | --- | ---: | ---: | ---: | ---: | ---: |
 | 1 (15 shards in CI, shard 3 locally) | `334cd4b` | 1,109 | 812 + 38 = 850 | 154 + 31 = 185 | 7 + 0 = 7 | 66 + 1 = 67 |
 | 2 | `3e8865b` | 1,237 | 1,140 | 22 | 0 (8 hidden, below) | 75 |
 | 3 | `8d167c9` | 1,237 | 1,152 | 10 | 0 (8 hidden, below) | 75 |
+| 4 | `d5a4c4a` | 1,246 | 1,154 | 10 | 6 | 76 |
 
 ### Run 1 at 334cd4b, and shard 3
 
@@ -597,8 +598,25 @@ ext4) and read every row against the C and the code; 25 "killed by a new test" r
 
 ### Fourth run
 
-**Fourth run, on the head of the final push: PENDING.** The final step fills in this line with the run's counts and
-the timeouts that cargo-mutants now reports itself.
+GitHub Actions run 44251763193 (workflow `Mutants`, started by the `run-mutants` label on the pull request at
+`d5a4c4a`, 2026-11-17 22:29 PST; 16 shards, the plan job and the summary job all succeeded). The shards' result
+files were downloaded and summed (read-only use of `gh`): **1,246 mutants: 1,154 caught, 10 missed, 6 timeouts, 76
+unviable** (1,154 + 10 + 6 + 76 = 1,246; the per-shard `outcomes.json` totals agree with the `.txt` lists).
+
+- **The 10 missed** are exactly the ten argued equivalent in run 3, at their current lines: `recorder.rs:44:31`,
+  `44:40`, `44:52`, `screens.rs:112:42`, `layer.rs:323:44`, `st_lib.rs:33:30`, `st_lib.rs:35:37`, `st_stuff.rs:230:16`,
+  `st_stuff.rs:339:48` and `d_display.rs:704:43` (the last was `693:43` at run 3; the file gained lines). No other
+  mutant was missed.
+- **The 6 timeouts** are reported as timeouts now that the wrapper's limit (330 s) is above cargo-mutants' own: the
+  five `input/queue.rs` mutants (`43:37`, `62:36`, `62:41`, `62:54` twice) and `v_video.rs:143:27`, all among the eight
+  endless-loop mutants of the run-2 review. Nothing else timed out.
+- **The two others of those eight** (`App::update`, now `mod.rs:718:50` `&&` to `||` and `720:17` `+=` to `*=`) were
+  recorded as caught with a failing test (nextest status 100) after 247.8 s and 244.9 s of the Test phase: they run
+  the session toward its cap of 1,048,576 tics and a test then fails, so they are caught by a test, not by the
+  wrapper. No mutant in the run had a Test phase over 200 s except those two.
+- So no missed or timed-out mutant is outside the eighteen known cases (the ten equivalents and the eight
+  endless-loop or tic-cap mutants). The total grew from 1,237 to 1,246 because of the review-fix code between
+  `8d167c9` and `d5a4c4a`. The result files are in scratch (`~/scratch/m5b/mutants4`) and are not committed.
 
 **Not run:** uncapped execution of the culprit (deliberately); the CI-equivalent two-job run locally; the three new
 `copy_bg` integration tests under cargo-mutants (the reviewer's probe killed the same three mutants).
@@ -898,6 +916,88 @@ cancelled at the limit with all of its steps passed; at 3e8865b it took 9 min 30
 split into parts; at 8d167c9 it took 7 min 10 s after the M5a frame tests were split. The limit was not changed: an
 attempt to raise it was blocked by the permission system and is left for the owner to decide.
 
+## Step 15: final gates from clean
+
+**Conditions.** Run on 2026-11-17 22:31 to 2026-11-18 00:39 (America/Los_Angeles; `date` checked) by one agent on an
+otherwise idle machine (`uptime` before the long phases: one-minute load average 0.13 at the start and 1.2 to 1.9 before the
+later phases, with nothing else running; it read 4.9 and 4.7 at the start of phases 3 and 5, right after the previous phase's own
+builds and tests). The tree was a fresh `git clone` of the repository
+at `/home/copgunn/scratch/m5b/gates/DOOM` on the Linux filesystem (ext4, never `/mnt/*`), checked out detached at
+`d5a4c4a43dd76ae15c78db28999c760feef70077` (`git rev-parse HEAD`, and `git status` empty at every check, the last after phase 6), with a fresh
+`target` directory inside the clone and `TMPDIR` on ext4. Tools: `rustc 1.100.0 (0ef1bc386 2026-11-09)`, `cargo 1.85.0
+(d73d2caf9 2024-12-31)` for `cargo +1.85.0`, `cargo 1.101.0-nightly (31d3246e0 2026-10-27)` with cargo-fuzz 0.13.2 for the fuzz
+builds, `gcc (Ubuntu 15.2.0-16ubuntu1) 15.2.0`, Python 3.14. The host has 12 threads and 7.8 GB of memory; C jobs ran
+up to 6 at a time (the owner's ruling for an idle machine); nothing was OOM-killed. The IWAD for phase 7 was the scratch
+copy; nothing derived from it is recorded beyond counts and verdicts. Wall times are of this machine, not of a CI
+runner. The scratch clone and logs were deleted at the end (the logs, 1.1 MB, are kept in scratch until the owner has
+read this record).
+
+**Disk (`df -h /mnt/c`, floor 20 GB, stop under 22 GB).** 28 GB free before the start and 28 GB after every phase
+(1, 2, 3, 4, 5, 6, 7 and the end); the Windows drive's figure did not move because the build output went to the
+distribution's own virtual disk (`df -h ~`: 891 GB free on a 1 TB ext4 disk at the start of phase 3). The debug target
+reached 21.1 GiB and was removed with `cargo clean` after phase 5; the fuzz target (2.8 GB) was deleted after phase 6.
+
+| # | Gate | Command (from the clone root) | Result | Wall time |
+| --- | --- | --- | --- | ---: |
+| 1a | Build | `cargo build --workspace --all-targets --locked` | passed | 94 s |
+| 1b | Format | `cargo fmt --all -- --check` and `cargo fmt --manifest-path fuzz/Cargo.toml --all -- --check` | both passed | 3 s, 4 s |
+| 1c | Clippy | `cargo clippy --workspace --all-targets --locked -- -D warnings` | passed, no warning | 28 s |
+| 1d | Tests | `cargo test --workspace --locked` | **1,742 passed, 0 failed, 4 ignored** | 316 s |
+| 1e | Rustdoc | `RUSTDOCFLAGS="-D warnings" cargo doc --workspace --no-deps --locked` | passed (warm after the build, so the time is small) | 6 s |
+| 2a | Release simulation and types | `cargo test -p doom-sim -p doom-types --release --locked` | **1,368 passed, 0 failed, 2 ignored** | 162 s |
+| 2b | Release renderer and game | `cargo test -p doom-render -p doom-game --release --locked` | **333 passed, 0 failed, 0 ignored** | 42 s |
+| 3 | Rust 1.85.0 | `cargo +1.85.0 test --workspace --locked` | **1,742 passed, 0 failed, 4 ignored**; one warning, the known dead-code `MAX_LINKED_THINGS` in `doom-sim` | **476 s (7 min 56 s)** |
+| 4a | Reference suite and the original-C and encoder steps of the `Stable` job | the Linux, non-Rust steps of `.github/workflows/rust.yml` job `stable`, extracted in order by script (63 steps, about 100 commands, of which `run_reference.py --suite --jobs 6` is the first; the workflow's `--jobs 4` became `--jobs 6`) | 62 passed first time; the 63rd (the `check_*.py` debug/release equality step, 23 commands) failed at once because this host has no `python` command, and passed (23 of 23, 60 s) when re-run with `python` pointing at `python3`; the suite reported "Passed 65 unchanged historical source/encoder commands with 6 worker(s)" and `evidence_storage.py verify-git` "19 original trace identities, 6,342 protected paths checked" | 1,568 s in all |
+| 4b | Instruction counts | `cargo +1.85.0 build -p doom-sim --examples --release --locked` then `python3 -I tools/bench_advance.py ir --check --jobs 6` | `threshold 3.0%: ok` | 65 s |
+| 5a | M5a tools | `m5a_gfx.py --check`, `m5a_check_gfx.py`, `m5a_wad.py --check`, `m5a_build.py --check`, `m5a_tables.py --check`, and `ASAN_OPTIONS=detect_leaks=0 m5a_reference.py --check --pngs --selftest --jobs 6` | all passed: 48 items, 192 golden files and `m5a_results.json` match, 35 PNGs, frames per configuration 13,391 / 13,391 / 13,403, the planted pixel found | 205 s for the last |
+| 5b | M5b generators | `m5b_gfx.py --check`, `m5b_check_gfx.py`, `m5b_wad.py --check`, `m5b_build.py --check`, `m5b_input_scripts.py --check`, `m5b_input_build.py --check` | all passed | under 2 s each |
+| 5c | M5b genuine frames | `ASAN_OPTIONS=detect_leaks=0 m5b_reference.py --check --pngs --selftest --jobs 6` | passed: 59 items, 118 golden files and `m5b_results.json` match, 15 PNGs, 21,176 frames per configuration at screenblocks 10 and 11, six self-test faults each found | 241 s |
+| 5d | M5b input | `ASAN_OPTIONS=detect_leaks=0 m5b_input_reference.py --check --selftest --jobs 6` | passed: 251 scripts, overflow and address identical to strict on 251 of 251, `m5b_input_results.json` and 251 goldens match (36,453 tics), four self-test faults found | 14 s |
+| 5e | M5b sessions | `ASAN_OPTIONS=detect_leaks=0 m5b_session.py --check --selftest --jobs 6` | passed: 4 sessions identical to the genuine engine under the declared sound-free, wipe-free contract; four faults found | 15 s |
+| 5f | M5b injection | `ASAN_OPTIONS=detect_leaks=0 m5b_inject.py --check --selftest --jobs 6` | passed: 6 scripts and 6 goldens identical to the genuine engine under the same contract; two faults found | 19 s |
+| 5g | Animation and docs | `python3 tools/media/m5b_readme_visual.py --check`; `python3 tools/check_docs.py` | the animation: 155 frames, 968 x 298, 0 differing pixels, 0 palette mismatches; docs: 142 Markdown files, 2,584 relative links, 798 anchors, 20 archives (before this section was added) | 38 s, 2 s |
+| 6a | Fuzz builds | `cargo +nightly fuzz build --sanitizer address` | all **55** committed targets built (55 executables) | 119 s |
+| 6b | Seed replays | the built binaries run with `-runs=0` on the committed seeds (`game_input_events` 5 files and `render_display_state` 7 files) and on `tools/seed_render_fuzz.py` output (`render_frames` 342 seeds, `render_data` 409 seeds) | all four exit 0, no crash, leak or report: 6 runs, 13 runs (4 s), 385 runs (661 s) and 411 runs (5 s) | as given |
+| 7a | Real maps | `cargo build --release --locked -p doom-render --example m5b_real`, then `ASAN_OPTIONS=detect_leaks=0 python3 tools/local/m5b_real.py --work DIR --rust target/release/examples/m5b_real --jobs 6 --iwad <scratch copy> --screenblocks 10,11 --check` | "61 records equal the committed tests/reference/m5b_real_results.json": per screen size 158,966 tics, 0 mismatched frames, 0 mismatched status fields or messages; 158,472 and 158,414 compared on the whole-frame digest and 494 and 552 on the masked digest; 698 messages | 1,676 s (28 min) at 6 jobs |
+| 7b | Recorded sessions | `python3 tools/local/m5b_session_real.py --iwad <copy> --lmp FILE [--screenblocks 11]` on the three saved first-play sessions of step 8 | 3 of 3 `VERDICT: PASS` (350 tics, commands, frames and 1,750 status fields each; strict, overflow and address identical; genuine end marker) | 24 s, 21 s, 40 s |
+
+**Fuzz campaigns on the final code** (phase 6; `-fork=2 -max_total_time=300 -seed=1 -timeout` 20 s for the first target and
+60 s for the second, `-rss_limit_mb=2048`, each on a fresh copy of the committed seeds; executions are the last periodic
+line, not a final total; no oom, timeout or crash in any of them, no artifact file written). These are bounded
+campaigns, not exhaustive coverage.
+
+| Target | Mode | Time | Executions | Coverage (cov) | Corpus | Findings |
+| --- | --- | ---: | ---: | ---: | ---: | --- |
+| `game_input_events` | coverage-guided, no sanitizer (`--sanitizer none`), `-max_len=1017` | 306 s | 13,376,027 | 344 | 526 | none |
+| `game_input_events` | AddressSanitizer, `ASAN_OPTIONS=detect_leaks=1`, `-max_len=1017` | 312 s | 4,696,176 | 640 | 538 | none |
+| `render_display_state` | coverage-guided, no sanitizer, `-max_len=70000` | 302 s | 3,720 | 6,008 | 576 | none |
+| `render_display_state` | AddressSanitizer, `detect_leaks=1`, `-max_len=70000` | 300 s | 952 | 11,749 | 226 | none |
+
+Leak detection was explicitly on (`detect_leaks=1`) for the seed replays and for the two AddressSanitizer campaigns, and
+no leak was reported. That LeakSanitizer works on this host was checked with a separate small C program (a planted leak
+was reported); it was not checked inside the fuzz binaries. Execution counts of `render_display_state` are small
+because its inputs are about 64 KB and each driven run encodes the state every tic.
+
+**Slips and re-runs, none a product failure.** (1) The first extraction script quoted the steps' text wrongly and its
+first steps failed at once; it was fixed and the whole phase re-run from the start. (2) The reference suite's six
+workers copy the evidence into `/tmp`, a 3.9 GB memory-backed file system here, which filled and failed the first
+complete attempt ("No space left on device"); the phase was re-run with `TMPDIR` on ext4 and passed. (3) The first
+AddressSanitizer campaign command had a typo in its `ASAN_OPTIONS` (the flag parser refused it at once, exit 1), and
+the `render_display_state` campaign running at that moment was stopped; both AddressSanitizer campaigns and the
+second no-sanitizer campaign were run again from the start, and the first no-sanitizer `game_input_events` campaign
+(it had the right options) is the one in the table. (4) The `python` command is missing on this host (see 4a).
+
+**What the gates did not include.** The machine could not run the `Stable` job's Windows and macOS legs, so the
+compile and test results on those systems, the `M5a genuine renderer` and `M5b genuine status bar, HUD and input`
+jobs on GitHub, the exact-head CI and the `Minimum Rust / 1.85.0` job's time on a hosted runner are GitHub's record,
+not this one's (item 3 above is the same command on this machine: 7 min 56 s against the job's 10-minute limit).
+Also not run: `--strict32` of any tool; a timing, benchmark or Callgrind timing (the instruction counts of 4b are
+counts); a fresh `--quit-after-tics` window session (phase 7b used the three sessions saved at step 8, which the
+headless app built at `d5a4c4a` replayed); the Windows artifact on the final head; any run on Windows or macOS; the
+two 30-minute M5a render fuzz campaigns (not repeated: the M5a evidence owns them); and mutation testing locally (the
+fourth run is GitHub's, above). `git diff --check master...HEAD` was run in the real tree after the gates and printed nothing. The release `doom-play` binary was not built in
+this step.
+
 ## What a human still has to judge
 
 Nobody has seen the picture on a screen, pressed a real key, moved a real mouse, checked mouse capture under
@@ -918,6 +1018,6 @@ frames it draws equal the genuine engine's under the declared contract; it canno
 
 ## Still to come in this record
 
-The fourth mutation run (step 11) and step 15: the final gates (build, both format checks, Clippy, workspace tests,
-release and rustdoc, Rust 1.85.0, every generator `--check`, a bounded sanitizer campaign and the fuzz builds) from a
-clean clone on ext4, the Windows artifact rebuilt on the final head, CI on the exact head, and the owner's review.
+The Windows artifact rebuilt on the final head (label `windows-artifact`), CI on the exact head, the pull request
+body posted and marked ready, and the owner's review. This record's step 15 was run at `d5a4c4a`; the commit that adds
+it is documentation only.
