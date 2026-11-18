@@ -15,7 +15,8 @@ fn reference(name: &str) -> PathBuf {
 }
 
 /// `I_SubmitSound` writes each buffer as 512 frames of two little-endian signed 16-bit samples,
-/// left first (i_sound.c:665-670, the device format `AFMT_S16_LE`, i_sound.c:788-789): the
+/// left first (the mixer interleaves left then right, i_sound.c:565-567; the write is
+/// i_sound.c:665-670; the device format is `AFMT_S16_LE`, i_sound.c:788-789): the
 /// recording sink's stream is the buffers' bytes concatenated in order, 2,048 bytes each.
 /// Kills app/audio.rs `RecordingSink::stream_bytes` -> `vec![1]`.
 #[test]

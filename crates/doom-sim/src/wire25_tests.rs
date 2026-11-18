@@ -841,7 +841,7 @@ fn add_to_box_second_point_with_the_same_x_sets_the_right_edge() {
 }
 
 /// A removed-or-not actor's current x, y are readable by handle (`Simulation::sound_origin_xy`):
-/// the player's body stands where its THING put it (`P_SpawnPlayer`, p_mobj.c:675-ff: x, y =
+/// the player's body stands where its THING put it (`P_SpawnPlayer`, p_mobj.c:662-665: x, y =
 /// the thing's x, y in 16.16) and is the listener's own position; a handle that does not
 /// resolve gives `None`.
 /// Kills sound.rs `Simulation::sound_origin_xy` -> `None`, `Some([-1; 2])`, `Some([0; 2])` and
@@ -858,7 +858,8 @@ fn sound_origin_xy_reads_the_actor_position() {
     assert!(at[0] > 1 || at[0] < -1 || at[1] > 1 || at[1] < -1);
     assert_eq!(s.sound_origin_xy(me), Some(at));
     assert_eq!(s.sound_listener().unwrap().xy, at);
-    // Every other actor reads its own position, which is not the player's.
+    // Every other actor reads its own position (the loop checks equality with the actor's
+    // record; it does not check that the position differs from the player's).
     let mut others = 0;
     for id in s.actor_order().filter(|id| *id != me) {
         let xy = s.sound_origin_xy(id).unwrap();

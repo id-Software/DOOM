@@ -1,7 +1,10 @@
 //! Tests written for the mutants the first M5c mutation run missed (cargo-mutants 27.1.0 at
 //! 216f976; docs/validation/M5C.md "Step 10"). Each test names the behaviour it pins, the C line
 //! or the written rule its expectation rests on, and the mutants of the run it kills. The
-//! expectations come from the C text and the documented rules, never from Rust output.
+//! expectations come from the C text and the documented rules, with three exceptions that say so
+//! where they stand: the caps test takes its bounds from the loaded set's own sizes, the
+//! provider test transcribes one genuine row and otherwise compares the provider with the
+//! simulation's own reading, and the saved-state size test pins the `DSND` layout.
 //!
 //! A test below the public API says why the public API cannot reach what it checks; here every
 //! test goes through public items.
@@ -465,9 +468,11 @@ fn an_inaudible_release_read_in_the_update_reaches_the_detector() {
 /// the simulation (M5c decision T12; p_spec.c:1151): in SNDBTN2 slot 0 releases while slot 1 is
 /// busy and the genuine stream's S row at tic 128 gives its position (34, 0)
 /// (tests/reference/m5c_sound/SNDBTN2.sound, S,128,6,23,button,0,...,34,0; M5C.md records the
-/// 64-bit runner reading 34, 0). The test finds that tic by the genuine row and checks the
-/// position through `SimulationPositions` at the state before it, and that the provider agrees
-/// with the simulation's own reading at every tic.
+/// 64-bit runner reading 34, 0). The tic (128) and the position (34, 0) below are transcribed
+/// from that row, not read from the file at run time; the test checks the position through
+/// `SimulationPositions` at the state before that tic, and that the provider agrees with the
+/// simulation's own reading at every tic (Rust against Rust: it shows the provider passes the
+/// reading on unchanged, not that the reading is the C's).
 /// Kills session.rs `<impl OriginPositions for SimulationPositions>::button_xy` -> `Some([0; 2])`.
 /// (A gate run cannot see this mutant: the update's use of the position is audibility only, and
 /// 34 raw units against 0 never change it, so the provider's value is checked directly.)
