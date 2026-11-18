@@ -612,3 +612,127 @@ fn a_glyph_ending_past_the_right_edge_ends_the_line() {
     text.push(a);
     assert_eq!(b.with_message(&text), b.with_message(&spaces(s)));
 }
+
+// ---------------------------------------------------------------------------------------------
+// the second run's survivors (3e8865b): `consistency_error` and `adjusted_input_error`
+// ---------------------------------------------------------------------------------------------
+
+/// The state checks of `DisplayState::check` for a face forged to `(faceindex, priority,
+/// facecount)` at tic 20 of M5MSG (health 100, so no dead face): the face rows of
+/// `consistency_error` by their edges (st_stuff.c:760-921; the doc of `check` lists them).
+/// Each forged state is inside every value range, so only the cross-field check can refuse it.
+/// Each case has the C reason and the mutant it kills (`d_display.rs` line:column of 3e8865b).
+#[test]
+fn the_face_rows_of_the_consistency_check_by_their_edges() {
+    let (b, good) = good_state();
+    assert_eq!(good.check(&b.sim).map(|_| ()), Ok(()));
+    // (faceindex, priority, facecount, refused as, why)
+    let cases: [(i32, i32, i32, Option<&str>, &str); 16] = [
+        // priority 0: a straight face (offset 0-2) with a count below ST_STRAIGHTFACECOUNT (17),
+        // as the doc of `DisplayState::check` lists it (st_stuff.c:760-921). 637:50.
+        (2, 0, 16, None, "straight face, count 16"),
+        (
+            2,
+            0,
+            17,
+            Some("face"),
+            "count 17 is never held (637:50 `<=`)",
+        ),
+        // priority 4, the god face with count 0 (the doc of `check`). Exactly one operand holds
+        // in each refused case: 638:47 `||`.
+        (40, 4, 0, None, "god face, count 0"),
+        (40, 4, 3, Some("face"), "god face, count 3 (638:47)"),
+        (2, 4, 0, Some("face"), "count 0, not the god face (638:47)"),
+        // priority 5, the rampage face (offset 7), count 0 (the doc of `check`). 639:20, 639:35.
+        (7, 5, 0, None, "rampage face, count 0"),
+        (
+            0,
+            5,
+            0,
+            Some("face"),
+            "count 0 but offset 0 (639:20, 639:35)",
+        ),
+        (7, 5, 3, Some("face"), "offset 7 but count 3 (639:35)"),
+        // priority 6: offset 7 with a count below 35 (the doc of `check`).
+        (7, 6, 34, None, "rampage face, count 34"),
+        (
+            7,
+            6,
+            35,
+            Some("face"),
+            "count 35 is never held (640:50 `<=`)",
+        ),
+        (
+            0,
+            6,
+            10,
+            Some("face"),
+            "offset 0 with a low count (640:20, 640:35)",
+        ),
+        // priority 7: a turned face and a count below 35 (641:96 `<=`).
+        (3, 7, 34, None, "turned face, count 34"),
+        (3, 7, 35, Some("face"), "count 35 is never held (641:96)"),
+        // priority 9: exactly the dead face and count 0 (the doc of `check`); the player's
+        // health is 100, so a state that passes the face row fails the dead-face row, and the
+        // two refusals have different names: 643:48 `||` turns "face" into "dead face".
+        (41, 9, 5, Some("face"), "dead face with count 5 (643:48)"),
+        (
+            39,
+            9,
+            0,
+            Some("face"),
+            "count 0, not the dead face (643:48)",
+        ),
+        (
+            41,
+            9,
+            0,
+            Some("dead face"),
+            "the face row holds, the health does not",
+        ),
+    ];
+    for (faceindex, priority, facecount, want, why) in cases {
+        let mut s = good.clone();
+        (s.status.faceindex, s.status.priority, s.status.facecount) =
+            (faceindex, priority, facecount);
+        let got = match s.check(&b.sim) {
+            Ok(_) => None,
+            Err(DisplayRestoreError::Inconsistent(name)) => Some(name),
+            Err(e) => panic!("{why}: {e:?}"),
+        };
+        // an accepted face may still fail the later rows only through the dead-face row, which
+        // a priority other than 9 at health 100 satisfies
+        assert_eq!(got, want, "{why}: ({faceindex}, {priority}, {facecount})");
+    }
+}
+
+/// `adjusted_input_error`'s `maxammo` row: the table or its double, per ammunition type
+/// (p_inter.c:58 `maxammo[] = {200, 50, 300, 50}`, and the backpack doubles it, p_inter.c:593).
+/// Each type's double is admitted alone (kills d_display.rs:522:43 `*`->`+` and `*`->`/`,
+/// which give 202/52/302/52 and 0) and the table's value plus 2 is refused.
+#[test]
+fn the_doubled_maxammo_of_each_type_is_admitted_and_the_sum_is_not() {
+    let loaded = load(&item("M5MSG"));
+    let cmd = loaded.3[20];
+    let b = base(loaded, 20);
+    let mut next = b.sim.clone();
+    step(&mut next, cmd);
+    let table = [200, 50, 300, 50];
+    for k in 0..4 {
+        let mut d = b.d.clone();
+        let r = d.observe_with(&next, &cmd, |i, _| {
+            assert_eq!(i.maxammo, table, "the table before the backpack");
+            i.maxammo[k] = 2 * table[k];
+        });
+        assert_eq!(r, Ok(None), "type {k} doubled");
+        let mut d = b.d.clone();
+        let r = d.observe_with(&next, &cmd, |i, _| i.maxammo[k] = 2 + table[k]);
+        assert_eq!(
+            r,
+            Err(doom_render::DisplayObserveError::AdjustedInputOutOfRange(
+                "maxammo"
+            )),
+            "type {k} plus two"
+        );
+    }
+}

@@ -1283,3 +1283,23 @@ fn the_pause_overlay_is_composed_on_a_half_bright_game_picture() {
     }
     assert!(lit > 1000, "the frame is not black");
 }
+
+/// Pins `App::end_screen`'s save line for a recorded session (kills app/mod.rs:841:18, the guard
+/// `!self.recorded()` replaced with true, which would put the unrecorded label on every end
+/// screen). Public route: the headless `App` ending at its tic cap with the demo saved; the
+/// screen says so (the app's own text, as `a_failed_save_shows_...` checks for the failed case) and does not carry the label
+/// that only a session without a demo shows (`every_ending_of_an_unrecorded_session_...`).
+#[test]
+fn the_end_screen_of_a_recorded_session_says_the_demo_is_saved_not_the_unrecorded_label() {
+    let cfg = SessionConfig {
+        tic_cap: 12,
+        ..SessionConfig::default()
+    };
+    let mut d = Driver::new(load("m5a_wads/amp.wad", 1, 2), cfg);
+    d.run(&[(13, &[In::Key(UP, true)])]);
+    assert_eq!(d.app.mode(), &Mode::Ended(Ending::TicCap));
+    assert!(d.app.recorded());
+    let pic = picture(&d.app);
+    assert!(shows(&pic, "DEMO SAVED:"));
+    assert!(!shows(&pic, UNRECORDED_LABEL));
+}
