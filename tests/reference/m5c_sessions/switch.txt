@@ -1,0 +1,40 @@
+# M5c session switch (scripted, not played by a person): a lift switch near the map's origin pressed and released,
+# a second one far from it, and a door.
+wad tests/reference/m5c_wads/sndbtn.wad
+map 1
+skill 2
+screenblocks 10
+frame 10000
+100 key up down          # walk east to the first switch
+1840 key up up
+2200 motion -256 0       # turn left to face north (two turns of 8192)
+2240 motion -256 0
+2400 key up down         # into the alcove
+2860 key up up
+3000 key use down        # the switch: swtchn (button slot 0 free: no origin), the lift's pstart and pstop
+3020 key use up
+3100 key down down       # step back
+3330 key down up
+4600 motion 256 0        # the release (35 tics after the press) plays swtchn from the button slot's origin; face east
+4640 motion 256 0
+4800 key up down         # walk east to the far switch
+9660 key up up
+10000 motion -256 0      # face north
+10040 motion -256 0
+10200 key up down
+10660 key up up
+10800 key use down       # the far switch; its release is out of earshot of the map's origin
+10820 key use up
+10900 key down down
+11130 key down up
+12400 motion 256 0       # face east
+12440 motion 256 0
+12600 key up down
+12940 key up up
+13300 motion 256 0       # face south
+13340 motion 256 0
+13500 key up down        # to the door
+14470 key up up
+14700 key use down       # the door: doropn, then dorcls when it closes
+14720 key use up
+23000 end
