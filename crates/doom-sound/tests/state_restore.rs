@@ -454,3 +454,68 @@ fn restore_refuses_a_configuration_other_than_the_callers() {
         Err(StateError::Detector)
     );
 }
+
+/// Review finding N1 (review-sound): a linked `sfx_chgun` saved before its one frame is mixed has
+/// position, end and remainder 0 (`lengths[0]` is 0, i_sound.c:103, 799, 808-811; `addsfx`,
+/// i_sound.c:330-332). Its state decodes, restores and continues exactly as the unbroken session.
+#[test]
+fn a_linked_sound_saved_before_its_frame_is_mixed_restores() {
+    struct Nowhere;
+    impl doom_sound::logic::OriginPositions for Nowhere {
+        fn actor_xy(&self, _: ActorId) -> Option<[i32; 2]> {
+            None
+        }
+        fn sector_xy(&self, _: u16) -> Option<[i32; 2]> {
+            None
+        }
+        fn button_xy(&self, _: u8) -> Option<[i32; 2]> {
+            None
+        }
+    }
+    let listener = doom_sound::logic::Listener {
+        actor: ActorId::from_parts(0, 0),
+        xy: [0, 0],
+        angle: 0,
+    };
+    // The edge WAD has dschgun (the main one does not: its first start would be refused).
+    let set = sound_set("m5c_sfx_edge.wad");
+    let config = SoundConfig::fresh(1, 0);
+    let mut s = Sound::new(set.clone(), config).unwrap();
+    let chgun = doom_sound::logic::SoundRecord::Start {
+        sfx: 86,
+        origin: SoundOrigin::None,
+        at: None,
+    };
+    s.tic(&[], 0, &listener, &Nowhere).unwrap();
+    s.tic(&[], 0, &listener, &Nowhere).unwrap();
+    // Tic 2 mixes no buffer (buffer 2 is due after tic floor(1024/315) = 3).
+    let t = s.tic(&[chgun], 0, &listener, &Nowhere).unwrap();
+    assert!(t.buffer.is_none());
+    let state = s.state();
+    let m = state
+        .mixer
+        .iter()
+        .flatten()
+        .next()
+        .expect("the chgun's mixer channel");
+    assert_eq!((m.sfx.get(), m.pos, m.end, m.frac), (86, 0, 0, 0));
+    let decoded = SoundState::decode(&state.encode()).expect("decodes");
+    assert_eq!(decoded, state);
+    let mut restored = Sound::from_state(set.clone(), &decoded, config).expect("restores");
+    assert_eq!(restored, s);
+    let a = s.tic(&[], 0, &listener, &Nowhere).unwrap();
+    let b = restored.tic(&[], 0, &listener, &Nowhere).unwrap();
+    assert!(a.buffer.is_some());
+    assert_eq!(a, b);
+    assert_eq!(s.mixer().mask(), 0, "its one frame freed it");
+    // Any other position-at-end channel is still refused.
+    let mut bad = state.clone();
+    let slot = bad.mixer.iter().position(Option::is_some).unwrap();
+    let mut c = bad.mixer[slot].unwrap();
+    c.frac = 1;
+    bad.mixer[slot] = Some(c);
+    assert_eq!(
+        SoundState::decode(&bad.encode()),
+        Err(StateError::Mixer(MixStateError::Position { slot }))
+    );
+}

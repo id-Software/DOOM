@@ -167,8 +167,19 @@ impl MixChannelState {
     /// The checks that need no sound set, for channel `slot`: the position below the end, the
     /// remainder in 16 bits, a `steptable` step, volume rows up to 127 and a handle in
     /// 100..=65535 ([`MixStateError`]).
+    ///
+    /// One busy channel has its position at its end: a linked sound (only `sfx_chgun`,
+    /// sounds.c:204) takes its link's data with the length `lengths[0]` (i_sound.c:808-811: the
+    /// pointer difference is divided by `sizeof(sfxinfo_t)` once more), which is 0 (a file-scope
+    /// array, i_sound.c:103, whose entry 0 the load loop from 1 never writes, i_sound.c:799), so
+    /// `addsfx` sets `channelsend` equal to the start (i_sound.c:330-332) and the channel stays
+    /// busy, position 0 and remainder 0, until the next buffer mixes its one frame and frees it
+    /// (i_sound.c:591-607). Exactly that state is accepted: a linked sound with position, end
+    /// and remainder 0.
     pub fn check(&self, slot: usize) -> Result<(), MixStateError> {
-        if self.pos >= self.end {
+        let linked_unmixed =
+            self.sfx.info().link.is_some() && self.pos == 0 && self.end == 0 && self.frac == 0;
+        if self.pos >= self.end && !linked_unmixed {
             return Err(MixStateError::Position { slot });
         }
         if self.frac > 0xffff {
@@ -196,7 +207,8 @@ pub enum MixStateError {
         /// The channel.
         slot: usize,
     },
-    /// The position is not below the end (a channel is freed when it reaches it, i_sound.c:606).
+    /// The position is not below the end (a channel is freed when it reaches it, i_sound.c:606),
+    /// except a linked sound that has not been mixed yet ([`MixChannelState::check`]).
     Position {
         /// The channel.
         slot: usize,
