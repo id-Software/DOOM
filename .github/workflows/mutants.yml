@@ -110,15 +110,19 @@ jobs:
           # they do not fail the shard; any other nonzero status does.
           # -p is repeated so a diff that touches only the renderer (M5a) or the
           # app core (M5b doom-game) is mutated too; doom-play (window code) is left out; --in-diff still limits mutation to the changed lines.
-          # Cap each test process (per process, not per job): a mutant that makes a loop
-          # endless and allocating must abort (reported as caught) instead of starving the
-          # runner of memory before any timeout fires. The cap reaches test executables
-          # only (cargo runner), not rustc. Bound: --jobs 2 x 2 test threads x 1.5 GB = 6 GB
-          # on the 16 GB runner.
+          # Cap each test process (per process, not per job). The memory cap is what
+          # protects the runner: a mutant that makes a loop endless and allocating must
+          # abort instead of starving the runner of memory before any timeout fires. The
+          # time limit is only a backstop for a test that outlives cargo-mutants: it sits
+          # above cargo-mutants' own --timeout (300 s) so that cargo-mutants reports an
+          # endless loop as a timeout itself (a lower limit here reported it as caught),
+          # and a stray looping test still dies 30 s later. The cap reaches test
+          # executables only (cargo runner), not rustc. Bound: --jobs 2 x 2 test threads
+          # x 1.5 GB = 6 GB on the 16 GB runner.
           cat > "$RUNNER_TEMP/capped-runner.sh" <<'EOS'
           #!/bin/bash
           ulimit -v 1500000
-          exec timeout 240 "$@"
+          exec timeout 330 "$@"
           EOS
           chmod +x "$RUNNER_TEMP/capped-runner.sh"
           export CARGO_TARGET_X86_64_UNKNOWN_LINUX_GNU_RUNNER="$RUNNER_TEMP/capped-runner.sh"
