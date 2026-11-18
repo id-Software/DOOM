@@ -7,9 +7,13 @@
 //! rectangle leaves the 320x200 screen is silently skipped (the `RANGECHECK` branch,
 //! v_video.c:221-232, "bad patch (ignored)"; `RANGECHECK` is defined unconditionally,
 //! doomdef.h:75). Where the genuine code stops (`I_Error("Bad V_CopyRect")`, v_video.c:182) or
-//! reads or writes outside an allocation (a post outside its lump, a write below the buffer,
-//! a copy from a background byte no patch wrote, a negative `memcpy` size), the frame is refused
-//! with a named [`DrawError`] (decision S17), never drawn differently.
+//! reads or writes outside an allocation or indeterminate memory (a post outside its lump, a
+//! write below the 32-row background, a copy from a background byte no patch wrote, a negative
+//! `memcpy` size), the frame is refused with a named [`DrawError`] (decision S17), never drawn
+//! differently. A post below row 199 of `screens[0]` is refused too, conservatively: the four
+//! screens are one allocation (v_video.c:489-492), so the genuine write lands in `screens[1]`
+//! and leaves the frame alone, but the refusal keeps the frame free of a write the C never
+//! intended.
 use crate::r_data::{PatchHeader, patch_column_offset, patch_header};
 use crate::{Resources, SCREENHEIGHT, SCREENWIDTH};
 
@@ -30,6 +34,9 @@ pub enum DrawError {
     /// A post of patch lump `lump` writes below the last row of its buffer: row 200 of
     /// `screens[0]` or row 32 of `screens[4]` (the range check tests 200 rows for every screen,
     /// v_video.c:221-224, and posts are not clipped to the patch height, v_video.c:248-257).
+    /// For `screens[4]` the write overruns its 32-row `Z_Malloc` block (st_stuff.c:1470); for
+    /// `screens[0]` it lands in `screens[1]` of the same allocation (v_video.c:489-492), so that
+    /// refusal is conservative, not required for memory safety.
     BeyondBuffer {
         /// The patch's lump number.
         lump: usize,

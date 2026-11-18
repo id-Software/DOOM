@@ -1,10 +1,10 @@
 //! The heads-up text line of hu_lib.c as the message widget uses it: one line
 //! (`HU_MSGHEIGHT` 1, hu_stuff.h:42) of a scrolling text (`hu_stext_t`, hu_lib.h:64-74) at
-//! (0, 0), up to `HU_MAXLINELENGTH` characters (hu_lib.h:36).
+//! (0, 0), up to `HU_MAXLINELENGTH` characters (hu_lib.h:37).
 use crate::SCREENWIDTH;
 use crate::v_video::{Canvas, DrawError, Patch, Screen};
 
-/// `HU_MAXLINELENGTH` (hu_lib.h:36).
+/// `HU_MAXLINELENGTH` (hu_lib.h:37).
 pub const MAXLINELENGTH: usize = 80;
 /// `HU_FONTSTART` (hu_stuff.h:30): the glyph of `'!'` is `hu_font[0]`.
 pub const FONTSTART: u8 = b'!';

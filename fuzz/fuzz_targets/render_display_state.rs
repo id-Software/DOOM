@@ -18,16 +18,20 @@
 //! the budget (`16 << (data[3] % 3)` tics); then six-byte records: forward, side, `angleturn`
 //! high byte, buttons (low six bits as a version-110 ticcmd, bits 6-7 the repeat 1, 2, 4, 8),
 //! then an `observe_with` perturbation (opcode `% 14`, value) applied on each repeated tic: the
-//! health, armour, ammunition, owned weapons, ready weapon, keys, damage and bonus counts,
+//! health (any value, including negative and near the `i32` limits), armour, ammunition, owned weapons, ready weapon, keys, damage and bonus counts,
 //! powers, godmode, attack-down, attacker, position, angle, or the message (none, short, empty,
 //! over 80 characters). Commands are clamped into the wire-24 domain. Properties: no panic or
-//! overflow; every `draw` is a frame with palette 0..=13 or a typed refusal; a refused `observe`
+//! overflow; an `observe` whose adjusted inputs no player state holds is a typed refusal
+//! (`AdjustedInputOutOfRange`); every `draw` is a frame with palette 0..=13 or a typed refusal;
+//! a refused `observe`
 //! or `draw` leaves `state()` equal to its value before; after every tic `state().encode()`
 //! decodes to an equal state that encodes to the same bytes; the state saved at the chosen tic,
-//! restored into a fresh `Display` beside a clone of the simulation, continues with the same
+//! restored into a fresh `Display` beside a clone of the simulation (or, once a perturbation
+//! has been applied, refused as `Inconsistent` with the simulation), continues with the same
 //! frames (hashed), palette numbers, faces, message flags and messages taken, and ends in the
 //! same encoded state. `-max_len=391` (4 + 6 x 64 bytes of records; part 0 takes the DDSP
 //! bytes of a room, about 65 KB, so run it with `-max_len=70000` or on its seeds).
+use doom_render::d_display::DisplayRestoreError;
 use doom_render::hu_stuff::Message;
 use doom_render::st_stuff::{Attacker, StatusInputs};
 use doom_render::{
@@ -210,7 +214,15 @@ fn part0(index: usize, k: u8, bytes: &[u8]) {
 fn perturb(op: u8, v: u8, i: &mut StatusInputs, m: &mut Option<Message>) {
     let (n, u) = (usize::from(v), i32::from(v as i8));
     match op % 14 {
-        1 => i.health = n as i32 * 8, // 0..=2040: P_DamageMobj clamps health at 0 (p_inter.c)
+        // any value: outside 0..=200 the display refuses (AdjustedInputOutOfRange)
+        1 => {
+            i.health = match v >> 6 {
+                0 => u,
+                1 => n as i32 * 8,
+                2 => i32::MAX - n as i32,
+                _ => i32::MIN + n as i32,
+            }
+        }
         2 => i.armor = u * 3,
         3 => i.ammo[n & 3] = u * 3,
         4 => i.weaponowned[n % 9] ^= true,
@@ -286,7 +298,8 @@ fn part1(index: usize, data: &[u8]) {
         let shown = show(&mut d, &sim, &cmd, |i, m| perturb(op, v, i, m));
         let stop = shown.0.is_err();
         log.push(shown);
-        if t == save {
+        // a refused observe leaves the display at the previous tic: nothing to save there
+        if t == save && !stop {
             saved = Some((sim.clone(), d.state().expect("state").encode()));
         }
         if stop {
@@ -299,8 +312,16 @@ fn part1(index: usize, data: &[u8]) {
     let state = DisplayState::decode(&bytes).expect("a saved state decodes");
     let mut d2 = display(index, screenblocks);
     d2.begin_level(&start(index)).expect("tic 0");
-    d2.restore(state, &sim2)
-        .expect("a state saved at this tic restores");
+    match d2.restore(state, &sim2) {
+        Ok(()) => {}
+        // perturbed inputs disagree with the simulation, which the restore checks refuse
+        Err(DisplayRestoreError::Inconsistent(_))
+            if cmds[..=save].iter().any(|c| c.1 % 14 != 0) =>
+        {
+            return;
+        }
+        Err(e) => panic!("a state saved at this tic does not restore: {e:?}"),
+    }
     for (t, &(cmd, op, v)) in cmds.iter().enumerate().take(log.len()).skip(save + 1) {
         assert!(step(&mut sim2, cmd));
         let shown = show(&mut d2, &sim2, &cmd, |i, m| perturb(op, v, i, m));

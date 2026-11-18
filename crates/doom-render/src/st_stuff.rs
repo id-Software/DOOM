@@ -269,7 +269,13 @@ impl StatusBarState {
 
     /// `ST_Ticker` (st_stuff.c:988-996): one `M_Random`, `ST_updateWidgets` and `st_oldhealth`.
     /// A removed attacker the face could read refuses the tic first (decision S17, as the genuine
-    /// runner does before the genuine `ST_Ticker`).
+    /// runner does before the genuine `ST_Ticker`). That refusal is wider than the C's read:
+    /// both refuse whenever `damagecount` is nonzero and the attacker is gone, but the genuine
+    /// face reads `attacker->x` and `->y` only in its attacker branch, that is with `priority`
+    /// below 8 and `health - st_oldhealth` at most `ST_MUCHPAIN` (st_stuff.c:798-817). With a
+    /// dead player (priority 9), an evil grin (8) or the reversed ouch test the genuine code
+    /// reads nothing freed, and the tic is refused all the same: a conservative refusal, never
+    /// a divergent frame.
     pub fn tick(&mut self, p: &StatusInputs) -> Result<(), Attacker> {
         if p.damagecount != 0 && p.attacker == Attacker::Removed {
             return Err(Attacker::Removed);
@@ -278,6 +284,14 @@ impl StatusBarState {
         let random = i32::from(rng.m_random());
         self.rndindex = rng.indices()[1];
         // ST_updateWidgets (st_stuff.c:924-986).
+        self.tick_widgets(p);
+        self.update_face(p, random);
+        self.oldhealth = p.health;
+        Ok(())
+    }
+
+    /// `ST_updateWidgets`' ready-ammunition pointer and key boxes (st_stuff.c:932-958).
+    pub(crate) fn tick_widgets(&mut self, p: &StatusInputs) {
         self.ready_ammo = WEAPON_AMMO[usize::from(p.readyweapon)];
         for i in 0..3 {
             self.keyboxes[i] = if p.cards[i] { i as i32 } else { -1 };
@@ -285,9 +299,6 @@ impl StatusBarState {
                 self.keyboxes[i] = i as i32 + 3;
             }
         }
-        self.update_face(p, random);
-        self.oldhealth = p.health;
-        Ok(())
     }
 
     /// `ST_updateFaceWidget` (st_stuff.c:752-922), with `random` the tic's `st_randomnumber`.

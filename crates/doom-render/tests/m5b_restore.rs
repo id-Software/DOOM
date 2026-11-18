@@ -14,13 +14,13 @@ mod m5b;
 
 use doom_render::d_display::DisplayRestoreError;
 use doom_render::hu_stuff::Message;
-use doom_render::st_stuff::Attacker;
+use doom_render::st_stuff::{Attacker, StatusInputs};
 use doom_render::v_video::DrawError;
 use doom_render::{
     Display, DisplayConfig, DisplayObserveError, DisplayRefusal, DisplayState, Frame,
     StateDecodeError,
 };
-use doom_sim::{PickupMessage, Simulation, TicCommand};
+use doom_sim::{PickupMessage, PlayerSlot, Simulation, TicCommand};
 use m5b::{Item, items, load, read_stream};
 
 fn item(lump: &str) -> Item {
@@ -351,4 +351,139 @@ fn restore_and_decode_refuse_bad_states() {
         DisplayState::decode(&bad.encode()).err(),
         Some(StateDecodeError::Invalid("keyboxes"))
     );
+}
+
+#[test]
+fn adjusted_inputs_no_player_state_holds_are_refused_before_any_change() {
+    let (mut d, sim, commands) = msg_display(20);
+    let mut next = sim.clone();
+    step(&mut next, commands[20]);
+    let before = encoded(&d);
+    type Probe = fn(&mut StatusInputs);
+    let probes: [(Probe, &str); 6] = [
+        (|i| i.health = -1, "health"),
+        (|i| i.health = 201, "health"),
+        (|i| i.readyweapon = 9, "readyweapon"),
+        (|i| i.damagecount = i32::MAX, "damagecount"),
+        (|i| i.bonuscount = i32::MAX, "bonuscount or powers"),
+        (|i| i.ammo[0] = i.maxammo[0] + 1, "ammo"),
+    ];
+    for (probe, name) in probes {
+        let r = d.observe_with(&next, &commands[20], |i, _| probe(i));
+        assert_eq!(r, Err(DisplayObserveError::AdjustedInputOutOfRange(name)));
+        assert_eq!(encoded(&d), before, "{name}");
+    }
+    // in range: observed and drawn, and the state still decodes and passes the checks
+    let r = d.observe_with(&next, &commands[20], |i, _| {
+        (i.health, i.damagecount, i.bonuscount) = (0, 100, i32::MAX - 7);
+    });
+    assert_eq!(r, Ok(None));
+    d.draw(&next, &mut Frame::new()).expect("draw");
+    let st = d.state().expect("state");
+    assert_eq!(DisplayState::decode(&st.encode()).as_ref(), Ok(&st));
+}
+
+#[test]
+fn restore_refuses_forged_states_whose_fields_disagree() {
+    let (mut d, sim, _) = msg_display(20);
+    let good = d.state().expect("state");
+    assert_eq!(good.check(&sim).map(|_| ()), Ok(()));
+    let before = encoded(&d);
+    type Forge = fn(&mut DisplayState);
+    let forged: [(Forge, &str); 12] = [
+        (
+            |s| (s.hud.message_on, s.hud.message_counter) = (true, 0),
+            "message_on and message_counter",
+        ),
+        (
+            |s| (s.hud.message_on, s.hud.message_counter) = (false, 9),
+            "message_on and message_counter",
+        ),
+        (|s| s.hud.must_show = true, "must_show or protected"),
+        (|s| s.hud.protected = true, "must_show or protected"),
+        (|s| s.status.oldhealth = 250, "oldhealth"),
+        (|s| s.status.keyboxes[0] = 0, "keyboxes or ready_ammo"),
+        (|s| s.status.lastattackdown = 0, "lastattackdown"),
+        // the dead face at health 100
+        (
+            |s| (s.status.faceindex, s.status.priority, s.status.facecount) = (41, 0, 16),
+            "face",
+        ),
+        (
+            |s| (s.status.faceindex, s.status.priority, s.status.facecount) = (41, 9, 0),
+            "dead face",
+        ),
+        // the ouch face at pain level 4, which needs a health above 19
+        (
+            |s| (s.status.faceindex, s.status.priority, s.status.facecount) = (37, 7, 3),
+            "face",
+        ),
+        (
+            |s| (s.status.faceindex, s.status.priority, s.status.facecount) = (6, 8, 70),
+            "face",
+        ),
+        (
+            |s| (s.status.faceindex, s.status.priority, s.status.facecount) = (40, 0, 0),
+            "face",
+        ),
+    ];
+    for (forge, name) in forged {
+        let mut bad = good.clone();
+        forge(&mut bad);
+        let bad = DisplayState::decode(&bad.encode()).expect("each field is in its range");
+        assert_eq!(
+            d.restore(bad, &sim),
+            Err(DisplayRestoreError::Inconsistent(name))
+        );
+        assert_eq!(encoded(&d), before, "{name}");
+    }
+    let (d0, sim0, _) = msg_display(0);
+    let mut start = d0.state().expect("state");
+    assert_eq!(start.check(&sim0).map(|_| ()), Ok(()));
+    start.status.oldhealth = 100;
+    assert_eq!(
+        start.check(&sim0).map(|_| ()),
+        Err(DisplayRestoreError::Inconsistent("oldhealth"))
+    );
+}
+
+#[test]
+fn a_removed_attacker_refuses_through_the_simulation() {
+    // M5FACED: imps hurt the player. The first tic with damage from an imp that has no
+    // fireball in flight, the imp's removal is marked through the simulation's own API
+    // (`Simulation::mark_remove`; wire 24 never removes a live monster, so the genuine runs have
+    // no such tic) and its storage retires in the next tic, while the damage count is still up.
+    let (res, level, mut sim, commands) = load(&item("M5FACED"));
+    let mut d = Display::new(res, level, DisplayConfig { screenblocks: 10 }).expect("display");
+    d.begin_level(&sim).expect("start");
+    let mut frame = Frame::new();
+    for (t, cmd) in commands.iter().enumerate() {
+        step(&mut sim, *cmd);
+        show(&mut d, &sim, cmd, &mut frame);
+        let p = sim.original_player(PlayerSlot::One).expect("player");
+        let Some(a) = p
+            .attacker
+            .filter(|a| p.damage_count >= 2 && Some(*a) != p.mo)
+        else {
+            continue;
+        };
+        let mut removed = sim.clone();
+        if removed.mark_remove(a).is_err() {
+            continue; // a fireball of this imp is in flight
+        }
+        step(&mut removed, commands[t + 1]);
+        let q = removed.original_player(PlayerSlot::One).expect("player");
+        if removed.actor(a).is_some() || q.attacker != Some(a) || q.damage_count == 0 {
+            continue;
+        }
+        let before = encoded(&d);
+        assert_eq!(
+            d.observe(&removed, &commands[t + 1]),
+            Err(DisplayObserveError::AttackerRemoved)
+        );
+        assert_eq!(encoded(&d), before);
+        eprintln!("attacker removed after tic {t}");
+        return;
+    }
+    panic!("no tic with a removable attacker");
 }

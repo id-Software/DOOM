@@ -10,8 +10,11 @@
 //!
 //! Frames, palette numbers, faces and messages are identical to the genuine engine under the
 //! declared sound-free, wipe-free contract (decision S15): the `M_Random` index is 0 at a new
-//! game and only the status bar ticker advances it, so the idle face's glance can differ from a
-//! vanilla session with sound; nothing else on screen depends on it.
+//! game and only the status bar ticker advances it. A vanilla session also draws it for sound
+//! and for the level-start melt (once per screen column, f_wipe.c:159-162), so the idle face's
+//! glance can differ from one; nothing else on screen depends on it. The evidence has two
+//! exclusions: 300 frames are compared only on a masked digest and 70 are not compared (counts
+//! asserted in tests/m5b_display.rs).
 //!
 //! Use: [`Display::new`], [`Display::begin_level`] at tic 0, then after every committed
 //! `Simulation::advance` [`Display::observe`] with the command fed, and [`Display::draw`] for a
@@ -51,6 +54,11 @@ pub enum DisplayObserveError {
     /// The face would read the position of an attacker whose thing has been freed
     /// (st_stuff.c:814-817; decision S17).
     AttackerRemoved,
+    /// [`Display::observe_with`]'s adjustment gave a status bar input no genuine player state
+    /// holds (health or armour outside 0..=200, ammunition outside 0..=its maximum, a maximum
+    /// other than the table or its double, a weapon number of 9 or more, a damage count outside
+    /// 0..=100, a negative bonus count or power); the input is named.
+    AdjustedInputOutOfRange(&'static str),
 }
 
 /// A refused frame. The display state is unchanged.
@@ -89,6 +97,9 @@ pub enum DisplayRestoreError {
     },
     /// A value outside the range the status bar and HUD produce.
     Value(&'static str),
+    /// Values that are each in range but that no run of one level from a fresh process gives
+    /// together, or that disagree with the simulation (see [`DisplayState::check`]).
+    Inconsistent(&'static str),
     /// The simulation's player cannot be read.
     Observe(DisplayObserveError),
     /// The state's screenblocks is not admitted.
@@ -290,8 +301,11 @@ impl Display {
     }
 
     /// [`Self::observe`] with the derived inputs adjusted by `adjust` before the tickers. For
-    /// the bespoke cheat scenario of decision S1 only: cheats are outside wire 24, so a test
-    /// applies their effect on the status bar inputs (`powers`, `godmode`) and the message.
+    /// the bespoke cheat scenario of decision S1 only (its golden test applies the cheats'
+    /// effect on the status bar inputs, `powers` and `godmode`, and the message, since cheats
+    /// are outside wire 24), the display's own refusal tests and the fuzz target; the app never
+    /// calls it. Adjusted inputs that no genuine player state holds are refused with
+    /// [`DisplayObserveError::AdjustedInputOutOfRange`] before any state changes.
     pub fn observe_with(
         &mut self,
         sim: &Simulation,
@@ -308,7 +322,13 @@ impl Display {
                     hu_stuff::message_text(m).ok_or(DisplayObserveError::MessageUnderivable(m))
                 })
                 .transpose()?;
+        let derived = inputs;
         adjust(&mut inputs, &mut message);
+        if inputs != derived {
+            if let Some(name) = adjusted_input_error(&inputs) {
+                return Err(DisplayObserveError::AdjustedInputOutOfRange(name));
+            }
+        }
         let mut status = self.status;
         status
             .tick(&inputs)
@@ -437,22 +457,13 @@ impl Display {
     }
 
     /// Restores a saved state next to the simulation at the same tic (its status bar inputs are
-    /// read from `sim`). On an error the display keeps its state.
+    /// read from `sim`), after [`DisplayState::check`]. On an error the display keeps its state.
     pub fn restore(
         &mut self,
         state: DisplayState,
         sim: &Simulation,
     ) -> Result<(), DisplayRestoreError> {
-        if state.render.tic != sim.tic() {
-            return Err(DisplayRestoreError::Tic {
-                state: state.render.tic,
-                simulation: sim.tic(),
-            });
-        }
-        if let Some(v) = value_error(&state.status, &state.hud) {
-            return Err(DisplayRestoreError::Value(v));
-        }
-        let inputs = status_inputs(sim).map_err(DisplayRestoreError::Observe)?;
+        let inputs = state.check(sim)?;
         let mut next = self.clone();
         next.set_screenblocks(state.screenblocks)
             .map_err(DisplayRestoreError::Config)?;
@@ -495,6 +506,39 @@ fn render_config(screenblocks: u8) -> Result<RenderConfig, ResourceError> {
     })
 }
 
+/// The first status bar input outside the values a genuine player state holds, by the writers
+/// of linuxdoom-1.10: `health` 0..=200 (clamped at 0, p_inter.c:871-872; at most 200,
+/// p_inter.c:385-386, 402-403, 412), `armorpoints` 0..=200 (p_inter.c:393-394; the armour
+/// pickups give at most 200), `maxammo` the table or its double (p_inter.c:58, 593), each `ammo`
+/// 0..=its `maxammo` (p_inter.c:107-108), `readyweapon` below `NUMWEAPONS` (doomdef.h:192),
+/// `damagecount` 0..=100 (p_inter.c:877-878), `bonuscount` and every power counter
+/// nonnegative. `bonuscount` has no cap in the C (`+= BONUSADD`, p_inter.c:184, 658); its bound
+/// `i32::MAX - 7` only keeps `ST_doPaletteStuff`'s `bonuscount + 7` (st_stuff.c:1032) in range.
+fn adjusted_input_error(i: &StatusInputs) -> Option<&'static str> {
+    let checks: [(bool, &'static str); 7] = [
+        ((0..=200).contains(&i.health), "health"),
+        ((0..=200).contains(&i.armor), "armor"),
+        (
+            (0..4).all(|k| [MAXAMMO[k], 2 * MAXAMMO[k]].contains(&i.maxammo[k])),
+            "maxammo",
+        ),
+        (
+            (0..4).all(|k| (0..=i.maxammo[k]).contains(&i.ammo[k])),
+            "ammo",
+        ),
+        (
+            usize::from(i.readyweapon) < i.weaponowned.len(),
+            "readyweapon",
+        ),
+        ((0..=100).contains(&i.damagecount), "damagecount"),
+        (
+            (0..=i32::MAX - 7).contains(&i.bonuscount) && i.powers.iter().all(|p| *p >= 0),
+            "bonuscount or powers",
+        ),
+    ];
+    checks.iter().find(|(ok, _)| !ok).map(|(_, name)| *name)
+}
+
 /// The bounds of every status bar and HUD value (the ranges st_stuff.c and hu_stuff.c produce).
 fn value_error(s: &StatusBarState, h: &HudState) -> Option<&'static str> {
     let face = -1..=st_stuff::DEADFACE;
@@ -522,6 +566,106 @@ fn value_error(s: &StatusBarState, h: &HudState) -> Option<&'static str> {
             "line",
         ),
         ((0..=4).contains(&h.line.needsupdate), "needsupdate"),
+    ];
+    checks.iter().find(|(ok, _)| !ok).map(|(_, name)| *name)
+}
+
+impl DisplayState {
+    /// The checks [`Display::restore`] makes, returning the simulation's status bar inputs: the
+    /// state is of `sim`'s tic, each value is in its range ([`DisplayRestoreError::Value`], as
+    /// [`DisplayState::decode`] checks), and the values agree with each other and with `sim` as
+    /// the C's writers keep them within one level of a fresh process (the only states the
+    /// display produces; [`DisplayRestoreError::Inconsistent`]):
+    ///
+    /// - `message_on` exactly while `message_counter` is nonzero: `HU_Ticker` sets both
+    ///   together and clears `message_on` when the counter runs out (hu_stuff.c:512-516,
+    ///   527-528; the chat and Enter-refresh writers, hu_stuff.c:562-564 and 661-662, also set
+    ///   both and are not reached), and both start cleared (hu_stuff.c:429 with a fresh
+    ///   process's counter 0);
+    /// - `must_show` and `protected` clear: only the menu's message toggle sets
+    ///   `message_dontfuckwithme` (m_menu.c:989), and `HU_Ticker` copies it into
+    ///   `message_nottobefuckedwith` (hu_stuff.c:529);
+    /// - `st_oldhealth` -1 at tic 0 (st_stuff.c:1268) and the player's health after every tic
+    ///   (st_stuff.c:994), at most 200 (p_inter.c:385-386, 402-403, 412);
+    /// - after tic 0, the key boxes and the ready ammunition as `ST_updateWidgets` derives them
+    ///   from the player (st_stuff.c:932-958);
+    /// - `lastattackdown` -1 or 1..=`ST_RAMPAGEDELAY`: it is reset to 1 in the tic it reaches 0
+    ///   (st_stuff.c:880-893);
+    /// - the face, by `priority` (st_stuff.c:760-921): 0 a straight face (offset 0-2) with
+    ///   `st_facecount` below `ST_STRAIGHTFACECOUNT`; 4 the god face; 5 the rampage face; 6 the
+    ///   rampage face; 7 a turned, head-on or ouch face; 8 the evil grin; 6-8 with a count below
+    ///   their set count; 4, 5 and 9 with count 0; 9 exactly the dead face, while the player's
+    ///   health is 0 after tic 0. A pain band is 0-4 (`ST_calcPainOffset` of a health of 0 or
+    ///   more), and the ouch face, which needs a health above 19, is in bands 0-3.
+    ///
+    /// Accepted on trust: the message line's text, `showMessages`, the palette and the widgets'
+    /// old values (which follow the last frame drawn, not the inputs), `oldweaponsowned`,
+    /// `st_firsttime` and `bg_drawn` against the embedded screen, the `M_Random` index and the
+    /// face's pain band against the current health (a face stays up after the health changes).
+    pub fn check(&self, sim: &Simulation) -> Result<StatusInputs, DisplayRestoreError> {
+        if self.render.tic != sim.tic() {
+            return Err(DisplayRestoreError::Tic {
+                state: self.render.tic,
+                simulation: sim.tic(),
+            });
+        }
+        if let Some(v) = value_error(&self.status, &self.hud) {
+            return Err(DisplayRestoreError::Value(v));
+        }
+        let inputs = status_inputs(sim).map_err(DisplayRestoreError::Observe)?;
+        match consistency_error(self, sim.tic(), &inputs) {
+            Some(e) => Err(DisplayRestoreError::Inconsistent(e)),
+            None => Ok(inputs),
+        }
+    }
+}
+
+/// The first cross-field check of [`DisplayState::check`] that fails.
+fn consistency_error(d: &DisplayState, tic: u64, i: &StatusInputs) -> Option<&'static str> {
+    let (s, h) = (&d.status, &d.hud);
+    let mut ticked = s;
+    let derived;
+    if tic != 0 {
+        let mut t = *s;
+        t.tick_widgets(i);
+        derived = t;
+        ticked = &derived;
+    }
+    let (band, offset) = (s.faceindex / 8, s.faceindex % 8);
+    let plain = s.faceindex < st_stuff::GODFACE;
+    let face = match s.priority {
+        0 => plain && offset <= 2 && s.facecount < 17,
+        4 => s.faceindex == st_stuff::GODFACE && s.facecount == 0,
+        5 => plain && offset == 7 && s.facecount == 0,
+        6 => plain && offset == 7 && s.facecount < 35,
+        7 => plain && (matches!(offset, 3 | 4 | 7) || offset == 5 && band <= 3) && s.facecount < 35,
+        8 => plain && offset == 6 && s.facecount < 70,
+        9 => s.faceindex == st_stuff::DEADFACE && s.facecount == 0,
+        _ => false,
+    };
+    let checks: [(bool, &'static str); 7] = [
+        (
+            h.message_on == (h.message_counter != 0),
+            "message_on and message_counter",
+        ),
+        (!h.must_show && !h.protected, "must_show or protected"),
+        (
+            s.oldhealth == if tic == 0 { -1 } else { i.health } && s.oldhealth <= 200,
+            "oldhealth",
+        ),
+        (
+            ticked.keyboxes == s.keyboxes && ticked.ready_ammo == s.ready_ammo,
+            "keyboxes or ready_ammo",
+        ),
+        (
+            s.lastattackdown == -1 || (1..=70).contains(&s.lastattackdown),
+            "lastattackdown",
+        ),
+        (face, "face"),
+        (
+            (s.priority == 9) == (tic != 0 && i.health == 0),
+            "dead face",
+        ),
     ];
     checks.iter().find(|(ok, _)| !ok).map(|(_, name)| *name)
 }
