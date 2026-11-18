@@ -63,12 +63,13 @@ this project and, locally, on all nine real Episode 1 maps. Today it can simulat
   scripted runs (local-only), leaving out screen columns where the original reads undefined memory and 105 test-map frames with an
   unrecorded switch state ([support](docs/COMPATIBILITY.md#software-renderer-m5a));
 - a status bar, messages, palette flashes, keyboard-and-mouse input and a window at 35 tics a second. Frames, including the
-  status bar face's idle glance, are identical to the genuine engine replaying the same session, with the same exceptions as
+  status bar face's idle glance, are identical to the genuine engine (linuxdoom-1.10 built with its in-process sound code, one
+  define removed) replaying the same session's demo under the declared sound schedule, with the same exceptions as
   before (300 synthetic frames compared only on the columns it defines, 70 not compared, and 494 and 552 real-map frames compared
   that way at the two screen sizes); the sessions checked replay in it ([support](docs/COMPATIBILITY.md#playable-build-m5b),
   [evidence](docs/validation/M5B.md), [with sound](docs/validation/M5C.md));
 - Doom's sound effects (no music): which sounds start, on which channel and at what volume, stereo position and pitch, and the
-  16-bit samples of the original's own mixer, all identical to the original code built with its in-process sound code (one
+  16-bit samples of the original's own mixer, all identical to linuxdoom-1.10 built with its in-process sound code (one
   define removed), on the 64 synthetic test runs, the 61 scripted real runs (local-only) and 9 scripted app sessions, under a
   declared schedule of one sound update per tic. **Nobody has heard it yet**: no game sound has reached any audio device, and what
   the speakers add (resampling, delay, volume) is not part of the claim ([support](docs/COMPATIBILITY.md#sound-effects-m5c));
@@ -157,8 +158,8 @@ cargo run --release -p doom-play -- --iwad /path/to/DOOM.WAD --map 1 --skill hmp
 - **Limits.** The status bar face's idle glance matches the genuine engine replaying your session's demo; a vanilla player's menu
   keys (Esc, `-`, `=`, F1 to F10), which start menu sounds, are not part of a demo and are not modelled. **An OpenGL 2.1 (or OpenGL
   ES 2) driver is required.** Under WSLg the game now and then opens already paused (the PAUSED box shows) because the window
-  reports a focus loss in its first moments; Esc or Pause resumes. It was seen in about 3 of 260 runs, also without any sound code,
-  and nobody has pressed a key in such a window. On focus loss the game pauses and releases every held key: seen under WSLg when a second window took the
+  reports a focus loss in its first moments; Esc or Pause resumes. It was seen in 3 of 260 runs in one check and 5 of 49 in an earlier
+  one, also with the build that has no sound code, and nobody has pressed a key in such a window. On focus loss the game pauses and releases every held key: seen under WSLg when a second window took the
   focus; Alt-Tab, minimising by hand, Windows, macOS and key release on screen are unchecked: press Esc first.
 - **Not yet judged.** Under Linux (WSLg) the window starts, loads the real game and has run idle sessions (no input) whose demos
   replay with every frame identical to the genuine engine (the M5b runs under the sound-free, wipe-free contract, the later checks

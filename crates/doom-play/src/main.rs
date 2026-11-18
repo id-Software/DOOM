@@ -68,7 +68,9 @@ usage: doom-play --iwad PATH [options]
 Keys: Esc or Pause pauses (then Esc or Pause resumes, R restarts, Q quits); on an end screen
 R restarts and Q or Esc quits. End mutes and unmutes the sound (the player's own key, never
 seen by the game); pausing also silences it. When the window library reports that the window
-was minimised or lost focus, the game pauses and every held key is released. Every session
+was minimised or lost focus, the game pauses and every held key is released. Under WSLg the
+window now and then reports a focus loss in its first moments, so the game can open already
+paused (the PAUSED box shows): Esc or Pause resumes. Every session
 (unless --unrecorded-full-turning) is recorded as a version-110 demo named
 E1M<map>-skill<n>-<yyyymmdd-hhmmss>.lmp (the time is UTC) in the sessions directory; an
 existing file is never replaced (a suffix -2, -3, ... is added). If writing the demo fails,
