@@ -2554,12 +2554,21 @@ ASAN_OPTIONS=detect_leaks=0 python3 tools/local/m5c_real_full.py --rust TARGET/r
 # the scripted app sessions against the genuine M5c runner, the input driver and the mixer (C and Rust; Linux; in CI)
 ASAN_OPTIONS=detect_leaks=0 python3 tools/reference/m5c_session.py --check --selftest --jobs 4 --work DIR   # tests/reference/m5c_session_results.json; writes nothing
 python3 tools/reference/m5c_session.py --work DIR [--only NAME]   # without --check: regenerates the results file
+# a session you played in doom-play with sound, local only (needs the example above; nothing is written or committed)
+python3 tools/local/m5c_session_real.py --rust TARGET/release/examples/m5c_real_rows --synthetic --work DIR   # no IWAD: the self-check (under a minute)
+python3 tools/local/m5c_session_real.py --rust TARGET/release/examples/m5c_real_rows --iwad SCRATCH/DOOM.WAD --lmp SESSION.lmp [--lmp SESSION2.lmp]... [--screenblocks 11] --work DIR
 ```
 
 - `m5c_real_full.py` runs, per real run, the genuine runner at screenblocks 10 and 11, a 32-bit build for sound,
   the genuine mixer and the example, and compares rows, frames and buffers; `--selftest` plants frame, face, mixer-buffer,
   volume and serial faults and requires each to be caught. The address variant is not in it (`m5c_real.py` has it); the
   `ASAN_OPTIONS` shown applies to the genuine runs it starts.
+- `m5c_session_real.py` checks demos that doom-play recorded with sound (pass each part of a restarted session): it
+  replays each through the example and through the genuine M5c runner (strict, overflow and address identical; address
+  with **leak detection disabled**) and the genuine mixer, and compares every frame at the session's screen size, every
+  sound-logic row and every mixer buffer, printing one `VERDICT: PASS` or `VERDICT: FAIL` line per demo with counts and
+  the first differing tic. `--synthetic` must pass on two committed synthetic demos and must catch three planted faults
+  (a changed demo byte, sound row and buffer digest) at their tic.
 - `m5c_session.py` plays the five scripts of `tests/reference/m5c_sessions` (its README cites the C) and the four M5b
   scripts through the example `m5c_session`, and checks the pause (no tic and no buffer between a pause and its resume),
   with `--selftest` planting seven faults. Address runs have **leak detection disabled**.
