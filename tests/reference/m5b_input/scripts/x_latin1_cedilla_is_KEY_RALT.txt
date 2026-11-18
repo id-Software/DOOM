@@ -1,0 +1,9 @@
+tic
+press 0xb8
+tic 2
+release 0xb8
+tic
+press Left
+tic
+release Left
+tic

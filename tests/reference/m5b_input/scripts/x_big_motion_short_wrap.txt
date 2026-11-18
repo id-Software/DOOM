@@ -1,0 +1,6 @@
+config grab 1
+tic
+motion 1300 2000
+tic
+motion -1300 -2000
+tic

@@ -1,0 +1,25 @@
+tic
+ev mouse 0 4064 0
+tic
+ev mouse 0 4080 0
+tic
+ev mouse 0 4095 0
+tic
+ev mouse 0 4096 0
+tic
+ev mouse 0 -4064 0
+tic
+ev mouse 0 -4080 0
+tic
+ev mouse 0 -4095 0
+tic
+ev mouse 0 -4096 0
+tic
+ev mouse 0 -4097 0
+tic
+ev mouse 0 8192 0
+tic
+ev mouse 0 262140 0
+tic
+ev mouse 0 -262140 0
+tic

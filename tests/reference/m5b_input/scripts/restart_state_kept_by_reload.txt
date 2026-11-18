@@ -1,0 +1,13 @@
+tic 3
+ev mouse 4 0 0
+tic 2
+ev mouse 0 0 0
+ev keydown 0xac
+tic 7
+loadlevel
+tic 2
+ev keyup 0xac
+ev mouse 4 0 0
+tic 2
+ev mouse 0 0 0
+tic 2

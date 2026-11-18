@@ -1,0 +1,134 @@
+{
+ "schema": "DOOM-M5B-SESSION-RESULTS-v1",
+ "contract": "frames identical to the genuine engine under the declared sound-free, wipe-free contract (decision S15)",
+ "variants": [
+  "strict",
+  "overflow",
+  "address"
+ ],
+ "gfx_sha256": "50d0f0f881e2347a3527405b97a8f5abd949cff923a7078d03ec8c20a40ca032",
+ "runner_contract_sha256": "32ad3ba939e12457a42ff08356c7ffed576ad2e305bcd9dcc4fb09fd6536d11b",
+ "asan_options": "detect_leaks=0 (leak detection disabled)",
+ "sessions": {
+  "amp_walk": {
+   "tics": 75,
+   "driver_demo_sha256": "18c180ab7ad069258bd2c0e9c80d8d3c02fe1877926ad65fa9b6a3a2de11dc7c",
+   "variants_identical": true,
+   "counts": {
+    "tics": 75,
+    "commands": 75,
+    "frames": 75,
+    "digests": 75,
+    "masked": 0,
+    "non_comparable": 0,
+    "fields": 375,
+    "messages": 1,
+    "dump_tics": 76
+   },
+   "genuine_end": "marker",
+   "frames_sha256": "50baa60d7a5c3ee51fe9f3493b024c6bbeafefd8c03640c9a4f3c2efb8530d6b",
+   "palettes": [
+    0,
+    10
+   ],
+   "faces": [
+    0,
+    1,
+    2
+   ],
+   "script_sha256": "caa5e00835fd6504475ef0bf5429e01c65442308f9a975345149f2c5a97d46b0"
+  },
+  "exits_secret": {
+   "tics": 61,
+   "driver_demo_sha256": "ecdbd51e664c4a2d0265273f65e052221f6d410ca6e0e1423e95a533f452c571",
+   "variants_identical": true,
+   "counts": {
+    "tics": 61,
+    "commands": 61,
+    "frames": 61,
+    "digests": 61,
+    "masked": 0,
+    "non_comparable": 0,
+    "fields": 305,
+    "messages": 0,
+    "dump_tics": 62
+   },
+   "genuine_end": "exit",
+   "frames_sha256": "302f7f9c6c626d9922aabf2d1716797d2f72f18dad62882ee053f4f78c68a5f6",
+   "palettes": [
+    0
+   ],
+   "faces": [
+    0,
+    1,
+    2
+   ],
+   "script_sha256": "9b546b6a8b237b3c900a2c3bfee7a32101bb016223a8a424a5d7798fdb80493c"
+  },
+  "palbonus_pickups": {
+   "tics": 145,
+   "driver_demo_sha256": "04aa261c4b313dc307167c5ce9a115c75189792675b701c526f0c75f23159fea",
+   "variants_identical": true,
+   "counts": {
+    "tics": 145,
+    "commands": 145,
+    "frames": 145,
+    "digests": 145,
+    "masked": 0,
+    "non_comparable": 0,
+    "fields": 725,
+    "messages": 4,
+    "dump_tics": 146
+   },
+   "genuine_end": "marker",
+   "frames_sha256": "2c4ddc268a1c83b4271a199eff7fc9af7a9a729cc389a2dec5b881d80fd1dee4",
+   "palettes": [
+    0,
+    10,
+    11,
+    12
+   ],
+   "faces": [
+    0,
+    1,
+    2
+   ],
+   "script_sha256": "ab3de261185b157730da7ddcbd26b8f6c327bf4101a3cd0d1fe07a812e436561"
+  },
+  "palred_damage": {
+   "tics": 155,
+   "driver_demo_sha256": "60fedf53e72a2362cae1dcbc92f93f174616f290fad68dce1d011c360e3b0bbb",
+   "variants_identical": true,
+   "counts": {
+    "tics": 155,
+    "commands": 155,
+    "frames": 155,
+    "digests": 155,
+    "masked": 0,
+    "non_comparable": 0,
+    "fields": 775,
+    "messages": 1,
+    "dump_tics": 156
+   },
+   "genuine_end": "marker",
+   "frames_sha256": "0c9f2e8875810d470d2a196966289675ae7acb070011fb5fabfe141a64b0f8db",
+   "palettes": [
+    0,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    10
+   ],
+   "faces": [
+    0,
+    2,
+    7
+   ],
+   "script_sha256": "eb84fd60c56481c9a238e785b7f701c8f944c22584e6ee4f2638359311c744be"
+  }
+ }
+}

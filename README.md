@@ -22,69 +22,61 @@ Software's code, down to every single step of game logic. (Rust DOOM is a workin
 
 *Both renderers drawing the same walks through three synthetic test rooms (walls, floors, sky, sprites, fuzz) with our own generated test art, not the game's: every frame is byte-identical, so the difference panel stays black ([how](docs/TESTING.md#readme-animations)).*
 
+![The genuine linuxdoom-1.10 engine, the Rust port and their per-pixel difference playing the same scripted session on a synthetic room: a pickup message with its bonus palette flash, then barrel damage with the red palette flashes and the face reacting](docs/media/m5b-status-bar-side-by-side.gif)
+
+*The genuine engine and the Rust port play one scripted session on a synthetic room with our own generated test art, not the game's: all 155 tics, with the status bar, message and palette numbers, are identical to the genuine engine under the declared sound-free, wipe-free contract, so the difference panel stays black ([how](docs/TESTING.md#readme-animations)).*
+
 ## Why this exists
 
-Most source ports (modern rewrites of a game's released source code) aim to be playable first and accurate
-second. This project works the other way round. It only accepts behavior that has been checked against the
-original Linux DOOM 1.10 C code (id Software's 1997 source release), comparing the entire game state after
-every tic, the 1/35-second step in which DOOM updates its world. Anything not yet proven identical is
-refused: the engine stops with an error instead of approximating.
+Most source ports (modern rewrites of a game's released source code) aim to be playable first and accurate second. This
+project works the other way round. It only accepts behavior checked against the original Linux DOOM 1.10 C code (id
+Software's 1997 source release), comparing the entire game state after every tic, the 1/35-second step in which DOOM
+updates its world. Anything not yet proven identical is refused: the engine stops with an error instead of approximating.
 
-That is what makes it fit for exact-behavior work once the ground is covered: replaying recorded demos
-(files of a player's inputs, which stay in sync only if every tic matches), speedrun and tool-assisted
-(TAS) research, and studying the original engine. Vanilla behavior (the original unmodified game, quirks
-included) is the default, and game math stays in Doom's whole-number arithmetic, with no decimals except
-the one division where the original used them. Once a behavior is admitted, nothing quietly rounds it
-differently.
+That makes it fit for exact-behavior work once the ground is covered: replaying recorded demos (files of a player's
+inputs, which stay in sync only if every tic matches), speedrun and tool-assisted (TAS) research, and studying the
+original engine. Vanilla behavior (the original unmodified game, quirks included) is the default, and game math stays in
+Doom's whole-number arithmetic (one division aside). Once a behavior is admitted, nothing quietly rounds it differently.
 
-**It is not playable yet.** If you want to play Doom today, use an established source
-port such as [Chocolate Doom](https://www.chocolate-doom.org/). Like every Doom engine, this one needs
-your own game files, such as those from a copy of Doom you bought.
+**It is only playable in a limited way** (one Episode 1 map at a time, no sound or menus; see [Play
+it](#play-it-limited)). To really play Doom, use an established source port such as [Chocolate
+Doom](https://www.chocolate-doom.org/). Like every engine, this one needs your own game files.
 
 ## Where it stands
 
-The engine runs DOOM's game logic and can draw the 3D view into an image. It is driven by tests and small
-example programs, on small test maps built for this project and, locally, on all nine real Episode 1 maps.
-Today it can simulate:
+The engine runs DOOM's game logic, draws the 3D view with the status bar and messages, and a limited playable build opens
+a window for one Episode 1 map at a time. It is checked by tests and small example programs, on small test maps built for
+this project and, locally, on all nine real Episode 1 maps. Today it can simulate:
 
-- one player who moves, uses switches and doors, takes damage and dies, with the fist, pistol, shotgun and
-  chaingun;
-- the Demon, Zombieman, Shotgun Guy, Chaingunner and Imp, which see, chase, attack and fight each other,
-  plus ammunition, health, armor and bonus pickups;
-- walls at any angle, steps and ledges, windows, sky, damaging floors, secret areas, flickering lights and
-  scrolling walls;
-- the doors, lifts, moving floors, switches and exit, lamps, pillars, corpses and exploding barrels (with
-  chain reactions) of E1M1, the first map;
-- every Episode 1 door, floor, lift, stair, donut, light and exit special, keys and locked doors,
-  powerups, the chainsaw, the rocket launcher and the Spectre;
-- teleporters, the Baron of Hell, the boss floor that opens when the E1M8 Barons die, and hard skill
-  (skill 3, as well as skill 2);
-- all nine real Episode 1 maps, E1M1 to E1M9, on skills 2 and 3, plus the original's own `DEMO1` as run by
-  the original code. All 61 scripted runs (idle, walking to the exit, fighting, dying and random commands
-  on each map, with a barrels run instead of dying on E1M1) run in sync with the genuine engine (the
-  original C code, built and run alongside the Rust code), tic for tic, using your own game files,
-  local-only ([evidence](docs/validation/M4B.md#real-maps-and-demo1)).
-- a software renderer for the 3D view (walls, floors, sky, lighting, monsters and the held weapon) that
-  draws the same image as the original code, pixel for pixel, on the test maps and on every frame of those
-  scripted runs (local-only), leaving out two kinds of pixels: screen columns where the original reads
-  undefined memory, and 105 test-map frames where it shows a switch state the game does not record. It
-  writes images and animations, no window yet ([support](docs/COMPATIBILITY.md#software-renderer-m5a));
-- on those maps, one tic of the simulation takes about 33–150 µs on an Intel Core i7-8750H laptop CPU
-  (6 cores, 2.2 GHz, Linux under WSL2), 1.8 to 7 times faster than before the performance work, with
-  every result unchanged
-  ([measurements](docs/validation/M4P.md#matched-timing)).
+- one player who moves, uses switches and doors, takes damage and dies, with the fist, pistol, shotgun and chaingun, against the
+  Demon, Zombieman, Shotgun Guy, Chaingunner and Imp, which see, chase, attack and fight each other, plus ammunition, health, armor
+  and bonus pickups;
+- walls at any angle, steps and ledges, windows, sky, damaging floors, secrets, flickering lights and scrolling walls;
+- E1M1's doors, lifts, floors, switches, exit, lamps, pillars, corpses and exploding barrels (with chain reactions), then every
+  Episode 1 door, floor, lift, stair, donut, light and exit special, keys, powerups, the chainsaw, the rocket launcher, the Spectre,
+  teleporters, the Baron of Hell, the E1M8 boss floor and hard skill (3);
+- all nine real Episode 1 maps, E1M1 to E1M9, on skill 2 (skill 3 on E1M5, E1M8 and E1M9), plus the original's own `DEMO1` as run by
+  the original code. All 61 scripted runs (idle, exit walks, fights, deaths, random commands) run in sync with the genuine engine
+  (the original C code, built and run alongside the Rust code), tic for tic, using your own game files, local-only
+  ([evidence](docs/validation/M4B.md#real-maps-and-demo1));
+- a software renderer for the 3D view that draws the same image as the original code on the test maps and on every frame of those
+  scripted runs (local-only), leaving out screen columns where the original reads undefined memory and 105 test-map frames with an
+  unrecorded switch state ([support](docs/COMPATIBILITY.md#software-renderer-m5a));
+- a status bar, messages, palette flashes, keyboard-and-mouse input and a window at 35 tics a second. Frames are identical to the
+  genuine engine under the declared sound-free, wipe-free contract, except 300 synthetic frames compared only on the columns it
+  defines, 70 not compared, and 494 and 552 real-map frames compared that way (size 10, size 11); the sessions checked replay in it
+  ([support](docs/COMPATIBILITY.md#playable-build-m5b), [evidence](docs/validation/M5B.md));
+- on those maps, one tic of the simulation takes about 33–150 µs on an Intel Core i7-8750H laptop CPU (6 cores, 2.2 GHz, Linux under
+  WSL2), 1.8 to 7 times faster than before, every result unchanged ([measurements](docs/validation/M4P.md#matched-timing)).
 
 What it cannot do yet:
 
-- open a window, draw the status bar, HUD or automap, play sound or offer menus, or play back the
-  original's recorded demos as the original program did (only the one local `DEMO1`, as run by the
-  original code, is covered);
-- claim a tic-for-tic match of any map for every input: only the scripted runs recorded so far;
-- handle the other episodes, or easy or nightmare skill, or reach every corner of a map the scripted runs
-  do not.
+- draw the automap, play sound or offer menus, an intermission or a next level, or play back the original's recorded demos (only the
+  one local `DEMO1`, as run by the original code, is covered);
+- claim a tic-for-tic match for every input (only the scripted runs recorded so far), handle the other episodes or easy or nightmare
+  skill, or reach every corner of a map the scripted runs do not.
 
-This is a long-term project, not a quick rewrite. Every behavior is checked against the original before
-it's admitted, so progress is measured in proven features, not weeks.
+This is a long-term project: progress is measured in proven features, not weeks.
 
 ## Which kind of Doom?
 
@@ -126,43 +118,59 @@ Ideas, not promises, one line each; the [roadmap](docs/ROADMAP.md#ideas-under-co
 
 ## How it's verified
 
-The original C source is the ground truth. Each supported behavior is run in both the original code and
-the Rust code, and the whole game state is compared after every tic. The expected results are recorded by
-a separate program written from the C output alone, so Rust is never checked against its own output.
-Sanitizers catch hidden memory and arithmetic errors while the original C code runs. Fuzzing feeds in huge
-numbers of random inputs to find anything that slips through. Mutation testing, which deliberately breaks
-the code, checks that the tests themselves notice. When something is not proven identical, the engine
-refuses it rather than guessing.
+The original C source is the ground truth. Each supported behavior is run in both the original code and the Rust code, and
+the whole game state is compared after every tic. The expected results are recorded by a separate program written from the
+C output alone, so Rust is never checked against its own output. Sanitizers catch hidden memory and arithmetic errors
+while the original C code runs, fuzzing feeds in huge numbers of random inputs, and mutation testing, which deliberately
+breaks the code, checks that the tests notice. Anything not proven identical is refused, not guessed.
+
+## Play it (limited)
+
+The `doom-play` program opens a window for one Episode 1 map (E1M1 to E1M9; skill `hmp` or `uv`). You need your own
+`DOOM.WAD` (read in place, never distributed). From the cloned top folder (`--help` lists every option):
+
+```sh
+cargo run --release -p doom-play -- --iwad /path/to/DOOM.WAD --map 1 --skill hmp --sessions /path/for/sessions
+```
+
+- **Controls.** The original's defaults: arrows move and turn, right Ctrl fires, Space uses, right Shift runs, `1`-`8` pick weapons,
+  mouse left fires (`--bindings modern` gives WASD). Esc pauses (R restarts, Q quits). Cheat codes do nothing.
+- **Sessions.** Each is saved as a demo, never over an existing file. Demos store turns in steps of 256 units, so tiny mouse turns
+  are rounded or lost; the opt-in `--unrecorded-full-turning` keeps them but records nothing ("not recorded: no demo, cannot be
+  replayed", also in a band over the picture for the first five seconds); its evidence is the committed synthetic scripts and
+  sessions only. With your IWAD and a C compiler, `python3 tools/local/m5b_session_real.py --iwad /path/to/DOOM.WAD --lmp FILE.lmp`
+  replays a saved session in the genuine engine and prints `VERDICT: PASS` or the first tic that differs.
+- **Missing.** Sound, menus, automap, saving, intermission, next level, wipes, easy and nightmare skill, multiplayer.
+- **Limits.** The status bar face's idle left, ahead or right glance differs from a vanilla session with sound until sound is modelled;
+  nothing else on screen is affected (the level-start melt, not modelled either, shares its random numbers). **An OpenGL 2.1 (or OpenGL
+  ES 2) driver is required.** On focus loss the game pauses and releases every held key: seen under WSLg when a second window took the
+  focus; Alt-Tab, minimising by hand, Windows, macOS and key release on screen are unchecked: press Esc first.
+- **Not yet judged.** Under Linux (WSLg) the window starts, loads the real game and has run idle sessions (no input) whose demos
+  replay with every frame identical to the genuine engine under the declared sound-free, wipe-free contract; scripted sessions ran
+  headless, not in the window. Nobody has looked at the picture, pressed a real key, moved a real mouse, tried mouse capture, or run
+  it on Windows or macOS beyond CI builds: how it looks and feels is unknown.
 
 ## Try it
 
-You need Rust via [rustup](https://rustup.rs/) (stable, or at least 1.85.0) and a C compiler (on Windows,
-the Visual Studio build tools) for a small test-only compression library. No game files are needed; it
-builds on Linux, Windows and macOS. From the cloned top folder:
+You need Rust via [rustup](https://rustup.rs/) (stable, or at least 1.85.0) and a C compiler (on Windows, the Visual
+Studio build tools) for a small test-only compression library. It builds on Linux, Windows and macOS. From the cloned top
+folder, build, test and run three scripted examples (each prints a one-line summary; none needs game files, graphics,
+audio or a network):
 
 ```sh
 cargo build --workspace --locked
 cargo test --workspace --locked
-```
-
-Three examples worth running:
-
-```sh
 cargo run -p doom-sim --example player_barrels --locked  # exploding barrels, chain reactions, monsters
 cargo run -p doom-sim --example player_movers --locked   # a player, monsters, doors, lifts and the exit
 cargo run -p doom-map --example parse_map --locked       # reading DOOM's map format
 ```
 
-Each runs a short scripted scene on a test map and prints a one-line summary. None needs an IWAD (the main
-game data file, such as `doom.wad`), a graphics card, audio or a network.
-
 ## Policies (for developers)
 
-New gameplay is switched on through optional policies, each selected explicitly and adding
-one slice of Doom to the one before. Older policies never change, so earlier results stay
-reproducible, much like compatibility levels. The number in brackets is the policy's
-identifier in saved test snapshots; earlier Demon profiles are under
-[versioned gameplay profiles](docs/COMPATIBILITY.md#versioned-gameplay-profiles).
+New gameplay is switched on through optional policies, each selected explicitly and adding one slice of Doom to the one
+before. Older policies never change, so earlier results stay reproducible, much like compatibility levels. The number in
+brackets is the policy's identifier in saved test snapshots; earlier Demon profiles are under [versioned
+profiles](docs/COMPATIBILITY.md#versioned-gameplay-profiles).
 
 | Policy (wire ID) | Adds | Contract |
 | --- | --- | --- |
@@ -191,26 +199,22 @@ identifier in saved test snapshots; earlier Demon profiles are under
 | `PlayerMonstersEpisode1V1` (23) | Episode 1, part 1: every door, floor, lift, stair, donut, light and exit special, keys, powerups, chainsaw, rocket launcher and Spectre: the real E1M2-E1M4, E1M6 and E1M7 runs | [Episode 1, part 1](docs/COMPATIBILITY.md#original-episode-1-part-1-every-door-floor-plat-stair-donut-light-and-exit-special-keys-items-powers-chainsaw-rocket-launcher-and-spectre-wire-23) |
 | `PlayerMonstersEpisode1V2` (24) | Episode 1, part 2: teleporters, the Baron of Hell and the E1M8 boss floor, hard skill: the real E1M5, E1M8, E1M9 and `DEMO1` runs | [Episode 1, part 2](docs/COMPATIBILITY.md#original-episode-1-part-2-teleporters-the-baron-of-hell-a_bossdeath-and-hard-skill-wire-24) |
 
+
 More developer reading:
 
-- [Compatibility](docs/COMPATIBILITY.md) states the limits of every policy, the
-  [validation guide](docs/VALIDATION.md) the method, and
-  [Testing](docs/TESTING.md#asserted-headless-examples) every example and check.
-- [Architecture](docs/ARCHITECTURE.md): the small crates and how
-  [actors and their ordering](docs/ARCHITECTURE.md#actors-lifecycle-and-ordering) work.
-- [Stepping contract](docs/COMPATIBILITY.md#stepping-and-diagnostics),
-  [actor identities](docs/ACTOR_IDENTITIES.md) and the [roadmap](docs/ROADMAP.md).
-- The [documentation index](docs/README.md) and the
-  [historical evidence archive](docs/validation/archive/README.md).
+- [Compatibility](docs/COMPATIBILITY.md) states the limits of every policy, the [validation guide](docs/VALIDATION.md)
+  the method, and [Testing](docs/TESTING.md#asserted-headless-examples) every example and check.
+- [Architecture](docs/ARCHITECTURE.md) and its [actor ordering](docs/ARCHITECTURE.md#actors-lifecycle-and-ordering), the
+  [stepping contract](docs/COMPATIBILITY.md#stepping-and-diagnostics), [actor identities](docs/ACTOR_IDENTITIES.md) and the
+  [roadmap](docs/ROADMAP.md).
+- The [documentation index](docs/README.md) and the [historical evidence archive](docs/validation/archive/README.md).
 
 ## Contributing
 
-Read [CONTRIBUTING.md](CONTRIBUTING.md): each change needs evidence from the original source, tests,
-documentation and owner review. The Python tools under `tools/` are a gentle place to start. Standing
-rules for AI agents are in [AGENTS.md](AGENTS.md).
+Read [CONTRIBUTING.md](CONTRIBUTING.md): each change needs evidence from the original source, tests, documentation and
+owner review. The Python tools under `tools/` are a gentle place to start; rules for AI agents are in [AGENTS.md](AGENTS.md).
 
 ## License and attribution
 
-The project preserves id Software's original source, history and attribution. The Rust workspace is
-GPL-2.0-only ([license notice](LICENSE.TXT), [original release README](README.TXT)). Commercial game
-data stays external and is never distributed here ([external asset guide](docs/ASSETS.md)).
+The project preserves id Software's original source, history and attribution. The Rust workspace is GPL-2.0-only ([license notice](LICENSE.TXT), [original release README](README.TXT)). Commercial game data stays
+external and is never distributed here ([external asset guide](docs/ASSETS.md)).

@@ -1,0 +1,100 @@
+config set mouse_sensitivity 9
+tic
+ev mouse 0 -1276 0
+tic
+ev mouse 0 -800 0
+tic
+ev mouse 0 -512 0
+tic
+ev mouse 0 -256 0
+tic
+ev mouse 0 -132 0
+tic
+ev mouse 0 -128 0
+tic
+ev mouse 0 -124 0
+tic
+ev mouse 0 -68 0
+tic
+ev mouse 0 -64 0
+tic
+ev mouse 0 -60 0
+tic
+ev mouse 0 -36 0
+tic
+ev mouse 0 -32 0
+tic
+ev mouse 0 -28 0
+tic
+ev mouse 0 -24 0
+tic
+ev mouse 0 -20 0
+tic
+ev mouse 0 -16 0
+tic
+ev mouse 0 -12 0
+tic
+ev mouse 0 -8 0
+tic
+ev mouse 0 -4 0
+tic
+ev mouse 0 0 0
+tic
+ev mouse 0 4 0
+tic
+ev mouse 0 8 0
+tic
+ev mouse 0 12 0
+tic
+ev mouse 0 16 0
+tic
+ev mouse 0 20 0
+tic
+ev mouse 0 24 0
+tic
+ev mouse 0 28 0
+tic
+ev mouse 0 32 0
+tic
+ev mouse 0 36 0
+tic
+ev mouse 0 60 0
+tic
+ev mouse 0 64 0
+tic
+ev mouse 0 68 0
+tic
+ev mouse 0 124 0
+tic
+ev mouse 0 128 0
+tic
+ev mouse 0 132 0
+tic
+ev mouse 0 256 0
+tic
+ev mouse 0 512 0
+tic
+ev mouse 0 800 0
+tic
+ev mouse 0 1276 0
+tic
+ev mouse 0 0 80
+tic
+ev mouse 0 0 52
+tic
+ev mouse 0 0 48
+tic
+ev mouse 0 0 24
+tic
+ev mouse 0 0 4
+tic
+ev mouse 0 0 -4
+tic
+ev mouse 0 0 -24
+tic
+ev mouse 0 0 -48
+tic
+ev mouse 0 0 -52
+tic
+ev mouse 0 0 -80
+tic

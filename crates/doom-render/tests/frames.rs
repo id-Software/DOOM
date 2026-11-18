@@ -26,13 +26,84 @@ mod common;
 use common::{Counts, FrameRow, Outcome, compare, harness, items, masked};
 use doom_render::{Frame, FrameReport, RenderRefusal};
 
+/// The work units, split into `PARTS` groups of near-equal work (golden frames, longest first
+/// onto the lightest group; ties by position, so the split is deterministic), so the groups run
+/// on parallel test threads. A unit is an item with its three configurations (screenblocks 11,
+/// 10, 9: the item runs through the simulation once), except an item of more than
+/// `SPLIT_FRAMES` golden frames (M5AMPFL alone: 12,690), which is one unit per configuration.
+/// Each group is its items with the configurations it owns. Every (item, configuration) is in
+/// exactly one group; `PART_COUNTS` and `the_parts_sum_to_the_totals` make a skipped one fail,
+/// and the guard compares the parts the `parts!` invocation generated tests for with `0..PARTS`,
+/// so a part whose test is deleted fails too.
+fn part_units(part: usize) -> Vec<(common::Item, Vec<u8>)> {
+    const SPLIT_FRAMES: usize = 4500;
+    let all = items();
+    let frames = |k: usize, sbs: &[u8]| -> usize {
+        sbs.iter()
+            .map(|&sb| common::genuine_frames(&all[k].lump, sb))
+            .sum()
+    };
+    let mut units: Vec<(usize, Vec<u8>)> = Vec::new();
+    for k in 0..all.len() {
+        if frames(k, &[11, 10, 9]) > SPLIT_FRAMES {
+            units.extend([11u8, 10, 9].map(|sb| (k, vec![sb])));
+        } else {
+            units.push((k, vec![11, 10, 9]));
+        }
+    }
+    let work: Vec<usize> = units.iter().map(|(k, sbs)| frames(*k, sbs)).collect();
+    let mut order: Vec<usize> = (0..units.len()).collect();
+    order.sort_by_key(|&u| (std::cmp::Reverse(work[u]), u));
+    let mut load = [0usize; PARTS];
+    let mut owner = vec![0usize; units.len()];
+    for u in order {
+        let lightest = (0..PARTS).min_by_key(|&p| (load[p], p)).expect("parts");
+        load[lightest] += work[u];
+        owner[u] = lightest;
+    }
+    units
+        .into_iter()
+        .enumerate()
+        .filter(|(u, _)| owner[*u] == part)
+        .map(|(_, (k, sbs))| (all[k].clone(), sbs))
+        .collect()
+}
+
+const PARTS: usize = 8;
+
+/// The counts of each part: (frames, not comparable, limit endings). They sum to the totals the
+/// original single test asserted: 13,391 + 13,391 + 13,403 = 40,185 frames, 105 (3 x 35)
+/// not comparable and 9 limit endings (VPLANES, OPENINGS and SOLIDSEGS at three configurations).
+const PART_COUNTS: [(usize, usize, usize); PARTS] = [
+    (5001, 0, 3),
+    (5007, 0, 3),
+    (4992, 0, 0),
+    (5052, 0, 0),
+    (5040, 0, 0),
+    (5073, 0, 0),
+    (5010, 105, 0),
+    (5010, 0, 3),
+];
+
 #[test]
-fn harness_runs_every_item_and_configuration() {
+fn the_parts_sum_to_the_totals() {
+    let sum = PART_COUNTS
+        .iter()
+        .fold([0; 3], |a, p| [a[0] + p.0, a[1] + p.1, a[2] + p.2]);
+    assert_eq!(sum, [13_391 + 13_391 + 13_403, 3 * 35, 9]);
+    assert_eq!(
+        GENERATED_PARTS,
+        (0..PARTS).collect::<Vec<_>>(),
+        "a test per part"
+    );
+}
+
+fn run_part(part: usize) {
     let mut total = Counts::default();
     let mut ends = Vec::new();
     let mut failures = Vec::new();
-    for item in items() {
-        let configs: &[u8] = &[11, 10, 9];
+    for (item, configs) in part_units(part) {
+        let configs: &[u8] = &configs;
         // Per item and configuration: the golden stream has a row for every tic from 0 and
         // the frame count `m5a_results.json` records, so a gap or a short golden cannot pass.
         let expected: Vec<usize> = configs
@@ -101,10 +172,12 @@ fn harness_runs_every_item_and_configuration() {
     }
     failures.truncate(60);
     assert!(failures.is_empty(), "{}", failures.join("\n"));
-    // The committed goldens hold 13,391 + 13,391 + 13,403 frames (docs/validation/M5A.md).
-    assert_eq!(total.frames, 13_391 + 13_391 + 13_403, "{total:?}");
+    // The committed goldens hold 13,391 + 13,391 + 13,403 frames (docs/validation/M5A.md); this
+    // part's share is fixed in `PART_COUNTS`, which sums to that.
+    let (frames, non_comparable, limit_ends) = PART_COUNTS[part];
+    assert_eq!(total.frames, frames, "{total:?}");
     // Every frame matches except M5SWTCH's parity-unknown frames (35 per configuration).
-    assert_eq!(total.non_comparable, 3 * 35, "{total:?}");
+    assert_eq!(total.non_comparable, non_comparable, "{total:?}");
     assert_eq!(
         total.matched,
         total.frames - total.non_comparable,
@@ -115,9 +188,28 @@ fn harness_runs_every_item_and_configuration() {
         (0, 0, 0),
         "{total:?}"
     );
-    // VPLANES, OPENINGS and SOLIDSEGS at three configurations.
-    assert_eq!(ends.len(), 9, "{ends:?}");
+    assert_eq!(ends.len(), limit_ends, "{ends:?}");
 }
+
+/// Generates one test per part and `GENERATED_PARTS`, the parts it generated tests for, in the
+/// order given.
+macro_rules! parts {
+    ($($name:ident: $part:expr),*) => {
+        $(#[test] fn $name() { run_part($part); })*
+        const GENERATED_PARTS: &[usize] = &[$($part),*];
+    };
+}
+
+parts!(
+    harness_part_0: 0,
+    harness_part_1: 1,
+    harness_part_2: 2,
+    harness_part_3: 3,
+    harness_part_4: 4,
+    harness_part_5: 5,
+    harness_part_6: 6,
+    harness_part_7: 7
+);
 
 /// The comparison can fail: a planted pixel change is a mismatch, a change inside a column
 /// the genuine tracker flagged is not, and a refusal is never a match.

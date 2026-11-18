@@ -1,0 +1,17 @@
+[package]
+name = "doom-play"
+description = "The playable port's window: miniquad window, presentation and input translation around doom-game's platform-free app"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+publish.workspace = true
+
+[dependencies]
+doom-game = { path = "../doom-game" }
+doom-render = { path = "../doom-render" }
+miniquad = "=0.4.11"
+
+[lints]
+workspace = true

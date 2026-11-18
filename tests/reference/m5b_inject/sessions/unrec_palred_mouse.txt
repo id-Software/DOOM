@@ -1,0 +1,21 @@
+# M5b step 7b unrecorded session (scripted, not played by a person): small mouse turns executed at full resolution, then
+# one shot at the barrel. Recorded, each of these turns would round to 0 and the shot would hit.
+wad tests/reference/m5b_wads/palred.wad
+map 1
+skill 2
+screenblocks 10
+700 motion 3 0           # turn -96 (low byte 0xa0)
+760 motion 3 0
+820 motion 3 0
+880 motion 3 0
+940 motion 3 0
+1000 motion 3 0
+1060 motion 3 0
+1120 motion 3 0
+1180 motion 4 0          # turn -128: dropped by a demo, executed here
+1240 motion 4 0
+1300 motion -4 0         # turn +128: rounded up to +256 by a demo
+1360 key fire down       # one shot
+1380 key fire up
+1400 motion 7 -3         # turn -224 with a little forward motion
+2400 end

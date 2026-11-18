@@ -514,17 +514,37 @@ monster/player behavior. Further stages require separate owner direction.
   custom Vulkan-first rendering direction across supported platforms as a future
   direction, not a commitment. Presentation must not change authoritative
   simulation or RNG.
-  - **M5a (faithful software renderer; draft [PR #61](https://github.com/Copgunn/DOOM/pull/61)).**
+  - **M5a (faithful software renderer; merged as [PR #61](https://github.com/Copgunn/DOOM/pull/61), merge commit 9a598b8, 2026-11-17; the post-merge CI run on master is green).**
     Phase 2 is implemented: the `doom-render` crate draws `R_RenderPlayerView`'s 3D view at high
     detail (screenblocks 9-11) and matches linuxdoom-1.10 on every synthetic frame in CI and on every
     frame of the scripted real Episode 1 runs (local-only); a local GIF viewer, a CI job for the
     genuine renderer, unit and contract tests and two fuzz targets are in. Owner decisions R1-R16 were
     confirmed 2026-11-15. Mutation testing (with an independent review of its dispositions), the
-    independent code review, fuzz campaigns and timings are recorded. Pending: the final gates from clean
-    and the owner's review; see the [investigation note](M5A_REFERENCE_INVESTIGATION.md) status
+    independent code review, fuzz campaigns and timings are recorded. See the
+    [investigation note](M5A_REFERENCE_INVESTIGATION.md) status
     line, [support](COMPATIBILITY.md#software-renderer-m5a) and the
     [evidence record](validation/M5A.md). Not part of M5a (M5b and later): status bar, HUD, automap,
     menus, palette flashes, window, input, sound, low detail, a modern renderer.
+  - **M5b (playable: window, input, status bar, HUD messages, palette flashes and the real-time loop on
+    the wire-24 simulation and the M5a renderer).** Phase 1, the investigation, is done (2026-11-17); owner
+    decisions S1–S23 were confirmed by the owner on 2026-11-17, and Phase 2 is at the review stage (draft
+    [PR #62](https://github.com/Copgunn/DOOM/pull/62); status on 2026-11-17). Done and recorded in the
+    [evidence record](validation/M5B.md): the genuine status bar, HUD and input harnesses, the Rust status bar,
+    HUD and `Display`, the input core, the app core and the `doom-play` window (a first play check and a
+    focus-loss check ran under WSLg), session verification against the genuine engine, all 61 real Episode 1
+    runs through the Rust display, the opt-in unrecorded full-resolution turning mode (S3 (ii)), the CI jobs
+    and the Windows artifact job (it ran successfully on the pull request), both fuzz targets, the README
+    animation, two pairs of independent reviews with their fixes, the mutation runs (every survivor of the first
+    three is killed by a test or argued equivalent), and frame-time and tic-jitter timings (WSLg only, recorded, not
+    gated). The final gates were all run from a clean clone at `d5a4c4a` (2026-11-17/18; every one passed, including the
+    fourth mutation run; see [step 15](validation/M5B.md#step-15-final-gates-from-clean)). Remaining: CI on the exact final head, the
+    Windows artifact rebuilt on it, the pull request marked ready and the owner's review. [Support](COMPATIBILITY.md#playable-build-m5b) is written. Nobody has yet seen the
+    picture or played with a real key or mouse; a human has to judge feel, latency and looks. See the
+    [investigation note](M5B_REFERENCE_INVESTIGATION.md#4-owner-decisions-s1s23-with-recommendations).
+  - **M5c (proposed; not started, owner-approved items only).** One item so far: close the status bar
+    face's idle glance gap (S15). Model the `M_Random` draws of sound starts and of the level-start wipe so
+    that the idle face's left, ahead or right glance matches a vanilla session with sound; until then, frames
+    are identical to the genuine engine only under the declared sound-free, wipe-free contract.
 - **Simulation follow-up (proposed, pending the owner): model the THING-loading truncation under a new
   wire.** `P_LoadThings` ends the whole THINGS loop at the first Doom II type (doomednums 64-69, 71, 84,
   88, 89) when `gamemode != commercial` (p_setup.c:317-337); wires 12-24 spawn such a type-65 THING and

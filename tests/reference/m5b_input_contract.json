@@ -1,0 +1,1994 @@
+{
+ "schema": "DOOM-M5B-INPUT-v1",
+ "revision": "a77dfb96cb91780ca334d0d4cfd86957558007e0",
+ "purpose": "Headless whole-file build of the genuine linuxdoom-1.10 input path (event queue, responders, G_BuildTiccmd, the defaults table, G_Ticker with the demo write and re-read, and the X translation of i_video.c against a declared fake Xlib), driven by event scripts. Expected commands come from the genuine code only, never from Rust output. No WAD is read.",
+ "whole_files": [
+  "d_main.c",
+  "g_game.c",
+  "m_misc.c",
+  "m_menu.c",
+  "hu_stuff.c",
+  "hu_lib.c",
+  "st_stuff.c",
+  "st_lib.c",
+  "am_map.c",
+  "m_cheat.c",
+  "m_argv.c",
+  "m_fixed.c",
+  "m_random.c",
+  "m_swap.c",
+  "m_bbox.c",
+  "tables.c",
+  "info.c",
+  "doomstat.c",
+  "doomdef.c",
+  "dstrings.c",
+  "d_items.c",
+  "sounds.c",
+  "i_video.c"
+ ],
+ "source_sha256": {
+  "am_map.c": "a439be31195ac73316978e770042813f51251e137758186aa5660856cb146d54",
+  "d_items.c": "76531d5366de1157cf3d8510ef749617cfc46b6e721845bda4324cd697028fe6",
+  "d_main.c": "a100743fc5e53273e749ffbd3af13f5d995020093f4942b25f6370ab6275ee2a",
+  "doomdef.c": "ec38f30185ae4cd79e3ccfc1a1f22489afdadb5cf5aad2e1b2c46133613c2807",
+  "doomstat.c": "12d068a8e82d2fa07baf608d8463d9a27dc0b609503d9ef76794de3c5edbf8d4",
+  "dstrings.c": "41cff21632b61f06ce84e0148341925f195acae0ceaa729a34beddfc3e918187",
+  "g_game.c": "bc8e2e0d76a70f8120174946641a82c46f0116a624f51c011b292e2ffcb78a29",
+  "hu_lib.c": "2e0f06d46e0c581bdc59fc66791c9001d23cca0c0e25983e1f74ac9095e8f3f3",
+  "hu_stuff.c": "0273745e404b2d151eb231fd4146e88d4fccef87412ac937c87ba7253141db5a",
+  "i_video.c": "6d5c85ca7e5e97ee3ac0ebb3e97e3fcf9e3c1769e21568872001742b2bb7a041",
+  "info.c": "e09631527669ee528bdae20a47be79e1cb33972b39964c33ac4814e1701a0949",
+  "m_argv.c": "f303d6d574b8d3aea6116d426db2e6b00de94b90c405c7b98ac4bb8dc3521dac",
+  "m_bbox.c": "98f3aea4f43d4d75fe452a25a65678fbd8368cfef3928b869767996e2165f42c",
+  "m_cheat.c": "e4baaf3be54d0c06b72d6c4af48c62ecbdde23f052bd421f4fed27689815973e",
+  "m_fixed.c": "a4472841bc8890c5d5a41b325ecf56d10d7026a7489967aa29100b5dee759fea",
+  "m_menu.c": "62d58889f7dcbdef4a52efd081beb33fed85d7ed46c35e6d7d634652d0ef3e50",
+  "m_misc.c": "97f8771f7ad72e0fa852e9f6940de770872baa9fe425775025cacbd14dde86b3",
+  "m_random.c": "8d89f5cfcbbd0170e46b55538c4c272b3cf5b5d7dce91023b8aa8d9b922b21ee",
+  "m_swap.c": "3622bd59399d7c0b740014fe75f2c2e222e4940a76782755298050e640e2f4bb",
+  "sounds.c": "d489534e93fdb20cad1757f6625913bddf10646ab3b21badbeafdc6cecc027d2",
+  "st_lib.c": "da10b839e317054a44108bf2401ec7c1c6a8eb9371ba45e42446037a69efba6b",
+  "st_stuff.c": "aaff5a9391d93d4d459a4a98594d67da410e88b360e3bdc20e96cb2bcba5f0d9",
+  "tables.c": "db8759f4311654c63785dcffb8f73a00a61cfe2713e4284c238dea420b6e5f89"
+ },
+ "header_sha256": {
+  "am_map.h": "75c3671cbc7f003e16cc50abe98fe824e595f1c3bf66c2c722e8597a015e40ed",
+  "d_englsh.h": "b018968e3aef65e0009d6ec676d40c8731b33e2882758640d3028c530c87a789",
+  "d_event.h": "24ba8629e157f4f76c4da0821a9f1bf71c34c2aec5cbc1ee4ec5898751225d22",
+  "d_french.h": "018e635134bb064b6c559407221629bc27bc400769d9074dc742510ac7d88086",
+  "d_items.h": "322a73acb345703c9f00ae7528900daa3a49bd27c670d5acee4196c1ded74bda",
+  "d_main.h": "adb0988d417528bdb689f5249cc650360f5a81936c797346d8390b80af0c4ca9",
+  "d_net.h": "54d77e10fe98e7ad640c711e7146f1440e4bd3f73e46d27905f9c19b8117ac3d",
+  "d_player.h": "9c9a342ab7c3661ab02d32890bd0d74ede94a0745ae0d622de83a9ae11046ffb",
+  "d_textur.h": "fac8baf1195a1a1a00f872271c7e159ad8b66a3632385128403ed99f99cf5ba1",
+  "d_think.h": "a8d3d4943495c729cd33b67eff1b56d801f1cf8cd0db74fb5d63b613c4eabddc",
+  "d_ticcmd.h": "2f70caa7c187365850e467254d8b0a31c07ea304d59339c68fde63d05274d146",
+  "doomdata.h": "f0504fd3926491ee56c61c8e9c732f0bf7e74306cba482eb267beda5022accca",
+  "doomdef.h": "643daca966fb762fa86f39ce9a1779355117578527bf2e295163647f9ad0d74e",
+  "doomstat.h": "c8b9eb311ec529a371c1c49dbd9a571ee07976dfd1bdc83d26b77ff6ba163355",
+  "doomtype.h": "e2b8da9ed44c6686a282af8e14a53b605ecc781d05ccd78579fcf57c720297e6",
+  "dstrings.h": "de1d24709df885ac93ddc5c1b86dbc2e0baad1027dde01ea09076d9e28778bc0",
+  "f_finale.h": "ee5cb17f104a894de9fed452dfad04df3e070a7bc70e65d9d336421f7dee9359",
+  "f_wipe.h": "fff2fb466d978eb4d482464899302830a377e305b0d31c9524072ec569cfaff0",
+  "g_game.h": "ab47e29d7506cda9a702073c451d6e533204e49a064a0ccc6e98ae4c5e9faa60",
+  "hu_lib.h": "611143caa98ef13992845fde571be9a9c3d944fa850ee2f2d8b0406aae9ed02e",
+  "hu_stuff.h": "09a1c0ef0434b0b46e9ea3b43232898b7b939b07bf18f302458227948d98579c",
+  "i_net.h": "0c32e01a687cda4e8db3f87ec38db53b7c4c9826e69a128f6dc7a2121a622f5a",
+  "i_sound.h": "7a4171979ac20b40c02969be19d404cbc77e4493aa69bb22c0eeaf1f9b8c519b",
+  "i_system.h": "426ccb2f2b29facaa80e0a43165bb62395ceda6dbb8ed27d0a3cfc99a91a6abc",
+  "i_video.h": "d9af47ac4d55f1acb0dd1060b663b8d2c085688a39807b101a9ff082800b4e42",
+  "info.h": "3e68ee6cc13323e69cbcf208e9a0af7b13867bead49e66d765abefa5d914b0dd",
+  "m_argv.h": "388205a8bda230f472caafac172a42621c72693f018e66c7c71389e4ea24c7b4",
+  "m_bbox.h": "fc041f774ff1f7b2b05d5bd8dd35a9496cf4dd4ca2a0a2df2420ac6f827b0b5d",
+  "m_cheat.h": "92f43c6df575a07bc394981f1beb1b901889f84bce67b557b8274f0379f0ae88",
+  "m_fixed.h": "67aa3925a905d448fb947fb7358093a39367f534c3e26e3f8b06228f553227ef",
+  "m_menu.h": "ccfc1f2abe50cbb78e83d2ec35eb3812003945f2d668e69551b5b2d56bfc4dfa",
+  "m_misc.h": "5cf237e545bd93d01a59f3696afa02073beedf8131ea23f30924fd5cc3891c7b",
+  "m_random.h": "31ec17387c9b7148f8e9762b71cccebaa199bffece76e1103bdb64f0ae615caa",
+  "m_swap.h": "04e76b9143f1d78a8f5cbb11b8d5022b2d5b0f18f644615384fa793f741ffd19",
+  "p_inter.h": "348edaf0dbbac0b455e54823d3e8bdab72ac210bf22cd17cffc519596661fa2a",
+  "p_local.h": "8d71f591ed5f26580042d991558c89d674b683f9cd1c2801ac7714de04b0185f",
+  "p_mobj.h": "85be6ea83fc4b5f95df666c68c8999f7fe5745a5f503d3a441afd66b5f7e5db0",
+  "p_pspr.h": "21b95a0eb8b901287be5077b780b809e5e4e296393cb63c8e02970646a8f8e67",
+  "p_saveg.h": "31457a112b24c4bd91df919c9e2c81add41019194492d320f81f2d837ed00bac",
+  "p_setup.h": "ffffe92a94edde836ca5d2d5db311d003ce03e1dcfe542d948ee8094f1637be0",
+  "p_spec.h": "95d93e2e3b803126b0ecf6ea42de41d2bce7b2d09ea701e03992f0cc6dae22a3",
+  "p_tick.h": "a0512fd19e760d5d43e477bfe4fabf686542bc21bc27daa87108cb703fc562a7",
+  "r_bsp.h": "08ca429757b65ac35798cf9f47ef9dea072e27a5b856fdf300c9fc2fcba5fac6",
+  "r_data.h": "4dbb1515b2e1be1e2496018365ebd37507f001ae449a181a54a894a70141ed1b",
+  "r_defs.h": "d8856503bea02282f5f338f3533885e87c6c430ce4f11511d6a04b5fc040db31",
+  "r_draw.h": "4ab1c0bbf7dba3712db71ba0ba7901184b2a35a8b6132db40bd0f6c87b74ccfe",
+  "r_local.h": "b92f15cbc8620b38de46512166244ba9f357de4fc8ef32be2f35088bc1cfd443",
+  "r_main.h": "9576bf120653af7127dcfd754f50e294b76be38bacb3b43f8686111a2dcd501b",
+  "r_plane.h": "abc99d0fc7845c8e9e73057b14a886b138046d5e432303c87fa5c34879f5903e",
+  "r_segs.h": "9343a51c57d93f13098118cfbc23377487b4063ec0dbf447c6aee8a7d0fd68ce",
+  "r_sky.h": "2c4a650afa36997ccb8ff97b7e1a5a0b25c1090a17c9e39b3d66e1d53ea9391e",
+  "r_state.h": "35a0d8f2e6a8f88ff100625708e54a6f04d22506319bef1c08033293e3ca22bd",
+  "r_things.h": "7e7a985f29f971e7e5c14c93c79f8d3462f4a42f5544d4c298a90df00561cf50",
+  "s_sound.h": "d747126bc8105ef540dee2f6f7e9f17db047dabb2c03a740ddc1bb9f98746b83",
+  "sounds.h": "fa5a6c19c689eeb6e4a2df08b1d4efe5c445b3d0cb4081dc3a7d28fdadfd39f8",
+  "st_lib.h": "8ae86cf219785672579e6dd75ce3a5abae2e9991c44af647d59f6bec384307c2",
+  "st_stuff.h": "0e2aad8828e13314e754c370da0c8cb61f08006c349fb1587ad28ea789ba4d85",
+  "tables.h": "54e366ed33a0bd65e5cad6c5b6f7df77573909e5974b8af296fdb1503c77fcf2",
+  "v_video.h": "728500c3b693d1baff1a43c5df6d0c6d55d1ec343247becd7db33c1be747635b",
+  "w_wad.h": "1c5f7a0f6ba41f1f6ce22440fb020596d0ea7b16742f9f2a044e9bc7d66e8abb",
+  "wi_stuff.h": "57ab19c222d6e54158b3fff8ea6ea23d23e7646925aab830b06cf8cfc1e84f5e",
+  "z_zone.h": "46498575b14b5f5538d0d93f3d7c8325941b76f0e36b435bb895ecaac6f54cca"
+ },
+ "adapted_sha256": {
+  "contract_builds": {
+   "d_main.c": "a100743fc5e53273e749ffbd3af13f5d995020093f4942b25f6370ab6275ee2a",
+   "g_game.c": "7b6129ce7ee0ca06c77bb774d3bb1356f3c3c040c8b985b58642d871fd485591",
+   "m_misc.c": "d4138ffeb08736f242a99f867a09797245f7b0504e54977836bd6c4dbb396f51",
+   "m_menu.c": "62d58889f7dcbdef4a52efd081beb33fed85d7ed46c35e6d7d634652d0ef3e50",
+   "hu_stuff.c": "0273745e404b2d151eb231fd4146e88d4fccef87412ac937c87ba7253141db5a",
+   "hu_lib.c": "2e0f06d46e0c581bdc59fc66791c9001d23cca0c0e25983e1f74ac9095e8f3f3",
+   "st_stuff.c": "aaff5a9391d93d4d459a4a98594d67da410e88b360e3bdc20e96cb2bcba5f0d9",
+   "st_lib.c": "da10b839e317054a44108bf2401ec7c1c6a8eb9371ba45e42446037a69efba6b",
+   "am_map.c": "a439be31195ac73316978e770042813f51251e137758186aa5660856cb146d54",
+   "m_cheat.c": "e4baaf3be54d0c06b72d6c4af48c62ecbdde23f052bd421f4fed27689815973e",
+   "m_argv.c": "f303d6d574b8d3aea6116d426db2e6b00de94b90c405c7b98ac4bb8dc3521dac",
+   "m_fixed.c": "a4472841bc8890c5d5a41b325ecf56d10d7026a7489967aa29100b5dee759fea",
+   "m_random.c": "8d89f5cfcbbd0170e46b55538c4c272b3cf5b5d7dce91023b8aa8d9b922b21ee",
+   "m_swap.c": "3622bd59399d7c0b740014fe75f2c2e222e4940a76782755298050e640e2f4bb",
+   "m_bbox.c": "98f3aea4f43d4d75fe452a25a65678fbd8368cfef3928b869767996e2165f42c",
+   "tables.c": "db8759f4311654c63785dcffb8f73a00a61cfe2713e4284c238dea420b6e5f89",
+   "info.c": "e09631527669ee528bdae20a47be79e1cb33972b39964c33ac4814e1701a0949",
+   "doomstat.c": "12d068a8e82d2fa07baf608d8463d9a27dc0b609503d9ef76794de3c5edbf8d4",
+   "doomdef.c": "ec38f30185ae4cd79e3ccfc1a1f22489afdadb5cf5aad2e1b2c46133613c2807",
+   "dstrings.c": "41cff21632b61f06ce84e0148341925f195acae0ceaa729a34beddfc3e918187",
+   "d_items.c": "76531d5366de1157cf3d8510ef749617cfc46b6e721845bda4324cd697028fe6",
+   "sounds.c": "d489534e93fdb20cad1757f6625913bddf10646ab3b21badbeafdc6cecc027d2",
+   "i_video.c": "6d5c85ca7e5e97ee3ac0ebb3e97e3fcf9e3c1769e21568872001742b2bb7a041"
+  }
+ },
+ "flags": {
+  "strict": [
+   "-std=gnu89",
+   "-O0",
+   "-fwrapv",
+   "-fno-strict-aliasing",
+   "-ffp-contract=off",
+   "-fexcess-precision=standard",
+   "-fsigned-char",
+   "-DNORMALUNIX",
+   "-DLINUX"
+  ],
+  "overflow": [
+   "-std=gnu89",
+   "-O0",
+   "-fno-strict-aliasing",
+   "-ffp-contract=off",
+   "-fexcess-precision=standard",
+   "-fsigned-char",
+   "-DNORMALUNIX",
+   "-DLINUX",
+   "-fno-wrapv",
+   "-fsanitize=signed-integer-overflow,integer-divide-by-zero,float-cast-overflow",
+   "-fno-sanitize-recover=all"
+  ],
+  "address": [
+   "-std=gnu89",
+   "-O0",
+   "-fno-strict-aliasing",
+   "-ffp-contract=off",
+   "-fexcess-precision=standard",
+   "-fsigned-char",
+   "-DNORMALUNIX",
+   "-DLINUX",
+   "-fno-wrapv",
+   "-fsanitize=address,undefined",
+   "-fno-sanitize-recover=all",
+   "-fno-sanitize=alignment"
+  ]
+ },
+ "variant_notes": {
+  "overflow": "run as is",
+  "address": "run with ASAN_OPTIONS=detect_leaks=0 (leak detection disabled; not LeakSanitizer coverage); -fno-sanitize=alignment because z_zone.c rounds block sizes to 4 (z_zone.c:195) while the LP64 memblock_t needs 8-byte alignment"
+ },
+ "optional_variants": {
+  "strict32": {
+   "flags": [
+    "-std=gnu89",
+    "-O0",
+    "-fwrapv",
+    "-fno-strict-aliasing",
+    "-ffp-contract=off",
+    "-fexcess-precision=standard",
+    "-fsigned-char",
+    "-DNORMALUNIX",
+    "-DLINUX",
+    "-m32"
+   ],
+   "note": "genuine text, no adapter (ILP32 target); needs a 32-bit toolchain; run only by m5b_input_reference.py --strict32 and never required"
+  }
+ },
+ "file_flags": {
+  "m_misc.c": [
+   "-include",
+   "stdint.h"
+  ]
+ },
+ "include_dirs": [
+  "tools/reference/m5b_fakex",
+  "<build>/src (the genuine headers)"
+ ],
+ "link_flags": [
+  "-Wl,--wrap=D_PostEvent,--wrap=M_Responder,--wrap=G_Responder,--wrap=HU_Responder,--wrap=ST_Responder,--wrap=AM_Responder"
+ ],
+ "wrapped": [
+  "D_PostEvent",
+  "M_Responder",
+  "G_Responder",
+  "HU_Responder",
+  "ST_Responder",
+  "AM_Responder"
+ ],
+ "abi_adapters": [
+  {
+   "file": "m_misc.c",
+   "line": 229,
+   "original": "    int\t\tdefaultvalue;",
+   "adapted": "    intptr_t\tdefaultvalue;",
+   "original_sha256": "f4d6acd8af59c63c3f37f1682e2188c24e9938e55636732326d74b0de8bb91d4",
+   "adapted_sha256": "286a7f737deee0c13a9d14f3126fe349d97b8503645dc8cdc11aad9ef41fa873",
+   "builds": [
+    "strict",
+    "overflow",
+    "address"
+   ],
+   "reason": "default_t stores string pointers in an int (m_misc.c:257, 264-265, 288-297); under LP64 a pointer does not fit and GCC rejects the 13 string initialisers (\"initializer element is not constant\"). intptr_t holds both the integer and the pointer rows; strict32 compiles the genuine text, where int and pointers have the same width."
+  },
+  {
+   "file": "m_misc.c",
+   "line": 257,
+   "original": "    {\"sndserver\", (int *) &sndserver_filename, (int) \"sndserver\"},",
+   "adapted": "    {\"sndserver\", (int *) &sndserver_filename, (intptr_t) \"sndserver\"},",
+   "original_sha256": "afc6d4ca27dce09bc05d13298177325e062b869f0b9bb362085d0460499d9737",
+   "adapted_sha256": "be655469a13e255becbbbfc166b9053689c73352bebb2729eed255c960abf264",
+   "builds": [
+    "strict",
+    "overflow",
+    "address"
+   ],
+   "reason": "a string pointer stored in defaultvalue (see m_misc.c:229): the cast follows the field to intptr_t."
+  },
+  {
+   "file": "m_misc.c",
+   "line": 264,
+   "original": "    {\"mousedev\", (int*)&mousedev, (int)\"/dev/ttyS0\"},",
+   "adapted": "    {\"mousedev\", (int*)&mousedev, (intptr_t)\"/dev/ttyS0\"},",
+   "original_sha256": "c751288981908136b7b547ee18080143c8b2f468103f3aa46844e47285a1fb10",
+   "adapted_sha256": "93c72bce17fd2fa0a816cff9bc34f4f648b1ff1a7f1d22694467508a49a1c74c",
+   "builds": [
+    "strict",
+    "overflow",
+    "address"
+   ],
+   "reason": "a string pointer stored in defaultvalue (see m_misc.c:229): the cast follows the field to intptr_t."
+  },
+  {
+   "file": "m_misc.c",
+   "line": 265,
+   "original": "    {\"mousetype\", (int*)&mousetype, (int)\"microsoft\"},",
+   "adapted": "    {\"mousetype\", (int*)&mousetype, (intptr_t)\"microsoft\"},",
+   "original_sha256": "cd3e595ba9189f63fbd2dfbe9e2f8b22403be46f2c9acd44f86bcbf5231f7887",
+   "adapted_sha256": "7f38585c53e0467c87413e52d687cb6f59835a5d1357eadb33b2dc3e42caf4e7",
+   "builds": [
+    "strict",
+    "overflow",
+    "address"
+   ],
+   "reason": "a string pointer stored in defaultvalue (see m_misc.c:229): the cast follows the field to intptr_t."
+  },
+  {
+   "file": "m_misc.c",
+   "line": 288,
+   "original": "    {\"chatmacro0\", (int *) &chat_macros[0], (int) HUSTR_CHATMACRO0 },",
+   "adapted": "    {\"chatmacro0\", (int *) &chat_macros[0], (intptr_t) HUSTR_CHATMACRO0 },",
+   "original_sha256": "96d7328a860ba63b4d9e1579724d8545cf34936494b45766c754d4e43b521e79",
+   "adapted_sha256": "8b36473af5a412e585337e48f81dff7bef1408f5b63b5e89a4410fa92ee091a7",
+   "builds": [
+    "strict",
+    "overflow",
+    "address"
+   ],
+   "reason": "a string pointer stored in defaultvalue (see m_misc.c:229): the cast follows the field to intptr_t."
+  },
+  {
+   "file": "m_misc.c",
+   "line": 289,
+   "original": "    {\"chatmacro1\", (int *) &chat_macros[1], (int) HUSTR_CHATMACRO1 },",
+   "adapted": "    {\"chatmacro1\", (int *) &chat_macros[1], (intptr_t) HUSTR_CHATMACRO1 },",
+   "original_sha256": "5d556a80e3ebff50f51a50cd73ccc415f6160d3921007b75093c5b8b19bd1d19",
+   "adapted_sha256": "e05defa4f23f392721b100c28da401ac1c8edc48918570f187ca22e55bbea329",
+   "builds": [
+    "strict",
+    "overflow",
+    "address"
+   ],
+   "reason": "a string pointer stored in defaultvalue (see m_misc.c:229): the cast follows the field to intptr_t."
+  },
+  {
+   "file": "m_misc.c",
+   "line": 290,
+   "original": "    {\"chatmacro2\", (int *) &chat_macros[2], (int) HUSTR_CHATMACRO2 },",
+   "adapted": "    {\"chatmacro2\", (int *) &chat_macros[2], (intptr_t) HUSTR_CHATMACRO2 },",
+   "original_sha256": "097ccdc53f613e6750f4177b45b25b76056f05bc3697d9055917714046241970",
+   "adapted_sha256": "85305a3e0588ec10378644c3a3646ee4d9b6abf2e4c8f18245d00321d6c8c177",
+   "builds": [
+    "strict",
+    "overflow",
+    "address"
+   ],
+   "reason": "a string pointer stored in defaultvalue (see m_misc.c:229): the cast follows the field to intptr_t."
+  },
+  {
+   "file": "m_misc.c",
+   "line": 291,
+   "original": "    {\"chatmacro3\", (int *) &chat_macros[3], (int) HUSTR_CHATMACRO3 },",
+   "adapted": "    {\"chatmacro3\", (int *) &chat_macros[3], (intptr_t) HUSTR_CHATMACRO3 },",
+   "original_sha256": "b9591ca1ab664e16fc96bfe81d6e9c15739501bce6970e8dc9b92e63b45df82f",
+   "adapted_sha256": "2d084ec46f49daa38207c966885aa91067fc68c915e7ca0fc46d2710ab294245",
+   "builds": [
+    "strict",
+    "overflow",
+    "address"
+   ],
+   "reason": "a string pointer stored in defaultvalue (see m_misc.c:229): the cast follows the field to intptr_t."
+  },
+  {
+   "file": "m_misc.c",
+   "line": 292,
+   "original": "    {\"chatmacro4\", (int *) &chat_macros[4], (int) HUSTR_CHATMACRO4 },",
+   "adapted": "    {\"chatmacro4\", (int *) &chat_macros[4], (intptr_t) HUSTR_CHATMACRO4 },",
+   "original_sha256": "5c67687ec2dd68c04149868d1aff0c36dd27b59ae458765e6b2fb03c3228deb2",
+   "adapted_sha256": "e50f02190f04a102953d99fc6d690fc1fbcc38baf16de5de8054c0825fc30274",
+   "builds": [
+    "strict",
+    "overflow",
+    "address"
+   ],
+   "reason": "a string pointer stored in defaultvalue (see m_misc.c:229): the cast follows the field to intptr_t."
+  },
+  {
+   "file": "m_misc.c",
+   "line": 293,
+   "original": "    {\"chatmacro5\", (int *) &chat_macros[5], (int) HUSTR_CHATMACRO5 },",
+   "adapted": "    {\"chatmacro5\", (int *) &chat_macros[5], (intptr_t) HUSTR_CHATMACRO5 },",
+   "original_sha256": "3b6a7b817a2fe92c6c4b6cbe80f238e793e5c2e196f443c407139f0e6cfa188d",
+   "adapted_sha256": "504eb2b56616e625508d135a9e91ec55c6f9cd21d499e3d2b92d65319ecf8813",
+   "builds": [
+    "strict",
+    "overflow",
+    "address"
+   ],
+   "reason": "a string pointer stored in defaultvalue (see m_misc.c:229): the cast follows the field to intptr_t."
+  },
+  {
+   "file": "m_misc.c",
+   "line": 294,
+   "original": "    {\"chatmacro6\", (int *) &chat_macros[6], (int) HUSTR_CHATMACRO6 },",
+   "adapted": "    {\"chatmacro6\", (int *) &chat_macros[6], (intptr_t) HUSTR_CHATMACRO6 },",
+   "original_sha256": "46b8e336161cd8ec47a090630b8f4f4cb83f4168fa92a1e91d8ff770fba7ec13",
+   "adapted_sha256": "57cae74d9833961cda889499870b210a09add7a5ccf3dbc0fb8d68fc29d9f957",
+   "builds": [
+    "strict",
+    "overflow",
+    "address"
+   ],
+   "reason": "a string pointer stored in defaultvalue (see m_misc.c:229): the cast follows the field to intptr_t."
+  },
+  {
+   "file": "m_misc.c",
+   "line": 295,
+   "original": "    {\"chatmacro7\", (int *) &chat_macros[7], (int) HUSTR_CHATMACRO7 },",
+   "adapted": "    {\"chatmacro7\", (int *) &chat_macros[7], (intptr_t) HUSTR_CHATMACRO7 },",
+   "original_sha256": "4b81fe4b93a616a86a068ea8ba03206f7b074491875b62e5baa6cd7759c5705c",
+   "adapted_sha256": "e149eb3b04150460049189ab882291e56db99f460ddf12e3f8ccc9103baf095a",
+   "builds": [
+    "strict",
+    "overflow",
+    "address"
+   ],
+   "reason": "a string pointer stored in defaultvalue (see m_misc.c:229): the cast follows the field to intptr_t."
+  },
+  {
+   "file": "m_misc.c",
+   "line": 296,
+   "original": "    {\"chatmacro8\", (int *) &chat_macros[8], (int) HUSTR_CHATMACRO8 },",
+   "adapted": "    {\"chatmacro8\", (int *) &chat_macros[8], (intptr_t) HUSTR_CHATMACRO8 },",
+   "original_sha256": "3f141e135bc9127f252d10edc358fbdb583e4d87986dcf0959dbc18631592127",
+   "adapted_sha256": "c06dd4460d8db8affb54f192f9b6f78cfdfb5ea6da4b0e86cd27af769f485a55",
+   "builds": [
+    "strict",
+    "overflow",
+    "address"
+   ],
+   "reason": "a string pointer stored in defaultvalue (see m_misc.c:229): the cast follows the field to intptr_t."
+  },
+  {
+   "file": "m_misc.c",
+   "line": 297,
+   "original": "    {\"chatmacro9\", (int *) &chat_macros[9], (int) HUSTR_CHATMACRO9 }",
+   "adapted": "    {\"chatmacro9\", (int *) &chat_macros[9], (intptr_t) HUSTR_CHATMACRO9 }",
+   "original_sha256": "8296cb6d08c3018840a72edc2be05b10eb8a3ecb43d416d40da5a1e1d1ce4189",
+   "adapted_sha256": "fa2ca9bbdd1f2abf4bad6c223e72f9e803b7884c0b0b81e7aa3bbe8abf981f5d",
+   "builds": [
+    "strict",
+    "overflow",
+    "address"
+   ],
+   "reason": "a string pointer stored in defaultvalue (see m_misc.c:229): the cast follows the field to intptr_t."
+  },
+  {
+   "file": "m_misc.c",
+   "line": 354,
+   "original": "\t*defaults[i].location = defaults[i].defaultvalue;",
+   "adapted": "\tif (defaults[i].defaultvalue > -0xfff && defaults[i].defaultvalue < 0xfff) *defaults[i].location = defaults[i].defaultvalue; else *(char**)defaults[i].location = (char*)defaults[i].defaultvalue;",
+   "original_sha256": "205df6f99bf542458c34d48461e4a8bf1d06106aa99d253b8622d4c771716796",
+   "adapted_sha256": "7e9cf980b42d7c812ba29e837f8c77aa5a819feafb6ef9e5fa0e283b4a44366a",
+   "builds": [
+    "strict",
+    "overflow",
+    "address"
+   ],
+   "reason": "M_LoadDefaults stores every default through int*; the string rows (chat macros, mousedev, mousetype, sndserver) need the whole pointer under LP64. Rows are classified as M_SaveDefaults does (m_misc.c:320-321); integer rows are stored exactly as the genuine line stores them. The input path reads none of the string rows."
+  },
+  {
+   "file": "g_game.c",
+   "line": 495,
+   "original": "    memset (mousebuttons, 0, sizeof(mousebuttons)); ",
+   "adapted": "    memset (mousebuttons, 0, sizeof(boolean)); ",
+   "original_sha256": "7db0ae314c5b8f42544eafe83cfcb86a57aa1604dc1fedb1c46811bc3e5ff6fc",
+   "adapted_sha256": "f1d3b607d0d3f12ccea949c965619b26d470026cd403bc8f3503046bad839fd1",
+   "builds": [
+    "strict",
+    "overflow",
+    "address"
+   ],
+   "reason": "G_DoLoadLevel clears sizeof(mousebuttons) bytes, the size of the pointer boolean* (g_game.c:187): 4 bytes on the 32-bit original, which clears mousebuttons[0] (fire) only, and 8 under LP64, which also clears mousebuttons[1] (strafe); observed in the Phase 1 prototype (loadlevel_mouse_strafe_x, strict against strict32). sizeof(boolean) is the ILP32 count (an enum of 4 bytes). Owner ruling S11: declared so that the LP64 builds agree with the 32-bit original."
+  },
+  {
+   "file": "g_game.c",
+   "line": 496,
+   "original": "    memset (joybuttons, 0, sizeof(joybuttons)); ",
+   "adapted": "    memset (joybuttons, 0, sizeof(boolean)); ",
+   "original_sha256": "7facadd6769a368a6417953f7acb2f20384e2b8d1387899cbab9601997c12e32",
+   "adapted_sha256": "6c920d77814ec1eebc28c54a46395075ded1409810e5472639d295ac20f22a23",
+   "builds": [
+    "strict",
+    "overflow",
+    "address"
+   ],
+   "reason": "as g_game.c:495 for joybuttons (boolean*, g_game.c:204); no joystick event is ever posted, so it cannot show."
+  }
+ ],
+ "stubs": [
+  {
+   "symbol": "I_BaseTiccmd",
+   "kind": "function",
+   "classification": "reads",
+   "vanilla": "i_system.c:64-68",
+   "reason": "genuine body (returns the zeroed emptycmd)",
+   "file": "tools/reference/m5b_input_stubs.c"
+  },
+  {
+   "symbol": "I_GetTime",
+   "kind": "function",
+   "classification": "io",
+   "vanilla": "i_system.c:88",
+   "reason": "wall clock replaced by a counter advanced once per tic (read by M_Responder's mouse/joystick pacing, m_menu.c:1362-1399, and G_DoLoadLevel's starttime)",
+   "file": "tools/reference/m5b_input_stubs.c"
+  },
+  {
+   "symbol": "I_Error",
+   "kind": "function",
+   "classification": "io",
+   "vanilla": "i_system.c:162",
+   "reason": "records the message and returns to the driver (vanilla exits)",
+   "file": "tools/reference/m5b_input_stubs.c"
+  },
+  {
+   "symbol": "I_Quit",
+   "kind": "function",
+   "classification": "io",
+   "vanilla": "i_system.c:116",
+   "reason": "records and returns to the driver (vanilla exits)",
+   "file": "tools/reference/m5b_input_stubs.c"
+  },
+  {
+   "symbol": "I_WaitVBL",
+   "kind": "function",
+   "classification": "io",
+   "vanilla": "i_system.c:126",
+   "reason": "a sleep",
+   "file": "tools/reference/m5b_input_stubs.c"
+  },
+  {
+   "symbol": "Z_Malloc",
+   "kind": "function",
+   "classification": "io",
+   "vanilla": "z_zone.c:184",
+   "reason": "calloc with a memblock_t header carrying ZONEID (z_zone.h:58-66), so the Z_ChangeTag macro's check (z_zone.h:72-77) passes as on zone blocks; sets *user like the zone; presentation and demo buffers only",
+   "file": "tools/reference/m5b_input_stubs.c"
+  },
+  {
+   "symbol": "Z_Free",
+   "kind": "function",
+   "classification": "io",
+   "vanilla": "z_zone.c:122",
+   "reason": "releases a Z_Malloc block of this file (free of the block with its header)",
+   "file": "tools/reference/m5b_input_stubs.c"
+  },
+  {
+   "symbol": "Z_ChangeTag2",
+   "kind": "function",
+   "classification": "io",
+   "vanilla": "z_zone.c:429",
+   "reason": "purge levels are not modelled",
+   "file": "tools/reference/m5b_input_stubs.c"
+  },
+  {
+   "symbol": "Z_CheckHeap",
+   "kind": "function",
+   "classification": "io",
+   "vanilla": "z_zone.c:399",
+   "reason": "no zone heap exists; G_DoLoadLevel calls it (g_game.c:486)",
+   "file": "tools/reference/m5b_input_stubs.c"
+  },
+  {
+   "symbol": "W_CacheLumpName",
+   "kind": "function",
+   "classification": "io",
+   "vanilla": "w_wad.c:508",
+   "reason": "a zero-filled dummy lump (a patch of width and height 0); responders only store these pointers, drawers are never called",
+   "file": "tools/reference/m5b_input_stubs.c"
+  },
+  {
+   "symbol": "W_CacheLumpNum",
+   "kind": "function",
+   "classification": "io",
+   "vanilla": "w_wad.c:476",
+   "reason": "as W_CacheLumpName",
+   "file": "tools/reference/m5b_input_stubs.c"
+  },
+  {
+   "symbol": "W_GetNumForName",
+   "kind": "function",
+   "classification": "io",
+   "vanilla": "w_wad.c:399",
+   "reason": "lump 0",
+   "file": "tools/reference/m5b_input_stubs.c"
+  },
+  {
+   "symbol": "W_CheckNumForName",
+   "kind": "function",
+   "classification": "io",
+   "vanilla": "w_wad.c:351",
+   "reason": "lump 0 (D_ProcessEvents asks only when gamemode == commercial, d_main.c:166-168; the driver runs registered)",
+   "file": "tools/reference/m5b_input_stubs.c"
+  },
+  {
+   "symbol": "S_StartSound",
+   "kind": "function",
+   "classification": "io",
+   "vanilla": "s_sound.c:398",
+   "reason": "counted (the menu and the status bar announce actions with sounds)",
+   "file": "tools/reference/m5b_input_stubs.c"
+  },
+  {
+   "symbol": "S_ChangeMusic",
+   "kind": "function",
+   "classification": "io",
+   "vanilla": "s_sound.c:650",
+   "reason": "music is not played",
+   "file": "tools/reference/m5b_input_stubs.c"
+  },
+  {
+   "symbol": "S_StartMusic",
+   "kind": "function",
+   "classification": "io",
+   "vanilla": "s_sound.c:644",
+   "reason": "music is not played",
+   "file": "tools/reference/m5b_input_stubs.c"
+  },
+  {
+   "symbol": "S_PauseSound",
+   "kind": "function",
+   "classification": "io",
+   "vanilla": "s_sound.c:497",
+   "reason": "sound is not played (G_Ticker pause, g_game.c:708-714)",
+   "file": "tools/reference/m5b_input_stubs.c"
+  },
+  {
+   "symbol": "S_ResumeSound",
+   "kind": "function",
+   "classification": "io",
+   "vanilla": "s_sound.c:506",
+   "reason": "sound is not played",
+   "file": "tools/reference/m5b_input_stubs.c"
+  },
+  {
+   "symbol": "S_SetSfxVolume",
+   "kind": "function",
+   "classification": "io",
+   "vanilla": "s_sound.c:631",
+   "reason": "sound is not played (menu volume)",
+   "file": "tools/reference/m5b_input_stubs.c"
+  },
+  {
+   "symbol": "S_SetMusicVolume",
+   "kind": "function",
+   "classification": "io",
+   "vanilla": "s_sound.c:616",
+   "reason": "sound is not played (menu volume)",
+   "file": "tools/reference/m5b_input_stubs.c"
+  },
+  {
+   "symbol": "setsizeneeded",
+   "kind": "variable",
+   "classification": "var",
+   "vanilla": "r_main.c:652",
+   "reason": "written by the R_SetViewSize stub",
+   "file": "tools/reference/m5b_input_stubs.c"
+  },
+  {
+   "symbol": "R_SetViewSize",
+   "kind": "function",
+   "classification": "writes",
+   "vanilla": "r_main.c:657-666",
+   "reason": "genuine effect recorded (setsizeneeded, setblocks, setdetail); the view is never executed",
+   "file": "tools/reference/m5b_input_stubs.c"
+  },
+  {
+   "symbol": "R_FlatNumForName",
+   "kind": "function",
+   "classification": "reads",
+   "vanilla": "r_data.c:672",
+   "reason": "G_DoLoadLevel's sky flat (g_game.c:466)",
+   "file": "tools/reference/m5b_input_stubs.c"
+  },
+  {
+   "symbol": "R_TextureNumForName",
+   "kind": "function",
+   "classification": "reads",
+   "vanilla": "r_data.c:718",
+   "reason": "commercial sky only (g_game.c:470-480)",
+   "file": "tools/reference/m5b_input_stubs.c"
+  },
+  {
+   "symbol": "P_SetupLevel",
+   "kind": "function",
+   "classification": "adapter",
+   "vanilla": "p_setup.c:584",
+   "reason": "no map; for the console player does what P_SpawnPlayer does that the input path and the responders read (p_mobj.c:640-699): G_PlayerReborn on PST_REBORN (p_mobj.c:651-652), the mobj link, PST_LIVE, then ST_Start and HU_Start (p_mobj.c:694-699). P_SetupPsprites is not run (no weapon states without the simulation).",
+   "file": "tools/reference/m5b_input_stubs.c"
+  },
+  {
+   "symbol": "P_GivePower",
+   "kind": "function",
+   "classification": "writes",
+   "vanilla": "p_inter.c:290",
+   "reason": "the cheat's power-up recorded, not applied",
+   "file": "tools/reference/m5b_input_stubs.c"
+  },
+  {
+   "symbol": "bmaporgx",
+   "kind": "variable",
+   "classification": "var",
+   "vanilla": "p_setup.c:93",
+   "reason": "0",
+   "file": "tools/reference/m5b_input_stubs.c"
+  },
+  {
+   "symbol": "bmaporgy",
+   "kind": "variable",
+   "classification": "var",
+   "vanilla": "p_setup.c:94",
+   "reason": "0",
+   "file": "tools/reference/m5b_input_stubs.c"
+  },
+  {
+   "symbol": "deathmatch_p",
+   "kind": "variable",
+   "classification": "var",
+   "vanilla": "p_setup.c:106",
+   "reason": "unused (no deathmatch)",
+   "file": "tools/reference/m5b_input_stubs.c"
+  },
+  {
+   "symbol": "deathmatchstarts",
+   "kind": "variable",
+   "classification": "var",
+   "vanilla": "p_setup.c:105",
+   "reason": "unused",
+   "file": "tools/reference/m5b_input_stubs.c"
+  },
+  {
+   "symbol": "finecosine",
+   "kind": "variable",
+   "classification": "var",
+   "vanilla": "r_main.c:113",
+   "reason": "&finesine[FINEANGLES/4] as vanilla",
+   "file": "tools/reference/m5b_input_stubs.c"
+  },
+  {
+   "symbol": "gammatable",
+   "kind": "variable",
+   "classification": "var",
+   "vanilla": "v_video.c:51",
+   "reason": "zero (only I_SetPalette's PseudoColor path reads it, never taken: the fake visual class is 0)",
+   "file": "tools/reference/m5b_input_stubs.c"
+  },
+  {
+   "symbol": "leveltime",
+   "kind": "variable",
+   "classification": "var",
+   "vanilla": "p_tick.c:34",
+   "reason": "advanced by the P_Ticker adapter, reset by the P_SetupLevel adapter",
+   "file": "tools/reference/m5b_input_stubs.c"
+  },
+  {
+   "symbol": "lines",
+   "kind": "variable",
+   "classification": "var",
+   "vanilla": "p_setup.c:76",
+   "reason": "the driver's map (am_map.c draws only)",
+   "file": "tools/reference/m5b_input_stubs.c"
+  },
+  {
+   "symbol": "maketic",
+   "kind": "variable",
+   "classification": "var",
+   "vanilla": "d_net.c:71",
+   "reason": "advanced by the driver once per tic like NetUpdate (d_net.c:410)",
+   "file": "tools/reference/m5b_input_stubs.c"
+  },
+  {
+   "symbol": "maxammo",
+   "kind": "variable",
+   "classification": "var",
+   "vanilla": "p_inter.c:58",
+   "reason": "genuine values (ST cheats)",
+   "file": "tools/reference/m5b_input_stubs.c"
+  },
+  {
+   "symbol": "mb_used",
+   "kind": "variable",
+   "classification": "var",
+   "vanilla": "i_system.c:51",
+   "reason": "6 (SNDSERV defaults row, m_misc.c:258)",
+   "file": "tools/reference/m5b_input_stubs.c"
+  },
+  {
+   "symbol": "netcmds",
+   "kind": "variable",
+   "classification": "var",
+   "vanilla": "d_net.c:62",
+   "reason": "the command buffer G_BuildTiccmd writes and G_Ticker reads",
+   "file": "tools/reference/m5b_input_stubs.c"
+  },
+  {
+   "symbol": "numChannels",
+   "kind": "variable",
+   "classification": "var",
+   "vanilla": "s_sound.c:129",
+   "reason": "defaults row m_misc.c:282",
+   "file": "tools/reference/m5b_input_stubs.c"
+  },
+  {
+   "symbol": "numlines",
+   "kind": "variable",
+   "classification": "var",
+   "vanilla": "p_setup.c:75",
+   "reason": "0 (no map)",
+   "file": "tools/reference/m5b_input_stubs.c"
+  },
+  {
+   "symbol": "numsectors",
+   "kind": "variable",
+   "classification": "var",
+   "vanilla": "p_setup.c:69",
+   "reason": "0 (no map)",
+   "file": "tools/reference/m5b_input_stubs.c"
+  },
+  {
+   "symbol": "numvertexes",
+   "kind": "variable",
+   "classification": "var",
+   "vanilla": "p_setup.c:63",
+   "reason": "the driver's map (AM_findMinMaxBoundaries, am_map.c:424-445)",
+   "file": "tools/reference/m5b_input_stubs.c"
+  },
+  {
+   "symbol": "playerstarts",
+   "kind": "variable",
+   "classification": "var",
+   "vanilla": "p_setup.c:107",
+   "reason": "zero (no map)",
+   "file": "tools/reference/m5b_input_stubs.c"
+  },
+  {
+   "symbol": "save_p",
+   "kind": "variable",
+   "classification": "var",
+   "vanilla": "p_saveg.c:33",
+   "reason": "unused (no savegame)",
+   "file": "tools/reference/m5b_input_stubs.c"
+  },
+  {
+   "symbol": "scaledviewwidth",
+   "kind": "variable",
+   "classification": "var",
+   "vanilla": "r_draw.c:65",
+   "reason": "0 (no view)",
+   "file": "tools/reference/m5b_input_stubs.c"
+  },
+  {
+   "symbol": "screens",
+   "kind": "variable",
+   "classification": "var",
+   "vanilla": "v_video.c:44",
+   "reason": "ST_Init allocates screens[4] (st_stuff.c ST_Init)",
+   "file": "tools/reference/m5b_input_stubs.c"
+  },
+  {
+   "symbol": "sectors",
+   "kind": "variable",
+   "classification": "var",
+   "vanilla": "p_setup.c:70",
+   "reason": "NULL (no map)",
+   "file": "tools/reference/m5b_input_stubs.c"
+  },
+  {
+   "symbol": "skyflatnum",
+   "kind": "variable",
+   "classification": "var",
+   "vanilla": "r_sky.c:44",
+   "reason": "written by G_DoLoadLevel (g_game.c:466)",
+   "file": "tools/reference/m5b_input_stubs.c"
+  },
+  {
+   "symbol": "skytexture",
+   "kind": "variable",
+   "classification": "var",
+   "vanilla": "r_sky.c:47",
+   "reason": "written for commercial games only (g_game.c:470-480)",
+   "file": "tools/reference/m5b_input_stubs.c"
+  },
+  {
+   "symbol": "snd_MusicVolume",
+   "kind": "variable",
+   "classification": "var",
+   "vanilla": "s_sound.c:82",
+   "reason": "15 (overwritten by the defaults table, m_misc.c:238)",
+   "file": "tools/reference/m5b_input_stubs.c"
+  },
+  {
+   "symbol": "snd_SfxVolume",
+   "kind": "variable",
+   "classification": "var",
+   "vanilla": "s_sound.c:79",
+   "reason": "15 (overwritten by the defaults table, m_misc.c:237)",
+   "file": "tools/reference/m5b_input_stubs.c"
+  },
+  {
+   "symbol": "sndserver_filename",
+   "kind": "variable",
+   "classification": "var",
+   "vanilla": "i_sound.c:65",
+   "reason": "\"./sndserver \" (defaults row, m_misc.c:257)",
+   "file": "tools/reference/m5b_input_stubs.c"
+  },
+  {
+   "symbol": "ticdup",
+   "kind": "variable",
+   "classification": "var",
+   "vanilla": "d_net.c:74",
+   "reason": "1 (single player, D_CheckNetGame)",
+   "file": "tools/reference/m5b_input_stubs.c"
+  },
+  {
+   "symbol": "usegamma",
+   "kind": "variable",
+   "classification": "var",
+   "vanilla": "v_video.c:137",
+   "reason": "defaults row m_misc.c:286",
+   "file": "tools/reference/m5b_input_stubs.c"
+  },
+  {
+   "symbol": "vertexes",
+   "kind": "variable",
+   "classification": "var",
+   "vanilla": "p_setup.c:64",
+   "reason": "the driver's map",
+   "file": "tools/reference/m5b_input_stubs.c"
+  },
+  {
+   "symbol": "viewheight",
+   "kind": "variable",
+   "classification": "var",
+   "vanilla": "r_draw.c:66",
+   "reason": "0 (no view)",
+   "file": "tools/reference/m5b_input_stubs.c"
+  },
+  {
+   "symbol": "viewwidth",
+   "kind": "variable",
+   "classification": "var",
+   "vanilla": "r_draw.c:64",
+   "reason": "0 (no view)",
+   "file": "tools/reference/m5b_input_stubs.c"
+  },
+  {
+   "symbol": "viewwindowx",
+   "kind": "variable",
+   "classification": "var",
+   "vanilla": "r_draw.c:67",
+   "reason": "0 (no view)",
+   "file": "tools/reference/m5b_input_stubs.c"
+  },
+  {
+   "symbol": "viewwindowy",
+   "kind": "variable",
+   "classification": "var",
+   "vanilla": "r_draw.c:68",
+   "reason": "0 (no view)",
+   "file": "tools/reference/m5b_input_stubs.c"
+  },
+  {
+   "symbol": "P_Ticker",
+   "kind": "function",
+   "classification": "adapter",
+   "vanilla": "p_tick.c:130",
+   "reason": "the simulation is not run by the input driver (its subject is the event-to-command path; G_Ticker's command copy, demo round trip and special buttons are genuine)",
+   "file": "tools/reference/m5b_input_stubs.c"
+  },
+  {
+   "symbol": "A_BFGSpray",
+   "kind": "function",
+   "classification": "unreached",
+   "vanilla": "p_pspr.c:781",
+   "reason": "state action referenced by the info.c state table; no state is entered without the simulation",
+   "file": "tools/reference/m5b_input_unreached.c"
+  },
+  {
+   "symbol": "A_BFGsound",
+   "kind": "function",
+   "classification": "unreached",
+   "vanilla": "p_pspr.c:818",
+   "reason": "state action referenced by the info.c state table; no state is entered without the simulation",
+   "file": "tools/reference/m5b_input_unreached.c"
+  },
+  {
+   "symbol": "A_BabyMetal",
+   "kind": "function",
+   "classification": "unreached",
+   "vanilla": "p_enemy.c:1771",
+   "reason": "state action referenced by the info.c state table; no state is entered without the simulation",
+   "file": "tools/reference/m5b_input_unreached.c"
+  },
+  {
+   "symbol": "A_BossDeath",
+   "kind": "function",
+   "classification": "unreached",
+   "vanilla": "p_enemy.c:1609",
+   "reason": "state action referenced by the info.c state table; no state is entered without the simulation",
+   "file": "tools/reference/m5b_input_unreached.c"
+  },
+  {
+   "symbol": "A_BrainAwake",
+   "kind": "function",
+   "classification": "unreached",
+   "vanilla": "p_enemy.c:1813",
+   "reason": "state action referenced by the info.c state table; no state is entered without the simulation",
+   "file": "tools/reference/m5b_input_unreached.c"
+  },
+  {
+   "symbol": "A_BrainDie",
+   "kind": "function",
+   "classification": "unreached",
+   "vanilla": "p_enemy.c:1896",
+   "reason": "state action referenced by the info.c state table; no state is entered without the simulation",
+   "file": "tools/reference/m5b_input_unreached.c"
+  },
+  {
+   "symbol": "A_BrainExplode",
+   "kind": "function",
+   "classification": "unreached",
+   "vanilla": "p_enemy.c:1875",
+   "reason": "state action referenced by the info.c state table; no state is entered without the simulation",
+   "file": "tools/reference/m5b_input_unreached.c"
+  },
+  {
+   "symbol": "A_BrainPain",
+   "kind": "function",
+   "classification": "unreached",
+   "vanilla": "p_enemy.c:1843",
+   "reason": "state action referenced by the info.c state table; no state is entered without the simulation",
+   "file": "tools/reference/m5b_input_unreached.c"
+  },
+  {
+   "symbol": "A_BrainScream",
+   "kind": "function",
+   "classification": "unreached",
+   "vanilla": "p_enemy.c:1849",
+   "reason": "state action referenced by the info.c state table; no state is entered without the simulation",
+   "file": "tools/reference/m5b_input_unreached.c"
+  },
+  {
+   "symbol": "A_BrainSpit",
+   "kind": "function",
+   "classification": "unreached",
+   "vanilla": "p_enemy.c:1901",
+   "reason": "state action referenced by the info.c state table; no state is entered without the simulation",
+   "file": "tools/reference/m5b_input_unreached.c"
+  },
+  {
+   "symbol": "A_BruisAttack",
+   "kind": "function",
+   "classification": "unreached",
+   "vanilla": "p_enemy.c:979",
+   "reason": "state action referenced by the info.c state table; no state is entered without the simulation",
+   "file": "tools/reference/m5b_input_unreached.c"
+  },
+  {
+   "symbol": "A_BspiAttack",
+   "kind": "function",
+   "classification": "unreached",
+   "vanilla": "p_enemy.c:898",
+   "reason": "state action referenced by the info.c state table; no state is entered without the simulation",
+   "file": "tools/reference/m5b_input_unreached.c"
+  },
+  {
+   "symbol": "A_CPosAttack",
+   "kind": "function",
+   "classification": "unreached",
+   "vanilla": "p_enemy.c:845",
+   "reason": "state action referenced by the info.c state table; no state is entered without the simulation",
+   "file": "tools/reference/m5b_input_unreached.c"
+  },
+  {
+   "symbol": "A_CPosRefire",
+   "kind": "function",
+   "classification": "unreached",
+   "vanilla": "p_enemy.c:865",
+   "reason": "state action referenced by the info.c state table; no state is entered without the simulation",
+   "file": "tools/reference/m5b_input_unreached.c"
+  },
+  {
+   "symbol": "A_Chase",
+   "kind": "function",
+   "classification": "unreached",
+   "vanilla": "p_enemy.c:672",
+   "reason": "state action referenced by the info.c state table; no state is entered without the simulation",
+   "file": "tools/reference/m5b_input_unreached.c"
+  },
+  {
+   "symbol": "A_CheckReload",
+   "kind": "function",
+   "classification": "unreached",
+   "vanilla": "p_pspr.c:366",
+   "reason": "state action referenced by the info.c state table; no state is entered without the simulation",
+   "file": "tools/reference/m5b_input_unreached.c"
+  },
+  {
+   "symbol": "A_CloseShotgun2",
+   "kind": "function",
+   "classification": "unreached",
+   "vanilla": "p_enemy.c:1799",
+   "reason": "state action referenced by the info.c state table; no state is entered without the simulation",
+   "file": "tools/reference/m5b_input_unreached.c"
+  },
+  {
+   "symbol": "A_CyberAttack",
+   "kind": "function",
+   "classification": "unreached",
+   "vanilla": "p_enemy.c:969",
+   "reason": "state action referenced by the info.c state table; no state is entered without the simulation",
+   "file": "tools/reference/m5b_input_unreached.c"
+  },
+  {
+   "symbol": "A_Explode",
+   "kind": "function",
+   "classification": "unreached",
+   "vanilla": "p_enemy.c:1598",
+   "reason": "state action referenced by the info.c state table; no state is entered without the simulation",
+   "file": "tools/reference/m5b_input_unreached.c"
+  },
+  {
+   "symbol": "A_FaceTarget",
+   "kind": "function",
+   "classification": "unreached",
+   "vanilla": "p_enemy.c:782",
+   "reason": "state action referenced by the info.c state table; no state is entered without the simulation",
+   "file": "tools/reference/m5b_input_unreached.c"
+  },
+  {
+   "symbol": "A_Fall",
+   "kind": "function",
+   "classification": "unreached",
+   "vanilla": "p_enemy.c:1585",
+   "reason": "state action referenced by the info.c state table; no state is entered without the simulation",
+   "file": "tools/reference/m5b_input_unreached.c"
+  },
+  {
+   "symbol": "A_FatAttack1",
+   "kind": "function",
+   "classification": "unreached",
+   "vanilla": "p_enemy.c:1358",
+   "reason": "state action referenced by the info.c state table; no state is entered without the simulation",
+   "file": "tools/reference/m5b_input_unreached.c"
+  },
+  {
+   "symbol": "A_FatAttack2",
+   "kind": "function",
+   "classification": "unreached",
+   "vanilla": "p_enemy.c:1375",
+   "reason": "state action referenced by the info.c state table; no state is entered without the simulation",
+   "file": "tools/reference/m5b_input_unreached.c"
+  },
+  {
+   "symbol": "A_FatAttack3",
+   "kind": "function",
+   "classification": "unreached",
+   "vanilla": "p_enemy.c:1392",
+   "reason": "state action referenced by the info.c state table; no state is entered without the simulation",
+   "file": "tools/reference/m5b_input_unreached.c"
+  },
+  {
+   "symbol": "A_FatRaise",
+   "kind": "function",
+   "classification": "unreached",
+   "vanilla": "p_enemy.c:1351",
+   "reason": "state action referenced by the info.c state table; no state is entered without the simulation",
+   "file": "tools/reference/m5b_input_unreached.c"
+  },
+  {
+   "symbol": "A_Fire",
+   "kind": "function",
+   "classification": "unreached",
+   "vanilla": "p_enemy.c:1257",
+   "reason": "state action referenced by the info.c state table; no state is entered without the simulation",
+   "file": "tools/reference/m5b_input_unreached.c"
+  },
+  {
+   "symbol": "A_FireBFG",
+   "kind": "function",
+   "classification": "unreached",
+   "vanilla": "p_pspr.c:564",
+   "reason": "state action referenced by the info.c state table; no state is entered without the simulation",
+   "file": "tools/reference/m5b_input_unreached.c"
+  },
+  {
+   "symbol": "A_FireCGun",
+   "kind": "function",
+   "classification": "unreached",
+   "vanilla": "p_pspr.c:733",
+   "reason": "state action referenced by the info.c state table; no state is entered without the simulation",
+   "file": "tools/reference/m5b_input_unreached.c"
+  },
+  {
+   "symbol": "A_FireCrackle",
+   "kind": "function",
+   "classification": "unreached",
+   "vanilla": "p_enemy.c:1251",
+   "reason": "state action referenced by the info.c state table; no state is entered without the simulation",
+   "file": "tools/reference/m5b_input_unreached.c"
+  },
+  {
+   "symbol": "A_FireMissile",
+   "kind": "function",
+   "classification": "unreached",
+   "vanilla": "p_pspr.c:551",
+   "reason": "state action referenced by the info.c state table; no state is entered without the simulation",
+   "file": "tools/reference/m5b_input_unreached.c"
+  },
+  {
+   "symbol": "A_FirePistol",
+   "kind": "function",
+   "classification": "unreached",
+   "vanilla": "p_pspr.c:647",
+   "reason": "state action referenced by the info.c state table; no state is entered without the simulation",
+   "file": "tools/reference/m5b_input_unreached.c"
+  },
+  {
+   "symbol": "A_FirePlasma",
+   "kind": "function",
+   "classification": "unreached",
+   "vanilla": "p_pspr.c:578",
+   "reason": "state action referenced by the info.c state table; no state is entered without the simulation",
+   "file": "tools/reference/m5b_input_unreached.c"
+  },
+  {
+   "symbol": "A_FireShotgun",
+   "kind": "function",
+   "classification": "unreached",
+   "vanilla": "p_pspr.c:669",
+   "reason": "state action referenced by the info.c state table; no state is entered without the simulation",
+   "file": "tools/reference/m5b_input_unreached.c"
+  },
+  {
+   "symbol": "A_FireShotgun2",
+   "kind": "function",
+   "classification": "unreached",
+   "vanilla": "p_pspr.c:696",
+   "reason": "state action referenced by the info.c state table; no state is entered without the simulation",
+   "file": "tools/reference/m5b_input_unreached.c"
+  },
+  {
+   "symbol": "A_GunFlash",
+   "kind": "function",
+   "classification": "unreached",
+   "vanilla": "p_pspr.c:449",
+   "reason": "state action referenced by the info.c state table; no state is entered without the simulation",
+   "file": "tools/reference/m5b_input_unreached.c"
+  },
+  {
+   "symbol": "A_HeadAttack",
+   "kind": "function",
+   "classification": "unreached",
+   "vanilla": "p_enemy.c:950",
+   "reason": "state action referenced by the info.c state table; no state is entered without the simulation",
+   "file": "tools/reference/m5b_input_unreached.c"
+  },
+  {
+   "symbol": "A_Hoof",
+   "kind": "function",
+   "classification": "unreached",
+   "vanilla": "p_enemy.c:1759",
+   "reason": "state action referenced by the info.c state table; no state is entered without the simulation",
+   "file": "tools/reference/m5b_input_unreached.c"
+  },
+  {
+   "symbol": "A_KeenDie",
+   "kind": "function",
+   "classification": "unreached",
+   "vanilla": "p_enemy.c:566",
+   "reason": "state action referenced by the info.c state table; no state is entered without the simulation",
+   "file": "tools/reference/m5b_input_unreached.c"
+  },
+  {
+   "symbol": "A_Light0",
+   "kind": "function",
+   "classification": "unreached",
+   "vanilla": "p_pspr.c:761",
+   "reason": "state action referenced by the info.c state table; no state is entered without the simulation",
+   "file": "tools/reference/m5b_input_unreached.c"
+  },
+  {
+   "symbol": "A_Light1",
+   "kind": "function",
+   "classification": "unreached",
+   "vanilla": "p_pspr.c:766",
+   "reason": "state action referenced by the info.c state table; no state is entered without the simulation",
+   "file": "tools/reference/m5b_input_unreached.c"
+  },
+  {
+   "symbol": "A_Light2",
+   "kind": "function",
+   "classification": "unreached",
+   "vanilla": "p_pspr.c:771",
+   "reason": "state action referenced by the info.c state table; no state is entered without the simulation",
+   "file": "tools/reference/m5b_input_unreached.c"
+  },
+  {
+   "symbol": "A_LoadShotgun2",
+   "kind": "function",
+   "classification": "unreached",
+   "vanilla": "p_enemy.c:1786",
+   "reason": "state action referenced by the info.c state table; no state is entered without the simulation",
+   "file": "tools/reference/m5b_input_unreached.c"
+  },
+  {
+   "symbol": "A_Look",
+   "kind": "function",
+   "classification": "unreached",
+   "vanilla": "p_enemy.c:604",
+   "reason": "state action referenced by the info.c state table; no state is entered without the simulation",
+   "file": "tools/reference/m5b_input_unreached.c"
+  },
+  {
+   "symbol": "A_Lower",
+   "kind": "function",
+   "classification": "unreached",
+   "vanilla": "p_pspr.c:385",
+   "reason": "state action referenced by the info.c state table; no state is entered without the simulation",
+   "file": "tools/reference/m5b_input_unreached.c"
+  },
+  {
+   "symbol": "A_Metal",
+   "kind": "function",
+   "classification": "unreached",
+   "vanilla": "p_enemy.c:1765",
+   "reason": "state action referenced by the info.c state table; no state is entered without the simulation",
+   "file": "tools/reference/m5b_input_unreached.c"
+  },
+  {
+   "symbol": "A_OpenShotgun2",
+   "kind": "function",
+   "classification": "unreached",
+   "vanilla": "p_enemy.c:1778",
+   "reason": "state action referenced by the info.c state table; no state is entered without the simulation",
+   "file": "tools/reference/m5b_input_unreached.c"
+  },
+  {
+   "symbol": "A_Pain",
+   "kind": "function",
+   "classification": "unreached",
+   "vanilla": "p_enemy.c:1577",
+   "reason": "state action referenced by the info.c state table; no state is entered without the simulation",
+   "file": "tools/reference/m5b_input_unreached.c"
+  },
+  {
+   "symbol": "A_PainAttack",
+   "kind": "function",
+   "classification": "unreached",
+   "vanilla": "p_enemy.c:1512",
+   "reason": "state action referenced by the info.c state table; no state is entered without the simulation",
+   "file": "tools/reference/m5b_input_unreached.c"
+  },
+  {
+   "symbol": "A_PainDie",
+   "kind": "function",
+   "classification": "unreached",
+   "vanilla": "p_enemy.c:1522",
+   "reason": "state action referenced by the info.c state table; no state is entered without the simulation",
+   "file": "tools/reference/m5b_input_unreached.c"
+  },
+  {
+   "symbol": "A_PlayerScream",
+   "kind": "function",
+   "classification": "unreached",
+   "vanilla": "p_enemy.c:1994",
+   "reason": "state action referenced by the info.c state table; no state is entered without the simulation",
+   "file": "tools/reference/m5b_input_unreached.c"
+  },
+  {
+   "symbol": "A_PosAttack",
+   "kind": "function",
+   "classification": "unreached",
+   "vanilla": "p_enemy.c:802",
+   "reason": "state action referenced by the info.c state table; no state is entered without the simulation",
+   "file": "tools/reference/m5b_input_unreached.c"
+  },
+  {
+   "symbol": "A_Punch",
+   "kind": "function",
+   "classification": "unreached",
+   "vanilla": "p_pspr.c:468",
+   "reason": "state action referenced by the info.c state table; no state is entered without the simulation",
+   "file": "tools/reference/m5b_input_unreached.c"
+  },
+  {
+   "symbol": "A_Raise",
+   "kind": "function",
+   "classification": "unreached",
+   "vanilla": "p_pspr.c:423",
+   "reason": "state action referenced by the info.c state table; no state is entered without the simulation",
+   "file": "tools/reference/m5b_input_unreached.c"
+  },
+  {
+   "symbol": "A_ReFire",
+   "kind": "function",
+   "classification": "unreached",
+   "vanilla": "p_enemy.c:1794",
+   "reason": "state action referenced by the info.c state table; no state is entered without the simulation",
+   "file": "tools/reference/m5b_input_unreached.c"
+  },
+  {
+   "symbol": "A_SPosAttack",
+   "kind": "function",
+   "classification": "unreached",
+   "vanilla": "p_enemy.c:821",
+   "reason": "state action referenced by the info.c state table; no state is entered without the simulation",
+   "file": "tools/reference/m5b_input_unreached.c"
+  },
+  {
+   "symbol": "A_SargAttack",
+   "kind": "function",
+   "classification": "unreached",
+   "vanilla": "p_enemy.c:935",
+   "reason": "state action referenced by the info.c state table; no state is entered without the simulation",
+   "file": "tools/reference/m5b_input_unreached.c"
+  },
+  {
+   "symbol": "A_Saw",
+   "kind": "function",
+   "classification": "unreached",
+   "vanilla": "p_pspr.c:502",
+   "reason": "state action referenced by the info.c state table; no state is entered without the simulation",
+   "file": "tools/reference/m5b_input_unreached.c"
+  },
+  {
+   "symbol": "A_Scream",
+   "kind": "function",
+   "classification": "unreached",
+   "vanilla": "p_enemy.c:1535",
+   "reason": "state action referenced by the info.c state table; no state is entered without the simulation",
+   "file": "tools/reference/m5b_input_unreached.c"
+  },
+  {
+   "symbol": "A_SkelFist",
+   "kind": "function",
+   "classification": "unreached",
+   "vanilla": "p_enemy.c:1101",
+   "reason": "state action referenced by the info.c state table; no state is entered without the simulation",
+   "file": "tools/reference/m5b_input_unreached.c"
+  },
+  {
+   "symbol": "A_SkelMissile",
+   "kind": "function",
+   "classification": "unreached",
+   "vanilla": "p_enemy.c:1002",
+   "reason": "state action referenced by the info.c state table; no state is entered without the simulation",
+   "file": "tools/reference/m5b_input_unreached.c"
+  },
+  {
+   "symbol": "A_SkelWhoosh",
+   "kind": "function",
+   "classification": "unreached",
+   "vanilla": "p_enemy.c:1093",
+   "reason": "state action referenced by the info.c state table; no state is entered without the simulation",
+   "file": "tools/reference/m5b_input_unreached.c"
+  },
+  {
+   "symbol": "A_SkullAttack",
+   "kind": "function",
+   "classification": "unreached",
+   "vanilla": "p_enemy.c:1419",
+   "reason": "state action referenced by the info.c state table; no state is entered without the simulation",
+   "file": "tools/reference/m5b_input_unreached.c"
+  },
+  {
+   "symbol": "A_SpawnFly",
+   "kind": "function",
+   "classification": "unreached",
+   "vanilla": "p_enemy.c:1936",
+   "reason": "state action referenced by the info.c state table; no state is entered without the simulation",
+   "file": "tools/reference/m5b_input_unreached.c"
+  },
+  {
+   "symbol": "A_SpawnSound",
+   "kind": "function",
+   "classification": "unreached",
+   "vanilla": "p_enemy.c:1930",
+   "reason": "state action referenced by the info.c state table; no state is entered without the simulation",
+   "file": "tools/reference/m5b_input_unreached.c"
+  },
+  {
+   "symbol": "A_SpidRefire",
+   "kind": "function",
+   "classification": "unreached",
+   "vanilla": "p_enemy.c:882",
+   "reason": "state action referenced by the info.c state table; no state is entered without the simulation",
+   "file": "tools/reference/m5b_input_unreached.c"
+  },
+  {
+   "symbol": "A_StartFire",
+   "kind": "function",
+   "classification": "unreached",
+   "vanilla": "p_enemy.c:1245",
+   "reason": "state action referenced by the info.c state table; no state is entered without the simulation",
+   "file": "tools/reference/m5b_input_unreached.c"
+  },
+  {
+   "symbol": "A_Tracer",
+   "kind": "function",
+   "classification": "unreached",
+   "vanilla": "p_enemy.c:1021",
+   "reason": "state action referenced by the info.c state table; no state is entered without the simulation",
+   "file": "tools/reference/m5b_input_unreached.c"
+  },
+  {
+   "symbol": "A_TroopAttack",
+   "kind": "function",
+   "classification": "unreached",
+   "vanilla": "p_enemy.c:913",
+   "reason": "state action referenced by the info.c state table; no state is entered without the simulation",
+   "file": "tools/reference/m5b_input_unreached.c"
+  },
+  {
+   "symbol": "A_VileAttack",
+   "kind": "function",
+   "classification": "unreached",
+   "vanilla": "p_enemy.c:1310",
+   "reason": "state action referenced by the info.c state table; no state is entered without the simulation",
+   "file": "tools/reference/m5b_input_unreached.c"
+  },
+  {
+   "symbol": "A_VileChase",
+   "kind": "function",
+   "classification": "unreached",
+   "vanilla": "p_enemy.c:1167",
+   "reason": "state action referenced by the info.c state table; no state is entered without the simulation",
+   "file": "tools/reference/m5b_input_unreached.c"
+  },
+  {
+   "symbol": "A_VileStart",
+   "kind": "function",
+   "classification": "unreached",
+   "vanilla": "p_enemy.c:1233",
+   "reason": "state action referenced by the info.c state table; no state is entered without the simulation",
+   "file": "tools/reference/m5b_input_unreached.c"
+  },
+  {
+   "symbol": "A_VileTarget",
+   "kind": "function",
+   "classification": "unreached",
+   "vanilla": "p_enemy.c:1285",
+   "reason": "state action referenced by the info.c state table; no state is entered without the simulation",
+   "file": "tools/reference/m5b_input_unreached.c"
+  },
+  {
+   "symbol": "A_WeaponReady",
+   "kind": "function",
+   "classification": "unreached",
+   "vanilla": "p_pspr.c:282",
+   "reason": "state action referenced by the info.c state table; no state is entered without the simulation",
+   "file": "tools/reference/m5b_input_unreached.c"
+  },
+  {
+   "symbol": "A_XScream",
+   "kind": "function",
+   "classification": "unreached",
+   "vanilla": "p_enemy.c:1572",
+   "reason": "state action referenced by the info.c state table; no state is entered without the simulation",
+   "file": "tools/reference/m5b_input_unreached.c"
+  },
+  {
+   "symbol": "D_CheckNetGame",
+   "kind": "function",
+   "classification": "unreached",
+   "vanilla": "d_net.c:555",
+   "reason": "start-up of D_DoomMain, which the driver replaces",
+   "file": "tools/reference/m5b_input_unreached.c"
+  },
+  {
+   "symbol": "F_Drawer",
+   "kind": "function",
+   "classification": "unreached",
+   "vanilla": "f_finale.c:700",
+   "reason": "drawing (D_Display, the drawers and the wipe); the driver never draws",
+   "file": "tools/reference/m5b_input_unreached.c"
+  },
+  {
+   "symbol": "F_Responder",
+   "kind": "function",
+   "classification": "unreached",
+   "vanilla": "f_finale.c:195",
+   "reason": "finale or intermission, reached only after a level is completed, which needs the simulation",
+   "file": "tools/reference/m5b_input_unreached.c"
+  },
+  {
+   "symbol": "F_StartFinale",
+   "kind": "function",
+   "classification": "unreached",
+   "vanilla": "f_finale.c:96",
+   "reason": "finale or intermission, reached only after a level is completed, which needs the simulation",
+   "file": "tools/reference/m5b_input_unreached.c"
+  },
+  {
+   "symbol": "F_Ticker",
+   "kind": "function",
+   "classification": "unreached",
+   "vanilla": "f_finale.c:207",
+   "reason": "finale or intermission, reached only after a level is completed, which needs the simulation",
+   "file": "tools/reference/m5b_input_unreached.c"
+  },
+  {
+   "symbol": "I_Init",
+   "kind": "function",
+   "classification": "unreached",
+   "vanilla": "i_system.c:107",
+   "reason": "start-up of D_DoomMain, which the driver replaces",
+   "file": "tools/reference/m5b_input_unreached.c"
+  },
+  {
+   "symbol": "I_SubmitSound",
+   "kind": "function",
+   "classification": "unreached",
+   "vanilla": "i_sound.c:666",
+   "reason": "sound update of D_DoomLoop, not run",
+   "file": "tools/reference/m5b_input_unreached.c"
+  },
+  {
+   "symbol": "NetUpdate",
+   "kind": "function",
+   "classification": "unreached",
+   "vanilla": "d_net.c:368",
+   "reason": "the network loop; the driver runs the singletics branch of D_DoomLoop itself (d_main.c:376-386)",
+   "file": "tools/reference/m5b_input_unreached.c"
+  },
+  {
+   "symbol": "P_ArchivePlayers",
+   "kind": "function",
+   "classification": "unreached",
+   "vanilla": "p_saveg.c:47",
+   "reason": "savegame code (G_DoSaveGame, G_DoLoadGame); no save or load runs",
+   "file": "tools/reference/m5b_input_unreached.c"
+  },
+  {
+   "symbol": "P_ArchiveSpecials",
+   "kind": "function",
+   "classification": "unreached",
+   "vanilla": "p_saveg.c:355",
+   "reason": "savegame code (G_DoSaveGame, G_DoLoadGame); no save or load runs",
+   "file": "tools/reference/m5b_input_unreached.c"
+  },
+  {
+   "symbol": "P_ArchiveThinkers",
+   "kind": "function",
+   "classification": "unreached",
+   "vanilla": "p_saveg.c:232",
+   "reason": "savegame code (G_DoSaveGame, G_DoLoadGame); no save or load runs",
+   "file": "tools/reference/m5b_input_unreached.c"
+  },
+  {
+   "symbol": "P_ArchiveWorld",
+   "kind": "function",
+   "classification": "unreached",
+   "vanilla": "p_saveg.c:114",
+   "reason": "savegame code (G_DoSaveGame, G_DoLoadGame); no save or load runs",
+   "file": "tools/reference/m5b_input_unreached.c"
+  },
+  {
+   "symbol": "P_CheckPosition",
+   "kind": "function",
+   "classification": "unreached",
+   "vanilla": "p_map.c:375",
+   "reason": "map and actor code of the map setup and the simulation, both replaced (P_SetupLevel and P_Ticker adapters)",
+   "file": "tools/reference/m5b_input_unreached.c"
+  },
+  {
+   "symbol": "P_Init",
+   "kind": "function",
+   "classification": "unreached",
+   "vanilla": "p_setup.c:700",
+   "reason": "start-up of D_DoomMain, which the driver replaces",
+   "file": "tools/reference/m5b_input_unreached.c"
+  },
+  {
+   "symbol": "P_RemoveMobj",
+   "kind": "function",
+   "classification": "unreached",
+   "vanilla": "p_mobj.c:546",
+   "reason": "map and actor code of the map setup and the simulation, both replaced (P_SetupLevel and P_Ticker adapters)",
+   "file": "tools/reference/m5b_input_unreached.c"
+  },
+  {
+   "symbol": "P_SpawnMobj",
+   "kind": "function",
+   "classification": "unreached",
+   "vanilla": "p_mobj.c:480",
+   "reason": "map and actor code of the map setup and the simulation, both replaced (P_SetupLevel and P_Ticker adapters)",
+   "file": "tools/reference/m5b_input_unreached.c"
+  },
+  {
+   "symbol": "P_SpawnPlayer",
+   "kind": "function",
+   "classification": "unreached",
+   "vanilla": "p_mobj.c:642",
+   "reason": "map and actor code of the map setup and the simulation, both replaced (P_SetupLevel and P_Ticker adapters)",
+   "file": "tools/reference/m5b_input_unreached.c"
+  },
+  {
+   "symbol": "P_UnArchivePlayers",
+   "kind": "function",
+   "classification": "unreached",
+   "vanilla": "p_saveg.c:79",
+   "reason": "savegame code (G_DoSaveGame, G_DoLoadGame); no save or load runs",
+   "file": "tools/reference/m5b_input_unreached.c"
+  },
+  {
+   "symbol": "P_UnArchiveSpecials",
+   "kind": "function",
+   "classification": "unreached",
+   "vanilla": "p_saveg.c:475",
+   "reason": "savegame code (G_DoSaveGame, G_DoLoadGame); no save or load runs",
+   "file": "tools/reference/m5b_input_unreached.c"
+  },
+  {
+   "symbol": "P_UnArchiveThinkers",
+   "kind": "function",
+   "classification": "unreached",
+   "vanilla": "p_saveg.c:266",
+   "reason": "savegame code (G_DoSaveGame, G_DoLoadGame); no save or load runs",
+   "file": "tools/reference/m5b_input_unreached.c"
+  },
+  {
+   "symbol": "P_UnArchiveWorld",
+   "kind": "function",
+   "classification": "unreached",
+   "vanilla": "p_saveg.c:167",
+   "reason": "savegame code (G_DoSaveGame, G_DoLoadGame); no save or load runs",
+   "file": "tools/reference/m5b_input_unreached.c"
+  },
+  {
+   "symbol": "R_DrawViewBorder",
+   "kind": "function",
+   "classification": "unreached",
+   "vanilla": "r_draw.c:843",
+   "reason": "drawing (D_Display, the drawers and the wipe); the driver never draws",
+   "file": "tools/reference/m5b_input_unreached.c"
+  },
+  {
+   "symbol": "R_ExecuteSetViewSize",
+   "kind": "function",
+   "classification": "unreached",
+   "vanilla": "r_main.c:671",
+   "reason": "drawing (D_Display, the drawers and the wipe); the driver never draws",
+   "file": "tools/reference/m5b_input_unreached.c"
+  },
+  {
+   "symbol": "R_FillBackScreen",
+   "kind": "function",
+   "classification": "unreached",
+   "vanilla": "r_draw.c:731",
+   "reason": "drawing (D_Display, the drawers and the wipe); the driver never draws",
+   "file": "tools/reference/m5b_input_unreached.c"
+  },
+  {
+   "symbol": "R_Init",
+   "kind": "function",
+   "classification": "unreached",
+   "vanilla": "r_main.c:773",
+   "reason": "start-up of D_DoomMain, which the driver replaces",
+   "file": "tools/reference/m5b_input_unreached.c"
+  },
+  {
+   "symbol": "R_PointInSubsector",
+   "kind": "function",
+   "classification": "unreached",
+   "vanilla": "r_main.c:801",
+   "reason": "map and actor code of the map setup and the simulation, both replaced (P_SetupLevel and P_Ticker adapters)",
+   "file": "tools/reference/m5b_input_unreached.c"
+  },
+  {
+   "symbol": "R_PointToAngle2",
+   "kind": "function",
+   "classification": "unreached",
+   "vanilla": "r_main.c:378",
+   "reason": "map and actor code of the map setup and the simulation, both replaced (P_SetupLevel and P_Ticker adapters)",
+   "file": "tools/reference/m5b_input_unreached.c"
+  },
+  {
+   "symbol": "R_RenderPlayerView",
+   "kind": "function",
+   "classification": "unreached",
+   "vanilla": "r_main.c:870",
+   "reason": "drawing (D_Display, the drawers and the wipe); the driver never draws",
+   "file": "tools/reference/m5b_input_unreached.c"
+  },
+  {
+   "symbol": "R_VideoErase",
+   "kind": "function",
+   "classification": "unreached",
+   "vanilla": "r_draw.c:818",
+   "reason": "drawing (D_Display, the drawers and the wipe); the driver never draws",
+   "file": "tools/reference/m5b_input_unreached.c"
+  },
+  {
+   "symbol": "S_Init",
+   "kind": "function",
+   "classification": "unreached",
+   "vanilla": "s_sound.c:161",
+   "reason": "start-up of D_DoomMain, which the driver replaces",
+   "file": "tools/reference/m5b_input_unreached.c"
+  },
+  {
+   "symbol": "S_UpdateSounds",
+   "kind": "function",
+   "classification": "unreached",
+   "vanilla": "s_sound.c:519",
+   "reason": "sound update of D_DoomLoop, not run",
+   "file": "tools/reference/m5b_input_unreached.c"
+  },
+  {
+   "symbol": "TryRunTics",
+   "kind": "function",
+   "classification": "unreached",
+   "vanilla": "d_net.c:636",
+   "reason": "the network loop; the driver runs the singletics branch of D_DoomLoop itself (d_main.c:376-386)",
+   "file": "tools/reference/m5b_input_unreached.c"
+  },
+  {
+   "symbol": "V_CopyRect",
+   "kind": "function",
+   "classification": "unreached",
+   "vanilla": "v_video.c:158",
+   "reason": "drawing (D_Display, the drawers and the wipe); the driver never draws",
+   "file": "tools/reference/m5b_input_unreached.c"
+  },
+  {
+   "symbol": "V_DrawPatch",
+   "kind": "function",
+   "classification": "unreached",
+   "vanilla": "f_finale.c:677",
+   "reason": "drawing (D_Display, the drawers and the wipe); the driver never draws",
+   "file": "tools/reference/m5b_input_unreached.c"
+  },
+  {
+   "symbol": "V_DrawPatchDirect",
+   "kind": "function",
+   "classification": "unreached",
+   "vanilla": "d_main.c:309",
+   "reason": "drawing (D_Display, the drawers and the wipe); the driver never draws",
+   "file": "tools/reference/m5b_input_unreached.c"
+  },
+  {
+   "symbol": "V_Init",
+   "kind": "function",
+   "classification": "unreached",
+   "vanilla": "v_video.c:482",
+   "reason": "start-up of D_DoomMain, which the driver replaces",
+   "file": "tools/reference/m5b_input_unreached.c"
+  },
+  {
+   "symbol": "V_MarkRect",
+   "kind": "function",
+   "classification": "unreached",
+   "vanilla": "am_map.c:298",
+   "reason": "drawing (D_Display, the drawers and the wipe); the driver never draws",
+   "file": "tools/reference/m5b_input_unreached.c"
+  },
+  {
+   "symbol": "WI_Drawer",
+   "kind": "function",
+   "classification": "unreached",
+   "vanilla": "wi_stuff.c:1772",
+   "reason": "drawing (D_Display, the drawers and the wipe); the driver never draws",
+   "file": "tools/reference/m5b_input_unreached.c"
+  },
+  {
+   "symbol": "WI_Start",
+   "kind": "function",
+   "classification": "unreached",
+   "vanilla": "wi_stuff.c:1838",
+   "reason": "finale or intermission, reached only after a level is completed, which needs the simulation",
+   "file": "tools/reference/m5b_input_unreached.c"
+  },
+  {
+   "symbol": "WI_Ticker",
+   "kind": "function",
+   "classification": "unreached",
+   "vanilla": "wi_stuff.c:1503",
+   "reason": "finale or intermission, reached only after a level is completed, which needs the simulation",
+   "file": "tools/reference/m5b_input_unreached.c"
+  },
+  {
+   "symbol": "W_InitMultipleFiles",
+   "kind": "function",
+   "classification": "unreached",
+   "vanilla": "w_wad.c:292",
+   "reason": "start-up of D_DoomMain, which the driver replaces",
+   "file": "tools/reference/m5b_input_unreached.c"
+  },
+  {
+   "symbol": "Z_Init",
+   "kind": "function",
+   "classification": "unreached",
+   "vanilla": "z_zone.c:93",
+   "reason": "start-up of D_DoomMain, which the driver replaces",
+   "file": "tools/reference/m5b_input_unreached.c"
+  },
+  {
+   "symbol": "wipe_EndScreen",
+   "kind": "function",
+   "classification": "unreached",
+   "vanilla": "f_wipe.c:249",
+   "reason": "drawing (D_Display, the drawers and the wipe); the driver never draws",
+   "file": "tools/reference/m5b_input_unreached.c"
+  },
+  {
+   "symbol": "wipe_ScreenWipe",
+   "kind": "function",
+   "classification": "unreached",
+   "vanilla": "f_wipe.c:262",
+   "reason": "drawing (D_Display, the drawers and the wipe); the driver never draws",
+   "file": "tools/reference/m5b_input_unreached.c"
+  },
+  {
+   "symbol": "wipe_StartScreen",
+   "kind": "function",
+   "classification": "unreached",
+   "vanilla": "f_wipe.c:237",
+   "reason": "drawing (D_Display, the drawers and the wipe); the driver never draws",
+   "file": "tools/reference/m5b_input_unreached.c"
+  }
+ ],
+ "stub_counts": {
+  "functions": 145,
+  "variables": 34,
+  "io": 19,
+  "reads": 3,
+  "writes": 2,
+  "var": 34,
+  "adapter": 2,
+  "unreached": 119
+ },
+ "driver_hooks": [
+  "emptycmd_stub",
+  "stub_armed",
+  "stub_end",
+  "stub_givepower",
+  "stub_jmp",
+  "stub_mo",
+  "stub_msg",
+  "stub_setblocks",
+  "stub_setdetail",
+  "stub_sounds",
+  "stub_time"
+ ],
+ "fake_x": {
+  "files": [
+   "tools/reference/m5b_fakex.c",
+   "tools/reference/m5b_fakex/X11/Xlib.h",
+   "tools/reference/m5b_fakex/X11/Xutil.h",
+   "tools/reference/m5b_fakex/X11/keysym.h",
+   "tools/reference/m5b_fakex/X11/extensions/XShm.h",
+   "tools/reference/m5b_fakex/errnos.h"
+  ],
+  "behaviour": [
+   "Headers: only the declarations the genuine i_video.c uses, with the X11 protocol values of the event types, masks, buttons and keysyms; errnos.h stands for <errnos.h>, named by i_video.c:48 and absent from current systems (it includes <errno.h>; i_video.c uses nothing from it).",
+   "Event queue: a FIFO of scripted XEvents drained by XPending and XNextEvent (i_video.c:309-312).",
+   "Keys: the fake keycode is the keysym the script named; XKeycodeToKeysym (d, keycode, 0) returns it (i_video.c:102); any other index aborts.",
+   "Pointer: the window position and the held-button mask; a ButtonPress or ButtonRelease carries the state before it and a MotionNotify the current state (the X protocol rule i_video.c:214-251 relies on).",
+   "XWarpPointer (i_video.c:323-328) is counted; with `config warpmodel 1` a warp that moves the pointer queues a MotionNotify at the destination ahead of the next tic's events.",
+   "Every other Xlib entry point is reachable only from I_InitGraphics, I_FinishUpdate and I_ShutdownGraphics, which the driver never calls, and aborts."
+  ]
+ },
+ "runner_sha256": {
+  "tools/reference/m5b_input_driver.c": "e0c1739891e165fe6dbb28b27acafc3f22bc1806b91514ad08b555e9c2a08c0f",
+  "tools/reference/m5b_input_stubs.c": "520c899e167ab0323f371e06b60196ad0fe090b3502f881abf26c963b41e6ff9",
+  "tools/reference/m5b_input_unreached.c": "b6426e6ba680c9e5291f616a138e9aa8eb2cd2ca7350f3cd3e135f7e50581453",
+  "tools/reference/m5b_fakex.c": "67403942826a7e0aaba0e46411b95b6181bf49f0cb99fa447fe69b7b72f31d8f",
+  "tools/reference/m5b_fakex/X11/Xlib.h": "2ec49e0b417da07cdcdcff28055a20ad9d2b575073ec80b252fe100affdcd08f",
+  "tools/reference/m5b_fakex/X11/Xutil.h": "58000408604c6f8dda2f02fe0da1b25142683e9a3833a9be63ca3ace55ef9352",
+  "tools/reference/m5b_fakex/X11/keysym.h": "1a057a31bf54d2b52909431bd70d451f32cc099db1a7730c7c1dc3b35ae1b7fa",
+  "tools/reference/m5b_fakex/X11/extensions/XShm.h": "2f58ba5765db43d4468030532db5004b104f1f441dc812c81179437fa4c3b23b",
+  "tools/reference/m5b_fakex/errnos.h": "6fb3c5d738786d1f5fce3108a3aaff5bb90a6029055a2ead5844fff4a41cb619"
+ },
+ "driver_behaviour": [
+  "Start-up (d_main.c:1015, 1092, 1110, 1113, 356-357): myargc 1 (or `-config m5b_input.cfg` when the script has `config set` lines, which the driver writes to that file in the working directory; string values are refused, so the LP64 pointer store of m_misc.c:392-393 is never reached); gamemode registered; language english; M_LoadDefaults; M_Init; HU_Init; ST_Init; single-player globals; X_display = the fake display, X_width 320, X_height 200; with recording (the default) G_RecordDemo (\"m5binput\"), G_InitNew (sk_medium, 1, 1), G_BeginRecording. basedefault is never filled (IdentifyVersion is not called), so without `config set` no file is read and the defaults are the genuine table (m_misc.c:236-297).",
+  "Per tic, the singletics branch of D_DoomLoop (d_main.c:376-386): I_StartTic; D_ProcessEvents; G_BuildTiccmd (&netcmds[consoleplayer][maketic%BACKUPTICS]); if (advancedemo) D_DoAdvanceDemo; M_Ticker; G_Ticker; gametic++; maketic++. Scripted X events are queued in the fake server before the tic; `ev` lines call D_PostEvent when read.",
+  "Observers (-Wl,--wrap) of D_PostEvent and the five responders record each delivered event and which responder ate it, then call the genuine function; they never change an event or a verdict.",
+  "Golden rows (tests/reference/m5b_input/README.md): h (demo header), s (state vector when it changes), L (loadlevel), e (delivered event and its taker), q (posted and delivered counts when they differ), t (per tic: the built command at full 16-bit angleturn before the demo round trip, the executed command after it, the four demo bytes, turnheld capped at 6, the two double-click state machines with their timers capped at 21, the mouse button array and the held keys), r (run length of identical t rows), c (nonzero consistancy or chatchar), x (I_Error or I_Quit) and z (end).",
+  "`loadlevel` calls G_DoLoadLevel between tics (g_game.c:489-496), as G_Ticker does for ga_loadlevel; `enddemo` calls G_CheckDemoStatus (g_game.c:1676-1683), which writes m5binput.lmp in the working directory and ends with I_Error.",
+  "Test-only options: --selftest-cmd TIC flips bit 0 of one built forwardmove after G_BuildTiccmd; --selftest-drop-event N does not post the N-th posted event. Neither changes genuine code text."
+ ],
+ "golden_row_kinds": {
+  "h": "HEX: the 13 demo header bytes after G_BeginRecording (recording only)",
+  "s": "TIC STATE: the state vector (comma-separated name=value) at start (TIC -1) and whenever it changes",
+  "L": "TIC: a loadlevel directive ran before tic TIC",
+  "e": "TIC TYPE DATA1 DATA2 DATA3 WHO: an event delivered by D_ProcessEvents in tic TIC; key events print DATA2 and DATA3 as -; WHO is M (M_Responder ate it), g (G_Responder returned before HU/ST/AM), H, S, A (that responder ate it) or G (it reached G_Responder's switch)",
+  "q": "TIC POSTED DELIVERED: printed only when they differ (events lost to the MAXEVENTS ring, d_main.c:150-154)",
+  "t": "TIC F S A B XF XS XA XB DEMO TURNHELD DCT DCS DCL DCT2 DCS2 DCL2 MB KEYS",
+  "r": "N: the previous t row repeats N more times, its tic advancing by one each time",
+  "c": "TIC C H XC XH: built and executed consistancy and chatchar, only when one is nonzero",
+  "x": "TIC KIND MESSAGE: I_Error or I_Quit (the run stops; a q or limit end records no t row for that tic)",
+  "z": "TIC DEMOLEN: the script ended normally before tic TIC; DEMOLEN is demo_p - demobuffer, or -1 when not recording"
+ },
+ "selftest_mutants": {
+  "binding": {
+   "file": "m_misc.c",
+   "line": 245,
+   "original": "    {\"key_up\",&key_up, KEY_UPARROW},",
+   "adapted": "    {\"key_up\",&key_up, KEY_DOWNARROW},",
+   "reason": "self-test: a changed default binding (forward bound to the down arrow)",
+   "original_sha256": "39290e16d1df43f4ed1305f2a26011dd9ff5672f5e4b5e4dfeedcba716b29bed",
+   "adapted_sha256": "bb700033f9f219ead545b1fc3fc8579e9c9c128727c681d70d78d775e501e029"
+  },
+  "turn_table": {
+   "file": "g_game.c",
+   "line": 177,
+   "original": "fixed_t\t\tangleturn[3] = {640, 1280, 320};\t// + slow turn ",
+   "adapted": "fixed_t\t\tangleturn[3] = {640, 1280, 336};\t// + slow turn ",
+   "reason": "self-test: a changed turn table entry (the slow turn 320 becomes 336)",
+   "original_sha256": "43c8bb62ff4308485abe891da43ed41aa6b9980f972b4b2c1c83527dc648683b",
+   "adapted_sha256": "a790f94ee1ee35b40c4d2623c37ed9a1359cbc8740c1f85a9994f4eebe2f9382"
+  }
+ }
+}

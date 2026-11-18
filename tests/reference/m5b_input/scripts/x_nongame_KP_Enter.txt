@@ -1,0 +1,10 @@
+tic
+tap KP_Enter
+tic
+press KP_Enter
+tic
+release KP_Enter
+press Up
+tic 2
+release Up
+tic

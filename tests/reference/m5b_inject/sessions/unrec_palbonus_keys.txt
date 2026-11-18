@@ -1,0 +1,15 @@
+# M5b step 7b unrecorded session (scripted, not played by a person): equal keyboard turns left and right at full
+# resolution (net 0; recorded they would leave the player turned left), then a run along the hall over the pickups.
+wad tests/reference/m5b_wads/palbonus.wad
+map 1
+skill 2
+screenblocks 10
+100 key left down        # 320 for 5 tics, then 640
+1000 key left up
+1000 key right down      # -320 for 5 tics, then -640
+1900 key right up
+2000 key up down         # walk east
+2000 key speed down      # run
+3200 key up up
+3200 key speed up
+3300 end

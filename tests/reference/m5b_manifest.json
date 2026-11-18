@@ -1,0 +1,841 @@
+{
+ "schema": "DOOM-M5B-MANIFEST-v1",
+ "rooms": [
+  {
+   "name": "STDIGIT",
+   "file": "tests/reference/m5b_wads/stdigit.wad",
+   "slot": "E1M1",
+   "sha256": "faa7b0da9166c960cf109f76f6787c4b44e99eadb0beb94c507aca702b328c53",
+   "bytes": 87222,
+   "sectors": 4,
+   "lines": 13,
+   "things": {
+    "1": 1,
+    "2002": 1,
+    "2011": 1,
+    "2012": 1,
+    "2013": 1,
+    "2014": 2,
+    "2015": 1,
+    "2018": 1,
+    "2019": 1,
+    "2048": 1
+   },
+   "png": [
+    [
+     10,
+     248
+    ],
+    [
+     10,
+     860
+    ]
+   ],
+   "script": {
+    "lump": "M5STDIG",
+    "txt": "tests/reference/m5b_scripts/M5STDIG.txt",
+    "lmp": "tests/reference/m5b_scripts/M5STDIG.lmp",
+    "what": "two damage floors down to one-digit health, the items back up, then the chaingun fired dry",
+    "tics": 877,
+    "lmp_sha256": "f118a40ad4328e3d9012fecce0c241d80065f3158bcf404428d84cde6a0d00b5",
+    "views": [
+     10,
+     11
+    ],
+    "must_show": [
+     {
+      "what": "the own-damage face at pain level 4 on the second floor",
+      "expr": "status face == 39",
+      "tic": {
+       "10": 160,
+       "11": 160
+      }
+     },
+     {
+      "what": "the box of bullets: three-digit ammunition",
+      "expr": "message 23",
+      "tic": {
+       "10": 309,
+       "11": 309
+      }
+     },
+     {
+      "what": "the chaingun picked up",
+      "expr": "message 32",
+      "tic": {
+       "10": 317,
+       "11": 317
+      }
+     }
+    ],
+    "c_end": {
+     "10": [
+      "marker",
+      877
+     ],
+     "11": [
+      "marker",
+      877
+     ]
+    }
+   }
+  },
+  {
+   "name": "STARMS",
+   "file": "tests/reference/m5b_wads/starms.wad",
+   "slot": "E1M1",
+   "sha256": "b4fbc1f8c135ea91d831e51c7ef15750bc27e8949a767e8d36c0ba99474dfb4b",
+   "bytes": 86355,
+   "sectors": 1,
+   "lines": 4,
+   "things": {
+    "1": 1,
+    "5": 1,
+    "6": 1,
+    "8": 1,
+    "13": 1,
+    "2001": 1,
+    "2002": 1,
+    "2003": 1,
+    "2005": 1,
+    "2008": 1,
+    "2010": 1,
+    "2046": 1,
+    "2049": 1
+   },
+   "png": [
+    [
+     10,
+     140
+    ]
+   ],
+   "script": {
+    "lump": "M5STARM",
+    "txt": "tests/reference/m5b_scripts/M5STARM.txt",
+    "lmp": "tests/reference/m5b_scripts/M5STARM.lmp",
+    "what": "walk over every weapon, the ammunition, the backpack and the three keycards, then select three weapons",
+    "tics": 273,
+    "lmp_sha256": "c00d859fe739375cdcbdc42aa453a4e6f5c59545032011d07171d75cbf16ad1e",
+    "views": [
+     10,
+     11
+    ],
+    "must_show": [
+     {
+      "what": "the evil grin at pain level 0",
+      "expr": "status face == 6",
+      "tic": {
+       "10": 14,
+       "11": 14
+      }
+     },
+     {
+      "what": "the backpack",
+      "expr": "message 30",
+      "tic": {
+       "10": 70,
+       "11": 70
+      }
+     },
+     {
+      "what": "the red keycard",
+      "expr": "message 11",
+      "tic": {
+       "10": 124,
+       "11": 124
+      }
+     }
+    ],
+    "c_end": {
+     "10": [
+      "marker",
+      273
+     ],
+     "11": [
+      "marker",
+      273
+     ]
+    }
+   }
+  },
+  {
+   "name": "FACEEVIL",
+   "file": "tests/reference/m5b_wads/faceevil.wad",
+   "slot": "E1M1",
+   "sha256": "e7d1a9fa7e64b6a07271480269ad6cf572e9e8e8fea92d39ab4447d555bf9bcd",
+   "bytes": 88559,
+   "sectors": 9,
+   "lines": 28,
+   "things": {
+    "1": 1,
+    "2001": 1,
+    "2002": 1,
+    "2003": 1,
+    "2005": 1
+   },
+   "png": [
+    [
+     10,
+     250
+    ]
+   ],
+   "script": {
+    "lump": "M5EVIL",
+    "txt": "tests/reference/m5b_scripts/M5EVIL.txt",
+    "lmp": "tests/reference/m5b_scripts/M5EVIL.lmp",
+    "what": "a damage floor before each new weapon: the evil grin at pain levels 1 to 4",
+    "tics": 413,
+    "lmp_sha256": "d7613c997cf8d649ddf089c088c2061a1efdd920dcbdc8ee520ead8b37c8d4ad",
+    "views": [
+     10,
+     11
+    ],
+    "must_show": [
+     {
+      "what": "the evil grin at pain level 1",
+      "expr": "status face == 14",
+      "tic": {
+       "10": 85,
+       "11": 85
+      }
+     },
+     {
+      "what": "the evil grin at pain level 2",
+      "expr": "status face == 22",
+      "tic": {
+       "10": 164,
+       "11": 164
+      }
+     },
+     {
+      "what": "the evil grin at pain level 3",
+      "expr": "status face == 30",
+      "tic": {
+       "10": 244,
+       "11": 244
+      }
+     },
+     {
+      "what": "the evil grin at pain level 4",
+      "expr": "status face == 38",
+      "tic": {
+       "10": 334,
+       "11": 334
+      }
+     }
+    ],
+    "c_end": {
+     "10": [
+      "marker",
+      413
+     ],
+     "11": [
+      "marker",
+      413
+     ]
+    }
+   }
+  },
+  {
+   "name": "FACEOUCH",
+   "file": "tests/reference/m5b_wads/faceouch.wad",
+   "slot": "E1M1",
+   "sha256": "d55bc0ea5f77efd15a00bff25eb60f223913fb2d1c590115df45a8abeb481cdc",
+   "bytes": 88877,
+   "sectors": 10,
+   "lines": 31,
+   "things": {
+    "1": 1,
+    "2012": 4
+   },
+   "png": [
+    [
+     10,
+     80
+    ],
+    [
+     10,
+     240
+    ]
+   ],
+   "script": {
+    "lump": "M5OUCH",
+    "txt": "tests/reference/m5b_scripts/M5OUCH.txt",
+    "lmp": "tests/reference/m5b_scripts/M5OUCH.lmp",
+    "what": "a medikit right after damage at pain levels 0 to 3, the rampage, then death on the last floor",
+    "tics": 659,
+    "lmp_sha256": "e8f7887b5fb5a459ef4fb0daa7cc0c46c2c7562cdae164f219b51e33284a7ded",
+    "views": [
+     10,
+     11
+    ],
+    "must_show": [
+     {
+      "what": "ouch at pain level 0",
+      "expr": "status face == 5",
+      "tic": {
+       "10": 78,
+       "11": 78
+      }
+     },
+     {
+      "what": "ouch at pain level 1",
+      "expr": "status face == 13",
+      "tic": {
+       "10": 169,
+       "11": 169
+      }
+     },
+     {
+      "what": "ouch at pain level 2",
+      "expr": "status face == 21",
+      "tic": {
+       "10": 242,
+       "11": 242
+      }
+     },
+     {
+      "what": "ouch at pain level 3",
+      "expr": "status face == 29",
+      "tic": {
+       "10": 423,
+       "11": 423
+      }
+     },
+     {
+      "what": "the dead face",
+      "expr": "status face == 41",
+      "tic": {
+       "10": 576,
+       "11": 576
+      }
+     }
+    ],
+    "c_end": {
+     "10": [
+      "marker",
+      659
+     ],
+     "11": [
+      "marker",
+      659
+     ]
+    }
+   }
+  },
+  {
+   "name": "FACELOOK",
+   "file": "tests/reference/m5b_wads/facelook.wad",
+   "slot": "E1M1",
+   "sha256": "08fb550002fbbcba93d28a95149a2b5bdbf045d75a012c4f34746feb8f26afe8",
+   "bytes": 88519,
+   "sectors": 9,
+   "lines": 28,
+   "things": {
+    "1": 1
+   },
+   "png": [
+    [
+     10,
+     900
+    ]
+   ],
+   "script": {
+    "lump": "M5LOOK",
+    "txt": "tests/reference/m5b_scripts/M5LOOK.txt",
+    "lmp": "tests/reference/m5b_scripts/M5LOOK.lmp",
+    "what": "stand still at each pain level 0 to 4",
+    "tics": 966,
+    "lmp_sha256": "0674fa71130fd22bc5b256036265308498a1c0b55eb0b1205469b962778a125b",
+    "views": [
+     10,
+     11
+    ],
+    "must_show": [
+     {
+      "what": "looking left at pain level 4",
+      "expr": "status face == 32",
+      "tic": {
+       "10": 843,
+       "11": 843
+      }
+     },
+     {
+      "what": "ahead at pain level 4",
+      "expr": "status face == 33",
+      "tic": {
+       "10": 860,
+       "11": 860
+      }
+     },
+     {
+      "what": "right at pain level 4",
+      "expr": "status face == 34",
+      "tic": {
+       "10": 962,
+       "11": 962
+      }
+     }
+    ],
+    "c_end": {
+     "10": [
+      "marker",
+      966
+     ],
+     "11": [
+      "marker",
+      966
+     ]
+    }
+   }
+  },
+  {
+   "name": "FACEDIR",
+   "file": "tests/reference/m5b_wads/facedir.wad",
+   "slot": "E1M1",
+   "sha256": "f65b42845056a89b4c1847ef1c53c47fbca12b15ba68ba01c51aa1ede7a6ce0f",
+   "bytes": 86449,
+   "sectors": 1,
+   "lines": 4,
+   "things": {
+    "1": 1,
+    "2018": 1,
+    "3001": 3
+   },
+   "png": [
+    [
+     10,
+     300
+    ]
+   ],
+   "script": {
+    "lump": "M5FACED",
+    "txt": "tests/reference/m5b_scripts/M5FACED.txt",
+    "lmp": "tests/reference/m5b_scripts/M5FACED.lmp",
+    "what": "step back onto the armor, then turn while three imps throw fireballs, until dead",
+    "tics": 548,
+    "lmp_sha256": "39956015c4ceef9579f71799bea35ac0e7b9607babec4036b2dc56f70fda609e",
+    "views": [
+     10,
+     11
+    ],
+    "must_show": [
+     {
+      "what": "turned right at pain level 4",
+      "expr": "status face == 35",
+      "tic": {
+       "10": 403,
+       "11": 403
+      }
+     },
+     {
+      "what": "turned left at pain level 4",
+      "expr": "status face == 36",
+      "tic": {
+       "10": 400,
+       "11": 400
+      }
+     },
+     {
+      "what": "the dead face",
+      "expr": "status face == 41",
+      "tic": {
+       "10": 436,
+       "11": 436
+      }
+     }
+    ],
+    "c_end": {
+     "10": [
+      "marker",
+      548
+     ],
+     "11": [
+      "marker",
+      548
+     ]
+    }
+   }
+  },
+  {
+   "name": "PALRED",
+   "file": "tests/reference/m5b_wads/palred.wad",
+   "slot": "E1M1",
+   "sha256": "bd2b6777dea716bee451f8266c019f6767b07f4f9e990b4d30f5a8bbc49cb025",
+   "bytes": 86185,
+   "sectors": 1,
+   "lines": 4,
+   "things": {
+    "1": 1,
+    "2013": 1,
+    "2035": 1
+   },
+   "png": [
+    [
+     10,
+     46
+    ]
+   ],
+   "script": {
+    "lump": "M5PALRD",
+    "txt": "tests/reference/m5b_scripts/M5PALRD.txt",
+    "lmp": "tests/reference/m5b_scripts/M5PALRD.lmp",
+    "what": "a soulsphere, then a barrel against the wall shot point-blank",
+    "tics": 175,
+    "lmp_sha256": "afff85f1181226a47312c4d578b8d268deaef87aeafefc60ec517816cc79fe2a",
+    "views": [
+     10,
+     11
+    ],
+    "must_show": [
+     {
+      "what": "red palette 8",
+      "expr": "status palette == 8",
+      "tic": {
+       "10": 45,
+       "11": 45
+      }
+     },
+     {
+      "what": "red palette 7",
+      "expr": "status palette == 7",
+      "tic": {
+       "10": 50,
+       "11": 50
+      }
+     },
+     {
+      "what": "red palette 2",
+      "expr": "status palette == 2",
+      "tic": {
+       "10": 90,
+       "11": 90
+      }
+     }
+    ],
+    "c_end": {
+     "10": [
+      "marker",
+      175
+     ],
+     "11": [
+      "marker",
+      175
+     ]
+    }
+   }
+  },
+  {
+   "name": "PALBONUS",
+   "file": "tests/reference/m5b_wads/palbonus.wad",
+   "slot": "E1M1",
+   "sha256": "d5740d58399d989c3c848dfd1e3e88691e41adafd2d04f94fada144fd5e6d107",
+   "bytes": 86273,
+   "sectors": 1,
+   "lines": 4,
+   "things": {
+    "1": 1,
+    "5": 1,
+    "6": 1,
+    "2007": 1,
+    "2014": 3,
+    "2015": 2
+   },
+   "png": [
+    [
+     10,
+     56
+    ]
+   ],
+   "script": {
+    "lump": "M5PALBN",
+    "txt": "tests/reference/m5b_scripts/M5PALBN.txt",
+    "lmp": "tests/reference/m5b_scripts/M5PALBN.lmp",
+    "what": "one pickup, three stacked health bonuses, a keycard with an armor bonus in both orders",
+    "tics": 130,
+    "lmp_sha256": "22d57f2f1ed36025a7e022d122a85e23e3342769149a3fc9b0f2462c4ccd44de",
+    "views": [
+     10,
+     11
+    ],
+    "must_show": [
+     {
+      "what": "bonus palette 10",
+      "expr": "status palette == 10",
+      "tic": {
+       "10": 23,
+       "11": 23
+      }
+     },
+     {
+      "what": "bonus palette 11",
+      "expr": "status palette == 11",
+      "tic": {
+       "10": 57,
+       "11": 57
+      }
+     },
+     {
+      "what": "bonus palette 12",
+      "expr": "status palette == 12",
+      "tic": {
+       "10": 55,
+       "11": 55
+      }
+     }
+    ],
+    "c_end": {
+     "10": [
+      "marker",
+      130
+     ],
+     "11": [
+      "marker",
+      130
+     ]
+    }
+   }
+  },
+  {
+   "name": "PALSUIT",
+   "file": "tests/reference/m5b_wads/palsuit.wad",
+   "slot": "E1M1",
+   "sha256": "711266e330eb440a66ca774db591ac44585e9897ea89261683268d2ac2ce36bc",
+   "bytes": 86175,
+   "sectors": 1,
+   "lines": 4,
+   "things": {
+    "1": 1,
+    "2025": 1
+   },
+   "png": [
+    [
+     10,
+     100
+    ]
+   ],
+   "script": {
+    "lump": "M5PALST",
+    "txt": "tests/reference/m5b_scripts/M5PALST.txt",
+    "lmp": "tests/reference/m5b_scripts/M5PALST.lmp",
+    "what": "the radiation suit worn to its end",
+    "tics": 2148,
+    "lmp_sha256": "976ccde8ab842d81cebe836a93d35ce2ec7ec9faaface94359cb248e4c41e3af",
+    "views": [
+     10,
+     11
+    ],
+    "must_show": [
+     {
+      "what": "the radiation palette",
+      "expr": "status palette == 13",
+      "tic": {
+       "10": 33,
+       "11": 33
+      }
+     },
+     {
+      "what": "the blink: palette 0 while the suit runs",
+      "expr": "status palette == 0 from 1900",
+      "tic": {
+       "10": 1999,
+       "11": 1999
+      }
+     }
+    ],
+    "c_end": {
+     "10": [
+      "marker",
+      2148
+     ],
+     "11": [
+      "marker",
+      2148
+     ]
+    }
+   }
+  },
+  {
+   "name": "MESSAGE",
+   "file": "tests/reference/m5b_wads/message.wad",
+   "slot": "E1M1",
+   "sha256": "49ca2aa9a59782461e428eb6004bc8d00f89cdda25b462e168ea7c8a77a9eea2",
+   "bytes": 89287,
+   "sectors": 9,
+   "lines": 33,
+   "things": {
+    "1": 1,
+    "5": 1,
+    "6": 1,
+    "8": 1,
+    "13": 1,
+    "2001": 1,
+    "2002": 1,
+    "2003": 1,
+    "2005": 1,
+    "2007": 2,
+    "2008": 1,
+    "2010": 1,
+    "2011": 1,
+    "2012": 1,
+    "2013": 1,
+    "2014": 1,
+    "2015": 1,
+    "2018": 1,
+    "2019": 1,
+    "2024": 1,
+    "2025": 1,
+    "2026": 1,
+    "2045": 1,
+    "2046": 1,
+    "2048": 1,
+    "2049": 1
+   },
+   "png": [
+    [
+     10,
+     125
+    ],
+    [
+     10,
+     390
+    ],
+    [
+     11,
+     125
+    ]
+   ],
+   "script": {
+    "lump": "M5MSG",
+    "txt": "tests/reference/m5b_scripts/M5MSG.txt",
+    "lmp": "tests/reference/m5b_scripts/M5MSG.lmp",
+    "what": "the three locked doors, a timeout, the turbo message, a damage floor, every pickup message and a repeat",
+    "tics": 696,
+    "lmp_sha256": "55e8c933bb190f6e529c5ba6ddd2e3b2d6874d81d695ec55e187a7a9153911c3",
+    "views": [
+     10,
+     11
+    ],
+    "must_show": [
+     {
+      "what": "the blue locked door",
+      "expr": "message 38",
+      "tic": {
+       "10": 59,
+       "11": 59
+      }
+     },
+     {
+      "what": "the yellow locked door",
+      "expr": "message 39",
+      "tic": {
+       "10": 122,
+       "11": 122
+      }
+     },
+     {
+      "what": "the red locked door",
+      "expr": "message 40",
+      "tic": {
+       "10": 185,
+       "11": 185
+      }
+     },
+     {
+      "what": "the timeout: no message showing",
+      "expr": "status message_on == 0 from 200",
+      "tic": {
+       "10": 325,
+       "11": 325
+      }
+     },
+     {
+      "what": "the turbo message",
+      "expr": "message 41",
+      "tic": {
+       "10": 384,
+       "11": 384
+      }
+     },
+     {
+      "what": "the light amplification visor",
+      "expr": "message 20",
+      "tic": {
+       "10": 680,
+       "11": 680
+      }
+     }
+    ],
+    "c_end": {
+     "10": [
+      "marker",
+      696
+     ],
+     "11": [
+      "marker",
+      696
+     ]
+    }
+   }
+  },
+  {
+   "name": "CHEATS",
+   "file": "tests/reference/m5b_wads/cheats.wad",
+   "slot": "E1M1",
+   "sha256": "3f2f9dfcd34ec84919908652e794d40bb04ef345f67589f1a77382b0fbd870e1",
+   "bytes": 86175,
+   "sectors": 1,
+   "lines": 4,
+   "things": {
+    "1": 1,
+    "2028": 1
+   },
+   "png": [
+    [
+     10,
+     60
+    ]
+   ],
+   "script": {
+    "lump": "M5CHEAT",
+    "txt": "tests/reference/m5b_scripts/M5CHEAT.txt",
+    "lmp": "tests/reference/m5b_scripts/M5CHEAT.lmp",
+    "what": "the bespoke scenario (decision S1): stand still while the cheats idbeholds and iddqd are typed",
+    "tics": 900,
+    "lmp_sha256": "db719ada66a2646d932974ea06ce89c45a86c0ca040fb7abef481110f349edff",
+    "views": [
+     10,
+     11
+    ],
+    "must_show": [
+     {
+      "what": "the berserk palette",
+      "expr": "status palette == 3",
+      "tic": {
+       "10": 10,
+       "11": 10
+      }
+     },
+     {
+      "what": "the god face",
+      "expr": "status face == 40",
+      "tic": {
+       "10": 40,
+       "11": 40
+      }
+     }
+    ],
+    "c_end": {
+     "10": [
+      "marker",
+      900
+     ],
+     "11": [
+      "marker",
+      900
+     ]
+    }
+   }
+  }
+ ]
+}

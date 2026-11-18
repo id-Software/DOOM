@@ -1,0 +1,15 @@
+# M5b step 7b: keyboard turns at full resolution, then a run along the hall over the pickups.
+wad tests/reference/m5b_wads/palbonus.wad
+map 1
+skill 2
+screenblocks 10
+cmd 0 0 320 0 x5                      # the slow turn left (5 tics while turnheld < SLOWTURNTICS): 256 in a demo
+cmd 0 0 640 0 x24                     # the normal turn left: 768 in a demo
+cmd 0 0 -320 0 x5
+cmd 0 0 -640 0 x24                    # the normal turn right: -512 in a demo; net 0 here, +6144 (33.75 degrees) in a demo
+cmd 50 0 0 0 x30                      # run east: two pickups with messages here, none in the demo-resolution twin
+golden ev_turn_left_then_right        # genuine held-key turns: 320, 640, -640
+golden round_keyboard                 # 320, 640 and 1280 alone and with small mouse turns
+cmd 0 0 1280 0 x3
+cmd 0 0 -1280 0 x3
+cmd 50 0 0 1 x16                      # run and fire

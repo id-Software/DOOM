@@ -1,0 +1,15 @@
+tic
+ev keydown 0xad
+ev keydown 0xac
+ev keydown 0x9d
+ev mouse 5 8 0
+tic 3
+ev keyup 0xad
+ev keyup 0xac
+ev keyup 0x9d
+ev mouse 0 0 0
+tic 3
+ev keydown 0xac
+tic 2
+ev keyup 0xac
+tic

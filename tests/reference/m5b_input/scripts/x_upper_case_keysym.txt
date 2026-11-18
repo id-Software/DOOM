@@ -1,0 +1,8 @@
+tic
+press I
+tic
+release I
+press D
+tic
+release D
+tic

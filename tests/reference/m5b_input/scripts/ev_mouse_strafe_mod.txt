@@ -1,0 +1,16 @@
+tic
+ev keydown 0xb8
+ev mouse 0 10 0
+tic
+ev mouse 0 25 0
+tic
+ev mouse 0 26 0
+tic
+ev mouse 0 -400 0
+tic
+ev mouse 0 4 0
+tic
+ev mouse 0 -4 0
+tic
+ev keyup 0xb8
+tic

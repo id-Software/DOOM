@@ -1,0 +1,15 @@
+# M5b session palbonus_pickups (scripted, not played by a person), at screenblocks 11: pickups with their messages and
+# bonus palettes, small mouse turns lost to demo resolution, and a pause on focus loss.
+wad tests/reference/m5b_wads/palbonus.wad
+map 1
+skill 2
+screenblocks 11
+100 key up down          # walk over the pickups
+400 motion 3 0           # turn -96: rounds to 0
+700 motion 4 2           # turn -128 and a little forward motion: the turn rounds to 0
+1500 focus               # focus lost: the app pauses and releases the held key
+2500 key pause down      # resume
+2510 key pause up
+2600 key up down         # walk on
+4500 key up up
+5200 end

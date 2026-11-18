@@ -23,7 +23,10 @@
 use std::fmt;
 use std::sync::Arc;
 
+pub mod d_display;
 pub mod gif;
+pub mod hu_lib;
+pub mod hu_stuff;
 pub mod p_spec;
 pub mod png;
 pub mod r_bsp;
@@ -34,12 +37,18 @@ pub mod r_plane;
 pub mod r_segs;
 pub mod r_sky;
 pub mod r_things;
+pub mod st_lib;
+pub mod st_stuff;
 pub mod state;
 mod tables;
 #[cfg(test)]
 mod test_support;
+pub mod v_video;
 pub mod view;
 
+pub use d_display::{
+    Display, DisplayConfig, DisplayFrame, DisplayObserveError, DisplayRefusal, DisplayState,
+};
 pub use r_data::{GameMode, LumpDirectory, ResourceError, Resources};
 pub use r_main::{SCREENHEIGHT, SCREENWIDTH};
 pub use state::{RenderState, RestoreError, StateDecodeError, WallSteps};
@@ -482,6 +491,20 @@ impl Renderer {
         sim: &Simulation,
         out: &mut Frame,
     ) -> Result<FrameReport, RenderRefusal> {
+        self.render_with(sim, out, |_, _| Ok(()), |_, _| Ok(()))
+    }
+
+    /// [`Self::render`] with the 2D drawing of `D_Display` around the view (crate-internal, for
+    /// [`d_display::Display`]): `before` draws into the persistent screen and its taint before
+    /// `R_RenderPlayerView` (the status bar, d_main.c:246), `after` after it (the HUD,
+    /// d_main.c:270-271). Nothing is committed unless all three succeed.
+    pub(crate) fn render_with<E: From<RenderRefusal>>(
+        &mut self,
+        sim: &Simulation,
+        out: &mut Frame,
+        before: impl FnOnce(&mut [u8], &mut [u32]) -> Result<(), E>,
+        after: impl FnOnce(&mut [u8], &mut [u32]) -> Result<(), E>,
+    ) -> Result<FrameReport, E> {
         let state = self.state.as_ref().ok_or(RenderRefusal::NotObserved {
             observed: None,
             simulation: sim.tic(),
@@ -490,7 +513,8 @@ impl Renderer {
             return Err(RenderRefusal::NotObserved {
                 observed: Some(state.tic),
                 simulation: sim.tic(),
-            });
+            }
+            .into());
         }
         let player = sim
             .original_player(PlayerSlot::One)
@@ -525,6 +549,7 @@ impl Renderer {
         out.pixels.copy_from_slice(&state.screen);
         let mut taint = state.taint.clone();
         let mut mapped = state.mapped.clone();
+        before(&mut out.pixels, &mut taint)?;
         let switch_parity_unknown = state.switches.parity_unknown();
         if let Some(t) = self.trace.as_mut() {
             t.fill(Feature::Untouched);
@@ -552,7 +577,7 @@ impl Renderer {
             planes: r_plane::PlaneState::default(),
             things: r_things::ThingState::new(nsectors),
         };
-        r_main::render_player_view(&mut ctx, &weapons)?;
+        r_main::render_player_view(&mut ctx, &weapons).map_err(E::from)?;
         let wall_steps = WallSteps {
             pixhigh: ctx.segs.pixhigh,
             pixhighstep: ctx.segs.pixhighstep,
@@ -573,6 +598,7 @@ impl Renderer {
         newly_mapped.sort_unstable();
         let fuzzpos = ctx.fuzzpos as u32;
         drop(ctx);
+        after(&mut out.pixels, &mut taint)?;
         let flagged_columns: Vec<u16> = (0..SCREENWIDTH)
             .filter(|x| (0..SCREENHEIGHT).any(|y| taint[y * SCREENWIDTH + x] != 0))
             .map(|x| x as u16)

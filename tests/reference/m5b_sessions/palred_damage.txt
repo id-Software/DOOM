@@ -1,0 +1,19 @@
+# M5b session palred_damage (scripted, not played by a person): a soulsphere pickup, a barrel shot point-blank (damage,
+# the red palettes and the pain face), a pause in the middle, then a fast keyboard turn.
+wad tests/reference/m5b_wads/palred.wad
+map 1
+skill 2
+screenblocks 10
+100 key up down          # walk to the soulsphere (about 5 tics)
+243 key up up
+600 key fire down        # fire at the barrel
+1750 key fire up
+2500 key esc down        # pause while the palette fades
+2510 key esc up
+4000 key esc down        # resume
+4010 key esc up
+5000 key speed down      # fast turn: 1280 after the slow tics
+5000 key right down
+5300 key right up
+5300 key speed up
+6000 end

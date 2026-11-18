@@ -1,0 +1,6 @@
+tic
+motion 170 110
+tic
+motion 180 95
+tic
+tic

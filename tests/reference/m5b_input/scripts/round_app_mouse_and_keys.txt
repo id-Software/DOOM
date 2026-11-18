@@ -1,0 +1,40 @@
+tic
+ev keydown 0xac
+ev mouse 0 -1276 0
+tic
+ev mouse 0 -400 0
+tic
+ev mouse 0 -148 0
+tic
+ev mouse 0 -20 0
+tic
+ev mouse 0 -16 0
+tic
+ev mouse 0 -12 0
+tic
+ev mouse 0 12 0
+tic
+ev mouse 0 16 0
+tic
+ev mouse 0 20 0
+tic
+ev mouse 0 148 0
+tic
+ev mouse 0 400 0
+tic
+ev mouse 0 1276 0
+tic
+ev keyup 0xac
+ev keydown 0xae
+ev keydown 0xb6
+ev mouse 0 -1276 0
+tic
+ev mouse 0 -16 0
+tic
+ev mouse 0 16 0
+tic
+ev mouse 0 1276 0
+tic
+ev keyup 0xae
+ev keyup 0xb6
+tic

@@ -1,0 +1,3 @@
+tic
+ev keydown 0xad
+tic 32770

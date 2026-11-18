@@ -1,0 +1,5 @@
+tic
+tap Control_L
+tap space
+tap 3
+tic 2

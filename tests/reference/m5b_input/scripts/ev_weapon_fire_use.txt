@@ -1,0 +1,9 @@
+tic
+ev keydown 0x34
+ev keydown 0x9d
+ev keydown 0x20
+tic 2
+ev keyup 0x34
+ev keyup 0x9d
+ev keyup 0x20
+tic

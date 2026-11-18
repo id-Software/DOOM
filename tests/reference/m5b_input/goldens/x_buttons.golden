@@ -1,0 +1,16 @@
+h 6e020101000000000001000000
+s -1 gamestate=0,gameaction=0,menuactive=0,messageToPrint=0,saveStringEnter=0,automapactive=0,viewactive=1,chat_on=0,paused=0,sendpause=0,sendsave=0,setblocks=-1,setdetail=-1,showMessages=1,usegamma=0,cheats=0,message=null,givepower=-1,advancedemo=0,demorecording=1,usergame=1,displayplayer=0,sounds=0,gamemap=1,weapons=0x3,cards=0x0,armor=0,ammo0=50,readyweapon=1,pendingweapon=1
+t 0 0 0 0 0 0 0 0 0 00000000 0 1 0 0 1 0 0 0 -
+e 1 2 1 0 0 G
+t 1 0 0 0 1 0 0 0 1 00000001 0 2 0 0 2 0 0 2 -
+e 2 2 260 0 0 G
+t 2 25 0 0 0 25 0 0 0 19000000 0 0 4 1 3 0 0 8 -
+e 3 2 261 0 0 G
+t 3 25 0 0 1 25 0 0 1 19000001 0 1 4 1 4 0 0 10 -
+e 4 2 6 0 0 G
+t 4 25 0 0 0 25 0 0 0 19000000 0 2 4 1 0 1 1 12 -
+e 5 2 2 0 0 G
+t 5 0 0 0 0 0 0 0 0 00000000 0 0 0 1 1 1 1 4 -
+e 6 2 0 0 0 G
+t 6 0 0 0 0 0 0 0 0 00000000 0 1 0 1 2 1 1 0 -
+z 7 41

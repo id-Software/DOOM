@@ -1,0 +1,8 @@
+tic
+ev keydown 0x2c
+ev keydown 0x2e
+tic 2
+ev keyup 0x2c
+tic 2
+ev keyup 0x2e
+tic

@@ -1,0 +1,10 @@
+tic
+tap Super_L
+tic
+press Super_L
+tic
+release Super_L
+press Up
+tic 2
+release Up
+tic

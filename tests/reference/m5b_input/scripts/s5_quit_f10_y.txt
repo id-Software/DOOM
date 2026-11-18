@@ -1,0 +1,8 @@
+tic
+ev keydown 0xc4
+tic
+ev keyup 0xc4
+ev keydown 0x79
+tic
+ev keyup 0x79
+tic

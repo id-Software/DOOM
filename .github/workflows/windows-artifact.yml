@@ -1,0 +1,85 @@
+name: Windows artifact
+
+# A downloadable Windows build of doom-play (M5b step 9). Informational and NOT a required
+# check: no ruleset or branch protection names it, and its workflow and job names do not
+# collide with the required check names reported by rust.yml.
+#
+# Triggers:
+#  * workflow_dispatch: only offered by GitHub once this file is on the default branch.
+#  * pull_request `labeled`: putting the label `windows-artifact` on the pull request starts
+#    a build. This works before merge. Only `labeled` is used, so an ordinary push to a
+#    labelled PR does not rebuild; remove and re-add the label to build the new head.
+#
+# The artifact holds doom-play.exe (C runtime linked statically, so no Visual C++
+# redistributable is needed), LICENSE.TXT and a generated README.txt. No game data.
+
+on:
+  workflow_dispatch:
+  pull_request:
+    branches: [master]
+    types: [labeled]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: windows-artifact-${{ github.event.pull_request.number || github.ref }}-${{ github.event.label.name || 'dispatch' }}
+  cancel-in-progress: true
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  windows-artifact:
+    name: Windows build artifact (doom-play)
+    if: ${{ github.event_name == 'workflow_dispatch' || github.event.label.name == 'windows-artifact' }}
+    runs-on: windows-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+          # Build the PR head itself, not the synthetic merge commit.
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - name: Install stable Rust
+        run: rustup toolchain install stable --profile minimal
+      - name: Build doom-play (release, static C runtime)
+        env:
+          RUSTFLAGS: -C target-feature=+crt-static
+        run: cargo +stable build --release --locked -p doom-play
+      - name: Assemble the artifact directory
+        shell: bash
+        env:
+          COMMIT: ${{ github.event.pull_request.head.sha || github.sha }}
+          REPO_URL: ${{ github.server_url }}/${{ github.repository }}
+        run: |
+          set -euo pipefail
+          out="$RUNNER_TEMP/doom-play-windows-x86_64"
+          mkdir -p "$out"
+          cp target/release/doom-play.exe "$out/"
+          cp LICENSE.TXT "$out/"
+          {
+            echo "doom-play for Windows (x86_64), a Rust port of Linux DOOM 1.10 rules."
+            echo
+            echo "Commit:  $COMMIT"
+            echo "Source:  $REPO_URL/tree/$COMMIT"
+            echo "License: GPL-2.0-only (LICENSE.TXT). The corresponding source for this"
+            echo "         binary is the commit above, at the repository URL above."
+            echo
+            echo "Requires an OpenGL 2.1 (or OpenGL ES 2) driver."
+            echo
+            echo "No game data is included. You need your own DOOM IWAD (Episode 1)."
+            echo "Run from a command prompt:"
+            echo
+            echo "  doom-play.exe --iwad C:\\path\\to\\DOOM.WAD --map 1 --skill 2"
+            echo
+            echo "Run doom-play.exe --help for every option."
+          } > "$out/README.txt"
+          ls -l "$out"
+      - name: Upload the artifact
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: doom-play-windows-x86_64
+          path: ${{ runner.temp }}/doom-play-windows-x86_64/*
+          if-no-files-found: error
+          retention-days: 30

@@ -1,0 +1,10 @@
+tic
+tap Delete
+tic
+press Delete
+tic
+release Delete
+press Up
+tic 2
+release Up
+tic

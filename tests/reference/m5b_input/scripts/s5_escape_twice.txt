@@ -1,0 +1,11 @@
+tic
+ev keydown 0x1b
+tic
+ev keyup 0x1b
+ev keydown 0x1b
+tic
+ev keyup 0x1b
+ev keydown 0xad
+tic
+ev keyup 0xad
+tic

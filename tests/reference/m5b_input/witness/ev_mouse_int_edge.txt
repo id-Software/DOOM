@@ -1,0 +1,5 @@
+tic
+ev mouse 0 214748364 0
+tic
+ev mouse 0 0 -214748364
+tic

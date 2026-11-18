@@ -14,7 +14,9 @@ terms such as profile, fixture and admission.
 | [`doom-wad`](../crates/doom-wad/src/lib.rs) | Bounded WAD directory/resource access without assuming assets are executable |
 | [`doom-map`](../crates/doom-map/src/lib.rs) | Validated classic map records, BSP, REJECT and source BLOCKMAP data |
 | [`doom-sim`](../crates/doom-sim/src/lib.rs) | Headless deterministic gameplay profiles, actors, collision and canonical diagnostics |
-| [`doom-render`](../crates/doom-render/src/lib.rs) | The faithful software renderer for the 3D view (M5a); reads a simulation, never writes it ([below](#software-renderer-m5a)) |
+| [`doom-render`](../crates/doom-render/src/lib.rs) | The faithful software renderer for the 3D view (M5a), and since M5b the status bar, HUD messages, palette choice and the composed `Display`; reads a simulation, never writes it ([below](#software-renderer-m5a)) |
+| [`doom-game`](../crates/doom-game/src/lib.rs) | The platform-free app core (M5b): the input path, the event layer, the 35 Hz loop on an injected clock, the session recorder, pause, the end and refusal screens ([below](#playable-app-m5b)) |
+| [`doom-play`](../crates/doom-play/src/main.rs) | The `doom-play` binary (M5b): the window, key and mouse translation, files and the clock; the only crate with a windowing dependency ([below](#playable-app-m5b)) |
 
 The preserved [original source](../linuxdoom-1.10/) is behavioral reference, not a
 runtime dependency. The Rust workspace forbids unsafe code and global mutable game
@@ -282,6 +284,53 @@ line specials and button slots the simulation keeps only in its canonical snapsh
   (`tools/local/m5a_real.py`), the GIF viewer example and two fuzz targets are developer tools,
   not part of the library. See [support](COMPATIBILITY.md#software-renderer-m5a) and
   [commands](TESTING.md#m5a-synthetic-renderer-rooms).
+
+### Playable app (M5b)
+
+Dependency chain: `doom-sim` and `doom-render` are as before (`doom-render` gains the status bar, HUD and
+`Display`, and its public API only grows; nothing depends on it from below). `doom-game` depends on
+`doom-sim`, `doom-render`, `doom-wad` and `doom-map` and on no third-party crate: it has no windowing, audio,
+thread or wall-clock dependency and takes DOOM key codes, never platform ones. `doom-play` depends on
+`doom-game` and on `miniquad` (pinned, see [COMPATIBILITY](COMPATIBILITY.md#platform-limits)); nothing depends on
+it. Fuzzing, mutation testing and the headless tests therefore reach the input code and the loop without
+building the window library, and the simulation cannot reach presentation or platform code.
+
+- **`doom-render`: `Display`.** `d_display` composes one frame in the order of `D_Display` (HUD erase, status
+  bar, the M5a 3D view over the persistent buffer, the HUD message) and reports the palette number, face and
+  message flag; per tic `observe` runs the status bar and HUD tickers after the simulation. It reads the
+  simulation only through its public API and the executed command; the status bar and HUD history that the
+  simulation does not keep is `Display`'s own state, saved with the render state as
+  [`DDSP`](STATE_FORMAT.md#display-state-ddsp-version-1-m5b). `restore` checks the saved fields against each
+  other and the simulation (`DisplayState::check`); the app never restores a state, and the public
+  `observe_with` hook, used by tests and fuzzing, refuses inputs the simulation cannot produce.
+- **`doom-game`: `input`.** The genuine event-to-command path ported (`EventQueue`, `InputState::respond`,
+  `build_ticcmd`, the demo write and re-read) and the app's `EventLayer` in front of it. `BuiltCommand` has a
+  private constructor and every command it yields is wire-24 admitted.
+- **`doom-game`: `app`.** `App` owns the session: the platform feeds it key, mouse and focus events and the
+  monotonic time in microseconds, and shows `App::picture`; files and the date come in through the `Host`
+  trait (`Host::claim` creates a session file exclusively, so a name is never replaced). A minimise or
+  focus-loss event from the window pauses the app and releases every key. Pause, restart, the end and refusal
+  screens and the recorder live here.
+- **Per-tic order in the app loop.** (1) the event layer drains into the 64-slot queue; (2) the responder and
+  `G_BuildTiccmd` build the command; (3) the demo write and re-read gives the command the game executes (a
+  `RecordedTic`); (4) the recorder stores it; (5) the simulation advances with the stored copy; (6) the
+  display observes the tic with that executed command and draws it. At most 5 tics run per update.
+- **Nothing can alter a command after it is recorded.** A `RecordedTic` has private fields and only
+  `BuiltCommand::record` makes one; the recorder keeps its own checks as a second guard, refusing a tic whose
+  executed command differs from the re-read of its bytes, or that wire 24 does not admit. The simulation runs
+  the stored copy, so the saved demo is, byte for byte, what the game executed. `replay` takes only demo
+  commands (made by the demo reader or the recorder); injected full-resolution commands go through the
+  separately named `replay_full_resolution`. In the opt-in unrecorded mode the executed command is the built
+  one (after the wire-24 check) and nothing is recorded or written; its "not recorded" label band for the first 175 tics is
+  drawn on the presented picture only, never in the game frame.
+- **What is saved where.** A session's only durable file is its demo (version-110 `.lmp`, rewritten whole). The
+  simulation's canonical state is DSIM, the 3D renderer's history is `DRST`, the status bar and HUD history
+  is `DDSP` (which embeds `DRST`); the app itself does not save or load games, and the app's pause, end
+  and refusal state is not saved ([STATE_FORMAT](STATE_FORMAT.md#display-state-ddsp-version-1-m5b)).
+- **Harnesses.** The genuine status bar, HUD and input path are compiled whole into separate runners
+  (`tools/reference/m5b_*`), and `tools/reference/m5b_session.py` replays headless app sessions through them.
+  See [support](COMPATIBILITY.md#playable-build-m5b), the [evidence](validation/M5B.md) and the
+  [commands](TESTING.md#m5b-playable-status-bar-hud-input-and-the-app).
 
 For detailed historical design constraints see the complete
 [pre-M3d3j architecture](validation/archive/pre-m3d3j-architecture.md).

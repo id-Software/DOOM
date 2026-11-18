@@ -1,0 +1,4 @@
+tic
+ev keydown 0xae
+ev keyup 0xae
+tic 2

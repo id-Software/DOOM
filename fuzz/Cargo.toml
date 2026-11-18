@@ -16,6 +16,7 @@ doom-map = { path = "../crates/doom-map" }
 doom-sim = { path = "../crates/doom-sim" }
 doom-types = { path = "../crates/doom-types" }
 doom-render = { path = "../crates/doom-render" }
+doom-game = { path = "../crates/doom-game" }
 
 [lints.rust]
 unsafe_code = "forbid"
@@ -390,6 +391,20 @@ bench = false
 [[bin]]
 name = "render_data"
 path = "fuzz_targets/render_data.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "game_input_events"
+path = "fuzz_targets/game_input_events.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "render_display_state"
+path = "fuzz_targets/render_display_state.rs"
 test = false
 doc = false
 bench = false

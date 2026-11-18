@@ -1,0 +1,9 @@
+config record 0
+tic
+ev keydown 0x71
+tic
+ev keyup 0x71
+ev keydown 0xad
+tic
+ev keyup 0xad
+tic

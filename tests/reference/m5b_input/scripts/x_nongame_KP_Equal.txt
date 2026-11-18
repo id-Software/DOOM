@@ -1,0 +1,10 @@
+tic
+tap KP_Equal
+tic
+press KP_Equal
+tic
+release KP_Equal
+press Up
+tic 2
+release Up
+tic

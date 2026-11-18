@@ -2596,7 +2596,7 @@ SAWBITE; see [the evidence record](validation/M4B.md#the-m5walk3-divergence-and-
 kills the body while the flag is set was reasoned from the source and has not been observed.
 
 **Real-map evidence (plan step 7, local-only).** Rust under wire 24 matched the genuine engine tic for
-tic on 61 scripted runs over E1M1 to E1M9 on skills 2 and 3, and on `DEMO1` run by linuxdoom-1.10
+tic on 61 scripted runs over E1M1 to E1M9 (skill 2 on all nine maps, skill 3 on E1M5, E1M8 and E1M9; `DEMO1` is E1M5 on skill 3), and on `DEMO1` run by linuxdoom-1.10
 (a match with that engine, not with the DOS 1.9 executable that recorded the demo); other inputs are
 not claimed ([evidence record](validation/M4B.md#real-maps-and-demo1)).
 The observations (the 30 M4a synthetic scripts and the M4b synthetic scripts compared with the
@@ -2673,7 +2673,282 @@ render state (`DRST`) carries all of it, and a test restores a state at tic N-k 
 frames as an uninterrupted run (rewind).
 
 Not claimed: any renderer or presentation behaviour beyond these, the DOS executable's picture, speed (no
-timing gate), or the M5b items (window, status bar, HUD, automap, input, sound, a modern renderer).
+timing gate), or a modern renderer. The window, status bar, HUD and input of M5b are under
+[Playable build (M5b)](#playable-build-m5b); the automap and sound remain out of scope.
+
+## Playable build (M5b)
+
+Milestone status is in [ROADMAP](ROADMAP.md). M5b makes the engine playable in a limited way: the binary
+`doom-play` opens a window and plays one Episode 1 map (E1M1-E1M9, skill 2 or 3) with keyboard and mouse at 35
+tics a second, on the wire-24 simulation and the M5a renderer, with the status bar, HUD messages and palette
+flashes. The simulation did not change: no new wire, no DSIM change, no digest change. The facts are in the
+[investigation note](M5B_REFERENCE_INVESTIGATION.md) (decisions S1-S23, owner rulings 2026-11-17), the
+observations in the [evidence record](validation/M5B.md) and the commands in
+[TESTING](TESTING.md#m5b-playable-status-bar-hud-input-and-the-app). The saved display state is
+[`DDSP`](STATE_FORMAT.md#display-state-ddsp-version-1-m5b), not part of DSIM.
+
+**What is claimed, in one table.**
+
+| Claim | What is and is not shown |
+| --- | --- |
+| The composed frame | The 320x200 frame (status bar, 3D view, HUD message) and the palette number of every tic are **identical to the genuine engine under the declared sound-free, wipe-free contract** (below), with two exclusions. On the 59 synthetic items at screenblocks 10 and 11, checked in CI: 42,352 frames, of which 41,982 are compared on the whole-frame digest, 300 on a masked digest (whole columns that the genuine tracker flags as read from undefined memory are zeroed on both sides, with the status bar and HUD pixels in them) and 70 are not compared (the switch state is not recorded, as in M5a). On all 61 real Episode 1 runs at screenblocks 10 and 11, locally (158,966 frames each): at 10, 158,472 on the whole digest, 494 masked, 0 not compared; at 11, 158,414 whole, 552 masked, 0 not compared. Also checked through the app on scripted sessions (next rows). It is never claimed identical to a vanilla session without the qualifier, nor to the DOS executable's picture ([synthetic counts](validation/M5B.md#step-3-the-rust-status-bar-hud-and-display), [real maps](validation/M5B.md#step-5-the-real-map-check-local-only)). |
+| The commands | **Except for cheat codes**, every tic command the app makes is the genuine `G_Responder` / `G_BuildTiccmd` result for the stream of events the app posts, and is admitted by wire 24; in a recorded session each is also re-read from the demo buffer as vanilla does (the unrecorded mode executes the built command instead). Shown against the genuine input driver on 251 scripts (the 175 in the app's domain tic for tic in Rust). The exception: the app forwards cheat-code keys as ordinary keys and has no cheat matcher, so typing a code does nothing where the genuine engine would act on it, and `idclev` would also make the genuine engine reload the level and clear the held keys, so its later commands would differ (the golden `s5_cheat_idclev12` differs at tic 8, and the test pins that tic). |
+| Sessions | Each session is recorded as a version-110 demo (unless the opt-in unrecorded mode is used, below). What was checked: the 4 committed scripted sessions (75 + 61 + 145 + 155 = 436 tics) in CI; and, locally, a 334-tic scripted E1M1 session and three idle first-play sessions of 350 tics each (E1M1 on X11 and on Wayland; E1M3 on skill 3 at screenblocks 11). In each, the demo replays in the genuine engine with every command, frame, palette, face, message and masked game dump equal under the contract. Those are the sessions checked, not a guarantee about every other: any saved session can be checked with the one command in [TESTING](TESTING.md#m5b-playable-status-bar-hud-input-and-the-app), which prints the first tic that differs. |
+| Unrecorded mode | The opt-in `--unrecorded-full-turning` mode writes no demo and cannot be replayed ([below](#unrecorded-full-turning-mode-opt-in)). Its evidence is limited to 4 injected scripts and 2 scripted sessions on synthetic rooms (829 tics): nothing on real maps, and no person has played it. |
+| What a person experiences | **Not shown.** Nobody has yet seen the picture on a screen, pressed a real key, moved a real mouse, checked mouse capture under WSLg, or run the program on Windows or macOS beyond CI builds. Feel, latency and appearance are for a human to judge ([evidence](validation/M5B.md#what-a-human-still-has-to-judge)). |
+
+### The status bar face's idle glance differs from a vanilla session (declared)
+
+In plain words: **the status bar face's idle left, ahead or right glance differs from a vanilla session with
+sound until sound is modelled, and nothing else on screen is affected** (the level-start screen melt, not
+modelled either, draws from the same random table). The reason: the glance is chosen from
+`M_Random` (st_stuff.c:992, 913-919), the same random stream that every started sound and the level-start
+screen melt also draw from. M5b has neither sound nor the melt, so its `M_Random` index starts at 0 at a new
+game and only the status bar advances it, and the glance sequence differs from a real session's. Phase 1
+measured the face differing in 43% of real-map frames once sound starts and the melt were modelled.
+`M_Random` never feeds game logic, so the game, the 3D view, the numbers and every message are unaffected.
+This is the declared **sound-free, wipe-free contract** (decision S15), and closing it is a ROADMAP item under
+M5c.
+
+### Status bar, HUD and palette choice
+
+The status bar (`st_stuff.c`, `st_lib.c`), the HUD message line (`hu_stuff.c`, `hu_lib.c`), the 2D patch
+drawing (`v_video.c`) and the palette choice are new modules of `doom-render`, composed with the 3D view by
+`Display` in the order of `D_Display` for a single-player level at screenblocks 10 and 11. The drawing code
+treats its lumps by the original's rules; the committed tests use our own generated graphics (no id art).
+
+- **Matched, and on what evidence.** The genuine status bar and HUD are compiled whole into the M5b runner and
+  compared with the Rust `Display` on every tic of 59 items (the 26 M5a rooms, the 22 M4b scripts and 11 new
+  rooms) at screenblocks 10 and 11: the whole 320x200 frame digest (masked digest where the read tracker flags
+  columns, as in M5a), the palette number and the palette set during the frame, the face, whether the message
+  shows, the `M_Random` index and every message the HUD took. Everything compared matches, apart from the 300 masked
+  and 70 not-compared frames of the table above ([evidence](validation/M5B.md#step-3-the-rust-status-bar-hud-and-display)).
+  The state can be saved and restored (`DDSP`) and continued to the same frames.
+- **Real maps (local-only).** The same comparison on all 61 real Episode 1 runs (E1M1-E1M9 scripts and `DEMO1`),
+  every tic, at screenblocks 10 and 11: no mismatched frame, no renderer counter or flag disagreement, 794,830
+  status fields per size (5 per frame) and the message taken on every tic equal, no witness or refusal. The
+  committed record keeps counts, pass/fail facts and digests only ([evidence](validation/M5B.md#step-5-the-real-map-check-local-only)).
+- **The 3D view is unchanged.** Message-free frames equal the M5a goldens on 11,791 frames per configuration.
+- **Reachable under wire 24** (what the synthetic evidence covers): 12 of the 14 palettes (palettes 1 and 9 are
+  never chosen by the source); 40 of the 42 faces (the ouch face at pain level 4 needs a health change the game
+  cannot produce) plus the god face in one bespoke scenario; 29 message kinds, every reachable one (the
+  "medikit you really need" message, code 6, is unreachable); every number and icon the status bar can change
+  in Episode 1.
+- **Unreachable under wire 24, so not exercised by any level run:** the berserk palette term, the god-mode
+  face (covered by unit tests and the one bespoke cheat scenario only, whose cheats are applied through a test
+  hook, not by keys), the plasma and BFG arms icons, the skull-key icons 3-5 and the minus sign. The simulation
+  does not admit invulnerability or berserk.
+- **Screenblocks 10 and 11 only**, chosen at launch and fixed for the session. At these sizes no border is
+  drawn and the HUD erase does nothing, which keeps the frame contract small. Screenblocks 9 and below and low
+  detail are refused (M5a decisions R1, R2, S14).
+- **HUD messages** are the ones the simulation's events produce (pickups, key messages, locked doors); the
+  message line cuts a string off where the original's `HUlib_drawTextLine` stops (it does not wrap). `showMessages`
+  stays 1 (there is no F8 or menu). The cheat matcher is not ported, so no key can change player fields.
+- **Saved display state.** `DDSP` decode checks each field's range. `restore` also runs `DisplayState::check`,
+  which refuses (as `Inconsistent`, leaving the display unchanged) a state whose fields disagree with each other
+  or with the simulation: a message flag without its counter or the reverse, a menu-only flag, `oldhealth` other
+  than -1 at tic 0 or the simulation's health afterwards, key boxes and ready ammunition that differ from the
+  simulation's, an impossible attack-direction counter, and a face that its priority and health cannot produce. It still accepts some states that no run produces
+  (at tic 0 the fresh values of the face, key boxes and message are not pinned, and the priority 4 to 8 rows do not
+  check every precondition), so it is a consistency check, not a proof that a state is reachable.
+  `restore` still **trusts** the line text, `showMessages`, the palette and the widgets' old values,
+  `oldweaponsowned`, `firsttime` and `bg_drawn` against the embedded screen, `rndindex`, and the pain band
+  against the current health. The golden test runs `check` on all 42,352 states (all pass), and 12 forged states
+  are each refused. Nothing in the app calls `restore`.
+- **Admission bounds at load.** A malformed lump the single-player game never draws (the plasma and BFG arms icons, skull keys
+  3-5, the minus sign, the multiplayer face background) refuses the whole display, and a PLAYPAL shorter than 14 palettes of 768 bytes is refused; the original would
+  only cache those lumps. This is an over-refusal, not a divergence. The 2D drawer's `BeyondBuffer` refusal of a
+  foreground post below row 199 is likewise conservative (the original would write into the next screen buffer);
+  for the background buffer the overrun is real.
+- **The `observe_with` hook** (used by the cheat scenario of the golden test and by fuzzing, never by the app)
+  refuses adjusted inputs outside what the simulation can produce (health and armour 0-200, ammunition within its
+  maximum, a ready weapon below 9, damage count 0-100, a bonus count that keeps the +7 in range, powers not
+  negative) with `AdjustedInputOutOfRange`, before any state changes.
+- **Not evidenced.** A mid-session change of screenblocks (`Display::set_screenblocks`) is checked only Rust
+  against Rust; the app fixes the size for the session. Only `AttackerRemoved` is reached through the real
+  simulation path (a test removes the attacker after its damage); the other 2D and message witnesses come from
+  constructed states, and that wire 24 never removes a live monster is argued, not shown. In one state (the dead
+  player with its attacker retired) the Rust refusal is wider than the original's read, so the app would refuse a
+  tic the genuine code survives; it refuses rather than diverges.
+
+### Declared contracts, witnesses and refusals
+
+- **The sound-free, wipe-free `M_Random` contract** (decision S15, above): `M_Random` is 0 at a new game and
+  only the status bar draws it. Every frame claim in this section carries that qualifier.
+- **The masked game-dump fields (decision S16).** When the genuine status bar and HUD run, two game-dump fields
+  change (the `M_Random` index, and the message on the tic it is taken). The M5b runner records and masks them;
+  the masked dump equals the frozen digests on every existing item and the frozen M4b runner's on the new rooms,
+  and the recorded fields are compared separately. No frozen runner, driver, contract or digest changed.
+- **Display witnesses** (typed, repeatable, leave the display state unchanged; decision S17). Observing a tic
+  is refused with `MessageUnderivable` (the message assignment cannot be derived from the tic's events and
+  command, or disagrees with the simulation's stored code), `MessageNotTaken` (a message would stay pending in
+  `player->message`), `AttackerRemoved` (the face would read a freed attacker) or an observe error (`NoPlayer`,
+  or a gap: the display must see every tic from level start in order). Drawing is refused with a 2D drawer
+  error (a post outside its lump, a write below the background buffer, a copy-rect check) or
+  `BeforeFirstTic`, besides the M5a render refusals. None of the 2D witnesses is reached by any synthetic or
+  real item. In the app a refused frame reaches the refusal screen (below).
+- **Wire-24 admission of commands.** `forward` and `side` are clamped to +-50, the buttons are only attack, use
+  and a weapon change with its change bit, and `BT_SPECIAL` cannot be produced (no pause or save command), so
+  every recorded command is admitted by wire 24.
+
+### Input
+
+Linux DOOM 1.10's own mouse layer is not playable (no mouse without `-grabmouse`; only the last motion event of
+a tic counts; purely horizontal moves are dropped; fire can stick), so the app chooses the **stream of events**
+and keeps the genuine path from there on (decision S4).
+
+- **The event layer** (the app's choice, not linuxdoom's X layer). Key repeats are dropped; a key release that
+  arrives in the same pump as its press is held back to the next pump, so a tap shorter than a tic still lasts
+  one tic (the same for mouse buttons, and for the run key under always-run); the mouse sends one event per command
+  build with the motion accumulated since the last build, each axis clamped to +-319 raw device units (the window
+  library's raw motion, which is not in pixels; how the clamp feels is unmeasured) and scaled `<< 2` as linuxdoom does, and
+  only when there is motion or a button change; at most 63 events per build and at most 1,024 pending raw
+  inputs (past that everything is released). Every stream it makes is one the genuine `G_Responder` could have
+  received. Sensitivity arithmetic, turning, strafing, forward movement, double-click use and the clamps are the
+  genuine code ported.
+- **Never forwarded** (decision S5): Esc and Pause (the app's own pause), Enter, Tab, `-`, `=`, `q` and F1-F12.
+  The genuine effects of these (menus, automap, screen size, gamma, message refresh, ending a recording) are out
+  of scope, and a withheld key cannot be bound. The cheat matcher is not ported: the letters of a cheat code
+  reach the game as ordinary keys and do nothing, whereas the genuine engine would act on a completed code
+  (see the exception under "The commands" above). Keys linuxdoom's translation
+  leaves as a code of 256 or more (keypad digits, Insert, Home and so on) are not forwarded either.
+- **Bindings** (decision S7); no configuration file is read. `vanilla` (the default): arrow keys move and turn,
+  `,` and `.` strafe, right Ctrl fires, Space uses, right Alt strafes with the turn keys, right Shift runs,
+  `1`-`8` choose weapons; mouse left fires, middle strafes, right moves forward; sensitivity 5. `modern`
+  (`--bindings modern`): W, A, S, D move and strafe, E uses, always run, left button fires, no vertical mouse
+  motion, no middle or right button action; the other keys as vanilla.
+- **Pause and focus.** Esc or Pause pauses the app (below). The window library (miniquad 0.4.11) reports the
+  window being minimised or losing focus through its minimise event, and `doom-play` turns that event into a pause.
+  Every pause releases every held key and button through the event layer. Observed on 2026-11-17 under WSLg: when a
+  second window took the focus, the running game paused, on X11 and on Wayland. **Not checked:** Alt-Tab,
+  minimising by hand, Windows, macOS, and whether the keys are seen released on screen. From the library's source,
+  not observed: on X11 any focus-out pauses (including one caused by another program's keyboard grab), and on macOS
+  moving the window pauses it. Pressing Esc before switching windows remains the safe habit.
+- **Recording round trip, and what it costs** (decision S3, owner-confirmed). Every session is recorded as a
+  version-110 demo, and, as in vanilla recording, the game executes the command it has just **re-read from the
+  demo buffer**. In plain words: while recording, turning happens in steps of 256 units (about 1.4 degrees), so
+  a mouse movement or key turn that is smaller than that is rounded (the demo byte is `(angleturn+128)>>8`,
+  g_game.c:1512): a turn of -128 to 127 units a tic is dropped without being carried to the next tic, and 128 to 255
+  becomes 256. This costs fine mouse turning, and it is what makes every
+  session a valid vanilla demo. The opt-in mode that executes full-resolution turns without recording is
+  [below](#unrecorded-full-turning-mode-opt-in).
+- **Input evidence.** The genuine input path (event queue, responders, `G_BuildTiccmd`, the demo write and
+  re-read, linuxdoom's X translation against a declared fake Xlib) is compiled whole and run on 251 scripts
+  (36,453 tics); the Rust core matches the 175 app-domain scripts tic for tic and refuses the scripts that
+  use a withheld key (`WithheldKey`) or a mouse value that would overflow (`MouseOverflow`). One script of
+  forwarded keys is declared not exact: typing `idclev12`, after which the genuine engine reloads the level
+  at tic 8 and clears the held keys (the app has no cheat matcher); the other cheat scripts (`idkfa`, `idbeholds`
+  and so on) leave the commands equal, but the genuine engine would change player state where the app does
+  nothing. Findings that bear
+  on behaviour (the app clamps or withholds before any of them is reachable): a built turn at the edge of a
+  `short` re-reads as -32768; typing a cheat while recording would end the recording; the level load leaves the
+  double-click state as it was (the app's `load_level` clears only `mousebuttons[0]`, as the declared 32-bit
+  adapter does).
+
+### Unrecorded full-turning mode (opt-in)
+
+`--unrecorded-full-turning` (decision S3 (ii), owner-confirmed) is never the default and never implied by another
+option. **What it does:** mouse and keyboard turns are executed at full resolution (the built command, after
+the wire-24 admission check) instead of being rounded to multiples of 256 by the demo re-read. **What is lost:**
+nothing is recorded and no file is written under any ending, so the session cannot be replayed or checked against
+the genuine engine afterwards. **What is gained:** small mouse turns are no longer dropped. The window title, the
+pause overlay and every end, death, cap and refusal screen say exactly "not recorded: no demo, cannot be
+replayed", and the exit message prints the label instead of a save line. So that the label is seen even in
+fullscreen, where the window title is not visible, the same text is also drawn in a band over the top of the
+presented picture (never in the game frame) before the first tic and for tics 0 to 174 (175 tics, five seconds) of
+every unrecorded session, in every window mode and after every restart; a recorded session never shows it.
+
+Evidence, as far as it goes: the M5b runner's driver, compiled unchanged with a declared command-injection mode
+(`tools/reference/m5b_inject.c`, contract `tests/reference/m5b_inject_contract.json`), runs such commands in the
+genuine engine. Rust matches it on every tic (command, frame under the declared sound-free, wipe-free contract, status
+fields, messages and game dump through the independent DSIM40 encoder) on 4 injected scripts on the synthetic rooms palred and palbonus (630 tics, 373
+commands with a nonzero low byte of the turn) and on 2 scripted unrecorded app sessions (199 tics, 75 such
+commands); the three genuine variants are identical, and the demo-resolution rounding of each script gives a
+different game, so the low byte matters. **Not covered:** real maps, and any person playing it; the label on
+screen is checked by tests, not seen; the input-driver step of the unrecorded-session check has no planted
+fault ([evidence](validation/M5B.md#step-7b-full-resolution-unrecorded-turning)).
+
+### The app's own behaviour (not vanilla)
+
+- **The loop.** The first update only starts the clock; tic 1 falls due 1/35 s later. Each update runs the tics
+  that are due, at most 5; the rest of the lost time is dropped, as `NetUpdate`'s bound does (decision S8).
+  Unlike vanilla, which draws one picture per loop pass, the app draws **after every tic** (the M5a render
+  contract), and shows the last. No clock or file type reaches the simulation: a session's tics are a function
+  of its events and of how many tics each update ran.
+- **Pause** (decision S12). Esc or Pause stops tics; the simulation, the render state and the demo are
+  untouched; the clock is re-based on resume; the "paused" overlay is drawn only on the presented picture, never
+  into the proven frame. From the pause: Esc or Pause resumes, R restarts, Q quits. This is not vanilla's pause
+  (a `BT_SPECIAL` command, not admitted).
+- **End and refusal screens** (decisions S9, S10). At the level's exit, or when the dead player presses use, the
+  app shows its own end screen ("level complete" or "you died", the tic count and the demo's file name; the full
+  path goes to the console only), in its own font and five-colour palette, with R to restart and Q or Esc to quit.
+  There is no intermission, tally or next level. When the simulation or the display refuses a tic (a witness
+  fires), the app stops on a refusal screen that names the witness and the tic, saves the demo, and offers restart
+  or quit; nothing is approximated. **Which tics are in the demo:** a tic the simulation refuses is not (its
+  command is dropped); a tic whose frame is refused after the simulation committed it **is**, so the demo
+  reproduces the refusal and its replay ends the same way (the test refuses tic 15 and saves a 16-tic demo).
+- **Restart is a new game** (decision S11): a fresh simulation at tic 0, both random indices 0, every status bar,
+  HUD and input variable as at process start, a new demo file; the old session is saved first. This differs from
+  vanilla's reload after death, which keeps process state and is not modelled.
+- **Session files** (decision S21). `--sessions DIR` (default `doom-sessions/`) receives a version-110 demo named
+  `E1M<map>-skill<skill>-<yyyymmdd-hhmmss>.lmp`; **the time in the name is UTC** (there is no safe local-time
+  call in the standard library). The file is created when the session starts, as an empty demo (the 13-byte header
+  and the end marker: 14 bytes), so a session killed at once leaves that file and an unwritable directory shows
+  at the first pause. An existing file is **never replaced**: the file is created exclusively, and a collision
+  appends `-2`, `-3` and so on up to `-9999`, after which the save fails visibly. The demo is rewritten whole
+  every 30 seconds of play (1,050 tics) and when the session ends, through a temporary file
+  `<name>.<pid>.tmp` that is synced and renamed, so a process crash loses at most 30 seconds (the directory
+  itself is not synced, so an operating-system crash or power loss is not covered). If a write fails, the
+  pause box says "LAST DEMO SAVE FAILED", the end screen and the exit message give the reason, and the write is
+  tried again on quit and on restart. The save runs on the loop thread (up to 4 MiB at the cap), so on a slow
+  disk or network path it can stall the loop; after a stall at most 5 tics run and the rest are dropped. That
+  was not measured. The session ends at the **tic cap of 1,048,576 tics** (about 8 hours 19 minutes), a bound
+  that keeps a demo within a bounded size. A demo holds only the player's tic commands and a 13-byte header,
+  nothing from the IWAD. The window's close button saves and quits, and no tic runs after a quit.
+- **Game mode comes from the IWAD file name**, as linuxdoom's `IdentifyVersion` does: `doom1.wad` is shareware,
+  `doomu.wad` retail, anything else registered (the mode of the M5a and M4b real-map runs). A registered-mode
+  game cannot load a shareware IWAD's switch textures.
+- **Skills and maps.** E1M1-E1M9 on skill 2 or 3 only: `--skill 2` or `hmp` is Hurt Me Plenty and `--skill 3`
+  or `uv` is Ultra-Violence. These are the demo-header values; vanilla's own `-skill` counts from 1, so they are
+  vanilla's `-skill 3` and `-skill 4`. `--map` outside 1-9 and other skills are refused at load, as is a missing
+  map or a truncated WAD.
+
+### Presentation (outside the proven frame)
+
+The proven artefact is the 320x200 indexed frame and the palette number of each tic; everything below is outside
+that claim (decision S13). The picture is the palette applied through the original's gamma table (table 0 by
+default, which is not the identity; `--gamma 0-4` selects the other four genuine tables), scaled by nearest
+neighbour, with 4:3 aspect correction on by default (the picture shown as 320x240; `--aspect square` for square
+pixels), letterboxed, in a window or in borderless fullscreen (`--fullscreen`). The window loop sleeps until
+the next tic is due and keeps the library's default swap interval. The mouse is captured only while playing
+(not while paused or on an end or refusal screen).
+
+### Platform limits
+
+- **OpenGL is required**: an OpenGL 2.1 (or OpenGL ES 2) driver (the wording of `doom-play --help`). A missing
+  driver is not checked beforehand and may still end in a panic inside the window library. Without `DISPLAY` or
+  `WAYLAND_DISPLAY` the app gives a plain error.
+- **Focus loss.** The window library (miniquad 0.4.11) reports focus loss and minimising through one minimise
+  event, and the app pauses and releases every held key and button on it (see "Pause and focus" above for what
+  was observed under WSLg on 2026-11-17 and what was not checked: Alt-Tab, minimising by hand, Windows, macOS
+  and whether keys are seen released). Pressing Esc or Pause before switching windows is the safe habit.
+  Raw mouse motion is delivered by the library whatever the focus, and the app uses it only while playing.
+- **Linux under WSLg** is the platform the program was run on (X11 and Wayland, each ran to the tic count with
+  an idle session; Wayland printed compositor and Mesa warnings and probably used a software fallback).
+  **Windows and macOS** build in CI (the Stable job covers `doom-play`), and a label-triggered CI job builds a
+  `doom-play.exe` artifact (not a required check; it ran successfully on the pull request on 2026-11-17, and
+  [TESTING](TESTING.md#windows-build-artifact) says how to download and run it); **no person has run the
+  program on Windows or macOS**.
+  Mouse capture under WSLg is unchecked.
+- Miniquad is the only windowing dependency (pure Rust, MIT-licensed, GPL-2.0-only compatible). `doom-sim` and
+  `doom-game` have no windowing, audio, thread or wall-clock dependency.
+
+### Not in M5b (out of scope, later milestones)
+
+Sound and music, menus, the automap, save and load, the intermission and level-to-level carry-over, the title
+screen and demo loop, screen wipes, cheats, vanilla's in-game pause, easy and nightmare skill, low detail,
+screenblocks below 10, multiplayer and joystick input. The modern renderer and the idle-glance fix (M5c) are
+listed in [ROADMAP](ROADMAP.md).
 
 ## Known gap: THING loading stops at the first Doom II type outside commercial mode
 

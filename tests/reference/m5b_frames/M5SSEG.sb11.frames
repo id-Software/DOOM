@@ -1,0 +1,57 @@
+#schema,DOOM-M5B-FRAMES-v1
+#columns,F,tic,sha256,masked_sha256,fuzzpos,mapped,columns,visplanes,drawsegs,vissprites,openings,solidsegs_peak,drawseg_drops,vissprite_drop,whole
+#columns,M,tic,lines
+#columns,N,origin,name
+#columns,U,tic,x,origins
+#columns,O,tic,witness,visplanes,openings,solidsegs_peak
+#columns,E,tic,message
+#columns,P,tic,palette,palette_set,face,message_on,rndindex
+#columns,X,tic,code,text
+#columns,D,tic,st_draws,other_draws,bar_undef_px,skipped_patches,beyond_rows,lump_overrun,view_sha256
+#columns,W,kind,x,y,calls,first,min,max,changes
+#columns,Z,totals
+#config,screenblocks,11,detail,0,render,every
+F,0,e1401b0991fbed77756aeb7396d0b73db8653ce5ccc5bb4c7397fbc09898eeb0,-,0,22,0,2,32,0,0,13,0,0,0
+M,0,1 2 364 365 368 369 372 373 376 377 380 381 384 385 388 389 392 393 396 397 400 401
+P,0,0,0,2,0,1
+F,1,e1401b0991fbed77756aeb7396d0b73db8653ce5ccc5bb4c7397fbc09898eeb0,-,0,22,0,2,32,0,0,13,0,0,0
+P,1,0,-1,2,0,2
+F,2,eef2b50cd29d8d049fbb8a98d235a0a910a83db079bd97558fa118944e18533d,-,0,25,0,2,35,0,0,14,0,0,0
+M,2,357 360 361
+P,2,0,-1,2,0,3
+F,3,bf186ef9e35504924a668c8f04680954975fee3353bb9957f1f33008d0871177,-,0,29,0,2,39,0,0,15,0,0,0
+M,3,349 352 353 356
+P,3,0,-1,2,0,4
+F,4,c6b131f359e63ff58bc4df1a6d222432c2bd7278fb2d7f322b1bf6eaf8f37cf1,-,0,33,0,2,44,0,0,18,0,0,0
+M,4,341 344 345 348
+P,4,0,-1,2,0,5
+F,5,2fcda27a21328a37b4cc8ecad4b10d6e399c7d0cd34a238f98a368e86c10605c,-,0,36,0,2,47,0,0,19,0,0,0
+M,5,336 337 340
+P,5,0,-1,2,0,6
+F,6,4d0f27792f5feb1c96a3cd1d281fbe93c546384796737eefad53a472b099bab9,-,0,39,0,2,51,0,0,20,0,0,0
+M,6,329 332 333
+P,6,0,-1,2,0,7
+F,7,d3db992e7fac969f9efc89c24d970a3bc9c1556e5766f8e0673cfff491100f25,-,0,42,0,2,57,0,0,22,0,0,0
+M,7,324 325 328
+P,7,0,-1,2,0,8
+F,8,06011556e326180b362f9ece7869633fc9efc789bf21d0578ba6f9a9fe724718,-,0,45,0,2,59,0,0,23,0,0,0
+M,8,317 320 321
+P,8,0,-1,2,0,9
+F,9,28c78650047b4859f5631a42a452332ecded0844b3a3a5791267c783585a6eed,-,0,49,0,2,60,0,0,24,0,0,0
+M,9,0 312 313 316
+P,9,0,-1,2,0,10
+F,10,280547587c2ebb42ba0b51a014ed13ffe90160791df4f10304cbc877897c2848,-,0,52,0,2,67,0,0,24,0,0,0
+M,10,305 308 309
+P,10,0,-1,2,0,11
+F,11,4e8137c2521e54b0e1ae0733a3ffc5b1b1f441eb8f1aec9f536f6cf478d6eeef,-,0,55,0,2,71,0,0,29,0,0,0
+M,11,300 301 304
+P,11,0,-1,2,0,12
+F,12,747c3fb0042e07d71222fc4d5e96c429c4e8f994b1b752a21ba24a1d26d299c3,-,0,57,0,2,74,0,0,29,0,0,0
+M,12,296 297
+P,12,0,-1,2,0,13
+F,13,87c7a69b25b7b1cefb721ef9107ebd168558658be0f8ad18e7dfb3248986e15c,-,0,60,0,2,79,0,0,31,0,0,0
+M,13,289 292 293
+P,13,0,-1,2,0,14
+F,14,35073cca0b4f7e0fb7323624738fdc7e88f080c03e0b79d095291caaaa1425ae,-,0,62,0,2,79,0,0,30,0,0,0
+M,14,285 288
+P,14,0,-1,2,0,15
