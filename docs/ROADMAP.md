@@ -534,9 +534,9 @@ monster/player behavior. Further stages require separate owner direction.
     focus-loss check ran under WSLg), session verification against the genuine engine, all 61 real Episode 1
     runs through the Rust display, the opt-in unrecorded full-resolution turning mode (S3 (ii)), the CI jobs
     and the Windows artifact job (it ran successfully on the pull request), both fuzz targets, the README
-    animation, and two independent reviews with their fixes; the first mutation run is recorded as an interim
-    result; frame-time and tic-jitter timings (WSLg only, recorded, not gated) are in the record. Remaining: the dispositions of the mutation survivors and the second run, the final gates
-    and the owner's review. [Support](COMPATIBILITY.md#playable-build-m5b) is written. Nobody has yet seen the
+    animation, two pairs of independent reviews with their fixes, the mutation runs (every survivor of the first
+    three is killed by a test or argued equivalent), and frame-time and tic-jitter timings (WSLg only, recorded, not
+    gated). Remaining: the final gates (including a fourth mutation run on the final head) and the owner's review. [Support](COMPATIBILITY.md#playable-build-m5b) is written. Nobody has yet seen the
     picture or played with a real key or mouse; a human has to judge feel, latency and looks. See the
     [investigation note](M5B_REFERENCE_INVESTIGATION.md#4-owner-decisions-s1s23-with-recommendations).
   - **M5c (proposed; not started, owner-approved items only).** One item so far: close the status bar

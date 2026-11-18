@@ -9,9 +9,10 @@ source facts, the decisions S1-S23 (confirmed by the owner on 2026-11-17) and th
 render state and the `Display` state are saved as described in
 [STATE_FORMAT](../STATE_FORMAT.md#display-state-ddsp-version-1-m5b). Exact review state and CI belong to GitHub.
 
-This is the second documentation pass, written on 2026-11-17 (America/Los_Angeles). A third pass adds the final
-mutation and gate numbers; where a step's section says so, or is missing, that step had not been run or
-its result had not been written up on that date.
+This is the third documentation pass, written on 2026-11-17 (America/Los_Angeles). It adds the mutation record,
+the second pair of reviews and the CI notes. The final gates (step 15) and the fourth mutation run are not yet
+recorded; the "Not run" line of a step says what that step had not run when it was written, and later steps may have
+run it.
 
 **Wording rule.** A frame is described as identical to the genuine engine under the declared sound-free,
 wipe-free contract (decision S15), never as identical to a vanilla session without that qualifier.
@@ -30,11 +31,12 @@ wipe-free contract (decision S15), never as identical to a vanilla session witho
 | 7b | 2026-11-17 | Recorded: the opt-in unrecorded full-resolution turning mode ([below](#step-7b-full-resolution-unrecorded-turning)) |
 | 8 | 2026-11-17 | Recorded: the first play check and the focus-loss check ([below](#step-8-the-first-play-check)) |
 | 9 | 2026-11-17 | Recorded: CI ([below](#step-9-ci)) |
-| 10 | 2026-11-17 | Documentation: the first pass, this second pass and the status bar animation ([below](#step-10-the-status-bar-animation)); a third pass adds the final numbers |
-| 11 | 2026-11-17 | Interim: the first mutation run is recorded ([below](#step-11-mutation-testing-interim-the-first-run)); dispositions and the second run are pending |
+| 10 | 2026-11-17 | Documentation: three passes and the status bar animation ([below](#step-10-the-status-bar-animation)) |
+| 11 | 2026-11-17 | Recorded: three mutation runs and every survivor's disposition ([below](#step-11-mutation-testing)); the fourth run, on the final head, is pending |
 | 12 | 2026-11-17 | Recorded: both fuzz targets ([below](#step-12-fuzz-targets)) |
 | 13 | 2026-11-17 | Recorded: frame time and tic jitter, WSLg only ([below](#step-13-timings)) |
-| 14 | 2026-11-17 | Recorded: two independent reviews and their fixes ([below](#independent-reviews-and-their-fixes)) |
+| 14 | 2026-11-17 | Recorded: two pairs of independent reviews and their fixes ([below](#independent-reviews-and-their-fixes)) |
+| 15 | not yet run | The final gates from a clean clone on ext4, the pull request body, the Windows artifact on the final head and CI on the exact head |
 
 No IWAD was read in steps 1 to 4, 6, 7 (except the one local real-map run named there), 7b, 9, 11 and 12. Steps
 5 and 8 and the local real-map run of step 7 read a scratch copy of the IWAD outside the repository; only counts,
@@ -91,8 +93,8 @@ difference at snapshot 59, the first message).
 **Corrections to the Phase 1 note** (in its [section 2.7](../M5B_REFERENCE_INVESTIGATION.md#27-corrections-found-in-phase-2)):
 40 of 42 faces, message code 6, the radiation-suit bit, the 4-pixel space and the 7,785-tic total.
 
-**Not run:** `--strict32`, any fuzz campaign, real maps (no IWAD read). The step 7b command-injection mode has
-only its hook in the driver. A scratch Rust check loaded all 11 new rooms under wire 24 with no refusal; it did
+**Not run:** `--strict32`, any fuzz campaign, real maps (no IWAD read). The command-injection mode of step 7b did
+not exist yet. A scratch Rust check loaded all 11 new rooms under wire 24 with no refusal; it did
 not compare Rust state with the C dumps.
 
 ## Step 2: the genuine input driver
@@ -323,7 +325,7 @@ failed, 4 ignored), `cargo +1.85.0` tests of `doom-game` and a build of `doom-pl
 --selftest` and `check_docs.py` passed. Sanitizers: the address and overflow variants of these runs, with leak
 detection disabled.
 
-**Not run:** step 7b; a second strict run for determinism; a sanitizer campaign beyond these runs; anything on
+**Not run:** (step 7b was done next); a second strict run for determinism; a sanitizer campaign beyond these runs; anything on
 Windows or macOS; any session a person played.
 
 ## Step 7b: full-resolution unrecorded turning
@@ -352,7 +354,7 @@ script, and wire-24 admission refused none, so nothing under `doom-sim`, no wire
   demo writer and reader do): chain_palred diverges at dump tic 25; keys_palbonus at tic 0 (2 pickup messages at
   full resolution, 0 in the twin); mouse_palred at tic 20, where a barrel keeps health 20 at full resolution
   (the accurate shot misses) and drops to 5 in the twin.
-- **Rust against the genuine goldens** (`m5b_session --commands`, through `app::replay`): 630 tics, 630 commands,
+- **Rust against the genuine goldens** (`m5b_session --commands`, through `replay_full_resolution`): 630 tics, 630 commands,
   630 frames (630 on the whole digest), 3,150 status fields, X rows equal, 634 game-dump tics through the
   independent DSIM40 encoder. All equal.
 - **Two unrecorded app sessions** (84 and 115 tics, 12 and 63 commands with a nonzero low byte): the app plays
@@ -444,7 +446,7 @@ doom-play -j 4` (18 s on a warm target). `actionlint` was not installed and was 
   logic a test could pin); the shard count is a single value (16) in the new `Mutants plan` job, an estimate of
   the diff size, to be revised from real shard times. `cargo mutants --list` gave 7,916 mutants for
   `doom-render`, 569 for `doom-game` and 11,555 for `doom-sim` (whole-crate counts; `--in-diff` selects fewer).
-  No mutation testing had been run at this step; the first run is under [step 11](#step-11-mutation-testing-interim-the-first-run).
+  No mutation testing had been run at this step; the runs are under [step 11](#step-11-mutation-testing).
 
 **Not run:** the Windows build and its packaging, the static-CRT build, the Stable, Minimum Rust and macOS jobs
 for these changes, anything on GitHub; timings of the new job on a hosted runner.
@@ -471,40 +473,135 @@ point-blank range gives red palettes 8 down to 2 and the faces 0, 2 and 7.
 **Not run:** a browser or GitHub render check (the script's own decoder was used, and two decoded frames were
 viewed as images).
 
-## Step 11: mutation testing (interim: the first run)
+## Step 11: mutation testing
 
-This is an interim record: only the first run is described. The dispositions of its survivors and the second run
-are pending and will be added by a later pass.
+Method and commands: [TESTING](../TESTING.md#ci-mutation-workflow-m4b). The `Mutants` workflow (cargo-mutants 27.1.0
+with nextest, 16 shards, started by the `run-mutants` label on pull request #62; `-p doom-sim -p doom-render -p
+doom-game`, `--in-diff` against `origin/master`) was run three times on 2026-11-17. The disposition tables were
+written in scratch and are not committed (scratch is deleted at the end of the milestone), so this section carries
+their counts and reasons. A fourth run on the final head is listed last.
 
-- **The run** (the `Mutants` workflow with the `run-mutants` label, 16 shards, at 334cd4b): `cargo mutants --in-diff`
-  over the 9,839-line diff of `crates/` against `origin/master` listed **1,109 mutants** (70 per shard, 59 in the
-  last). The 15 shards that finished gave **812 caught, 154 missed, 7 timeouts and 66 unviable** (1,039 mutants;
-  their lists equal the result files exactly).
-- **Shard 3** (70 mutants, all in `doom-game`: 23 in `app/recorder.rs`, 47 in `app/screens.rs`) lost its runner. It
-  was re-run locally from the same patch under a memory cap. A first attempt with a 3 GB cap per test process and
-  the default test parallelism was stopped by a watchdog when available memory fell to 692 MB (five tests at once,
-  so the per-process cap did not protect the 7 GB host); the second, with a 1.2 GB cap and two test threads,
-  finished in 3 minutes: **38 caught, 31 missed, 0 timeouts, 1 unviable**.
-- **The culprit** was `screens.rs:34:40: replace / with %` in `COLUMNS = SCREENWIDTH / ADVANCE - 2`, which makes
-  `COLUMNS` 0. `wrap()` then never shrank its input and pushed an empty string on every pass: an endless loop with
-  unbounded allocation, which took about 4.4 GB in 25 seconds locally and ended the hosted runner. It was also a
-  real test gap: nothing pinned `COLUMNS` at 51, and three sibling mutants survived. Fixed in 4fe0936: every
-  pass of `wrap()` takes at least one character (0 columns count as 1), and a unit test pins the constants and
-  checks line widths and that the text is kept, at 51, 7, 1 and 0 columns, with an empty text and a 130-character
-  word.
-- **The workflow guard** (a2e0b94): the shard step runs test executables through a cargo runner that applies
-  `ulimit -v 1500000` and `timeout 240` (per process, test executables only, not `rustc`) and passes
-  `--cargo-test-arg=--test-threads=2`, so a mutant that loops and allocates is caught instead of starving the
-  runner. The unmutated suite passed under a 1.2 GB cap locally; 1.5 GB and the hosted two-job setup were not run
-  locally.
-- **Survivors so far:** for `doom-render`, the 72 survivors of the CI run were given tests in
-  `crates/doom-render/tests/m5b_mutants.rs` (18 tests, each from a C fact already cited next to the code or from
-  the DDSP bounds). As recorded in that commit (7b605d7): cargo-mutants running only these tests catches 55 of
-  the 72, 5 are equivalent, and 12 are unreachable under wire 24 and need inline tests of private items. The
-  survivors of `doom-sim` and `doom-game` have no dispositions yet.
+| Run | Head | Mutants | Caught | Missed | Timeouts | Unviable |
+| --- | --- | ---: | ---: | ---: | ---: | ---: |
+| 1 (15 shards in CI, shard 3 locally) | `334cd4b` | 1,109 | 812 + 38 = 850 | 154 + 31 = 185 | 7 + 0 = 7 | 66 + 1 = 67 |
+| 2 | `3e8865b` | 1,237 | 1,140 | 22 | 0 (8 hidden, below) | 75 |
+| 3 | `8d167c9` | 1,237 | 1,152 | 10 | 0 (8 hidden, below) | 75 |
 
-**Not run:** the second run after the new tests; uncapped execution of the culprit (deliberately); the
-CI-equivalent two-job run locally; shards other than 3 locally.
+### Run 1 at 334cd4b, and shard 3
+
+`cargo mutants --in-diff` over the 9,839-line diff of `crates/` listed **1,109 mutants** (70 per shard, 59 in the
+last). The 15 shards that finished gave **812 caught, 154 missed, 7 timeouts and 66 unviable** (1,039 mutants; their
+lists equal the result files exactly). **Shard 3** (70 mutants, all in `doom-game`: 23 in `app/recorder.rs`, 47 in
+`app/screens.rs`) lost its runner. It was re-run locally from the same patch under a memory cap. A first attempt with
+a 3 GB cap per test process and the default test parallelism was stopped by a watchdog when available memory fell to
+692 MB (five tests at once, so the per-process cap did not protect the 7 GB host); the second, with a 1.2 GB cap and
+two test threads, finished in 3 minutes: **38 caught, 31 missed, 0 timeouts, 1 unviable**.
+
+**The cause** was `screens.rs:34:40: replace / with %` in `COLUMNS = SCREENWIDTH / ADVANCE - 2`, which makes
+`COLUMNS` 0. `wrap()` then never shrank its input and pushed an empty string on every pass: an endless loop with
+unbounded allocation (about 4.4 GB in 25 seconds locally), which ended the hosted runner. It was also a real test
+gap: nothing pinned `COLUMNS` at 51, and three sibling mutants survived. **The fix** (4fe0936): every pass of `wrap()`
+takes at least one character, and a unit test pins the constants and the line widths. **The workflow guard**
+(a2e0b94): the shard step runs test executables through a cargo runner that applies `ulimit -v 1500000` (per
+process, test executables only, not `rustc`) and a `timeout`, and passes `--cargo-test-arg=--test-threads=2`.
+
+### The survivors of run 1
+
+185 missed and 7 timeouts: 72 in `doom-render` and 120 in `doom-game` (113 missed and 7 timeouts); none in
+`doom-sim`. Every one was killed by a test or argued equivalent; each row was checked by running cargo-mutants on the
+current sources.
+
+| Crate | Rows | Killed by a test written for it | Killed by an existing test (the code had moved) | Equivalent | Timeout rows |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| `doom-render` | 72 | 67: 41 by `tests/m5b_mutants.rs`, 14 by unit tests moved into `st_lib.rs` (`observe_with` now refuses the negative health they fed), 12 by new unit tests of private items | 0 | 5 | 0 |
+| `doom-game` | 120 | 101 | 7 | 5 | 7 (each killed by a test that fails at once when run alone) |
+
+The 12 unit-tested `doom-render` rows were first classed "unreachable under wire 24": 5 in `v_video.rs` `copy_bg`, 4
+in `st_lib.rs` `draw_num` (a width of 2 is never passed) and 3 in `st_lib.rs` `update_binicon` (the value is always
+true). The independent check below moved three of them to "reachable through a malformed PWAD". The verification runs
+also found 9 mutants outside the 72 that the targeted tests did not kill; they got tests, and a final run of the 9
+caught all.
+
+### Run 2 at 3e8865b and run 3 at 8d167c9
+
+**Run 2** (3e8865b): 1,237 mutants, **1,140 caught, 22 missed, 0 timeouts, 75 unviable**. The 22 were the 10
+equivalents of run 1 at their new lines and **12 new survivors in code added by the review fixes** (9 in
+`consistency_error` and 2 in `adjusted_input_error` of `d_display.rs`, and the recorded-session guard of
+`App::end_screen`); the tests of 384ac04 killed all 12. **Run 3** (8d167c9): 1,237 mutants, **1,152 caught, 10
+missed, 0 timeouts, 75 unviable**. The 10 missed are exactly the ten mutants argued equivalent (their positions are
+the same at 3e8865b and 8d167c9, because `crates/*/src` did not change between them):
+
+| Mutant | Why it cannot change any result |
+| --- | --- |
+| `app/recorder.rs:44:31`, `44:40`, `44:52`: `\|` to `^` in `wire24_admits` | The operands `BT_ATTACK` 1, `BT_USE` 2, `BT_CHANGE` 4 and `BT_WEAPONMASK` 56 share no bit, so `\|` and `^` agree and the mask is 63 either way. |
+| `app/screens.rs:112:42`: `\|` to `^` in `glyph` | The shifted left operand has bit 0 clear and the right operand is 0 or 1. |
+| `input/layer.rs:323:44`: `&` to `\|` in `drain_pending` | It differs only for the release of a button that is not held, which clears an already clear bit. |
+| `d_display.rs:693:43`: `\|` to `^` in `DisplayState::encode` | The fold ORs a bit at index `i` into an accumulator that has only lower bits set. |
+| `st_lib.rs:33:30` and `35:37`: `<` to `<=` in `draw_num` | They differ only at -9 and -99, which are clamped to themselves. |
+| `st_stuff.rs:230:16`: `>` to `>=` in `palette_for` | The extra case assigns an equal value. |
+| `st_stuff.rs:339:48`: `>` to `>=` in `update_face` (the attacker-angle comparison) | It differs only when the attacker's angle equals the player's: the angle difference is 0 either way and `right` is never read. |
+
+### What "0 timeouts" in runs 2 and 3 hides
+
+The workflow ran each test process under `timeout 240` while cargo-mutants' own `--timeout` is 300. A mutant that
+makes a loop endless was therefore killed by the wrapper at 240 s and recorded as **caught**. The independent
+reviewer read run 2's outcomes and found 8 such mutants, each with a Test phase of 240.2 to 240.9 s; **they count as
+timeouts**, and run 3 ran with the same limit:
+
+- `app/mod.rs:711:50` (`&&` to `||`) and `713:17` (`+=` to `*=`) in `App::update`: not endless but a million tics long
+  (the session runs to its cap of 1,048,576 tics, and the `update(0)` in every test driver already runs it). Fast
+  test: `an_update_stops_at_the_tic_that_ends_the_session`, 0.1 s.
+- `input/queue.rs:43:37` (`&` to `|` in `post`), `62:36` (`+` to `*`), `62:41` (`&` to `^`), `62:54` (`-` to `+`) and
+  `62:54` (`-` to `/`) in `process`: the head or tail never reaches the end of the 64-entry ring (a third post before
+  `process` instead panics at index 127). Fast tests: the ring tests of `tests/m5b_mutants.rs`, 0.1 to 0.8 s.
+- `v_video.rs:143:27` (`+` to `*`) in `Canvas::patch`: `at += len * 4` misaligns the walk over a column's posts, a
+  length byte read as 0 stops `at` advancing and the post loop never ends. Run alone under cargo-mutants' own timeout
+  (60 s): TIMEOUT, while two unit tests fail at once.
+
+The first seven are the seven timeouts of run 1. The wrapper's limit is now 330 seconds (commit 42dccde), above
+cargo-mutants' timeout, so later runs report such mutants as timeouts; the memory cap, not the time limit, protects
+the runner. A mutant that only slows a test past the limit, or only pushes its address space past 1.5 GB, is still
+recorded as caught.
+
+### The independent check of the dispositions
+
+A reviewer at the highest effort setting re-ran the dispositions (cargo-mutants under the memory-capped runner, from
+ext4) and read every row against the C and the code; 25 "killed by a new test" rows were sampled for independence.
+
+- **Equivalent rows (10):** every row agreed, each with the reviewer's own argument.
+- **Timeout rows (7):** every row agreed. Two narratives were wrong and are corrected above (711:50 is tic-cap long,
+  not endless; the `queue.rs:43:37` proof omitted the index-127 panic), and `v_video.rs:143:27` was missing from the
+  tables.
+- **"Unreachable" rows (12):** nine agreed (two for a different reason than written: at every call site the source
+  and destination columns are equal and the source row is not negative). **Three are reachable through a malformed
+  PWAD** (the `v_video.rs` `copy_bg` checks at 152:21, 154:21 and 165:18, first-run positions): a patch header is only
+  checked against its lump, so it can carry a negative width (STTNUM0 width -50), a short height (STYSNUM0 height 9)
+  or a width of 0. They were still killed, by the unit tests, and now also by three integration tests that load a
+  malformed copy of the synthetic graphics WAD and draw the first frame (cc32a85); the unmutated build and each
+  mutant give different results.
+- **A disputed equivalent.** A second reviewer reported one of the ten as distinguishable. It was a different
+  mutant: the self-damage comparison `p.health - self.oldhealth > MUCHPAIN` at `st_stuff.rs:359:42`, which is not a
+  survivor. CI already catches it with the existing unit test `the_ouch_face_and_its_unreachable_level_4` (a gain of
+  exactly 20 with damage and no attacker gives the rampage face at priority 6; the mutant gives the ouch face), and a
+  targeted run gave 3 mutants, 3 caught. The survivor argued equivalent is the attacker-angle comparison at `339:48`,
+  which both reviews verified as equivalent. No test was added.
+- **Weak tests the reviewer named.** The guards of the split frame, contract, display and restore tests compared
+  constants rather than the generated tests, so deleting one part passed: each macro now emits its tests and the list
+  of parts it generated them for, and the guard compares that list with the partition (verified by deleting one in
+  each of the four files; cc32a85). The save-interval test restated 35 x 30: the behaviour is now pinned at 1049,
+  1050 and 1051 tics (doomdef.h:122). Left as they are: the end-screen page test and the exit-heading helper draw
+  their expectation with the `Screen::text` they cover (independent picture tests in `tests/m5b_mutants.rs` pin the
+  same mutants), and `error_messages_read_as_written` is a change detector with no other source for the strings. The
+  header of `crates/doom-game/tests/m5b_mutants.rs` was reworded to say which expectations are independent of the
+  code.
+
+### Fourth run
+
+**Fourth run, on the head of the final push: PENDING.** The final step fills in this line with the run's counts and
+the timeouts that cargo-mutants now reports itself.
+
+**Not run:** uncapped execution of the culprit (deliberately); the CI-equivalent two-job run locally; the three new
+`copy_bg` integration tests under cargo-mutants (the reviewer's probe killed the same three mutants).
 
 ## Step 12: fuzz targets
 
@@ -540,8 +637,10 @@ Part 1 runs 16, 32 or 64 tics with wire-24 commands at screenblocks 10 or 11 and
 message none, short, empty or over 80 characters). It checks palette 0-13 or a typed refusal; a refused observe or
 draw leaves `state()` equal; the state encoded after every tic decodes to an equal state with identical
 re-encoding; and a state saved at a chosen tic, restored into a fresh display beside a simulation clone, continues
-with identical observe results, messages, palette, face, frame hash and final encoded state. The properties are
-self-consistency only; nothing is compared with the genuine engine.
+with identical observe results, messages, palette, face, frame hash and final encoded state. After any
+perturbation the target accepts a restore refused as `Inconsistent`, so that last property is exercised only on runs
+with no perturbation before the save (a reviewer's reading of the target). The properties are self-consistency only;
+nothing is compared with the genuine engine.
 
 - **Target compiled:** `cargo +nightly fuzz build render_display_state`, and `cargo fmt` of the fuzz workspace.
 - **Seed replay** (a scratch copy of the seeds, `-runs=0 -max_len=70000 -timeout=60`): 7 files, 13 runs, no failure
@@ -680,6 +779,8 @@ GPU, or on a real map.
 
 ## Independent reviews and their fixes
 
+### First pair of reviews (at 334cd4b)
+
 Two independent reviews read the code at 334cd4b (their snapshot had one docs-only commit on top) on 2026-11-17,
 without edits to any tree: one of the input code, the app and the session tools (19 findings), one of the status
 bar, HUD, palette, frame composition and the genuine full-frame harness (12 findings; it did not read the authors'
@@ -689,7 +790,7 @@ threshold, counter, priority and update condition it compared equal to the C.
 
 **Findings by class and what was done** (fixes in e3dd509 for the input code, app and session tools, f3183b3 for
 the status bar, HUD and display, and 4fe0936 for `wrap()`; the status paragraph of the investigation note is
-e078e2c; this record's wording findings are fixed in this pass):
+e078e2c; this record's wording findings are fixed in the second documentation pass):
 
 - **Wording (9 in the first review; 4 in the second, counting its documentation mismatch):** the claim that every command is the genuine result left out cheat completion
   (`idclev` differs; other cheats are silently inert) and is now qualified, with the golden pinned at tic 8; the
@@ -737,6 +838,66 @@ sessions match), `m5b_inject.py --check --selftest` (6 goldens match), `m5b_inpu
 regeneration checks that no change touched, the real-map tool, Windows or macOS, sanitizer campaigns beyond seed
 replay for the input target, and mutation testing. CI on the pull request is in GitHub.
 
+### Second pair of reviews (at 8d167c9)
+
+Two more independent reviews on 2026-11-17, again without editing any tree. **One read the code delta
+334cd4b..8d167c9 and the documents** (diff checks: nothing under `crates/doom-sim`, no file under `tests/reference`
+modified or deleted; `--help`; the `doom-game` and `doom-play` tests, 105 and 7 passed; the CI outcomes of the first
+two mutation runs): 18 findings. **The other read the mutation dispositions and the split tests** (the dispositions
+re-run, the split tests run in release: 49 passed, 40,185 frames in the M5a frame test): 10 findings. Neither found a
+divergence from the genuine engine or a wrong simulated result.
+
+Of the 28 findings, 3 were major, 11 minor and 14 notes. **By class, and what was done** (code in e052c4e, tests in
+cc32a85, the workflow in 42dccde, the documents in the third documentation pass):
+
+- **CI gap:** the time limit of the mutation wrapper hid every endless-loop mutant as "caught" (above); the limit
+  is now above cargo-mutants' timeout (42dccde).
+- **Test and disposition errors:** a survivor reported as wrongly argued equivalent (a different mutant, already
+  caught), three rows wrongly classed unreachable (now also killed through a malformed PWAD), guards of the split
+  tests that compared constants (now compare the generated tests), and a test that restated a constant (now pinned in
+  behaviour). All in cc32a85.
+- **Wording and documents:** the README claimed scripted window sessions that never happened and an identity
+  without its qualifier; the second run and its dispositions were "pending"; turns of -128 to 127 are dropped and 128
+  to 255 become 256, not "under 256 dropped"; "until sound is modelled" left out the level-start melt; a frame match
+  and "every command is re-read" lacked their qualifier and the unrecorded carve-out; `--unrecorded-full-turning` had
+  no evidence limit in the README; a wrong function name (`app::replay`, it is `replay_full_resolution`); the README's
+  skill-3 claim for all nine maps; the fuzz target's property was described without the refused-restore exemption.
+  All fixed in the third documentation pass.
+- **Code text:** `--help` said the session ends at death (it ends when the dead player presses use) and omitted
+  that Pause also resumes; `InputError`'s doc said a refused call leaves the state unchanged although the events
+  before it take effect; two comments claimed more than they checked (`m5b_restore.rs`, the `DisplayState::check`
+  doc); the reader list of `demoplayback` in `tools/reference/m5b_inject.c` was incomplete (the contract and results
+  were regenerated from the C, the six goldens unchanged). Fixed in e052c4e.
+- **Robustness:** a failed first write left an empty session file under the base name (now removed, and the
+  retry takes the name); the unrecorded label was visible only in the title, the pause overlay and the end screens,
+  so fullscreen play showed none (now also a band over the top of the presented picture for the first 175 tics,
+  never in the game frame). e052c4e, with tests in cc32a85.
+- **Notes:** the minimum-Rust job is close to its limit; the Windows artifact job builds and uploads but starts
+  nothing; the reviewers also recorded what they checked and found correct (the injection path, the recorded-command
+  types, the event ring, session files, the `observe_with` bounds, the numbers in the results files).
+
+**Left as it is, and why:** `DisplayState::check` still accepts a few states no run produces (documented in the doc
+comment and in the support statement; it is a consistency check, not a reachability proof); the Windows artifact job
+does not start the executable (nobody has run it on Windows); the minimum-Rust job's limit (below); the
+self-referential expectations of two screen tests (independent picture tests pin the same mutants).
+
+**Observed by the second fixing step** (on its own tree before its second commit, not re-run on a later head): build,
+both format checks, Clippy with warnings denied, `cargo test --workspace --locked` (114 result lines, 1,742 passed, 0
+failed, 4 ignored), `cargo test -p doom-render -p doom-game --release --locked` (333 passed), the same two crates on
+Rust 1.85.0 (333 passed, and `doom-play` builds), warnings-denied rustdoc, `m5b_session.py --check --selftest` (4
+sessions identical, 4 faults caught), `m5b_inject.py --check --selftest` (results and 6 goldens match, 2 faults
+caught), `m5b_readme_visual.py --check` and `check_docs.py`. Not run by it: the other C generators, any fuzz build or
+campaign, any sanitizer campaign, a window session, a full mutation run.
+
+### CI observations
+
+Observed on GitHub on 2026-11-17 (the runs themselves are the evidence; this is only a note). Full green runs were
+seen at 3e8865b and at 8d167c9 on Linux, Windows and macOS, with both genuine-engine jobs. The required job `Minimum
+Rust / 1.85.0` has a 10-minute limit: it took 9 min 04 s on the milestone's first commits; at 66d0d5a it was
+cancelled at the limit with all of its steps passed; at 3e8865b it took 9 min 30 s after the M5b golden test was
+split into parts; at 8d167c9 it took 7 min 10 s after the M5a frame tests were split. The limit was not changed: an
+attempt to raise it was blocked by the permission system and is left for the owner to decide.
+
 ## What a human still has to judge
 
 Nobody has seen the picture on a screen, pressed a real key, moved a real mouse, checked mouse capture under
@@ -745,8 +906,8 @@ the app makes are the genuine engine's (except for cheat codes, which the app do
 frames it draws equal the genuine engine's under the declared contract; it cannot show:
 
 - how the game feels: latency, smoothness at 35 tics a second, how the raw mouse clamp feels, and the turning
-  resolution (mouse turns below 256 units are dropped in a recorded session; the unrecorded mode keeps them, and
-  nobody has played it);
+  resolution (in a recorded session mouse turns of -128 to 127 units a tic are dropped and 128 to 255 become 256;
+  the unrecorded mode keeps them, and nobody has played it);
 - how it looks: colours through the gamma table, nearest-neighbour scaling, the 4:3 stretch, fullscreen,
   the pause overlay and the app's end and refusal screens;
 - whether the mouse is captured and released properly under WSLg, on Windows and on macOS;
@@ -757,5 +918,6 @@ frames it draws equal the genuine engine's under the declared contract; it canno
 
 ## Still to come in this record
 
-A third pass adds the dispositions of the mutation survivors and the second mutation run (step 11) and the final
-gates; the timings (step 13) are recorded above.
+The fourth mutation run (step 11) and step 15: the final gates (build, both format checks, Clippy, workspace tests,
+release and rustdoc, Rust 1.85.0, every generator `--check`, a bounded sanitizer campaign and the fuzz builds) from a
+clean clone on ext4, the Windows artifact rebuilt on the final head, CI on the exact head, and the owner's review.

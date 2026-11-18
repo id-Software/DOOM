@@ -2596,7 +2596,7 @@ SAWBITE; see [the evidence record](validation/M4B.md#the-m5walk3-divergence-and-
 kills the body while the flag is set was reasoned from the source and has not been observed.
 
 **Real-map evidence (plan step 7, local-only).** Rust under wire 24 matched the genuine engine tic for
-tic on 61 scripted runs over E1M1 to E1M9 on skills 2 and 3, and on `DEMO1` run by linuxdoom-1.10
+tic on 61 scripted runs over E1M1 to E1M9 (skill 2 on all nine maps, skill 3 on E1M5, E1M8 and E1M9; `DEMO1` is E1M5 on skill 3), and on `DEMO1` run by linuxdoom-1.10
 (a match with that engine, not with the DOS 1.9 executable that recorded the demo); other inputs are
 not claimed ([evidence record](validation/M4B.md#real-maps-and-demo1)).
 The observations (the 30 M4a synthetic scripts and the M4b synthetic scripts compared with the
@@ -2692,7 +2692,7 @@ observations in the [evidence record](validation/M5B.md) and the commands in
 | Claim | What is and is not shown |
 | --- | --- |
 | The composed frame | The 320x200 frame (status bar, 3D view, HUD message) and the palette number of every tic are **identical to the genuine engine under the declared sound-free, wipe-free contract** (below), with two exclusions. On the 59 synthetic items at screenblocks 10 and 11, checked in CI: 42,352 frames, of which 41,982 are compared on the whole-frame digest, 300 on a masked digest (whole columns that the genuine tracker flags as read from undefined memory are zeroed on both sides, with the status bar and HUD pixels in them) and 70 are not compared (the switch state is not recorded, as in M5a). On all 61 real Episode 1 runs at screenblocks 10 and 11, locally (158,966 frames each): at 10, 158,472 on the whole digest, 494 masked, 0 not compared; at 11, 158,414 whole, 552 masked, 0 not compared. Also checked through the app on scripted sessions (next rows). It is never claimed identical to a vanilla session without the qualifier, nor to the DOS executable's picture ([synthetic counts](validation/M5B.md#step-3-the-rust-status-bar-hud-and-display), [real maps](validation/M5B.md#step-5-the-real-map-check-local-only)). |
-| The commands | **Except for cheat codes**, every tic command the app makes is the genuine `G_Responder` / `G_BuildTiccmd` result for the stream of events the app posts, re-read from the demo buffer as vanilla does, and is admitted by wire 24. Shown against the genuine input driver on 251 scripts (the 175 in the app's domain tic for tic in Rust). The exception: the app forwards cheat-code keys as ordinary keys and has no cheat matcher, so typing a code does nothing where the genuine engine would act on it, and `idclev` would also make the genuine engine reload the level and clear the held keys, so its later commands would differ (the golden `s5_cheat_idclev12` differs at tic 8, and the test pins that tic). |
+| The commands | **Except for cheat codes**, every tic command the app makes is the genuine `G_Responder` / `G_BuildTiccmd` result for the stream of events the app posts, and is admitted by wire 24; in a recorded session each is also re-read from the demo buffer as vanilla does (the unrecorded mode executes the built command instead). Shown against the genuine input driver on 251 scripts (the 175 in the app's domain tic for tic in Rust). The exception: the app forwards cheat-code keys as ordinary keys and has no cheat matcher, so typing a code does nothing where the genuine engine would act on it, and `idclev` would also make the genuine engine reload the level and clear the held keys, so its later commands would differ (the golden `s5_cheat_idclev12` differs at tic 8, and the test pins that tic). |
 | Sessions | Each session is recorded as a version-110 demo (unless the opt-in unrecorded mode is used, below). What was checked: the 4 committed scripted sessions (75 + 61 + 145 + 155 = 436 tics) in CI; and, locally, a 334-tic scripted E1M1 session and three idle first-play sessions of 350 tics each (E1M1 on X11 and on Wayland; E1M3 on skill 3 at screenblocks 11). In each, the demo replays in the genuine engine with every command, frame, palette, face, message and masked game dump equal under the contract. Those are the sessions checked, not a guarantee about every other: any saved session can be checked with the one command in [TESTING](TESTING.md#m5b-playable-status-bar-hud-input-and-the-app), which prints the first tic that differs. |
 | Unrecorded mode | The opt-in `--unrecorded-full-turning` mode writes no demo and cannot be replayed ([below](#unrecorded-full-turning-mode-opt-in)). Its evidence is limited to 4 injected scripts and 2 scripted sessions on synthetic rooms (829 tics): nothing on real maps, and no person has played it. |
 | What a person experiences | **Not shown.** Nobody has yet seen the picture on a screen, pressed a real key, moved a real mouse, checked mouse capture under WSLg, or run the program on Windows or macOS beyond CI builds. Feel, latency and appearance are for a human to judge ([evidence](validation/M5B.md#what-a-human-still-has-to-judge)). |
@@ -2700,7 +2700,8 @@ observations in the [evidence record](validation/M5B.md) and the commands in
 ### The status bar face's idle glance differs from a vanilla session (declared)
 
 In plain words: **the status bar face's idle left, ahead or right glance differs from a vanilla session with
-sound until sound is modelled, and nothing else on screen is affected.** The reason: the glance is chosen from
+sound until sound is modelled, and nothing else on screen is affected** (the level-start screen melt, not
+modelled either, draws from the same random table). The reason: the glance is chosen from
 `M_Random` (st_stuff.c:992, 913-919), the same random stream that every started sound and the level-start
 screen melt also draw from. M5b has neither sound nor the melt, so its `M_Random` index starts at 0 at a new
 game and only the status bar advances it, and the glance sequence differs from a real session's. Phase 1
@@ -2747,7 +2748,9 @@ treats its lumps by the original's rules; the committed tests use our own genera
   which refuses (as `Inconsistent`, leaving the display unchanged) a state whose fields disagree with each other
   or with the simulation: a message flag without its counter or the reverse, a menu-only flag, `oldhealth` other
   than -1 at tic 0 or the simulation's health afterwards, key boxes and ready ammunition that differ from the
-  simulation's, an impossible attack-direction counter, and a face that its priority and health cannot produce.
+  simulation's, an impossible attack-direction counter, and a face that its priority and health cannot produce. It still accepts some states that no run produces
+  (at tic 0 the fresh values of the face, key boxes and message are not pinned, and the priority 4 to 8 rows do not
+  check every precondition), so it is a consistency check, not a proof that a state is reachable.
   `restore` still **trusts** the line text, `showMessages`, the palette and the widgets' old values,
   `oldweaponsowned`, `firsttime` and `bg_drawn` against the embedded screen, `rndindex`, and the pain band
   against the current health. The golden test runs `check` on all 42,352 states (all pass), and 12 forged states
@@ -2824,8 +2827,9 @@ and keeps the genuine path from there on (decision S4).
 - **Recording round trip, and what it costs** (decision S3, owner-confirmed). Every session is recorded as a
   version-110 demo, and, as in vanilla recording, the game executes the command it has just **re-read from the
   demo buffer**. In plain words: while recording, turning happens in steps of 256 units (about 1.4 degrees), so
-  a mouse movement or key turn that is smaller than that is rounded, and a slow mouse turn of under 256 units a
-  tic is dropped without being carried to the next tic. This costs fine mouse turning, and it is what makes every
+  a mouse movement or key turn that is smaller than that is rounded (the demo byte is `(angleturn+128)>>8`,
+  g_game.c:1512): a turn of -128 to 127 units a tic is dropped without being carried to the next tic, and 128 to 255
+  becomes 256. This costs fine mouse turning, and it is what makes every
   session a valid vanilla demo. The opt-in mode that executes full-resolution turns without recording is
   [below](#unrecorded-full-turning-mode-opt-in).
 - **Input evidence.** The genuine input path (event queue, responders, `G_BuildTiccmd`, the demo write and
@@ -2849,12 +2853,15 @@ the wire-24 admission check) instead of being rounded to multiples of 256 by the
 nothing is recorded and no file is written under any ending, so the session cannot be replayed or checked against
 the genuine engine afterwards. **What is gained:** small mouse turns are no longer dropped. The window title, the
 pause overlay and every end, death, cap and refusal screen say exactly "not recorded: no demo, cannot be
-replayed", and the exit message prints the label instead of a save line.
+replayed", and the exit message prints the label instead of a save line. So that the label is seen even in
+fullscreen, where the window title is not visible, the same text is also drawn in a band over the top of the
+presented picture (never in the game frame) before the first tic and for tics 0 to 174 (175 tics, five seconds) of
+every unrecorded session, in every window mode and after every restart; a recorded session never shows it.
 
 Evidence, as far as it goes: the M5b runner's driver, compiled unchanged with a declared command-injection mode
 (`tools/reference/m5b_inject.c`, contract `tests/reference/m5b_inject_contract.json`), runs such commands in the
-genuine engine. Rust matches it on every tic (command, frame, status fields, messages and game dump through the
-independent DSIM40 encoder) on 4 injected scripts on the synthetic rooms palred and palbonus (630 tics, 373
+genuine engine. Rust matches it on every tic (command, frame under the declared sound-free, wipe-free contract, status
+fields, messages and game dump through the independent DSIM40 encoder) on 4 injected scripts on the synthetic rooms palred and palbonus (630 tics, 373
 commands with a nonzero low byte of the turn) and on 2 scripted unrecorded app sessions (199 tics, 75 such
 commands); the three genuine variants are identical, and the demo-resolution rounding of each script gives a
 different game, so the low byte matters. **Not covered:** real maps, and any person playing it; the label on

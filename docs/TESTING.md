@@ -2333,8 +2333,8 @@ fact to check.
 (see [CI mutation workflow](#ci-mutation-workflow-m4b)); `doom-play` is deliberately out of scope (a window
 shell with no logic a test could pin). The shard count is one value in the workflow's `Mutants plan` job. Each
 test process runs under a memory and time cap (below), because one first-run mutant made `wrap()` allocate without
-bound. The first run is recorded as an interim result in
-[the evidence record](validation/M5B.md#step-11-mutation-testing-interim-the-first-run).
+bound. The runs and the survivors' dispositions are recorded in
+[the evidence record](validation/M5B.md#step-11-mutation-testing).
 
 **CI.** The Rust frame, input and app tests run in the ordinary workspace tests (the `Stable` job on Linux,
 Windows and macOS and `Minimum Rust / 1.85.0`), which also build `doom-game` and `doom-play`. The genuine runs
@@ -2500,15 +2500,18 @@ and passes `--cargo-test-arg=--test-threads=2` to cargo-mutants:
 cat > "$RUNNER_TEMP/capped-runner.sh" <<'EOS'
 #!/bin/bash
 ulimit -v 1500000        # per process, in KiB: about 1.5 GB of address space
-exec timeout 240 "$@"
+exec timeout 330 "$@"       # a backstop above cargo-mutants' --timeout (300 s), see below
 EOS
 chmod +x "$RUNNER_TEMP/capped-runner.sh"
 export CARGO_TARGET_X86_64_UNKNOWN_LINUX_GNU_RUNNER="$RUNNER_TEMP/capped-runner.sh"
 ```
 
-A mutant that loops and allocates then aborts its test process and is reported as caught, instead of exhausting
-the runner's memory before any timeout fires. The cap is per process, so the bound is jobs x test threads x cap
-(2 x 2 x 1.5 GB); keep that product under the runner's memory, and note that a 3 GB cap with default parallelism
+The memory cap is what protects the runner: a mutant that loops and allocates aborts its test process (reported as
+caught) instead of exhausting the runner's memory before any timeout fires. The time limit is only a backstop for a
+test that outlives cargo-mutants, and it must stay above cargo-mutants' own `--timeout` (300 s): at 240 s (the
+first value, used in the second and third runs) the wrapper killed a looping test before cargo-mutants' timeout, so a
+mutant that makes a loop endless was reported as caught, not as a timeout. The cap is per process, so the bound
+is jobs x test threads x cap (2 x 2 x 1.5 GB); keep that product under the runner's memory, and note that a 3 GB cap with default parallelism
 did not protect a 7 GB host locally. Use the same runner and `--test-threads` when re-running a shard locally.
 
 #### Re-running one shard or the survivors locally (M5a)

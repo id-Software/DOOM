@@ -321,7 +321,8 @@ building the window library, and the simulation cannot reach presentation or pla
   the stored copy, so the saved demo is, byte for byte, what the game executed. `replay` takes only demo
   commands (made by the demo reader or the recorder); injected full-resolution commands go through the
   separately named `replay_full_resolution`. In the opt-in unrecorded mode the executed command is the built
-  one (after the wire-24 check) and nothing is recorded or written.
+  one (after the wire-24 check) and nothing is recorded or written; its "not recorded" label band for the first 175 tics is
+  drawn on the presented picture only, never in the game frame.
 - **What is saved where.** A session's only durable file is its demo (version-110 `.lmp`, rewritten whole). The
   simulation's canonical state is DSIM, the 3D renderer's history is `DRST`, the status bar and HUD history
   is `DDSP` (which embeds `DRST`); the app itself does not save or load games, and the app's pause, end

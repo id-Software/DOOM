@@ -48,34 +48,33 @@ The engine runs DOOM's game logic, draws the 3D view with the status bar and mes
 a window for one Episode 1 map at a time. It is checked by tests and small example programs, on small test maps built for
 this project and, locally, on all nine real Episode 1 maps. Today it can simulate:
 
-- one player who moves, uses switches and doors, takes damage and dies, with the fist, pistol, shotgun and chaingun,
-  against the Demon, Zombieman, Shotgun Guy, Chaingunner and Imp, which see, chase, attack and fight each other, plus
-  ammunition, health, armor and bonus pickups;
+- one player who moves, uses switches and doors, takes damage and dies, with the fist, pistol, shotgun and chaingun, against the
+  Demon, Zombieman, Shotgun Guy, Chaingunner and Imp, which see, chase, attack and fight each other, plus ammunition, health, armor
+  and bonus pickups;
 - walls at any angle, steps and ledges, windows, sky, damaging floors, secrets, flickering lights and scrolling walls;
-- E1M1's doors, lifts, floors, switches, exit, lamps, pillars, corpses and exploding barrels (with chain reactions),
-  then every Episode 1 door, floor, lift, stair, donut, light and exit special, keys, powerups, the chainsaw, the rocket
-  launcher, the Spectre, teleporters, the Baron of Hell, the E1M8 boss floor and hard skill (3);
-- all nine real Episode 1 maps, E1M1 to E1M9, on skills 2 and 3, plus the original's own `DEMO1` as run by the original
-  code. All 61 scripted runs (idle, exit walks, fights, deaths, random commands) run in sync with the genuine
-  engine (the original C code, built and run alongside the Rust code), tic for tic, using your own game files, local-only
+- E1M1's doors, lifts, floors, switches, exit, lamps, pillars, corpses and exploding barrels (with chain reactions), then every
+  Episode 1 door, floor, lift, stair, donut, light and exit special, keys, powerups, the chainsaw, the rocket launcher, the Spectre,
+  teleporters, the Baron of Hell, the E1M8 boss floor and hard skill (3);
+- all nine real Episode 1 maps, E1M1 to E1M9, on skill 2 (skill 3 on E1M5, E1M8 and E1M9), plus the original's own `DEMO1` as run by
+  the original code. All 61 scripted runs (idle, exit walks, fights, deaths, random commands) run in sync with the genuine engine
+  (the original C code, built and run alongside the Rust code), tic for tic, using your own game files, local-only
   ([evidence](docs/validation/M4B.md#real-maps-and-demo1));
-- a software renderer for the 3D view that draws the same image as the original code on the test maps and on every frame
-  of those scripted runs (local-only), leaving out screen columns where the original reads undefined memory and 105
-  test-map frames with an unrecorded switch state ([support](docs/COMPATIBILITY.md#software-renderer-m5a));
-- a status bar, messages, palette flashes, keyboard-and-mouse input and a window at 35 tics a second. Frames are identical
-  to the genuine engine under the declared sound-free, wipe-free contract, except 300 synthetic frames compared only on
-  the columns it defines, 70 not compared, and 494 and 552 real-map frames compared that way (size 10, size 11); the
-  sessions checked replay in it ([support](docs/COMPATIBILITY.md#playable-build-m5b), [evidence](docs/validation/M5B.md));
-- on those maps, one tic of the simulation takes about 33–150 µs on an Intel Core i7-8750H laptop CPU (6 cores, 2.2 GHz,
-  Linux under WSL2), 1.8 to 7 times faster than before, every result unchanged
-  ([measurements](docs/validation/M4P.md#matched-timing)).
+- a software renderer for the 3D view that draws the same image as the original code on the test maps and on every frame of those
+  scripted runs (local-only), leaving out screen columns where the original reads undefined memory and 105 test-map frames with an
+  unrecorded switch state ([support](docs/COMPATIBILITY.md#software-renderer-m5a));
+- a status bar, messages, palette flashes, keyboard-and-mouse input and a window at 35 tics a second. Frames are identical to the
+  genuine engine under the declared sound-free, wipe-free contract, except 300 synthetic frames compared only on the columns it
+  defines, 70 not compared, and 494 and 552 real-map frames compared that way (size 10, size 11); the sessions checked replay in it
+  ([support](docs/COMPATIBILITY.md#playable-build-m5b), [evidence](docs/validation/M5B.md));
+- on those maps, one tic of the simulation takes about 33–150 µs on an Intel Core i7-8750H laptop CPU (6 cores, 2.2 GHz, Linux under
+  WSL2), 1.8 to 7 times faster than before, every result unchanged ([measurements](docs/validation/M4P.md#matched-timing)).
 
 What it cannot do yet:
 
-- draw the automap, play sound or offer menus, an intermission or a next level, or play back the original's recorded demos
-  (only the one local `DEMO1`, as run by the original code, is covered);
-- claim a tic-for-tic match for every input (only the scripted runs recorded so far), handle the other episodes or easy or
-  nightmare skill, or reach every corner of a map the scripted runs do not.
+- draw the automap, play sound or offer menus, an intermission or a next level, or play back the original's recorded demos (only the
+  one local `DEMO1`, as run by the original code, is covered);
+- claim a tic-for-tic match for every input (only the scripted runs recorded so far), handle the other episodes or easy or nightmare
+  skill, or reach every corner of a map the scripted runs do not.
 
 This is a long-term project: progress is measured in proven features, not weeks.
 
@@ -134,21 +133,22 @@ The `doom-play` program opens a window for one Episode 1 map (E1M1 to E1M9; skil
 cargo run --release -p doom-play -- --iwad /path/to/DOOM.WAD --map 1 --skill hmp --sessions /path/for/sessions
 ```
 
-- **Controls.** The original's defaults: arrows move and turn, right Ctrl fires, Space uses, right Shift runs, `1`-`8`
-  pick weapons, mouse left fires (`--bindings modern` gives WASD). Esc pauses (R restarts, Q quits). Cheat codes do nothing.
-- **Sessions.** Each is saved as a demo (`E1M1-skill2-<UTC time>.lmp`), never over an existing file. Demos store turns in
-  steps of 256 units, so tiny mouse turns are rounded or lost; the opt-in `--unrecorded-full-turning` keeps them but records nothing
-  ("not recorded: no demo, cannot be replayed"). With your IWAD and a C compiler, `python3 tools/local/m5b_session_real.py
-  --iwad /path/to/DOOM.WAD --lmp FILE.lmp` (add `--screenblocks 11` if you used it) replays a saved session in the genuine
-  engine and prints `VERDICT: PASS` or the first tic that differs.
+- **Controls.** The original's defaults: arrows move and turn, right Ctrl fires, Space uses, right Shift runs, `1`-`8` pick weapons,
+  mouse left fires (`--bindings modern` gives WASD). Esc pauses (R restarts, Q quits). Cheat codes do nothing.
+- **Sessions.** Each is saved as a demo, never over an existing file. Demos store turns in steps of 256 units, so tiny mouse turns
+  are rounded or lost; the opt-in `--unrecorded-full-turning` keeps them but records nothing ("not recorded: no demo, cannot be
+  replayed", also in a band over the picture for the first five seconds); its evidence is the committed synthetic scripts and
+  sessions only. With your IWAD and a C compiler, `python3 tools/local/m5b_session_real.py --iwad /path/to/DOOM.WAD --lmp FILE.lmp`
+  replays a saved session in the genuine engine and prints `VERDICT: PASS` or the first tic that differs.
 - **Missing.** Sound, menus, automap, saving, intermission, next level, wipes, easy and nightmare skill, multiplayer.
-- **Limits.** The status bar face's idle left, ahead or right glance differs from a vanilla session with sound until sound
-  is modelled; nothing else on screen is affected. **An OpenGL 2.1 (or OpenGL ES 2) driver is required.** The window library reports focus
-  loss and the game then pauses and releases every held key: seen under WSLg when a second window took the focus; Alt-Tab,
-  minimising by hand, Windows, macOS and whether keys are seen released are unchecked, so press Esc first.
-- **Not yet judged.** Under Linux (WSLg) it starts, loads the real game and plays scripted and idle sessions that replay
-  identically. Nobody has looked at the picture, pressed a real key, moved a real mouse, tried mouse capture, or run it on
-  Windows or macOS beyond CI builds (nobody has run the CI-built `doom-play.exe`), so how it looks and feels is unknown.
+- **Limits.** The status bar face's idle left, ahead or right glance differs from a vanilla session with sound until sound is modelled;
+  nothing else on screen is affected (the level-start melt, not modelled either, shares its random numbers). **An OpenGL 2.1 (or OpenGL
+  ES 2) driver is required.** On focus loss the game pauses and releases every held key: seen under WSLg when a second window took the
+  focus; Alt-Tab, minimising by hand, Windows, macOS and key release on screen are unchecked: press Esc first.
+- **Not yet judged.** Under Linux (WSLg) the window starts, loads the real game and has run idle sessions (no input) whose demos
+  replay with every frame identical to the genuine engine under the declared sound-free, wipe-free contract; scripted sessions ran
+  headless, not in the window. Nobody has looked at the picture, pressed a real key, moved a real mouse, tried mouse capture, or run
+  it on Windows or macOS beyond CI builds: how it looks and feels is unknown.
 
 ## Try it
 
