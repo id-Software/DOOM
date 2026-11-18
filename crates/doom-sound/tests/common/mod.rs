@@ -14,6 +14,17 @@ use doom_sound::sounds::{NUMSFX, S_SFX, SfxId};
 use doom_sound::tables::table_bytes;
 use doom_test_evidence::sha256;
 
+pub mod gate;
+
+/// doom-sim's item table and level setup of the 64 M5c items (one source for both crates).
+#[path = "../../../doom-sim/tests/wire25/mod.rs"]
+pub mod wire25;
+
+/// The driver's lump rows (`l`, `L`, `P`), for the session harness.
+pub fn lump_rows_pub(set: &SoundSet, full: bool, out: &mut Vec<String>) {
+    lump_rows(set, full, out);
+}
+
 /// `tests/reference/<name>`.
 pub fn reference(name: &str) -> PathBuf {
     Path::new(env!("CARGO_MANIFEST_DIR"))
