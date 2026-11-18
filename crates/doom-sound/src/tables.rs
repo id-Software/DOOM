@@ -5,8 +5,12 @@
 //!   `steptablemid[i] = (int)(pow(2.0, (i/64.0))*65536.0)` for i in -128..127 with
 //!   `steptablemid = steptable + 128` (i_sound.c:404, 414-415). It is committed as the constant
 //!   [`STEPTABLE`], generated exactly (integer 64th root) by `tools/reference/m5c_sounds_table.py`
-//!   and checked against the genuine table's SHA-256 (M5c note §3.2.6; the nearest entry is 0.0125
-//!   from an integer, so no libm can disagree).
+//!   and checked against the genuine table's SHA-256 (M5c note §3.2.6). Of the 252 entries that
+//!   are not integers, the nearest to an integer is p = 112 (55108.98747..., 0.0125 below
+//!   55109), so a libm off by far less than that cannot truncate any of them differently. The
+//!   other four, p = 0, 64, 128 and 192, are exact powers of two (16384, 32768, 65536, 131072):
+//!   they truncate correctly only if `pow` returns them exactly, which the reference build's
+//!   libm did (the genuine digest matches).
 //! - `vol_lookup[i*256+j] = (i*(j-128)*256)/127` for i 0..127, j 0..255 (i_sound.c:421-423) is
 //!   integer arithmetic; Rust's `/` truncates toward zero as gcc does (M5c note §1.3.8 item 5).
 //!   [`VOL_LOOKUP`] is evaluated at compile time.

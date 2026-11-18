@@ -9,8 +9,10 @@
                                          steptable[p] = (int)(pow(2.0, (p-128)/64.0) * 65536.0),
                                          computed here with no floating point as the integer 64th
                                          root of 2^(1024 + p - 128) (the product is positive and the
-                                         multiplication by 65536 exact; margin to the nearest integer
-                                         0.0125, M5c note section 3.2.6), with its SHA-256 over the
+                                         multiplication by 65536 exact; of the entries that are not
+                                         integers the nearest to one is p = 112, 0.0125 away, M5c note
+                                         section 3.2.6; p = 0, 64, 128, 192 are exact powers of two,
+                                         right only where pow returns them exactly), with its SHA-256 over the
                                          little-endian int32 array checked against the genuine digest
                                          95f2209c...6dde recorded by the genuine mixer harness.
 
