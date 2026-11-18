@@ -20,6 +20,12 @@ pub struct MapSpawnReport {
     pub player_body: Option<ActorId>,
 }
 
+/// The ten doomednums `P_LoadThings` does not spawn outside commercial mode, in
+/// the source's order: Arachnotron, Archvile, Boss Brain, Boss Shooter, Hell
+/// Knight, Mancubus, Pain Elemental, Former Human Commando, Revenant, Wolf SS
+/// (p_setup.c:322-333).
+const DOOM2_ONLY_THINGS: [i16; 10] = [68, 64, 88, 89, 69, 67, 71, 65, 66, 84];
+
 impl Simulation {
     /// Whether a spawn of `ty` is a mover for the barrels policy's spawn rule S′
     /// (M3h9b note decision F3): every type except the policy's pickups and static
@@ -459,7 +465,14 @@ impl Simulation {
         let starts_as_records = self.player_policy().has_real_map();
         let level = self.player_policy().has_level();
         let player_type = ActorTypeId(crate::identity::OriginalActorType::MT_PLAYER.ordinal());
+        // Wire 25 (M5c decision T4): `P_LoadThings` of a non-commercial game ends
+        // the whole loop at the first of the ten Doom II types, before
+        // `P_SpawnMapThing` and so before any start handling (p_setup.c:317-337).
+        let truncate = self.player_policy().has_sound_records();
         for thing in self.world.map().things() {
+            if truncate && DOOM2_ONLY_THINGS.contains(&thing.kind) {
+                break;
+            }
             if map_demons && !starts_as_records && (thing.kind <= 4 || thing.kind == 11) {
                 return Err(MapSpawnError::StartOrInvalidType(thing.kind).into());
             }
