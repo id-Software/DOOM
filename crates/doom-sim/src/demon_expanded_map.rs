@@ -696,8 +696,10 @@ impl Simulation {
             bindings: &mut plan.bindings,
             events: &mut plan.events,
         })?;
+        let sounds = self.take_operation_sounds(&mut plan)?;
         let mut events = self.commit_demon_plan(plan);
         self.pending.append(&mut events);
+        self.pending_sounds.extend(sounds);
         self.spare_events = events;
         Ok(result)
     }
@@ -728,10 +730,26 @@ impl Simulation {
         if let Some(error) = control.failure.get() {
             return Err(self.policy_error(error));
         }
+        let sounds = self.take_operation_sounds(&mut plan)?;
         let mut events = self.commit_demon_plan(plan);
         self.pending.append(&mut events);
+        self.pending_sounds.extend(sounds);
         self.spare_events = events;
         Ok(result)
+    }
+    /// Wire 25: an explicit operation's sound records, taken out of its staged
+    /// events before the commit (a refusal leaves everything as it was); nothing
+    /// under every other policy.
+    fn take_operation_sounds(
+        &self,
+        plan: &mut DemonPlan,
+    ) -> Result<Vec<sound::SoundRecord>, SimError> {
+        let mut sounds = Vec::new();
+        if self.player_policy().has_sound_records() {
+            let listener = plan.player.as_ref().and_then(|p| p.mo);
+            sound::take(&mut plan.events, listener, &mut sounds)?;
+        }
+        Ok(sounds)
     }
     /// The real-map policy names the source's 129th intercept of a trace, reached
     /// by a hitscan or a slide inside a refused tic, `MapScaleError::Intercepts`
@@ -770,6 +788,13 @@ impl Simulation {
         };
         self.preflight_expanded_demons_for(true)?;
         self.preflight_actor_step()?;
+        let records = self.player_policy().has_sound_records();
+        let listener = self.original_player.as_ref().and_then(|p| p.mo);
+        // Wire 25: the records kept apart from `pending` must describe it exactly
+        // (every explicit operation moves its records there as it commits).
+        if records && !sound::same_calls(&self.pending, listener, &self.pending_sounds) {
+            return Err(sound::SoundError::Unplaced.into());
+        }
         let mut plan = self.demon_plan()?;
         let control = SightControl::default();
         let movers = self.player_policy().has_movers();
@@ -1000,12 +1025,43 @@ impl Simulation {
             }
         }
         // P_UpdateSpecials: the button countdown (movers policy), in its phase.
-        let special_events = movers.then(|| {
+        let mut special_events = if movers {
             let mut events = Vec::new();
-            use_lines::update_buttons(&mut plan.buttons, &mut events);
-            events
-        });
+            // Wire 25 reads the listener at the end of the tic for the release
+            // placement (p_spec.c:1151, after `P_RunThinkers`, p_tick.c:152-153).
+            let heard = records
+                .then(|| {
+                    listener.and_then(|body| {
+                        let a = plan.actors.get(body)?;
+                        Some(sound::Listener {
+                            body,
+                            held: Some((a.position(), a.angle())),
+                        })
+                    })
+                })
+                .flatten();
+            use_lines::update_buttons(&mut plan.buttons, &mut events, records, heard)?;
+            Some(events)
+        } else {
+            None
+        };
+        // Wire 25: the tic's records, in its events' order (`pending`'s first), are
+        // taken out of the lists before anything is committed.
+        let tic_sounds = if records {
+            let mut sounds = self.pending_sounds.clone();
+            sound::take(&mut plan.events, listener, &mut sounds)?;
+            if let Some(events) = special_events.as_mut() {
+                sound::take(events, listener, &mut sounds)?;
+            }
+            Some(sounds)
+        } else {
+            None
+        };
         let mut events = self.commit_demon_plan(plan);
+        if let Some(sounds) = tic_sounds {
+            self.sounds = sounds;
+            self.pending_sounds.clear();
+        }
         // The tic's events are `pending` followed by the plan's (M4p note §3 O5).
         // With nothing pending the plan's vector becomes `events` as it is, and the
         // replaced vector is kept, emptied, as the next plan's buffer; otherwise
@@ -1057,6 +1113,7 @@ fn use_block(
     p.use_down = true;
     let id = p.mo.ok_or(PlayerBodyError::Binding)?;
     let actor = *host.access.get(id).ok_or(PlayerBodyError::Binding)?;
+    let listener = host.listener();
     let buttons = host
         .buttons
         .as_deref_mut()
@@ -1069,6 +1126,7 @@ fn use_block(
             events: &mut *host.events,
             specials: Some(specials),
             player: host.player.as_deref_mut(),
+            listener,
         },
         buttons,
         id,

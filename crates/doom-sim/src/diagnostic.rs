@@ -74,7 +74,10 @@ struct Field<'a> {
 #[derive(Debug)]
 pub struct Diagnostic<'a> {
     bytes: &'a [u8],
+    /// The layout version every DSIM40 rule reads: 40 for a DSIM41 frame.
     version: u32,
+    /// DSIM41 (wire 25): the DSIM40 layout plus `events.sounds`.
+    sounds: bool,
     fields: Vec<Field<'a>>,
     sorted: Vec<usize>,
 }
@@ -322,6 +325,28 @@ impl<'a> Diagnostic<'a> {
     ) -> Result<Self, DiagnosticError> {
         Self::decode_selected(bytes, limits, Some(40))
     }
+    /// Explicit DSIM41 Episode 1 part 3 reader (M5c, wire 25, decision T3); every
+    /// earlier reader, `decode_episode1_v2` included, rejects 41 and this reader
+    /// rejects every earlier version. DSIM41 is the DSIM40 layout, event
+    /// vocabulary, bounds and witnesses, field for field, under policy 25 and the
+    /// `PLAYER-MONSTERS-EPISODE1-3-v1` context, plus the sound records after
+    /// `events.pending`: `events.sounds.last.count` (u64) and
+    /// `events.sounds.last.N`, then `events.sounds.pending.count` and
+    /// `events.sounds.pending.N`. A record is tag 1, a start: u16 sfx (1..=108);
+    /// u8 origin kind 0 none, 1 actor (a 12-byte handle), 2 sector (u16, below
+    /// `sectors.count`), 3 button (u8, below 16); u8 placed (0 or 1), then when 1
+    /// origin x, origin y, listener x, listener y (i32) and the listener angle
+    /// (u32). A start is placed exactly when its origin is a sector, a button, or
+    /// an actor other than `original_player.0.mo` (s_sound.c:304); a button's
+    /// origin y is 0 and its x a timer, 0..=35 (the declared 64-bit reading of
+    /// p_spec.c:1151). Tag 2 is a stop: the 12-byte handle. Integers are little
+    /// endian.
+    pub fn decode_episode1_v3(
+        bytes: &'a [u8],
+        limits: DiagnosticLimits,
+    ) -> Result<Self, DiagnosticError> {
+        Self::decode_selected(bytes, limits, Some(41))
+    }
     /// Explicit DSIM30 real-map-scale reader; every earlier reader rejects 30 and
     /// this reader rejects every earlier version.
     pub fn decode_map_scale(
@@ -400,9 +425,11 @@ impl<'a> Diagnostic<'a> {
         {
             return Err(DiagnosticError::Structure);
         }
+        let sounds = version == 41;
         let result = Self {
             bytes,
-            version,
+            version: if sounds { 40 } else { version },
+            sounds,
             fields,
             sorted,
         };
@@ -419,7 +446,7 @@ impl<'a> Diagnostic<'a> {
     }
     /// Explicit format version, separate from the execution profile field.
     pub const fn version(&self) -> u32 {
-        self.version
+        if self.sounds { 41 } else { self.version }
     }
     /// Borrow a field without reordering the original capture/event sequence.
     pub fn field(&self, path: &str) -> Option<&'a [u8]> {
@@ -531,6 +558,9 @@ impl<'a> Diagnostic<'a> {
                 || crate::barrels::is_barrel(self.policy(), actor))
     }
     fn policy(&self) -> OriginalExecutionProfile {
+        if self.sounds {
+            return OriginalExecutionProfile::PlayerMonstersEpisode1V3;
+        }
         if self.version == 40 {
             return OriginalExecutionProfile::PlayerMonstersEpisode1V2;
         }
@@ -630,6 +660,76 @@ impl<'a> Diagnostic<'a> {
         } else {
             OriginalExecutionProfile::DemonNormalV1
         }
+    }
+    /// DSIM41: the two record lists of `events.sounds` (see
+    /// [`Self::decode_episode1_v3`]).
+    fn validate_sound_records(&self) -> Result<(), DiagnosticError> {
+        let sectors = u32::from_le_bytes(number(self.required("sectors.count")?)?);
+        let mo = self.required("original_player.0.mo")?;
+        let listener = (mo.len() == 13 && mo[0] == 1).then(|| &mo[1..]);
+        for prefix in ["events.sounds.last", "events.sounds.pending"] {
+            let count = u64::from_le_bytes(number(self.required(&format!("{prefix}.count"))?)?);
+            let count = usize::try_from(count).map_err(|_| DiagnosticError::Limit)?;
+            if count > self.fields.len() {
+                return Err(DiagnosticError::Limit);
+            }
+            for i in 0..count {
+                let r = self.required(&format!("{prefix}.{i}"))?;
+                match r.first() {
+                    Some(1) => {
+                        let sfx = u16::from_le_bytes(number(r.get(1..3).unwrap_or(&[]))?);
+                        if !(1..=108).contains(&sfx) {
+                            return Err(DiagnosticError::Identity);
+                        }
+                        let kind = *r.get(3).ok_or(DiagnosticError::Structure)?;
+                        let (identity, positional) = match kind {
+                            0 => (0, false),
+                            1 => {
+                                let handle = r.get(4..16).ok_or(DiagnosticError::Structure)?;
+                                validate_handle(handle, self.slot_bound())?;
+                                (12, listener != Some(handle))
+                            }
+                            2 => {
+                                let sector =
+                                    u16::from_le_bytes(number(r.get(4..6).unwrap_or(&[]))?);
+                                if u32::from(sector) >= sectors {
+                                    return Err(DiagnosticError::Identity);
+                                }
+                                (2, true)
+                            }
+                            3 => {
+                                if *r.get(4).ok_or(DiagnosticError::Structure)? >= 16 {
+                                    return Err(DiagnosticError::Identity);
+                                }
+                                (1, true)
+                            }
+                            _ => return Err(DiagnosticError::Structure),
+                        };
+                        let placed_at = 4 + identity;
+                        let placed = *r.get(placed_at).ok_or(DiagnosticError::Structure)?;
+                        let expected = placed_at + 1 + if placed == 1 { 20 } else { 0 };
+                        if placed > 1 || r.len() != expected || (placed == 1) != positional {
+                            return Err(DiagnosticError::Structure);
+                        }
+                        if kind == 3 {
+                            let x = i32::from_le_bytes(number(&r[placed_at + 1..placed_at + 5])?);
+                            let y = i32::from_le_bytes(number(&r[placed_at + 5..placed_at + 9])?);
+                            if y != 0 || !(0..=35).contains(&x) {
+                                return Err(DiagnosticError::Identity);
+                            }
+                        }
+                    }
+                    Some(2) => {
+                        if r.len() != 13 {
+                            return Err(DiagnosticError::Structure);
+                        }
+                        validate_handle(&r[1..13], self.slot_bound())?;
+                    }
+                    _ => return Err(DiagnosticError::Structure),
+                }
+            }
+        }
+        Ok(())
     }
     fn validate(&self) -> Result<(), DiagnosticError> {
         let profile = u32::from_le_bytes(number(self.required("profile")?)?);
@@ -731,6 +831,15 @@ impl<'a> Diagnostic<'a> {
                     return Err(DiagnosticError::Identity);
                 }
             }
+        }
+        if self.sounds {
+            self.validate_sound_records()?;
+        } else if self
+            .fields
+            .iter()
+            .any(|f| f.path.starts_with("events.sounds."))
+        {
+            return Err(DiagnosticError::Structure);
         }
         for prefix in ["events.last", "events.pending"] {
             let count = u64::from_le_bytes(number(self.required(&format!("{prefix}.count"))?)?);

@@ -47,9 +47,10 @@ pub use player_map_scale::{
 pub use player_monsters::{
     EPISODE1_MAP_NUMBERS, MAX_PLAYER_MONSTERS, PLAYER_BARRELS_CONTEXT_SCHEMA,
     PLAYER_DIAGONAL_CONTEXT_SCHEMA, PLAYER_E1M1_CONTEXT_SCHEMA, PLAYER_EPISODE1_CONTEXT_SCHEMA,
-    PLAYER_EPISODE1_V2_CONTEXT_SCHEMA, PLAYER_HEIGHTS_CONTEXT_SCHEMA, PLAYER_IMPS_CONTEXT_SCHEMA,
-    PLAYER_LEVEL_CONTEXT_SCHEMA, PLAYER_MAP_SCALE_CONTEXT_SCHEMA, PLAYER_MONSTERS_CONTEXT_SCHEMA,
-    PLAYER_MOVERS_CONTEXT_SCHEMA, PLAYER_REAL_MAP_CONTEXT_SCHEMA, PLAYER_SPECIALS_CONTEXT_SCHEMA,
+    PLAYER_EPISODE1_V2_CONTEXT_SCHEMA, PLAYER_EPISODE1_V3_CONTEXT_SCHEMA,
+    PLAYER_HEIGHTS_CONTEXT_SCHEMA, PLAYER_IMPS_CONTEXT_SCHEMA, PLAYER_LEVEL_CONTEXT_SCHEMA,
+    PLAYER_MAP_SCALE_CONTEXT_SCHEMA, PLAYER_MONSTERS_CONTEXT_SCHEMA, PLAYER_MOVERS_CONTEXT_SCHEMA,
+    PLAYER_REAL_MAP_CONTEXT_SCHEMA, PLAYER_SPECIALS_CONTEXT_SCHEMA,
 };
 mod player_commands;
 mod player_pistol;
@@ -322,6 +323,8 @@ pub enum SimError {
     /// (`PST_REBORN`): the next `G_Ticker` would run `G_DoReborn` (a level restart,
     /// out of scope, decision N3); no state is advanced.
     PlayerReborn,
+    /// Wire 25's sound support refused the map or the tic (M5c decisions T11, T12).
+    Sound(sound::SoundError),
 }
 impl fmt::Display for SimError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -329,6 +332,11 @@ impl fmt::Display for SimError {
     }
 }
 impl Error for SimError {}
+impl From<sound::SoundError> for SimError {
+    fn from(e: sound::SoundError) -> Self {
+        Self::Sound(e)
+    }
+}
 impl From<MapSpawnError> for SimError {
     fn from(e: MapSpawnError) -> Self {
         Self::MapSpawn(e)
@@ -434,6 +442,12 @@ pub enum Event {
     RemovalMarked(ActorId),
     /// Storage retired and old generation invalidated.
     Retired(ActorId),
+    /// Wire 25 only, and transient: the placement of the positional sound start
+    /// pushed just before it, carried in the tic's list so that it keeps the call
+    /// order through every buffer. The tic moves it to
+    /// [`Simulation::sound_records`]; it never appears in [`Simulation::events`],
+    /// in [`Simulation::pending_events`] or in a capture.
+    SoundRecord(sound::SoundRecord),
     /// Ground command applied in player-slot order.
     Player {
         /// Input slot.
@@ -628,6 +642,13 @@ pub struct Simulation {
     /// Under the movers policy, the running switch buttons (`buttonlist`): timer,
     /// line and sound-origin sector of each slot, DSIM35 state (decision N9).
     pub(crate) buttons: use_lines::Buttons,
+    /// Under wire 25 alone, the sound records of the last completed tic in call
+    /// order (DSIM41 `events.sounds.last`); empty under every other policy.
+    pub(crate) sounds: Vec<sound::SoundRecord>,
+    /// Under wire 25 alone, the sound records of explicit operations since the
+    /// last tic, published first with the next tic's (DSIM41
+    /// `events.sounds.pending`), as `pending` is for events.
+    pub(crate) pending_sounds: Vec<sound::SoundRecord>,
 }
 /// Static-geometry table bounds a construction prepares against: the M3f2/M3h3
 /// constants for every historical profile, the WAD format's own bounds (M3h6 note
@@ -816,6 +837,8 @@ impl Simulation {
             level_secret_exit: false,
             level_map: None,
             buttons: [None; mover_rules::MAX_BUTTONS],
+            sounds: Vec::new(),
+            pending_sounds: Vec::new(),
         })
     }
     /// The sectors a type's dimensions are admitted against: the heights policy's
@@ -984,6 +1007,19 @@ impl Simulation {
     /// Last completed tic's events; never drained by presentation.
     pub fn events(&self) -> &[Event] {
         &self.events
+    }
+    /// Wire 25 (M5c decision T3): the sound records of the last completed tic, in
+    /// the C call order (DSIM41 `events.sounds.last`): every `S_StartSound` with
+    /// its origin and, for a positional start, the positions read at the call,
+    /// and every `S_StopSound` of `P_RemoveMobj`. Empty under every other policy.
+    pub fn sound_records(&self) -> &[sound::SoundRecord] {
+        &self.sounds
+    }
+    /// Wire 25: the sound records of explicit operations since the last tic,
+    /// published first with the next tic's records (DSIM41
+    /// `events.sounds.pending`). Empty under every other policy.
+    pub fn pending_sound_records(&self) -> &[sound::SoundRecord] {
+        &self.pending_sounds
     }
     /// Read-only observations from explicit operations since the last tic.
     /// These are retained in the next completed tic and in canonical pending state.
@@ -1174,6 +1210,11 @@ impl Simulation {
         if self.actors.mark_remove(id)? {
             self.spatial.unlink(id);
             self.pending.push(Event::RemovalMarked(id));
+            // Wire 25: `P_RemoveMobj`'s `S_StopSound` (p_mobj.c:565-566).
+            if self.player_policy().has_sound_records() {
+                self.pending_sounds
+                    .push(sound::SoundRecord::Stop { actor: id });
+            }
         }
         for binding in &mut self.bindings {
             if *binding == Some(id) {

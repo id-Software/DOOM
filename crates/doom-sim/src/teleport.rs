@@ -490,6 +490,19 @@ impl crate::movement::MotionAccess for Motion<'_, '_, '_> {
             *actor = *self.access.get(id).ok_or(StoreError::InvalidHandle)?;
             result.map(|ends| (ends, crossing.special))
         } else {
+            // Wire 25: the store still holds the mover's record as of the tic's
+            // start, while the crossing follows the step that moved it
+            // (p_map.c:494-512): a listener that is the mover is read from its
+            // current record.
+            let listener = self
+                .player
+                .as_deref()
+                .filter(|p| p.policy.has_sound_records())
+                .and_then(|p| p.mo)
+                .map(|body| crate::sound::Listener {
+                    body,
+                    held: (body == id).then(|| (actor.position(), actor.angle())),
+                });
             crate::line_triggers::cross(
                 &mut crate::movers::Starter {
                     world: self.world,
@@ -498,6 +511,7 @@ impl crate::movement::MotionAccess for Motion<'_, '_, '_> {
                     events: &mut out,
                     specials: self.specials.as_deref_mut(),
                     player: None,
+                    listener,
                 },
                 id,
                 crosser,

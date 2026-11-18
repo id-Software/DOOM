@@ -74,6 +74,7 @@ fn boss_death_checked<A: ActorAccess>(
     let health = player.health;
     let outcome = decide(map, health, || other_alive(h, id, ty))?;
     if outcome == Outcome::FloorCalled {
+        let listener = h.listener();
         let store = h.access.movers().ok_or(StoreError::UnsupportedThinker)?;
         let mut starter = crate::movers::Starter {
             world: h.world,
@@ -82,6 +83,7 @@ fn boss_death_checked<A: ActorAccess>(
             events: &mut *h.events,
             specials: None,
             player: None,
+            listener,
         };
         starter.boss_floor()?;
     }

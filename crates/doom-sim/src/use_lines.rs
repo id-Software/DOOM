@@ -57,7 +57,9 @@ pub(crate) struct UseOutcome {
 }
 
 /// `S_StartSound` of a switch: at `buttonlist[0].soundorg`, a global sound when that
-/// slot is free.
+/// slot is free (p_switch.c:228, 240, 252: `buttonlist->soundorg`, read before
+/// `P_StartButton` stores the new button). Policies before wire 25 only.
+#[cfg(test)]
 fn switch_sound(events: &mut Vec<Event>, buttons: &Buttons, sound: u16) {
     events.push(match buttons[0] {
         Some(button) => Event::Mover(MoverEvent::SectorSound {
@@ -73,6 +75,8 @@ fn switch_sound(events: &mut Vec<Event>, buttons: &Buttons, sound: u16) {
 /// (always, by rule 9, except under the Episode 1 policy, decision D3): a non-reusable line's special is cleared **before** the exit-sound test,
 /// so the exit switch plays `sfx_swtchn`; the sound plays at `buttonlist[0]`; a
 /// reusable line then starts its button (`P_StartButton`). Returns the special after.
+/// The unit tests' entry; the starters run [`change_switch_texture_at`].
+#[cfg(test)]
 pub(crate) fn change_switch_texture(
     world: &StaticWorld,
     events: &mut Vec<Event>,
@@ -80,6 +84,53 @@ pub(crate) fn change_switch_texture(
     line: u16,
     special: i16,
     use_again: bool,
+) -> Result<i16, SimError> {
+    change_switch(
+        world,
+        buttons,
+        line,
+        special,
+        use_again,
+        |buttons, sound| {
+            switch_sound(events, buttons, sound);
+        },
+    )
+}
+/// [`change_switch_texture`] for a starter: under wire 25 a busy slot 0 places
+/// the press at that slot's line's front sector origin, read now (the value of
+/// `buttonlist[0].soundorg` before `P_StartButton`, M5c decision T12).
+fn change_switch_texture_at<M: MoverAccess + ?Sized>(
+    starter: &mut Starter<'_, M>,
+    buttons: &mut Buttons,
+    line: u16,
+    special: i16,
+    use_again: bool,
+) -> Result<i16, SimError> {
+    let world = starter.world;
+    change_switch(
+        world,
+        buttons,
+        line,
+        special,
+        use_again,
+        |buttons, sound| match buttons[0] {
+            Some(button) => starter.sector_sound_id(button.sector, sound),
+            None => starter
+                .events
+                .push(Event::ActorState(ActorStateEvent::Sound {
+                    actor: None,
+                    sound,
+                })),
+        },
+    )
+}
+fn change_switch(
+    world: &StaticWorld,
+    buttons: &mut Buttons,
+    line: u16,
+    special: i16,
+    use_again: bool,
+    sound_at: impl FnOnce(&Buttons, u16),
 ) -> Result<i16, SimError> {
     let after = if use_again { special } else { 0 };
     // Decision D3 (Episode 1 policy): a front side with no episode-1 switch
@@ -95,7 +146,7 @@ pub(crate) fn change_switch_texture(
     } else {
         "sfx_swtchn"
     });
-    switch_sound(events, buttons, sound);
+    sound_at(buttons, sound);
     if use_again {
         start_button(world, buttons, line)?;
     }
@@ -129,20 +180,53 @@ fn start_button(world: &StaticWorld, buttons: &mut Buttons, line: u16) -> Result
 /// The button half of p_spec.c `P_UpdateSpecials` (1127–1153): every running
 /// button counts down; at 0 its texture is restored with `sfx_swtchn` at the address
 /// of the slot's `soundorg` field and the slot is zeroed.
-pub(crate) fn update_buttons(buttons: &mut Buttons, events: &mut Vec<Event>) {
-    for (slot, entry) in buttons.iter_mut().enumerate() {
-        if let Some(button) = entry {
-            button.timer -= 1;
-            if button.timer == 0 {
-                events.push(Event::Mover(MoverEvent::SectorSound {
-                    origin: SoundOrigin::Button,
-                    index: slot as u16,
-                    sound: crate::lifecycle::source_sound_id("sfx_swtchn"),
-                }));
-                *entry = None;
+///
+/// Under wire 25 (`records`) the release is placed by the declared 64-bit reading
+/// of that address (M5c decision T12; `button_t` is 32 bytes with `soundorg` at 24,
+/// and `mobj_t`'s `x`, `y` at 24, 28, note §1.2.6.3): x is slot i+1's `btimer` as
+/// it stands at this point of the loop (slots are visited in increasing order, so
+/// slot i+1 is not yet decremented, p_spec.c:1129-1132) and y is 0 (the padding
+/// after it); the listener is read at the end of the tic. The release of slot 15
+/// would read past `buttonlist` and refuses the tic
+/// ([`crate::sound::SoundError::ButtonSlot15`]); a refusal leaves `buttons` to be
+/// dropped with the plan.
+pub(crate) fn update_buttons(
+    buttons: &mut Buttons,
+    events: &mut Vec<Event>,
+    records: bool,
+    listener: Option<crate::sound::Listener>,
+) -> Result<(), SimError> {
+    for slot in 0..buttons.len() {
+        // The value slot `slot + 1` holds before this loop reaches it.
+        let next_timer = buttons.get(slot + 1).map(|b| b.map_or(0, |b| b.timer));
+        let Some(button) = buttons[slot].as_mut() else {
+            continue;
+        };
+        button.timer -= 1;
+        if button.timer == 0 {
+            let sound = crate::lifecycle::source_sound_id("sfx_swtchn");
+            let index = slot as u16;
+            events.push(Event::Mover(MoverEvent::SectorSound {
+                origin: SoundOrigin::Button,
+                index,
+                sound,
+            }));
+            if records {
+                let next = next_timer.ok_or(crate::sound::SoundError::ButtonSlot15)?;
+                let at = listener.and_then(|l| {
+                    l.place(|_| None, [Fixed::from_bits(i32::from(next)), Fixed::ZERO])
+                });
+                crate::sound::push_placed(
+                    events,
+                    sound,
+                    crate::sound::SoundOrigin::Button(slot as u8),
+                    at,
+                );
             }
+            buttons[slot] = None;
         }
     }
+    Ok(())
 }
 
 /// Who uses a line.
@@ -202,14 +286,7 @@ pub(crate) fn use_special_line<M: MoverAccess + ?Sized>(
                               use_again: bool|
              -> Result<(), SimError> {
                 let buttons = buttons.ok_or(crate::PlayerBodyError::Profile)?;
-                after = change_switch_texture(
-                    starter.world,
-                    starter.events,
-                    buttons,
-                    line,
-                    special,
-                    use_again,
-                )?;
+                after = change_switch_texture_at(starter, buttons, line, special, use_again)?;
                 if !use_again {
                     outcome.cleared = Some(line);
                 }
@@ -294,7 +371,7 @@ pub(crate) fn shoot_special_line<M: MoverAccess + ?Sized>(
     }
     starter.do_door(line, DoorKind::Open)?;
     let buttons = buttons.ok_or(crate::PlayerBodyError::Profile)?;
-    change_switch_texture(starter.world, starter.events, buttons, line, special, true)?;
+    change_switch_texture_at(starter, buttons, line, special, true)?;
     Ok(())
 }
 
@@ -320,6 +397,7 @@ pub(crate) fn shoot_lines<A: crate::lifecycle::ActorAccess>(
         if special == 0 || (!player && special != 46) {
             continue;
         }
+        let listener = host.listener();
         let store = host.access.movers().ok_or(StoreError::UnsupportedThinker)?;
         shoot_special_line(
             &mut Starter {
@@ -329,6 +407,7 @@ pub(crate) fn shoot_lines<A: crate::lifecycle::ActorAccess>(
                 events: &mut *host.events,
                 specials: None,
                 player: None,
+                listener,
             },
             host.buttons.as_deref_mut(),
             line,

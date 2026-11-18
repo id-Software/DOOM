@@ -1527,6 +1527,31 @@ impl<A: ActorAccess> LifeHost<'_, A> {
     }
     pub(crate) fn sound(&mut self, actor: Option<ActorId>, sound: u16) {
         self.observe(ActorStateEvent::Sound { actor, sound });
+        // Wire 25: a positional start (s_sound.c:304) is placed now, from the
+        // staged store, as `S_AdjustSoundParams` reads it at the call
+        // (s_sound.c:761-768).
+        if let (Some(listener), Some(id)) = (self.listener(), actor) {
+            if id != listener.body {
+                let at = self.access.get(id).and_then(|origin| {
+                    listener.place(|a| self.access.get(a).copied(), origin.position())
+                });
+                crate::sound::push_placed(
+                    self.events,
+                    sound,
+                    crate::sound::SoundOrigin::Actor(id),
+                    at,
+                );
+            }
+        }
+    }
+    /// Wire 25: the listener (the console player's body) for the sound records;
+    /// `None` under every other policy and without a bound player.
+    pub(crate) fn listener(&self) -> Option<crate::sound::Listener> {
+        self.player
+            .as_deref()
+            .filter(|p| p.policy.has_sound_records())
+            .and_then(|p| p.mo)
+            .map(|body| crate::sound::Listener { body, held: None })
     }
     pub(crate) fn enter_counted(&mut self, id: ActorId, state: StateId, work: &mut usize) {
         self.enter_inner(id, state, work);

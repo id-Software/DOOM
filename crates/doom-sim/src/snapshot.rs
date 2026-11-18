@@ -715,6 +715,13 @@ fn event_bytes(event: &Event) -> Vec<u8> {
             b.extend(id(*actor));
             b.extend(line.to_le_bytes());
         }
+        // Never captured: wire 25 moves every placement to its records before the
+        // tic's or an operation's events are published. Tag 27 keeps the
+        // encoding total; no reader admits it.
+        Event::SoundRecord(record) => {
+            b.push(27);
+            b.extend(crate::sound::record_bytes(record));
+        }
     }
     b
 }
@@ -800,6 +807,13 @@ pub(crate) fn capture(sim: &Simulation) -> Snapshot {
                 21
             }
         }
+    };
+    // DSIM41 (wire 25, M5c decision T3) is the DSIM40 layout, field for field,
+    // plus the `events.sounds` group after `events.pending`.
+    let schema = if sim.player_policy().has_sound_records() {
+        41
+    } else {
+        version
     };
     // Versions18/19 explicitly compose the untyped static-sector field layout.
     let layout = if matches!(version, 18 | 19) {
@@ -1278,8 +1292,23 @@ pub(crate) fn capture(sim: &Simulation) -> Snapshot {
             field(&mut fields, format!("{prefix}.{i}"), event_bytes(event));
         }
     }
+    if schema == 41 {
+        for (prefix, records) in [
+            ("events.sounds.last", &sim.sounds),
+            ("events.sounds.pending", &sim.pending_sounds),
+        ] {
+            count(&mut fields, &format!("{prefix}.count"), records.len());
+            for (i, record) in records.iter().enumerate() {
+                field(
+                    &mut fields,
+                    format!("{prefix}.{i}"),
+                    crate::sound::record_bytes(record),
+                );
+            }
+        }
+    }
     Snapshot {
-        version,
+        version: schema,
         tic: sim.tic,
         state: fields,
         map: Arc::clone(&sim.map_fields),
