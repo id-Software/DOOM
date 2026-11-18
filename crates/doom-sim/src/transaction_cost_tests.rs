@@ -130,7 +130,7 @@ fn plans_stage_sector_writes_in_a_lazy_copy() {
     // plan's buffer, which then stages without allocating.
     let mut plan = sim.demon_plan().unwrap();
     plan.writes.write_sector(&sim.sectors, 0, moved).unwrap();
-    let _ = sim.commit_demon_plan(plan);
+    let _ = sim.commit_demon_plan(&mut plan);
     assert_eq!(sim.sectors[0], moved);
     assert!((1..table.len()).all(|i| sim.sectors[i] == table[i]));
     assert!(sim.spare_writes.is_empty());

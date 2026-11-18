@@ -631,15 +631,19 @@ impl Simulation {
         self.preflight_live_missiles()?;
         Ok(())
     }
-    fn commit_demon_plan(&mut self, plan: DemonPlan) -> Vec<Event> {
-        let committed = std::mem::replace(&mut self.actors, plan.actors);
-        self.spare_sector_slots = committed.sector_slots;
-        self.spatial = plan.spatial;
+    /// Commits `plan` through a borrow: every field is taken out of it, so the
+    /// plan (792 bytes) is not copied into an argument each tic. The replaced
+    /// actor store stays in `plan`, emptied of its sector slots, until the caller
+    /// drops it; every other value is as the by-value form left it.
+    fn commit_demon_plan(&mut self, plan: &mut DemonPlan) -> Vec<Event> {
+        std::mem::swap(&mut self.actors, &mut plan.actors);
+        self.spare_sector_slots = std::mem::take(&mut plan.actors.sector_slots);
+        self.spatial = std::mem::take(&mut plan.spatial);
         self.rng = plan.rng;
         self.statistics = plan.statistics;
         self.original_player = plan.player;
         if self.player_policy().has_player_weapons() {
-            match plan.sound_targets {
+            match std::mem::replace(&mut plan.sound_targets, StagedSound::One(None)) {
                 StagedSound::One(target) => {
                     if let Some(first) = self.sound_targets.first_mut() {
                         *first = target;
@@ -652,15 +656,16 @@ impl Simulation {
         }
         self.bindings = plan.bindings;
         if let Some(level) = &mut self.specials {
-            self.spare_specials = std::mem::replace(&mut level.sectors, plan.specials);
+            self.spare_specials =
+                std::mem::replace(&mut level.sectors, std::mem::take(&mut plan.specials));
         }
-        let mut writes = plan.writes;
+        let mut writes = std::mem::take(&mut plan.writes);
         writes.commit(&mut self.sectors, &mut self.line_specials);
         self.spare_writes = writes;
         self.level_exit = plan.exit;
         self.level_secret_exit = plan.secret_exit;
         self.buttons = plan.buttons;
-        plan.events
+        std::mem::take(&mut plan.events)
     }
     /// New-policy THING setup stages the same bounded actor/RNG/statistics plan.
     /// It runs before player binding, so it does not require a live-player preflight.
@@ -697,7 +702,7 @@ impl Simulation {
             events: &mut plan.events,
         })?;
         let sounds = self.take_operation_sounds(&mut plan)?;
-        let mut events = self.commit_demon_plan(plan);
+        let mut events = self.commit_demon_plan(&mut plan);
         self.pending.append(&mut events);
         self.pending_sounds.extend(sounds);
         self.spare_events = events;
@@ -731,7 +736,7 @@ impl Simulation {
             return Err(self.policy_error(error));
         }
         let sounds = self.take_operation_sounds(&mut plan)?;
-        let mut events = self.commit_demon_plan(plan);
+        let mut events = self.commit_demon_plan(&mut plan);
         self.pending.append(&mut events);
         self.pending_sounds.extend(sounds);
         self.spare_events = events;
@@ -1057,7 +1062,7 @@ impl Simulation {
         } else {
             None
         };
-        let mut events = self.commit_demon_plan(plan);
+        let mut events = self.commit_demon_plan(&mut plan);
         if let Some(sounds) = tic_sounds {
             self.sounds = sounds;
             self.pending_sounds.clear();
