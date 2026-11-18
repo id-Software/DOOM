@@ -212,16 +212,25 @@ impl Reader<'_> {
 }
 
 impl SoundState {
-    /// The `DSND` version 1 bytes.
+    /// The `DSND` version 1 bytes. A state no session holds (a volume outside 0..=127 or more
+    /// than 64 channels) encodes to bytes that [`Self::decode`] refuses, never to another state.
     pub fn encode(&self) -> Vec<u8> {
         let mut out = Vec::with_capacity(MAX_BYTES);
         out.extend_from_slice(&MAGIC);
         out.extend_from_slice(&VERSION.to_le_bytes());
         out.extend_from_slice(&self.schedule.tic().to_le_bytes());
         out.extend_from_slice(&self.schedule.buffers().to_le_bytes());
-        // Both fit a byte: SoundLogic::new admits volume 0..=127 and at most 64 channels.
-        out.push(self.config.logic.sfx_volume as u8);
-        out.push(self.channels.len() as u8);
+        // Never truncated: a volume outside 0..=127 or more than 64 channels (which no session
+        // holds: SoundLogic::new refuses them, but the fields are public) is written as 255,
+        // which `decode` refuses (`Config`), so a forged value cannot wrap into an accepted one.
+        let volume = u8::try_from(self.config.logic.sfx_volume)
+            .ok()
+            .filter(|v| *v <= 127);
+        let channels = u8::try_from(self.channels.len())
+            .ok()
+            .filter(|n| usize::from(*n) <= MAX_CHANNELS);
+        out.push(volume.unwrap_or(u8::MAX));
+        out.push(channels.unwrap_or(u8::MAX));
         out.extend_from_slice(&self.config.logic.gamemap.to_le_bytes());
         out.extend_from_slice(&self.config.textures.to_le_bytes());
         let first = self.detector.layout_dependent_from();

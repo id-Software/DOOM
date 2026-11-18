@@ -30,7 +30,7 @@
 //! doom-render). `btexture` is a texture number from `switchlist` (p_switch.c:182, filled by
 //! `R_TextureNumForName` in P_InitSwitchList, p_switch.c:144-145), so it is below that count.
 
-use crate::logic::{Adjusted, Listener, SoundPlacement, adjust_sound_params};
+use crate::logic::{Adjusted, Listener, SoundPlacement, SoundRefusal, adjust_sound_params};
 
 /// The largest texture count accepted: a declared bound on the work of one evaluation (one
 /// `S_AdjustSoundParams` per candidate).
@@ -118,35 +118,38 @@ impl LayoutDetector {
 
     /// A release start (origin `Button(i)`) at session tic `tic` whose positions were read
     /// under the declared reading (`at.origin` = (slot i+1's timer, 0)), on map `gamemap` with
-    /// `snd_SfxVolume` `sfx_volume`. Returns whether it fired.
+    /// `snd_SfxVolume` `sfx_volume`. Returns whether it fired; a volume outside 0..=127 is
+    /// refused as [`adjust_sound_params`] refuses it, with the detector unchanged.
     pub fn check_start(
         &mut self,
         tic: u64,
         at: &SoundPlacement,
         gamemap: i32,
         sfx_volume: i32,
-    ) -> bool {
+    ) -> Result<bool, SoundRefusal> {
+        let effect = |origin: [i32; 2]| {
+            adjust_sound_params(at.listener, at.listener_angle, origin, gamemap, sfx_volume)
+                .map(|a| start_effect(a, origin == at.listener))
+        };
+        let declared = effect(at.origin)?;
         let timer = at.origin[0];
         if timer == 0 {
             // The next slot is free: both builds read 0, 0.
-            return false;
+            return Ok(false);
         }
-        let effect = |origin: [i32; 2]| {
-            start_effect(
-                adjust_sound_params(at.listener, at.listener_angle, origin, gamemap, sfx_volume),
-                origin == at.listener,
-            )
-        };
-        let declared = effect(at.origin);
-        let fired = self.candidates(timer).any(|c| effect(c) != declared);
+        // The volume was accepted above, so no candidate is refused.
+        let fired = self
+            .candidates(timer)
+            .any(|c| effect(c).ok() != Some(declared));
         if fired {
             self.fire(tic);
         }
-        fired
+        Ok(fired)
     }
 
     /// A later `S_UpdateSounds` read of a release origin, at the end of session tic `tic`, whose
-    /// declared position now is `declared` (= (slot i+1's timer, 0)). Returns whether it fired.
+    /// declared position now is `declared` (= (slot i+1's timer, 0)). Returns whether it fired;
+    /// a volume outside 0..=127 is refused, with the detector unchanged.
     pub fn check_update(
         &mut self,
         tic: u64,
@@ -154,19 +157,23 @@ impl LayoutDetector {
         declared: [i32; 2],
         gamemap: i32,
         sfx_volume: i32,
-    ) -> bool {
+    ) -> Result<bool, SoundRefusal> {
+        let audible = |origin: [i32; 2]| {
+            adjust_sound_params(listener.xy, listener.angle, origin, gamemap, sfx_volume)
+                .map(Adjusted::audible)
+        };
+        let want = audible(declared)?;
         let timer = declared[0];
         if timer == 0 {
-            return false;
+            return Ok(false);
         }
-        let audible = |origin: [i32; 2]| {
-            adjust_sound_params(listener.xy, listener.angle, origin, gamemap, sfx_volume).audible()
-        };
-        let want = audible(declared);
-        let fired = self.candidates(timer).any(|c| audible(c) != want);
+        // The volume was accepted above, so no candidate is refused.
+        let fired = self
+            .candidates(timer)
+            .any(|c| audible(c).ok() != Some(want));
         if fired {
             self.fire(tic);
         }
-        fired
+        Ok(fired)
     }
 }

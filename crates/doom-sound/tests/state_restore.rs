@@ -519,3 +519,17 @@ fn a_linked_sound_saved_before_its_frame_is_mixed_restores() {
         Err(StateError::Mixer(MixStateError::Position { slot }))
     );
 }
+
+/// Review finding N6 (review-sound): `encode` never truncates. A volume of 300 (300 as u8 is 44,
+/// an accepted volume) or 300 channels encodes to bytes that `decode` refuses.
+#[test]
+fn encode_never_wraps_an_out_of_range_value_into_an_accepted_one() {
+    let mut s = sample();
+    s.config.logic.sfx_volume = 300;
+    assert_eq!(SoundState::decode(&s.encode()), Err(StateError::Config));
+    s.config.logic.sfx_volume = -1;
+    assert_eq!(SoundState::decode(&s.encode()), Err(StateError::Config));
+    let mut s = sample();
+    s.channels.resize(300, None);
+    assert_eq!(SoundState::decode(&s.encode()), Err(StateError::Config));
+}

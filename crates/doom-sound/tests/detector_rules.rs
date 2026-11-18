@@ -38,20 +38,29 @@ fn at_the_audibility_edge(timer: i32) -> SoundPlacement {
 fn it_fires_when_a_candidate_flips_audibility_at_the_edge() {
     let at = at_the_audibility_edge(34);
     // The declared reading is audible with volume 1; texture 0's reading is not.
-    let declared = adjust_sound_params(at.listener, 0, at.origin, 1, 8);
+    let declared = adjust_sound_params(at.listener, 0, at.origin, 1, 8).unwrap();
     assert!(declared.audible());
-    assert!(!adjust_sound_params(at.listener, 0, [0, 34], 1, 8).audible());
+    assert!(
+        !adjust_sound_params(at.listener, 0, [0, 34], 1, 8)
+            .unwrap()
+            .audible()
+    );
     let mut d = LayoutDetector::new(1).unwrap();
-    assert!(d.check_start(40, &at, 1, 8));
+    assert!(d.check_start(40, &at, 1, 8).unwrap());
     assert_eq!((d.layout_dependent_from(), d.firings()), (Some(40), 1));
     // A later firing keeps the first tic and counts.
-    assert!(d.check_start(41, &at, 1, 8));
+    assert!(d.check_start(41, &at, 1, 8).unwrap());
     assert_eq!((d.layout_dependent_from(), d.firings()), (Some(40), 2));
     // With the next slot free both builds read 0, 0: never a firing.
     let free = placed([0, 0], at.listener, 0);
-    assert!(!d.check_start(42, &free, 1, 8));
+    assert!(!d.check_start(42, &free, 1, 8).unwrap());
     // No texture, no candidate.
-    assert!(!LayoutDetector::new(0).unwrap().check_start(40, &at, 1, 8));
+    assert!(
+        !LayoutDetector::new(0)
+            .unwrap()
+            .check_start(40, &at, 1, 8)
+            .unwrap()
+    );
     // The same at a later S_UpdateSounds read (audible or not).
     let l = Listener {
         actor: ActorId::from_parts(0, 0),
@@ -59,8 +68,8 @@ fn it_fires_when_a_candidate_flips_audibility_at_the_edge() {
         angle: 0,
     };
     let mut u = LayoutDetector::new(1).unwrap();
-    assert!(u.check_update(77, &l, [34, 0], 1, 8));
-    assert!(!u.check_update(78, &l, [0, 0], 1, 8));
+    assert!(u.check_update(77, &l, [34, 0], 1, 8).unwrap());
+    assert!(!u.check_update(78, &l, [0, 0], 1, 8).unwrap());
     assert_eq!((u.layout_dependent_from(), u.firings()), (Some(77), 1));
 }
 
@@ -73,15 +82,15 @@ fn it_fires_when_a_candidate_changes_the_separation() {
     let found = (0..1u64 << 20)
         .map(|k| (k << 12) as u32)
         .find(|&angle| {
-            let a = adjust_sound_params(listener, angle, [34, 0], 1, 8);
-            let b = adjust_sound_params(listener, angle, [19, 34], 1, 8);
+            let a = adjust_sound_params(listener, angle, [34, 0], 1, 8).unwrap();
+            let b = adjust_sound_params(listener, angle, [19, 34], 1, 8).unwrap();
             a != b && a.audible() && b.audible()
         })
         .expect("an angle at a separation boundary");
     let at = placed([34, 0], listener, found);
     // Texture numbers 0..20 include 19.
     let mut d = LayoutDetector::new(20).unwrap();
-    assert!(d.check_start(5, &at, 1, 8));
+    assert!(d.check_start(5, &at, 1, 8).unwrap());
     // Only audibility counts at an update: the same listener gives no firing there.
     let l = Listener {
         actor: ActorId::from_parts(0, 0),
@@ -89,13 +98,16 @@ fn it_fires_when_a_candidate_changes_the_separation() {
         angle: found,
     };
     let mut u = LayoutDetector::new(20).unwrap();
-    assert!(!u.check_update(5, &l, [34, 0], 1, 8));
+    assert!(!u.check_update(5, &l, [34, 0], 1, 8).unwrap());
     // The same-position rule: a candidate on the listener's x, y is centred (128).
     let on = placed([34, 0], [5, 34], 0);
-    let declared = adjust_sound_params([5, 34], 0, [34, 0], 1, 8);
-    assert_ne!(declared, adjust_sound_params([5, 34], 0, [5, 34], 1, 8));
+    let declared = adjust_sound_params([5, 34], 0, [34, 0], 1, 8).unwrap();
+    assert_ne!(
+        declared,
+        adjust_sound_params([5, 34], 0, [5, 34], 1, 8).unwrap()
+    );
     let mut s = LayoutDetector::new(6).unwrap();
-    assert!(s.check_start(9, &on, 1, 8));
+    assert!(s.check_start(9, &on, 1, 8).unwrap());
 }
 
 /// SNDBTN2: the busy-slot release of the genuine stream (S,128,6: slot 0 released while slot 1
@@ -107,7 +119,7 @@ fn it_does_not_fire_on_sndbtn2() {
     assert!(textures > 19);
     let at = placed([34, 0], [32_643_278, 7_238_990], 1_073_741_824);
     let mut d = LayoutDetector::new(textures).unwrap();
-    assert!(!d.check_start(128, &at, 1, 8));
+    assert!(!d.check_start(128, &at, 1, 8).unwrap());
     assert_eq!((d.layout_dependent_from(), d.firings()), (None, 0));
 }
 

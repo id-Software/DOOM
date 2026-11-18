@@ -154,12 +154,18 @@ impl SoundSet {
                     size,
                 });
             }
+            // The padded length is kept as a u32 (as the mixer's offsets are); a cap set above
+            // 4 GiB cannot make it wrap.
+            let len = u32::try_from(padded).map_err(|_| SoundLoadError::TooLarge {
+                sfx: i as u16,
+                size,
+            })?;
             let mut data = Vec::with_capacity(padded);
             data.extend_from_slice(bytes.get(8..).unwrap_or(&[]));
             data.resize(padded, 128); // i_sound.c:240-241
             sfx[i] = Some(SfxData {
                 data: Arc::from(data),
-                len: padded as u32,
+                len,
                 source,
                 lump_size: size,
             });

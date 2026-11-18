@@ -260,7 +260,9 @@ impl Sound {
                 if let (SoundOrigin::Button(_), Some(at), Some(_)) =
                     (s.origin, at_of(record), s.adjusted)
                 {
-                    detector.check_start(tic, &at, gamemap, sfx_volume);
+                    detector
+                        .check_start(tic, &at, gamemap, sfx_volume)
+                        .map_err(|r| refused(RefusedAt::Record(i), r))?;
                 }
             }
             echoes.push(echo);
@@ -285,7 +287,9 @@ impl Sound {
             })) = table.get(cnum)
             {
                 if let Some(xy) = positions.button_xy(*slot) {
-                    detector.check_update(tic, listener, xy, gamemap, sfx_volume);
+                    detector
+                        .check_update(tic, listener, xy, gamemap, sfx_volume)
+                        .map_err(|r| refused(RefusedAt::Update, r))?;
                 }
             }
         }

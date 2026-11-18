@@ -63,7 +63,7 @@ fn every_positional_start_row_is_reproduced() {
             let n = |i: usize| -> i32 { f[i].parse().unwrap_or_else(|_| panic!("{name}: {line}")) };
             let (o, l) = ([n(17), n(18)], [n(19), n(20)]);
             let angle: u32 = f[21].parse().expect("langle");
-            let a = adjust_sound_params(l, angle, o, map, 8);
+            let a = adjust_sound_params(l, angle, o, map, 8).unwrap();
             let samexy = o == l;
             assert_eq!(f[15] == "1", samexy, "{name}: samexy in {line}");
             match f[6] {

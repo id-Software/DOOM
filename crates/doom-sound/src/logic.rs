@@ -139,7 +139,9 @@ impl Adjusted {
 
 /// `S_AdjustSoundParams(listener, source, &vol, &sep, &pitch)` (s_sound.c:752-818), a pure
 /// function of the listener's x, y and angle, the source's x, y, `gamemap` and `snd_SfxVolume`.
-/// `*pitch` is never written by the C.
+/// `*pitch` is never written by the C. A `snd_SfxVolume` outside 0..=127, which the C refuses
+/// when it is set (`S_SetSfxVolume`, s_sound.c:634-635) and no [`SoundLogic`] holds, is refused
+/// as [`SoundRefusal::Config`] (the volume arithmetic of s_sound.c:808-815 could overflow).
 ///
 /// The arithmetic is the reference build's (`-fwrapv`, M5c note §3.2.2): the differences, `abs`
 /// and the distance sum wrap (s_sound.c:767-771; undefined in ISO C, §1.1.13 item 2); the right
@@ -151,7 +153,10 @@ pub fn adjust_sound_params(
     source: [i32; 2],
     gamemap: i32,
     sfx_volume: i32,
-) -> Adjusted {
+) -> Result<Adjusted, SoundRefusal> {
+    if !(0..=127).contains(&sfx_volume) {
+        return Err(SoundRefusal::Config);
+    }
     // s_sound.c:767-768.
     let adx = listener[0].wrapping_sub(source[0]).wrapping_abs();
     let ady = listener[1].wrapping_sub(source[1]).wrapping_abs();
@@ -159,7 +164,7 @@ pub fn adjust_sound_params(
     let mut approx_dist = adx.wrapping_add(ady).wrapping_sub(adx.min(ady) >> 1);
     // s_sound.c:773-777.
     if gamemap != 8 && approx_dist > S_CLIPPING_DIST {
-        return Adjusted::Clipped;
+        return Ok(Adjusted::Clipped);
     }
     // s_sound.c:780-783: R_PointToAngle2(listener, source) (r_main.c:378-388).
     let mut angle = point_to_angle(source[0], source[1], listener[0], listener[1]);
@@ -184,7 +189,7 @@ pub fn adjust_sound_params(
     } else {
         (sfx_volume * ((S_CLIPPING_DIST - approx_dist) >> 16)) / S_ATTENUATOR
     };
-    Adjusted::Computed { vol, sep }
+    Ok(Adjusted::Computed { vol, sep })
 }
 
 /// One occupied channel of `channels[]` (s_sound.c:93-108).
@@ -544,7 +549,7 @@ impl SoundLogic {
                     p.origin,
                     self.config.gamemap,
                     snd,
-                );
+                )?;
                 echo.adjusted = Some(adjusted);
                 echo.samexy = p.origin == p.listener;
                 let Adjusted::Computed { vol, sep } = adjusted else {
@@ -691,7 +696,7 @@ impl SoundLogic {
                 SoundOrigin::Button(b) => positions.button_xy(b),
             };
             let xy = xy.ok_or(SoundRefusal::OriginGone { cnum })?;
-            match adjust_sound_params(listener.xy, listener.angle, xy, self.config.gamemap, snd) {
+            match adjust_sound_params(listener.xy, listener.angle, xy, self.config.gamemap, snd)? {
                 Adjusted::Computed { vol, sep } if vol > 0 => {
                     plan.push((cnum, Ok([vol, sep, pitch])));
                 }

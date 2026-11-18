@@ -471,3 +471,21 @@ fn the_mixer_refuses_in_the_c_order() {
         Err(MixRefusal::ShortLump { sfx: 5 })
     );
 }
+
+/// Review finding N6 (review-sound): `adjust_sound_params` refuses a volume outside 0..=127 (the
+/// C's `S_SetSfxVolume` refuses it, s_sound.c:634-635) instead of overflowing; 0 and 127 are
+/// computed.
+#[test]
+fn adjust_sound_params_refuses_a_volume_outside_the_range() {
+    use doom_sound::logic::adjust_sound_params;
+    for v in [-1, 128, i32::MAX, i32::MIN] {
+        assert_eq!(
+            adjust_sound_params([0, 0], 0, [1000 << 16, 0], 8, v),
+            Err(SoundRefusal::Config),
+            "{v}"
+        );
+    }
+    for v in [0, 127] {
+        assert!(adjust_sound_params([0, 0], 0, [1000 << 16, 0], 8, v).is_ok());
+    }
+}
