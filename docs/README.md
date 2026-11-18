@@ -176,4 +176,5 @@ original evidence and former guide contents with exact-byte copies and digests.
 - [M5c sound effects (and the face-glance gap) investigation](M5C_REFERENCE_INVESTIGATION.md)
   (the original C facts of the sound logic, every call that starts a sound, the mixer, `M_Random` and the
   level-start wipe, the two genuine-engine harness prototypes, what the simulation gives today, the Rust
-  design, a measured audio-library comparison, decisions T1–T16 (open) and the plan; Phase 1 only).
+  design, a measured audio-library comparison, decisions T1–T16 (open) and the plan; Phase 2 steps 1 and 2 only;
+  [observations](validation/M5C.md)).

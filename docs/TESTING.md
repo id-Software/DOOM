@@ -2386,6 +2386,82 @@ cargo run --release -p doom-play -- --iwad $R/m5b_wads/stdigit.wad --wad $R/m5b_
     --sessions ~/scratch/m5b/step13/sessions --quit-after-tics 3500 --tic-stats
 ```
 
+## M5c sound effects: the genuine sound logic and mixer
+
+The M5c [reference investigation](M5C_REFERENCE_INVESTIGATION.md) (decisions T1-T16, all open on 2026-11-18) is at
+Phase 2 steps 1 and 2: the genuine-engine tools and their evidence, with no Rust sound code yet. They compare
+nothing with Rust except one wire-24 check of the new rooms. Everything committed is synthetic and runs on a clean
+checkout; the observations are in [the M5c evidence record](validation/M5C.md). **The tools are not in CI yet
+(step 8), so none of these commands is required of a pull request today.** Every result is produced under the
+recommended values of T2, T5 and T6 (the `--handle`, `--update-schedule` and `--wipe` switches of
+`m5c_build.py`); a different ruling means regenerating the goldens. "Identical to the genuine engine" means the
+integrated, in-process build of T2.
+
+```sh
+# generators, verifiers and contracts (Python only, no compiler)
+python3 tools/reference/m5c_sfx.py [--out DIR] [--list] [--check]        # the three PWADs: tests/reference/m5c_sfx.wad, m5c_sfx_edge.wad, m5c_music.wad
+python3 tools/reference/m5c_check_sfx.py [DIR]                           # their independent verifier (it has no --help; it takes a directory or none)
+python3 tools/reference/m5c_check_sfx.py --self-test                      # plants 9 defects and requires each to be found
+python3 tools/reference/m5c_wad.py [--only NAME] [--list] [--manifest] [--check]   # the 4 rooms in tests/reference/m5c_wads/ and 5 scripts in m5c_scripts/
+python3 tools/reference/m5c_build.py --check                              # tests/reference/m5c_runner_contract.json (DOOM-M5C-RUNNER-v1)
+python3 tools/reference/m5c_mixer_build.py --check                        # tests/reference/m5c_mixer_contract.json (DOOM-M5C-MIXER-v1)
+python3 tools/reference/m5c_starts.py --selftest                          # the bridge from a sound stream to a start list
+python3 tools/reference/m5c_starts.py STREAM --check LIST                 # one list against a fresh conversion of its stream; writes nothing
+
+# the genuine sound logic (C; Linux; the address variant runs with leak detection off)
+ASAN_OPTIONS=detect_leaks=0 python3 tools/reference/m5c_reference.py --work DIR --check [--selftest] [--jobs N]
+python3 tools/reference/m5c_reference.py --work DIR [--jobs N]            # no --check: regenerates the goldens, tests/reference/m5c_results.json and m5c_coverage.json
+python3 tools/reference/m5c_reference.py --work DIR --only NAME[,NAME]    # a subset; writes nothing
+python3 tools/reference/m5c_reference.py --work DIR --strict32            # local opt-in (-m32): runs only the 32-bit comparison, not --check
+python3 tools/reference/m5c_build.py --variant strict|overflow|address|all|strict32 --out DIR   # build the runner alone (also --handle, --update-schedule, --wipe, --sound for a run)
+
+# the genuine mixer (C; Linux)
+ASAN_OPTIONS=detect_leaks=0 python3 tools/reference/m5c_mixer_reference.py --work DIR --check [--selftest] [--strict32] [--jobs N]
+python3 tools/reference/m5c_mixer_reference.py --work DIR                 # no --check: regenerates the 23 scenarios, the 64 session lists and goldens and both results files
+python3 tools/reference/m5c_mixer_reference.py --work DIR --only NAME[,NAME]        # a subset; writes nothing
+python3 tools/reference/m5c_mixer_reference.py --work DIR --sessions STREAMDIR [--strict32]   # sound-logic streams through the bridge and the mixer; writes nothing
+python3 tools/reference/m5c_mixer_build.py --variant strict|overflow|address|all|strict32 --out DIR   # build the mixer driver alone
+python3 tools/reference/m5c_mixer_model.py --wad WAD --starts LIST [--schedule ticbuffers|pertic]   # the independent model on one list
+
+# the new rooms against the Rust wire-24 simulation (the caller builds the existing example first)
+CARGO_TARGET_DIR=$HOME/scratch/m5c-target cargo build -p doom-sim --release --locked --example player_level_run
+python3 tools/reference/m5c_rust_check.py --binary $HOME/scratch/m5c-target/release/examples/player_level_run [--work DIR] [--only LUMP[,LUMP]]
+```
+
+Notes:
+
+- The C tools need a GNU C compiler on Linux (they build the genuine linuxdoom-1.10 files whole; the `-m32`
+  variants also need a 32-bit toolchain, which `m5c_build.py --probe-m32` and `m5c_mixer_build.py --probe-m32`
+  detect). `--work` and every `--out` must lie outside the repository. The sound-logic runner reads the M5a, M5b
+  and M5c synthetic WADs and `tests/reference/m5b_gfx.wad`; no IWAD.
+- `ASAN_OPTIONS=detect_leaks=0` means LeakSanitizer is disabled for the address variant: an address-checked run
+  is not LeakSanitizer coverage, and every record must say so. No fuzz target and no coverage-guided campaign
+  exists for M5c.
+- `--strict32` is a local opt-in and never required. In `m5c_mixer_reference.py` it adds the 32-bit build to
+  `--check` (and to `--sessions`). In `m5c_reference.py` it is a mode of its own: it builds the strict32 runner,
+  compares its sound and frame streams with the strict ones at screenblocks 10, prints every differing row and
+  exits, without `--check`; on 2026-11-18 it found 63 of 64 items identical, the difference being the switch
+  release of decision T12.
+- `m5c_mixer_reference.py --check` covers the 23 scenarios and the 64 session lists and goldens
+  (`tests/reference/m5c_mixer/sessions`) and compares `m5c_mixer_results.json` and
+  `m5c_mixer_sessions_results.json`; it first requires each stream's SHA-256 to equal the one in
+  `tests/reference/m5c_results.json`, so regenerating the sound streams (for instance after a different ruling on
+  T2, T5 or T6) changes the sessions files and not the scenario goldens.
+- `m5c_rust_check.py` needs the release build of the existing `player_level_run` example, which the caller makes
+  with a `CARGO_TARGET_DIR` outside the tree as shown; it writes nothing in the repository.
+- Use `--jobs 2` for the C jobs on the owner's machine unless told it is idle.
+
+**Local only: the real maps and the IWADs** (read an IWAD, so never in CI; use a scratch copy outside the
+repository, delete it afterwards, and nothing derived from it is committed except counts and digests):
+
+```sh
+ASAN_OPTIONS=detect_leaks=0 python3 tools/local/m5c_real.py --iwad SCRATCH/DOOM.WAD --work DIR --jobs N [--maps E1M1] [--only NAME] [--write | --check]   # the 61 real Episode 1 runs; tests/reference/m5c_real_results.json
+ASAN_OPTIONS=detect_leaks=0 python3 tools/local/m5c_mixer_real.py [--iwad SCRATCH/DOOM.WAD] [--iwad SCRATCH/DOOM2.WAD] --work DIR [--write | --check]   # tests/reference/m5c_mixer_real_results.json
+```
+
+`m5c_mixer_real.py` prints one skip line and exits 0 without an IWAD. Both tools write counts, pass/fail facts and
+digests only.
+
 ## Mutation testing
 
 M4a used cargo-mutants 27.1.0 with cargo-nextest 0.9.151. These are separate

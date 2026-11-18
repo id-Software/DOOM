@@ -547,7 +547,8 @@ monster/player behavior. Further stages require separate owner direction.
     right glance match a vanilla session with sound; until then, frames are identical to the genuine engine
     only under the declared sound-free, wipe-free contract. Until the owner rules, only the genuine-engine
     tools and evidence of Phase 2 steps 1 and 2 are being built; no simulation, dependency or app change has
-    been made. See the [investigation note](M5C_REFERENCE_INVESTIGATION.md) and its
+    been made. Phase 2 steps 1 and 2 (the genuine-engine tools and evidence) are done and recorded (2026-11-18)
+    in the [evidence record](validation/M5C.md). See the [investigation note](M5C_REFERENCE_INVESTIGATION.md) and its
     [owner decisions](M5C_REFERENCE_INVESTIGATION.md#5-owner-decisions-t1t16-with-recommendations).
 - **Simulation follow-up (proposed, pending the owner): model the THING-loading truncation under a new
   wire.** `P_LoadThings` ends the whole THINGS loop at the first Doom II type (doomednums 64-69, 71, 84,
