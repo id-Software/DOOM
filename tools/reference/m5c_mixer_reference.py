@@ -49,6 +49,12 @@ coverage. --jobs sets the number of processes run at once (default 4).
 
     m5c_mixer_reference.py [--work DIR] [--check] [--selftest] [--strict32] [--raw] [--only NAME[,NAME]]
                            [--jobs N] [--cc CC]
+    m5c_mixer_reference.py --work DIR --sessions STREAMDIR [--strict32] [--jobs N]
+
+--sessions runs every sound-logic stream (*.sound, DOOM-M5C-SOUND-v1) of STREAMDIR through m5c_starts.py and the
+genuine mixer (every variant, both schedules) and the model on m5c_sfx.wad, requires identical rows, no sanitizer
+report and every handle equal to the sound-logic run's, and prints the digests; it writes nothing in the tree (the
+start lists go under --work). It is the path by which the goldens for the committed sound-logic streams are made.
 """
 import argparse, concurrent.futures as cf, hashlib, json, os, re, struct, subprocess, sys, tempfile
 from pathlib import Path
@@ -399,6 +405,7 @@ def main():
     ap.add_argument('--strict32', action='store_true')
     ap.add_argument('--raw', action='store_true')
     ap.add_argument('--only')
+    ap.add_argument('--sessions', type=Path, metavar='DIR')
     ap.add_argument('--jobs', type=int, default=4)
     ap.add_argument('--cc', default='cc')
     a = ap.parse_args()
@@ -425,6 +432,10 @@ def main():
     try: bins = {v: mb.build(v, work / 'build', a.cc, quiet=True) for v in variants}
     finally: sys.stdout.close(); sys.stdout = so
     if a.strict32 and bins['strict32'] is None: sys.exit('strict32 requested but -m32 is not available')
+    if a.sessions:
+        fails = sessions(a.sessions.resolve(), bins, variants, work, jobs)
+        if fails: sys.exit('sessions FAILED:\n  ' + '\n  '.join(fails))
+        return
     path = {n: GROUPS[sc[n]['group']] / f'{n}.txt' for n in names}
     jobs_list = []
     for n in names:
@@ -561,6 +572,44 @@ def main():
     if a.selftest:
         fails = selftest(bins['strict'], sc, work)
         if fails: sys.exit('selftest FAILED: ' + ', '.join(fails))
+
+
+def sessions(src, bins, variants, work, jobs):
+    """Every DOOM-M5C-SOUND-v1 stream (*.sound) in SRC through tools/reference/m5c_starts.py and then the genuine mixer
+    (every variant, both schedules) and the model, on m5c_sfx.wad. Writes nothing in the tree; prints one line per stream."""
+    import m5c_starts
+    lists = work / 'session_lists'
+    lists.mkdir(parents=True, exist_ok=True)
+    sc, fails = {}, []
+    for f in sorted(src.glob('*.sound')):
+        try: text = m5c_starts.convert(f.read_text(), f.name)
+        except m5c_starts.Refused as e: fails.append(f'{f.name}: refused: {e}'); continue
+        (lists / f'{f.stem}.txt').write_text(text)
+        sc[f.stem] = dict(group='golden', wad='main', lumps=False, probe=False, text=text)
+    todo = [(n, v, s) for n in sc for s in SCHEDULES for v in variants + ['model']]
+
+    def job(j):
+        n, v, s = j
+        if v == 'model': return j, run_model(sc[n], lists / f'{n}.txt', s)
+        return j, run_driver(bins[v], sc[n], lists / f'{n}.txt', s, work / 'runs')
+    with cf.ThreadPoolExecutor(jobs) as pool:
+        res = dict(pool.map(job, todo))
+    for n in sc:
+        line = []
+        for s in SCHEDULES:
+            ref = res[(n, 'strict', s)]
+            bad = [v for v in variants if res[(n, v, s)]['code'] or SANITIZER.search(res[(n, v, s)]['stderr'])
+                   or res[(n, v, s)]['rows'] != ref['rows']]
+            model_ok = res[(n, 'model', s)]['code'] == 0 and res[(n, 'model', s)]['rows'] == strip_device(ref['rows'])
+            m = len(re.findall(r'^m ', ref['rows'], re.M))
+            z = ref['rows'].splitlines()[-1].split()
+            starts = sum(1 for l in sc[n]['text'].splitlines() if l.startswith('s '))
+            line.append(f'{s}: {z[1]} buffers, stream {z[2][:16]}, rows {sha(ref["rows"])[:16]}')
+            if bad: fails.append(f'{n} {s}: {bad} differ from strict or failed')
+            if not model_ok: fails.append(f'{n} {s}: the model differs')
+            if m: fails.append(f'{n} {s}: {m} handles differ from the sound-logic run')
+        print(f'session {n}: {starts} starts; ' + '; '.join(line) + f'; variants and model identical: {"yes" if not any(x.startswith(n + " ") for x in fails) else "NO"}')
+    return fails
 
 
 def selftest(binary, sc, work):
