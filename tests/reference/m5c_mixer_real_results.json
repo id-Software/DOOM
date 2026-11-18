@@ -1,0 +1,101 @@
+{
+ "schema": "DOOM-M5C-MIXER-REAL-RESULTS-v1",
+ "note": "M5c mixer on the commercial IWADs (local only): every sfx 1..108 started once, 20 tics apart, at volume 15, separation 128 and pitch 128, through the genuine in-process mixer (strict, overflow, address, and strict32 where -m32 exists) and the independent model, under both schedules. Counts, pass/fail facts and digests only: no lump names, no per-lump sizes, no samples.",
+ "asan_options": "detect_leaks=0 (leak detection disabled; not LeakSanitizer coverage)",
+ "contract_sha256": "2c46cc5a1502786251b0db4c09da8373ca7bad8fde8f64229485329105a7ac0e",
+ "start_list_sha256": "deec13c5af526fe495112d8a909e9f65b7a5cc3d912c3d3bc9c3a17178225a03",
+ "iwads": {
+  "doom": {
+   "iwad_sha256": "6fdf361847b46228cfebd9f3af09cd844282ac75f3edbb61ca4cb27103ce2e7f",
+   "lumps": {
+    "names_loaded": 107,
+    "present": 67,
+    "fallback_to_dspistol": 40,
+    "present_multiple_of_512": 0,
+    "present_not_multiple_of_512": 67,
+    "header_rate_not_11025": 1,
+    "header_format_not_3": 0,
+    "header_count_not_size_minus_8": 0,
+    "lumps_8_bytes_or_fewer": 0,
+    "dspistol_present": true,
+    "dschgun_present": false
+   },
+   "variants": [
+    "strict",
+    "overflow",
+    "address",
+    "strict32"
+   ],
+   "ticbuffers": {
+    "starts": 108,
+    "buffers": 1329,
+    "stream_sha256": "e1036fe2b93b19cc681cec052f5e55d97ff2dd4d0a7d036f15c743ba410b3169",
+    "rows_sha256": "2bdcdcedefe31ab476fb253b43b16d2ab4a3d74893ae5f627e6a1b8dce07bc54",
+    "o_rows": 0,
+    "x_rows": 0,
+    "variants_identical": true,
+    "model_identical": true,
+    "p_rows_fallback": 40,
+    "p_rows_padded_own": 67
+   },
+   "pertic": {
+    "starts": 108,
+    "buffers": 2152,
+    "stream_sha256": "b45dc8b33505795faad9e157f5d4f67939eb83d7f0e2a199c96b174c52d05176",
+    "rows_sha256": "252eb73182f1de71aafb909f93fd33f48249a44560b6b1ee544506644f78e7d2",
+    "o_rows": 0,
+    "x_rows": 0,
+    "variants_identical": true,
+    "model_identical": true,
+    "p_rows_fallback": 40,
+    "p_rows_padded_own": 67
+   }
+  },
+  "doom2": {
+   "iwad_sha256": "10d67824b11025ddd9198e8cfc87ca335ee6e2d3e63af4180fa9b8a471893255",
+   "lumps": {
+    "names_loaded": 107,
+    "present": 107,
+    "fallback_to_dspistol": 0,
+    "present_multiple_of_512": 0,
+    "present_not_multiple_of_512": 107,
+    "header_rate_not_11025": 4,
+    "header_format_not_3": 0,
+    "header_count_not_size_minus_8": 0,
+    "lumps_8_bytes_or_fewer": 0,
+    "dspistol_present": true,
+    "dschgun_present": false
+   },
+   "variants": [
+    "strict",
+    "overflow",
+    "address",
+    "strict32"
+   ],
+   "ticbuffers": {
+    "starts": 108,
+    "buffers": 1334,
+    "stream_sha256": "5cb45bf0bf74ddf64577d0b5f831108113fd56ff6ce57ba0dd5746cb36cc3ff6",
+    "rows_sha256": "0e5d213042ec39493dddcfad877b57f00533208b5b451c59ad2323da5daf581d",
+    "o_rows": 0,
+    "x_rows": 0,
+    "variants_identical": true,
+    "model_identical": true,
+    "p_rows_fallback": 0,
+    "p_rows_padded_own": 107
+   },
+   "pertic": {
+    "starts": 108,
+    "buffers": 2149,
+    "stream_sha256": "37dafe66c8181f45a4cb3a3c23c040f442ca93027cecb2503568314f379eec5f",
+    "rows_sha256": "88d7092b3c5af3f4d7fb1d55386947dc9299aae63c3792861ea708c1058eca34",
+    "o_rows": 0,
+    "x_rows": 0,
+    "variants_identical": true,
+    "model_identical": true,
+    "p_rows_fallback": 0,
+    "p_rows_padded_own": 107
+   }
+  }
+ }
+}
