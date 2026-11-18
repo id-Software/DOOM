@@ -29,7 +29,9 @@ projection outside DELTA_FIELDS and events.sounds (M4b's method); on BARON1 a ch
 the encoder's sound group at exactly that tic, and an unknown serial, a mobj start without its position, a stop
 of a sector origin and a stream cut short are refused; planted faults in BARON1's Rust records (one position
 bit, two records of one tic swapped, a stop dropped, an actor origin turned into a NULL one) are each reported at
-exactly that tic with the expected attribute, and nowhere else.
+exactly that tic with the expected attribute, and nowhere else; and two planted faults in a BARON1 Rust frame's
+layout (the events.sounds group moved to the front; at the load capture, whose pending list is not empty, the group
+put before the pending records) are each reported as a frame layout difference at exactly that tic.
 
     m5c_wire25_check.py --binary PATH [--work DIR] [--only LUMP[,LUMP]] [--write | --check] [--selftest]
                         [--jobs N] [--cc CC]
@@ -195,6 +197,26 @@ def selftest_item(cdir, rdir, mapdata, skill, number, text):
         if attrs: assert {x['attribute'] for x in d} == attrs, (what, d)
         if fn is drop: assert any(x['attribute'].startswith('record count') for x in d), d
         out.append(f"{what} at DSIM tic {at}: reported there only ({', '.join(sorted({x['attribute'] for x in d}))})")
+    # 10-11. planted faults in the Rust frame layout (M5c review NOTE 7): the events.sounds group moved to the
+    # front of a frame; and, at the load capture, whose pending list holds the setup's events, the group put
+    # right after events.pending.count, before the pending records (where the encoder's rule, after
+    # events.pending.count, would put it if it had any)
+    def front(fields):
+        return [f for f in fields if f[0].startswith(S.SOUNDS)] + [f for f in fields if not f[0].startswith(S.SOUNDS)]
+    def inside(fields):
+        assert any(p == 'events.pending.0' for p, _ in fields), 'the load capture has no pending event'
+        group = [f for f in fields if f[0].startswith(S.SOUNDS)]
+        rest = [f for f in fields if not f[0].startswith(S.SOUNDS)]
+        k = 1 + next(i for i, f in enumerate(rest) if f[0] == 'events.pending.count')
+        return rest[:k] + group + rest[k:]
+    for what, at, fn, expected in [('the events.sounds group moved to the front of the frame', pair, front, 'frame layout at field 0'),
+                                   ('the events.sounds group before the pending records', 0, inside, 'frame layout (the events.pending')]:
+        result, _ = K.compare(str(cdir), str(rdir), mapdata, skill, number, sounds,
+                              mutate_frame=lambda t, f, fn=fn, at=at: fn(f) if t == at else f)
+        d = result['first_divergence']
+        assert not result['match'] and d and d['tic'] == at and d['field'].startswith(expected), (what, d)
+        assert result['tics_compared'] == at + 1, (what, result['tics_compared'])
+        out.append(f"{what} at DSIM tic {at}: reported there ({d['field']})")
     return out
 
 
