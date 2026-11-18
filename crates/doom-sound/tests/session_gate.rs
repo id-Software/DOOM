@@ -1,8 +1,23 @@
-//! THE GATE of M5c step 4b: every row of the 64 committed genuine sound-logic streams
-//! (tests/reference/m5c_sound/<ITEM>.sound: every S, T, K, C, L and R row) and every row of the 64
-//! committed genuine mixer session goldens (tests/reference/m5c_mixer/sessions/goldens/
-//! <ITEM>.golden: start echoes and buffer digests) reproduced end to end from the Rust wire-25
-//! simulation through `doom_sound::session::Sound` (tests/common/gate.rs).
+//! THE GATE of M5c step 4b: the rows of the 64 committed genuine sound-logic streams
+//! (tests/reference/m5c_sound/<ITEM>.sound) and of the 64 committed genuine mixer session goldens
+//! (tests/reference/m5c_mixer/sessions/goldens/<ITEM>.golden: start echoes and buffer digests)
+//! reproduced end to end from the Rust wire-25 simulation through `doom_sound::session::Sound`
+//! (tests/common/gate.rs), with these exceptions, which are not compared:
+//!
+//! - in the streams, the `#` header rows, the W rows (the wipe's draws and melt steps, one per
+//!   item; the wipe's 320 draws are still checked through the next R row's index) and the Z rows
+//!   (the totals); every S, T, K, C, L and R row is compared;
+//! - in an S row of a start with no placement (a NULL origin or the listener's own body), the
+//!   three listener columns (x, y, angle): a wire-25 record carries the listener only for a
+//!   positional start, and the C does not read it for these starts (s_sound.c:304-324). The run
+//!   prints how many S rows this applies to (381 of 785 at the time of writing);
+//! - in the mixer session goldens, the fake device's `d` and `q` rows (`genuine_golden` in
+//!   tests/common/gate.rs).
+//!
+//! Four items run only to the length of their genuine stream, which is shorter than their demo
+//! (the run prints them): BOSS1 ends at the level exit, and the next tic is checked to be refused
+//! as `LevelExited`; M5VPLAN, M5OPEN and M5SSEG end where the genuine process ends at a renderer
+//! `I_Error`, and nothing after that is checked here.
 //!
 //! The reference is linuxdoom-1.10 built with its in-process sound code (one define removed);
 //! the goldens come from the genuine C only. The R rows' status-bar draw and the wipe's 320 draws

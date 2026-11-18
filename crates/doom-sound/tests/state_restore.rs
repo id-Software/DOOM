@@ -6,9 +6,10 @@
 //! the first two tics after which a sound-logic channel or a mixer channel is busy) the session is
 //! saved to bytes next to a clone of the simulation; each save is decoded, re-encoded to the same
 //! bytes, restored into a fresh `Sound` against the clone, and continued to the end. Every stream
-//! row (the genuine S, T, K, L, C and R rows as the gate writes them), every buffer digest and the
-//! final state's bytes must equal the unbroken run's, and the continued rows must equal the
-//! genuine stream's from that tic on.
+//! row the gate writes (S, T, K, L, C and R), every buffer digest and the final state's bytes must
+//! equal the unbroken run's, and the continued rows must equal the genuine stream's from that tic
+//! on, with the gate's exceptions (tests/session_gate.rs): the genuine `#`, W and Z rows are not
+//! compared, nor the three listener columns of an S row whose start has no placement.
 //!
 //! The forged states are Rust-only safety tests from the checks of note §4.8.2.
 
