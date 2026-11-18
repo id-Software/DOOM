@@ -1,0 +1,4652 @@
+{
+ "schema": "DOOM-M5C-REAL-FULL-RESULTS-v1",
+ "note": "M5c step 5b (local only): the 61 real Episode 1 runs through the whole Rust sound pipeline (crates/doom-game/examples/m5c_real_rows.rs: GameData::load_with_sound and replay) against linuxdoom-1.10 built with its in-process sound code (one define removed), under the declared schedule: every sound-logic row, every frame at screenblocks 10 and 11 and every mixer buffer, the T12 detector and the strict32 comparison. Counts, pass/fail facts and genuine digests only.",
+ "switches": {
+  "--handle": "integrated",
+  "--update-schedule": "tic",
+  "--wipe": "genuine",
+  "--sound": "on"
+ },
+ "runner_contract_sha256": "f9bff96b8c50427017c6e709c600cbcbf40ddd32f27e7eebaaa7ee354bb639aa",
+ "totals": {
+  "runs": 61,
+  "genuine": {
+   "tics": 158966,
+   "starts": 26077,
+   "started": 21090,
+   "inaudible": 4877,
+   "no_channel": 110,
+   "link_volume": 0,
+   "draws": 20697,
+   "release_starts": 4,
+   "release_next_busy": 0
+  },
+  "sound_rows_compared": {
+   "S": 26077,
+   "T": 10470,
+   "K": 21090,
+   "C": 10633,
+   "L": 1042,
+   "R": 158966
+  },
+  "sound_rows_differ": 0,
+  "sound_listener_unchecked": 5980,
+  "frames": {
+   "10": {
+    "frames": 158966,
+    "compared_whole": 158472,
+    "compared_masked": 494,
+    "non_comparable_parity": 0,
+    "non_comparable_whole": 0,
+    "face_equal": 158966,
+    "face_zeroed_compared": 158472,
+    "face_zeroed_equal": 158472,
+    "mismatched_rows": 0
+   },
+   "11": {
+    "frames": 158966,
+    "compared_whole": 158414,
+    "compared_masked": 552,
+    "non_comparable_parity": 0,
+    "non_comparable_whole": 0,
+    "face_equal": 158966,
+    "face_zeroed_compared": 158414,
+    "face_zeroed_equal": 158414,
+    "mismatched_rows": 0
+   }
+  },
+  "mixer": {
+   "runs_equal": 61,
+   "buffers": 98578,
+   "starts": 21090
+  },
+  "t12": {
+   "detector_firings": 0,
+   "release_starts": 4,
+   "release_next_busy": 0,
+   "release_reads": 0,
+   "release_reads_next_busy": 0
+  },
+  "t12_layout_dependent_runs": 0,
+  "strict32": {
+   "runs_identical": 61,
+   "differing_rows": 0,
+   "differing_not_release": 0,
+   "differing_in_behaviour": 0
+  },
+  "endings": {
+   "exit": 12,
+   "marker": 27,
+   "reborn": 22
+  }
+ },
+ "runs": {
+  "E1M1_BARRELS": {
+   "map": "E1M1",
+   "script": "BARRELS.lmp",
+   "genuine_sound_equal_m5c_real": true,
+   "genuine_sound_screens_identical": true,
+   "genuine_end": "marker",
+   "genuine": {
+    "draws": 51,
+    "inaudible": 7,
+    "started": 52,
+    "starts": 59,
+    "tics": 882
+   },
+   "rust_end": {
+    "10": "None",
+    "11": "None"
+   },
+   "rust_tics": 882,
+   "t12": {
+    "detector_firings": 0,
+    "detector_first_tic": "-",
+    "detector_textures": 287,
+    "release_starts": 0,
+    "release_next_busy": 0,
+    "release_reads": 0,
+    "release_reads_next_busy": 0
+   },
+   "rust_sound_screens_identical": true,
+   "sound": {
+    "rows": {
+     "C": 87,
+     "K": 52,
+     "L": 16,
+     "R": 882,
+     "S": 59,
+     "T": 27
+    },
+    "differ": 0,
+    "listener_unchecked": 22,
+    "tics": 882
+   },
+   "frames": {
+    "10": {
+     "compared_masked": 3,
+     "compared_whole": 879,
+     "face_equal": 882,
+     "face_zeroed_compared": 879,
+     "face_zeroed_equal": 879,
+     "frames": 882
+    },
+    "11": {
+     "compared_masked": 3,
+     "compared_whole": 879,
+     "face_equal": 882,
+     "face_zeroed_compared": 879,
+     "face_zeroed_equal": 879,
+     "frames": 882
+    }
+   },
+   "mixer": {
+    "equal": true,
+    "differing_lines": 0,
+    "buffers": 562,
+    "starts": 52,
+    "stream_sha256": "abc7f7462d9376eb5330531b9ced3d6fb767ff557a317e8f6783e67860462a4c"
+   },
+   "strict32": {
+    "identical": true,
+    "tics_compared": 882,
+    "end64": 881,
+    "end32": 881,
+    "differing_rows": 0,
+    "differing_not_release": 0,
+    "differing_in_behaviour": 0,
+    "kinds": {}
+   }
+  },
+  "E1M1_CHAOS": {
+   "map": "E1M1",
+   "script": "CHAOS.lmp",
+   "genuine_sound_equal_m5c_real": true,
+   "genuine_sound_screens_identical": true,
+   "genuine_end": "marker",
+   "genuine": {
+    "draws": 122,
+    "started": 126,
+    "starts": 126,
+    "tics": 5000
+   },
+   "rust_end": {
+    "10": "None",
+    "11": "None"
+   },
+   "rust_tics": 5000,
+   "t12": {
+    "detector_firings": 0,
+    "detector_first_tic": "-",
+    "detector_textures": 287,
+    "release_starts": 0,
+    "release_next_busy": 0,
+    "release_reads": 0,
+    "release_reads_next_busy": 0
+   },
+   "rust_sound_screens_identical": true,
+   "sound": {
+    "rows": {
+     "C": 87,
+     "K": 126,
+     "L": 4,
+     "R": 5000,
+     "S": 126,
+     "T": 13
+    },
+    "differ": 0,
+    "listener_unchecked": 126,
+    "tics": 5000
+   },
+   "frames": {
+    "10": {
+     "compared_masked": 21,
+     "compared_whole": 4979,
+     "face_equal": 5000,
+     "face_zeroed_compared": 4979,
+     "face_zeroed_equal": 4979,
+     "frames": 5000
+    },
+    "11": {
+     "compared_masked": 24,
+     "compared_whole": 4976,
+     "face_equal": 5000,
+     "face_zeroed_compared": 4976,
+     "face_zeroed_equal": 4976,
+     "frames": 5000
+    }
+   },
+   "mixer": {
+    "equal": true,
+    "differing_lines": 0,
+    "buffers": 3077,
+    "starts": 126,
+    "stream_sha256": "2318e1075ad101b3470e3eaf3900aa06f40ba32bd15407dcaa7d3df4425d7d11"
+   },
+   "strict32": {
+    "identical": true,
+    "tics_compared": 5000,
+    "end64": 4999,
+    "end32": 4999,
+    "differing_rows": 0,
+    "differing_not_release": 0,
+    "differing_in_behaviour": 0,
+    "kinds": {}
+   }
+  },
+  "E1M1_FIGHT": {
+   "map": "E1M1",
+   "script": "FIGHT.lmp",
+   "genuine_sound_equal_m5c_real": true,
+   "genuine_sound_screens_identical": true,
+   "genuine_end": "marker",
+   "genuine": {
+    "draws": 70,
+    "inaudible": 4,
+    "started": 73,
+    "starts": 77,
+    "tics": 1281
+   },
+   "rust_end": {
+    "10": "None",
+    "11": "None"
+   },
+   "rust_tics": 1281,
+   "t12": {
+    "detector_firings": 0,
+    "detector_first_tic": "-",
+    "detector_textures": 287,
+    "release_starts": 0,
+    "release_next_busy": 0,
+    "release_reads": 0,
+    "release_reads_next_busy": 0
+   },
+   "rust_sound_screens_identical": true,
+   "sound": {
+    "rows": {
+     "K": 73,
+     "L": 21,
+     "R": 1281,
+     "S": 77,
+     "T": 35
+    },
+    "differ": 0,
+    "listener_unchecked": 26,
+    "tics": 1281
+   },
+   "frames": {
+    "10": {
+     "compared_masked": 2,
+     "compared_whole": 1279,
+     "face_equal": 1281,
+     "face_zeroed_compared": 1279,
+     "face_zeroed_equal": 1279,
+     "frames": 1281
+    },
+    "11": {
+     "compared_masked": 4,
+     "compared_whole": 1277,
+     "face_equal": 1281,
+     "face_zeroed_compared": 1277,
+     "face_zeroed_equal": 1277,
+     "frames": 1281
+    }
+   },
+   "mixer": {
+    "equal": true,
+    "differing_lines": 0,
+    "buffers": 789,
+    "starts": 73,
+    "stream_sha256": "35ebab16d2c7f7693889cd569ae079ed4aa9f33a0cee8ead39287c1382d82638"
+   },
+   "strict32": {
+    "identical": true,
+    "tics_compared": 1281,
+    "end64": 1280,
+    "end32": 1280,
+    "differing_rows": 0,
+    "differing_not_release": 0,
+    "differing_in_behaviour": 0,
+    "kinds": {}
+   }
+  },
+  "E1M1_IDLE": {
+   "map": "E1M1",
+   "script": "idle.lmp",
+   "genuine_sound_equal_m5c_real": true,
+   "genuine_sound_screens_identical": true,
+   "genuine_end": "marker",
+   "genuine": {
+    "starts": 0,
+    "tics": 2100
+   },
+   "rust_end": {
+    "10": "None",
+    "11": "None"
+   },
+   "rust_tics": 2100,
+   "t12": {
+    "detector_firings": 0,
+    "detector_first_tic": "-",
+    "detector_textures": 287,
+    "release_starts": 0,
+    "release_next_busy": 0,
+    "release_reads": 0,
+    "release_reads_next_busy": 0
+   },
+   "rust_sound_screens_identical": true,
+   "sound": {
+    "rows": {
+     "R": 2100
+    },
+    "differ": 0,
+    "listener_unchecked": 0,
+    "tics": 2100
+   },
+   "frames": {
+    "10": {
+     "compared_whole": 2100,
+     "face_equal": 2100,
+     "face_zeroed_compared": 2100,
+     "face_zeroed_equal": 2100,
+     "frames": 2100
+    },
+    "11": {
+     "compared_whole": 2100,
+     "face_equal": 2100,
+     "face_zeroed_compared": 2100,
+     "face_zeroed_equal": 2100,
+     "frames": 2100
+    }
+   },
+   "mixer": {
+    "equal": true,
+    "differing_lines": 0,
+    "buffers": 1292,
+    "starts": 0,
+    "stream_sha256": "c80903e4e33e69db208514cb515a397935dc7444bdf8ee2991d346fc11c5ab67"
+   },
+   "strict32": {
+    "identical": true,
+    "tics_compared": 2100,
+    "end64": 2099,
+    "end32": 2099,
+    "differing_rows": 0,
+    "differing_not_release": 0,
+    "differing_in_behaviour": 0,
+    "kinds": {}
+   }
+  },
+  "E1M1_WALK": {
+   "map": "E1M1",
+   "script": "WALK.lmp",
+   "genuine_sound_equal_m5c_real": true,
+   "genuine_sound_screens_identical": true,
+   "genuine_end": "exit",
+   "genuine": {
+    "draws": 37,
+    "inaudible": 15,
+    "started": 40,
+    "starts": 55,
+    "tics": 766
+   },
+   "rust_end": {
+    "10": "None",
+    "11": "None"
+   },
+   "rust_tics": 766,
+   "t12": {
+    "detector_firings": 0,
+    "detector_first_tic": "-",
+    "detector_textures": 287,
+    "release_starts": 0,
+    "release_next_busy": 0,
+    "release_reads": 0,
+    "release_reads_next_busy": 0
+   },
+   "rust_sound_screens_identical": true,
+   "sound": {
+    "rows": {
+     "K": 40,
+     "L": 14,
+     "R": 766,
+     "S": 55,
+     "T": 13
+    },
+    "differ": 0,
+    "listener_unchecked": 8,
+    "tics": 766
+   },
+   "frames": {
+    "10": {
+     "compared_masked": 1,
+     "compared_whole": 765,
+     "face_equal": 766,
+     "face_zeroed_compared": 765,
+     "face_zeroed_equal": 765,
+     "frames": 766
+    },
+    "11": {
+     "compared_masked": 1,
+     "compared_whole": 765,
+     "face_equal": 766,
+     "face_zeroed_compared": 765,
+     "face_zeroed_equal": 765,
+     "frames": 766
+    }
+   },
+   "mixer": {
+    "equal": true,
+    "differing_lines": 0,
+    "buffers": 494,
+    "starts": 40,
+    "stream_sha256": "12518a33433e460e96bd7520ef96c077a3142fe8ba401e1bbc12a58cea4f67c7"
+   },
+   "strict32": {
+    "identical": true,
+    "tics_compared": 766,
+    "end64": 765,
+    "end32": 765,
+    "differing_rows": 0,
+    "differing_not_release": 0,
+    "differing_in_behaviour": 0,
+    "kinds": {}
+   }
+  },
+  "E1M2_M2CHAOS": {
+   "map": "E1M2",
+   "script": "M2CHAOS.lmp",
+   "genuine_sound_equal_m5c_real": true,
+   "genuine_sound_screens_identical": true,
+   "genuine_end": "reborn",
+   "genuine": {
+    "draws": 66,
+    "inaudible": 1,
+    "started": 67,
+    "starts": 68,
+    "tics": 1550
+   },
+   "rust_end": {
+    "10": "Some(Died)",
+    "11": "Some(Died)"
+   },
+   "rust_tics": 1550,
+   "t12": {
+    "detector_firings": 0,
+    "detector_first_tic": "-",
+    "detector_textures": 287,
+    "release_starts": 0,
+    "release_next_busy": 0,
+    "release_reads": 0,
+    "release_reads_next_busy": 0
+   },
+   "rust_sound_screens_identical": true,
+   "sound": {
+    "rows": {
+     "C": 116,
+     "K": 67,
+     "L": 6,
+     "R": 1550,
+     "S": 68,
+     "T": 19
+    },
+    "differ": 0,
+    "listener_unchecked": 41,
+    "tics": 1550
+   },
+   "frames": {
+    "10": {
+     "compared_masked": 4,
+     "compared_whole": 1546,
+     "face_equal": 1550,
+     "face_zeroed_compared": 1546,
+     "face_zeroed_equal": 1546,
+     "frames": 1550
+    },
+    "11": {
+     "compared_masked": 4,
+     "compared_whole": 1546,
+     "face_equal": 1550,
+     "face_zeroed_compared": 1546,
+     "face_zeroed_equal": 1546,
+     "frames": 1550
+    }
+   },
+   "mixer": {
+    "equal": true,
+    "differing_lines": 0,
+    "buffers": 962,
+    "starts": 67,
+    "stream_sha256": "e8b92fbe665ba1b9516ef91bca9961aa4f603f4932125b7eddb0755f9200dc63"
+   },
+   "strict32": {
+    "identical": true,
+    "tics_compared": 1550,
+    "end64": 1549,
+    "end32": 1549,
+    "differing_rows": 0,
+    "differing_not_release": 0,
+    "differing_in_behaviour": 0,
+    "kinds": {}
+   }
+  },
+  "E1M2_M2DIE": {
+   "map": "E1M2",
+   "script": "M2DIE.lmp",
+   "genuine_sound_equal_m5c_real": true,
+   "genuine_sound_screens_identical": true,
+   "genuine_end": "reborn",
+   "genuine": {
+    "draws": 41,
+    "started": 41,
+    "starts": 41,
+    "tics": 999
+   },
+   "rust_end": {
+    "10": "None",
+    "11": "None"
+   },
+   "rust_tics": 999,
+   "t12": {
+    "detector_firings": 0,
+    "detector_first_tic": "-",
+    "detector_textures": 287,
+    "release_starts": 0,
+    "release_next_busy": 0,
+    "release_reads": 0,
+    "release_reads_next_busy": 0
+   },
+   "rust_sound_screens_identical": true,
+   "sound": {
+    "rows": {
+     "C": 126,
+     "K": 41,
+     "L": 8,
+     "R": 999,
+     "S": 41,
+     "T": 16
+    },
+    "differ": 0,
+    "listener_unchecked": 13,
+    "tics": 999
+   },
+   "frames": {
+    "10": {
+     "compared_masked": 6,
+     "compared_whole": 993,
+     "face_equal": 999,
+     "face_zeroed_compared": 993,
+     "face_zeroed_equal": 993,
+     "frames": 999
+    },
+    "11": {
+     "compared_masked": 6,
+     "compared_whole": 993,
+     "face_equal": 999,
+     "face_zeroed_compared": 993,
+     "face_zeroed_equal": 993,
+     "frames": 999
+    }
+   },
+   "mixer": {
+    "equal": true,
+    "differing_lines": 0,
+    "buffers": 618,
+    "starts": 41,
+    "stream_sha256": "4d4e4a4aba369209d2f923ba99c26894d9c850a8365c59ae5a9a08d65d220a02"
+   },
+   "strict32": {
+    "identical": true,
+    "tics_compared": 999,
+    "end64": 998,
+    "end32": 998,
+    "differing_rows": 0,
+    "differing_not_release": 0,
+    "differing_in_behaviour": 0,
+    "kinds": {}
+   }
+  },
+  "E1M2_M2FIGHT": {
+   "map": "E1M2",
+   "script": "M2FIGHT.lmp",
+   "genuine_sound_equal_m5c_real": true,
+   "genuine_sound_screens_identical": true,
+   "genuine_end": "marker",
+   "genuine": {
+    "draws": 80,
+    "inaudible": 3,
+    "started": 87,
+    "starts": 90,
+    "tics": 1581
+   },
+   "rust_end": {
+    "10": "None",
+    "11": "None"
+   },
+   "rust_tics": 1581,
+   "t12": {
+    "detector_firings": 0,
+    "detector_first_tic": "-",
+    "detector_textures": 287,
+    "release_starts": 0,
+    "release_next_busy": 0,
+    "release_reads": 0,
+    "release_reads_next_busy": 0
+   },
+   "rust_sound_screens_identical": true,
+   "sound": {
+    "rows": {
+     "K": 87,
+     "L": 19,
+     "R": 1581,
+     "S": 90,
+     "T": 73
+    },
+    "differ": 0,
+    "listener_unchecked": 34,
+    "tics": 1581
+   },
+   "frames": {
+    "10": {
+     "compared_masked": 28,
+     "compared_whole": 1553,
+     "face_equal": 1581,
+     "face_zeroed_compared": 1553,
+     "face_zeroed_equal": 1553,
+     "frames": 1581
+    },
+    "11": {
+     "compared_masked": 31,
+     "compared_whole": 1550,
+     "face_equal": 1581,
+     "face_zeroed_compared": 1550,
+     "face_zeroed_equal": 1550,
+     "frames": 1581
+    }
+   },
+   "mixer": {
+    "equal": true,
+    "differing_lines": 0,
+    "buffers": 1000,
+    "starts": 87,
+    "stream_sha256": "5ff69ec1186f69e64d7be4d370eba250a7ea1852d66ad7215b9ecacae0a14b4e"
+   },
+   "strict32": {
+    "identical": true,
+    "tics_compared": 1581,
+    "end64": 1580,
+    "end32": 1580,
+    "differing_rows": 0,
+    "differing_not_release": 0,
+    "differing_in_behaviour": 0,
+    "kinds": {}
+   }
+  },
+  "E1M2_M2IDLE": {
+   "map": "E1M2",
+   "script": "M2IDLE.lmp",
+   "genuine_sound_equal_m5c_real": true,
+   "genuine_sound_screens_identical": true,
+   "genuine_end": "marker",
+   "genuine": {
+    "starts": 0,
+    "tics": 2100
+   },
+   "rust_end": {
+    "10": "None",
+    "11": "None"
+   },
+   "rust_tics": 2100,
+   "t12": {
+    "detector_firings": 0,
+    "detector_first_tic": "-",
+    "detector_textures": 287,
+    "release_starts": 0,
+    "release_next_busy": 0,
+    "release_reads": 0,
+    "release_reads_next_busy": 0
+   },
+   "rust_sound_screens_identical": true,
+   "sound": {
+    "rows": {
+     "R": 2100
+    },
+    "differ": 0,
+    "listener_unchecked": 0,
+    "tics": 2100
+   },
+   "frames": {
+    "10": {
+     "compared_whole": 2100,
+     "face_equal": 2100,
+     "face_zeroed_compared": 2100,
+     "face_zeroed_equal": 2100,
+     "frames": 2100
+    },
+    "11": {
+     "compared_whole": 2100,
+     "face_equal": 2100,
+     "face_zeroed_compared": 2100,
+     "face_zeroed_equal": 2100,
+     "frames": 2100
+    }
+   },
+   "mixer": {
+    "equal": true,
+    "differing_lines": 0,
+    "buffers": 1292,
+    "starts": 0,
+    "stream_sha256": "c80903e4e33e69db208514cb515a397935dc7444bdf8ee2991d346fc11c5ab67"
+   },
+   "strict32": {
+    "identical": true,
+    "tics_compared": 2100,
+    "end64": 2099,
+    "end32": 2099,
+    "differing_rows": 0,
+    "differing_not_release": 0,
+    "differing_in_behaviour": 0,
+    "kinds": {}
+   }
+  },
+  "E1M2_M2WALK": {
+   "map": "E1M2",
+   "script": "M2WALK.lmp",
+   "genuine_sound_equal_m5c_real": true,
+   "genuine_sound_screens_identical": true,
+   "genuine_end": "exit",
+   "genuine": {
+    "draws": 208,
+    "inaudible": 3,
+    "started": 224,
+    "starts": 227,
+    "tics": 2864
+   },
+   "rust_end": {
+    "10": "None",
+    "11": "None"
+   },
+   "rust_tics": 2864,
+   "t12": {
+    "detector_firings": 0,
+    "detector_first_tic": "-",
+    "detector_textures": 287,
+    "release_starts": 0,
+    "release_next_busy": 0,
+    "release_reads": 0,
+    "release_reads_next_busy": 0
+   },
+   "rust_sound_screens_identical": true,
+   "sound": {
+    "rows": {
+     "C": 200,
+     "K": 224,
+     "L": 26,
+     "R": 2864,
+     "S": 227,
+     "T": 110
+    },
+    "differ": 0,
+    "listener_unchecked": 106,
+    "tics": 2864
+   },
+   "frames": {
+    "10": {
+     "compared_masked": 19,
+     "compared_whole": 2845,
+     "face_equal": 2864,
+     "face_zeroed_compared": 2845,
+     "face_zeroed_equal": 2845,
+     "frames": 2864
+    },
+    "11": {
+     "compared_masked": 24,
+     "compared_whole": 2840,
+     "face_equal": 2864,
+     "face_zeroed_compared": 2840,
+     "face_zeroed_equal": 2840,
+     "frames": 2864
+    }
+   },
+   "mixer": {
+    "equal": true,
+    "differing_lines": 0,
+    "buffers": 1776,
+    "starts": 224,
+    "stream_sha256": "9754b8d4c3a4c3d64ef2523f4028b048267317d901149c0aa029d8a62cf5ced5"
+   },
+   "strict32": {
+    "identical": true,
+    "tics_compared": 2864,
+    "end64": 2863,
+    "end32": 2863,
+    "differing_rows": 0,
+    "differing_not_release": 0,
+    "differing_in_behaviour": 0,
+    "kinds": {}
+   }
+  },
+  "E1M3_M3CHAOS": {
+   "map": "E1M3",
+   "script": "M3CHAOS.lmp",
+   "genuine_sound_equal_m5c_real": true,
+   "genuine_sound_screens_identical": true,
+   "genuine_end": "reborn",
+   "genuine": {
+    "draws": 191,
+    "started": 196,
+    "starts": 196,
+    "tics": 3362
+   },
+   "rust_end": {
+    "10": "Some(Died)",
+    "11": "Some(Died)"
+   },
+   "rust_tics": 3362,
+   "t12": {
+    "detector_firings": 0,
+    "detector_first_tic": "-",
+    "detector_textures": 287,
+    "release_starts": 0,
+    "release_next_busy": 0,
+    "release_reads": 0,
+    "release_reads_next_busy": 0
+   },
+   "rust_sound_screens_identical": true,
+   "sound": {
+    "rows": {
+     "C": 106,
+     "K": 196,
+     "L": 16,
+     "R": 3362,
+     "S": 196,
+     "T": 44
+    },
+    "differ": 0,
+    "listener_unchecked": 119,
+    "tics": 3362
+   },
+   "frames": {
+    "10": {
+     "compared_masked": 5,
+     "compared_whole": 3357,
+     "face_equal": 3362,
+     "face_zeroed_compared": 3357,
+     "face_zeroed_equal": 3357,
+     "frames": 3362
+    },
+    "11": {
+     "compared_masked": 6,
+     "compared_whole": 3356,
+     "face_equal": 3362,
+     "face_zeroed_compared": 3356,
+     "face_zeroed_equal": 3356,
+     "frames": 3362
+    }
+   },
+   "mixer": {
+    "equal": true,
+    "differing_lines": 0,
+    "buffers": 2080,
+    "starts": 196,
+    "stream_sha256": "913a6ee335d8a31d39d44da9078817263485c0001c08d57148a0c1a7cb386c61"
+   },
+   "strict32": {
+    "identical": true,
+    "tics_compared": 3362,
+    "end64": 3361,
+    "end32": 3361,
+    "differing_rows": 0,
+    "differing_not_release": 0,
+    "differing_in_behaviour": 0,
+    "kinds": {}
+   }
+  },
+  "E1M3_M3DIE": {
+   "map": "E1M3",
+   "script": "M3DIE.lmp",
+   "genuine_sound_equal_m5c_real": true,
+   "genuine_sound_screens_identical": true,
+   "genuine_end": "reborn",
+   "genuine": {
+    "draws": 52,
+    "started": 56,
+    "starts": 56,
+    "tics": 1000
+   },
+   "rust_end": {
+    "10": "None",
+    "11": "None"
+   },
+   "rust_tics": 1000,
+   "t12": {
+    "detector_firings": 0,
+    "detector_first_tic": "-",
+    "detector_textures": 287,
+    "release_starts": 0,
+    "release_next_busy": 0,
+    "release_reads": 0,
+    "release_reads_next_busy": 0
+   },
+   "rust_sound_screens_identical": true,
+   "sound": {
+    "rows": {
+     "C": 244,
+     "K": 56,
+     "L": 13,
+     "R": 1000,
+     "S": 56,
+     "T": 41
+    },
+    "differ": 0,
+    "listener_unchecked": 11,
+    "tics": 1000
+   },
+   "frames": {
+    "10": {
+     "compared_masked": 4,
+     "compared_whole": 996,
+     "face_equal": 1000,
+     "face_zeroed_compared": 996,
+     "face_zeroed_equal": 996,
+     "frames": 1000
+    },
+    "11": {
+     "compared_masked": 5,
+     "compared_whole": 995,
+     "face_equal": 1000,
+     "face_zeroed_compared": 995,
+     "face_zeroed_equal": 995,
+     "frames": 1000
+    }
+   },
+   "mixer": {
+    "equal": true,
+    "differing_lines": 0,
+    "buffers": 618,
+    "starts": 56,
+    "stream_sha256": "8c42cd51df41349cf4c36ea3adef35718a9927ebc2b1d6c0dcebf48409486676"
+   },
+   "strict32": {
+    "identical": true,
+    "tics_compared": 1000,
+    "end64": 999,
+    "end32": 999,
+    "differing_rows": 0,
+    "differing_not_release": 0,
+    "differing_in_behaviour": 0,
+    "kinds": {}
+   }
+  },
+  "E1M3_M3FIGHT": {
+   "map": "E1M3",
+   "script": "M3FIGHT.lmp",
+   "genuine_sound_equal_m5c_real": true,
+   "genuine_sound_screens_identical": true,
+   "genuine_end": "marker",
+   "genuine": {
+    "draws": 149,
+    "started": 158,
+    "starts": 158,
+    "tics": 1495
+   },
+   "rust_end": {
+    "10": "None",
+    "11": "None"
+   },
+   "rust_tics": 1495,
+   "t12": {
+    "detector_firings": 0,
+    "detector_first_tic": "-",
+    "detector_textures": 287,
+    "release_starts": 0,
+    "release_next_busy": 0,
+    "release_reads": 0,
+    "release_reads_next_busy": 0
+   },
+   "rust_sound_screens_identical": true,
+   "sound": {
+    "rows": {
+     "C": 274,
+     "K": 158,
+     "L": 27,
+     "R": 1495,
+     "S": 158,
+     "T": 75
+    },
+    "differ": 0,
+    "listener_unchecked": 63,
+    "tics": 1495
+   },
+   "frames": {
+    "10": {
+     "compared_masked": 5,
+     "compared_whole": 1490,
+     "face_equal": 1495,
+     "face_zeroed_compared": 1490,
+     "face_zeroed_equal": 1490,
+     "frames": 1495
+    },
+    "11": {
+     "compared_masked": 5,
+     "compared_whole": 1490,
+     "face_equal": 1495,
+     "face_zeroed_compared": 1490,
+     "face_zeroed_equal": 1490,
+     "frames": 1495
+    }
+   },
+   "mixer": {
+    "equal": true,
+    "differing_lines": 0,
+    "buffers": 930,
+    "starts": 158,
+    "stream_sha256": "089c12e4abd0912e19731d87470a0c228277e95d33c1667705299350920104df"
+   },
+   "strict32": {
+    "identical": true,
+    "tics_compared": 1495,
+    "end64": 1494,
+    "end32": 1494,
+    "differing_rows": 0,
+    "differing_not_release": 0,
+    "differing_in_behaviour": 0,
+    "kinds": {}
+   }
+  },
+  "E1M3_M3IDLE": {
+   "map": "E1M3",
+   "script": "M3IDLE.lmp",
+   "genuine_sound_equal_m5c_real": true,
+   "genuine_sound_screens_identical": true,
+   "genuine_end": "marker",
+   "genuine": {
+    "starts": 0,
+    "tics": 2100
+   },
+   "rust_end": {
+    "10": "None",
+    "11": "None"
+   },
+   "rust_tics": 2100,
+   "t12": {
+    "detector_firings": 0,
+    "detector_first_tic": "-",
+    "detector_textures": 287,
+    "release_starts": 0,
+    "release_next_busy": 0,
+    "release_reads": 0,
+    "release_reads_next_busy": 0
+   },
+   "rust_sound_screens_identical": true,
+   "sound": {
+    "rows": {
+     "R": 2100
+    },
+    "differ": 0,
+    "listener_unchecked": 0,
+    "tics": 2100
+   },
+   "frames": {
+    "10": {
+     "compared_whole": 2100,
+     "face_equal": 2100,
+     "face_zeroed_compared": 2100,
+     "face_zeroed_equal": 2100,
+     "frames": 2100
+    },
+    "11": {
+     "compared_whole": 2100,
+     "face_equal": 2100,
+     "face_zeroed_compared": 2100,
+     "face_zeroed_equal": 2100,
+     "frames": 2100
+    }
+   },
+   "mixer": {
+    "equal": true,
+    "differing_lines": 0,
+    "buffers": 1292,
+    "starts": 0,
+    "stream_sha256": "c80903e4e33e69db208514cb515a397935dc7444bdf8ee2991d346fc11c5ab67"
+   },
+   "strict32": {
+    "identical": true,
+    "tics_compared": 2100,
+    "end64": 2099,
+    "end32": 2099,
+    "differing_rows": 0,
+    "differing_not_release": 0,
+    "differing_in_behaviour": 0,
+    "kinds": {}
+   }
+  },
+  "E1M3_M3WALK": {
+   "map": "E1M3",
+   "script": "M3WALK.lmp",
+   "genuine_sound_equal_m5c_real": true,
+   "genuine_sound_screens_identical": true,
+   "genuine_end": "exit",
+   "genuine": {
+    "draws": 743,
+    "inaudible": 54,
+    "started": 776,
+    "starts": 830,
+    "tics": 5793
+   },
+   "rust_end": {
+    "10": "None",
+    "11": "None"
+   },
+   "rust_tics": 5793,
+   "t12": {
+    "detector_firings": 0,
+    "detector_first_tic": "-",
+    "detector_textures": 287,
+    "release_starts": 0,
+    "release_next_busy": 0,
+    "release_reads": 0,
+    "release_reads_next_busy": 0
+   },
+   "rust_sound_screens_identical": true,
+   "sound": {
+    "rows": {
+     "C": 226,
+     "K": 776,
+     "L": 28,
+     "R": 5793,
+     "S": 830,
+     "T": 428
+    },
+    "differ": 0,
+    "listener_unchecked": 166,
+    "tics": 5793
+   },
+   "frames": {
+    "10": {
+     "compared_masked": 5,
+     "compared_whole": 5788,
+     "face_equal": 5793,
+     "face_zeroed_compared": 5788,
+     "face_zeroed_equal": 5788,
+     "frames": 5793
+    },
+    "11": {
+     "compared_masked": 6,
+     "compared_whole": 5787,
+     "face_equal": 5793,
+     "face_zeroed_compared": 5787,
+     "face_zeroed_equal": 5787,
+     "frames": 5793
+    }
+   },
+   "mixer": {
+    "equal": true,
+    "differing_lines": 0,
+    "buffers": 3576,
+    "starts": 776,
+    "stream_sha256": "e2a763739ce394ec91db1e9110e220dedb7f1408f17e5adc85977ab9d36a08d1"
+   },
+   "strict32": {
+    "identical": true,
+    "tics_compared": 5793,
+    "end64": 5792,
+    "end32": 5792,
+    "differing_rows": 0,
+    "differing_not_release": 0,
+    "differing_in_behaviour": 0,
+    "kinds": {}
+   }
+  },
+  "E1M4_M4CHAOS": {
+   "map": "E1M4",
+   "script": "M4CHAOS.lmp",
+   "genuine_sound_equal_m5c_real": true,
+   "genuine_sound_screens_identical": true,
+   "genuine_end": "reborn",
+   "genuine": {
+    "draws": 123,
+    "inaudible": 11,
+    "started": 125,
+    "starts": 136,
+    "tics": 1669
+   },
+   "rust_end": {
+    "10": "Some(Died)",
+    "11": "Some(Died)"
+   },
+   "rust_tics": 1669,
+   "t12": {
+    "detector_firings": 0,
+    "detector_first_tic": "-",
+    "detector_textures": 287,
+    "release_starts": 0,
+    "release_next_busy": 0,
+    "release_reads": 0,
+    "release_reads_next_busy": 0
+   },
+   "rust_sound_screens_identical": true,
+   "sound": {
+    "rows": {
+     "C": 93,
+     "K": 125,
+     "L": 14,
+     "R": 1669,
+     "S": 136,
+     "T": 44
+    },
+    "differ": 0,
+    "listener_unchecked": 36,
+    "tics": 1669
+   },
+   "frames": {
+    "10": {
+     "compared_masked": 6,
+     "compared_whole": 1663,
+     "face_equal": 1669,
+     "face_zeroed_compared": 1663,
+     "face_zeroed_equal": 1663,
+     "frames": 1669
+    },
+    "11": {
+     "compared_masked": 8,
+     "compared_whole": 1661,
+     "face_equal": 1669,
+     "face_zeroed_compared": 1661,
+     "face_zeroed_equal": 1661,
+     "frames": 1669
+    }
+   },
+   "mixer": {
+    "equal": true,
+    "differing_lines": 0,
+    "buffers": 1055,
+    "starts": 125,
+    "stream_sha256": "92bbcadc182cfd77b5164eef3a1a50cc4f712cf48121799252a809e56e400a77"
+   },
+   "strict32": {
+    "identical": true,
+    "tics_compared": 1669,
+    "end64": 1668,
+    "end32": 1668,
+    "differing_rows": 0,
+    "differing_not_release": 0,
+    "differing_in_behaviour": 0,
+    "kinds": {}
+   }
+  },
+  "E1M4_M4DIE": {
+   "map": "E1M4",
+   "script": "M4DIE.lmp",
+   "genuine_sound_equal_m5c_real": true,
+   "genuine_sound_screens_identical": true,
+   "genuine_end": "reborn",
+   "genuine": {
+    "draws": 48,
+    "inaudible": 1,
+    "started": 48,
+    "starts": 49,
+    "tics": 402
+   },
+   "rust_end": {
+    "10": "None",
+    "11": "None"
+   },
+   "rust_tics": 402,
+   "t12": {
+    "detector_firings": 0,
+    "detector_first_tic": "-",
+    "detector_textures": 287,
+    "release_starts": 0,
+    "release_next_busy": 0,
+    "release_reads": 0,
+    "release_reads_next_busy": 0
+   },
+   "rust_sound_screens_identical": true,
+   "sound": {
+    "rows": {
+     "C": 144,
+     "K": 48,
+     "L": 10,
+     "R": 402,
+     "S": 49,
+     "T": 32
+    },
+    "differ": 0,
+    "listener_unchecked": 8,
+    "tics": 402
+   },
+   "frames": {
+    "10": {
+     "compared_masked": 1,
+     "compared_whole": 401,
+     "face_equal": 402,
+     "face_zeroed_compared": 401,
+     "face_zeroed_equal": 401,
+     "frames": 402
+    },
+    "11": {
+     "compared_masked": 1,
+     "compared_whole": 401,
+     "face_equal": 402,
+     "face_zeroed_compared": 401,
+     "face_zeroed_equal": 401,
+     "frames": 402
+    }
+   },
+   "mixer": {
+    "equal": true,
+    "differing_lines": 0,
+    "buffers": 251,
+    "starts": 48,
+    "stream_sha256": "ba8cf7e8392f014ed5f98c47d0d0c651023d403176234f8a38d5443a076ed7fb"
+   },
+   "strict32": {
+    "identical": true,
+    "tics_compared": 402,
+    "end64": 401,
+    "end32": 401,
+    "differing_rows": 0,
+    "differing_not_release": 0,
+    "differing_in_behaviour": 0,
+    "kinds": {}
+   }
+  },
+  "E1M4_M4FIGHT": {
+   "map": "E1M4",
+   "script": "M4FIGHT.lmp",
+   "genuine_sound_equal_m5c_real": true,
+   "genuine_sound_screens_identical": true,
+   "genuine_end": "marker",
+   "genuine": {
+    "draws": 195,
+    "inaudible": 38,
+    "started": 204,
+    "starts": 242,
+    "tics": 1771
+   },
+   "rust_end": {
+    "10": "None",
+    "11": "None"
+   },
+   "rust_tics": 1771,
+   "t12": {
+    "detector_firings": 0,
+    "detector_first_tic": "-",
+    "detector_textures": 287,
+    "release_starts": 0,
+    "release_next_busy": 0,
+    "release_reads": 0,
+    "release_reads_next_busy": 0
+   },
+   "rust_sound_screens_identical": true,
+   "sound": {
+    "rows": {
+     "C": 197,
+     "K": 204,
+     "L": 24,
+     "R": 1771,
+     "S": 242,
+     "T": 80
+    },
+    "differ": 0,
+    "listener_unchecked": 59,
+    "tics": 1771
+   },
+   "frames": {
+    "10": {
+     "compared_masked": 3,
+     "compared_whole": 1768,
+     "face_equal": 1771,
+     "face_zeroed_compared": 1768,
+     "face_zeroed_equal": 1768,
+     "frames": 1771
+    },
+    "11": {
+     "compared_masked": 3,
+     "compared_whole": 1768,
+     "face_equal": 1771,
+     "face_zeroed_compared": 1768,
+     "face_zeroed_equal": 1768,
+     "frames": 1771
+    }
+   },
+   "mixer": {
+    "equal": true,
+    "differing_lines": 0,
+    "buffers": 1110,
+    "starts": 204,
+    "stream_sha256": "c863a1e73e2df1f2ea8dd663637ff57bba74c816035a626dda7c806c6a402260"
+   },
+   "strict32": {
+    "identical": true,
+    "tics_compared": 1771,
+    "end64": 1770,
+    "end32": 1770,
+    "differing_rows": 0,
+    "differing_not_release": 0,
+    "differing_in_behaviour": 0,
+    "kinds": {}
+   }
+  },
+  "E1M4_M4IDLE": {
+   "map": "E1M4",
+   "script": "M4IDLE.lmp",
+   "genuine_sound_equal_m5c_real": true,
+   "genuine_sound_screens_identical": true,
+   "genuine_end": "marker",
+   "genuine": {
+    "starts": 0,
+    "tics": 2100
+   },
+   "rust_end": {
+    "10": "None",
+    "11": "None"
+   },
+   "rust_tics": 2100,
+   "t12": {
+    "detector_firings": 0,
+    "detector_first_tic": "-",
+    "detector_textures": 287,
+    "release_starts": 0,
+    "release_next_busy": 0,
+    "release_reads": 0,
+    "release_reads_next_busy": 0
+   },
+   "rust_sound_screens_identical": true,
+   "sound": {
+    "rows": {
+     "R": 2100
+    },
+    "differ": 0,
+    "listener_unchecked": 0,
+    "tics": 2100
+   },
+   "frames": {
+    "10": {
+     "compared_whole": 2100,
+     "face_equal": 2100,
+     "face_zeroed_compared": 2100,
+     "face_zeroed_equal": 2100,
+     "frames": 2100
+    },
+    "11": {
+     "compared_whole": 2100,
+     "face_equal": 2100,
+     "face_zeroed_compared": 2100,
+     "face_zeroed_equal": 2100,
+     "frames": 2100
+    }
+   },
+   "mixer": {
+    "equal": true,
+    "differing_lines": 0,
+    "buffers": 1292,
+    "starts": 0,
+    "stream_sha256": "c80903e4e33e69db208514cb515a397935dc7444bdf8ee2991d346fc11c5ab67"
+   },
+   "strict32": {
+    "identical": true,
+    "tics_compared": 2100,
+    "end64": 2099,
+    "end32": 2099,
+    "differing_rows": 0,
+    "differing_not_release": 0,
+    "differing_in_behaviour": 0,
+    "kinds": {}
+   }
+  },
+  "E1M4_M4WALK": {
+   "map": "E1M4",
+   "script": "M4WALK.lmp",
+   "genuine_sound_equal_m5c_real": true,
+   "genuine_sound_screens_identical": true,
+   "genuine_end": "exit",
+   "genuine": {
+    "draws": 358,
+    "inaudible": 93,
+    "started": 376,
+    "starts": 469,
+    "tics": 3444
+   },
+   "rust_end": {
+    "10": "None",
+    "11": "None"
+   },
+   "rust_tics": 3444,
+   "t12": {
+    "detector_firings": 0,
+    "detector_first_tic": "-",
+    "detector_textures": 287,
+    "release_starts": 0,
+    "release_next_busy": 0,
+    "release_reads": 0,
+    "release_reads_next_busy": 0
+   },
+   "rust_sound_screens_identical": true,
+   "sound": {
+    "rows": {
+     "C": 208,
+     "K": 376,
+     "L": 30,
+     "R": 3444,
+     "S": 469,
+     "T": 136
+    },
+    "differ": 0,
+    "listener_unchecked": 114,
+    "tics": 3444
+   },
+   "frames": {
+    "10": {
+     "compared_masked": 6,
+     "compared_whole": 3438,
+     "face_equal": 3444,
+     "face_zeroed_compared": 3438,
+     "face_zeroed_equal": 3438,
+     "frames": 3444
+    },
+    "11": {
+     "compared_masked": 7,
+     "compared_whole": 3437,
+     "face_equal": 3444,
+     "face_zeroed_compared": 3437,
+     "face_zeroed_equal": 3437,
+     "frames": 3444
+    }
+   },
+   "mixer": {
+    "equal": true,
+    "differing_lines": 0,
+    "buffers": 2134,
+    "starts": 376,
+    "stream_sha256": "26cd9afcc8d420cd4d17e13beed525d422a0344e1e48588db35aed66f6e3dd32"
+   },
+   "strict32": {
+    "identical": true,
+    "tics_compared": 3444,
+    "end64": 3443,
+    "end32": 3443,
+    "differing_rows": 0,
+    "differing_not_release": 0,
+    "differing_in_behaviour": 0,
+    "kinds": {}
+   }
+  },
+  "E1M5_M5CHAOS": {
+   "map": "E1M5",
+   "script": "M5CHAOS.lmp",
+   "genuine_sound_equal_m5c_real": true,
+   "genuine_sound_screens_identical": true,
+   "genuine_end": "reborn",
+   "genuine": {
+    "draws": 80,
+    "inaudible": 12,
+    "started": 81,
+    "starts": 93,
+    "tics": 699
+   },
+   "rust_end": {
+    "10": "Some(Died)",
+    "11": "Some(Died)"
+   },
+   "rust_tics": 699,
+   "t12": {
+    "detector_firings": 0,
+    "detector_first_tic": "-",
+    "detector_textures": 287,
+    "release_starts": 0,
+    "release_next_busy": 0,
+    "release_reads": 0,
+    "release_reads_next_busy": 0
+   },
+   "rust_sound_screens_identical": true,
+   "sound": {
+    "rows": {
+     "C": 221,
+     "K": 81,
+     "L": 15,
+     "R": 699,
+     "S": 93,
+     "T": 16
+    },
+    "differ": 0,
+    "listener_unchecked": 43,
+    "tics": 699
+   },
+   "frames": {
+    "10": {
+     "compared_whole": 699,
+     "face_equal": 699,
+     "face_zeroed_compared": 699,
+     "face_zeroed_equal": 699,
+     "frames": 699
+    },
+    "11": {
+     "compared_whole": 699,
+     "face_equal": 699,
+     "face_zeroed_compared": 699,
+     "face_zeroed_equal": 699,
+     "frames": 699
+    }
+   },
+   "mixer": {
+    "equal": true,
+    "differing_lines": 0,
+    "buffers": 457,
+    "starts": 81,
+    "stream_sha256": "5cd86d3bc8feda00b1e35272ae839e558ab1e5d626f20d81abe7feb0d3cbdfdb"
+   },
+   "strict32": {
+    "identical": true,
+    "tics_compared": 699,
+    "end64": 698,
+    "end32": 698,
+    "differing_rows": 0,
+    "differing_not_release": 0,
+    "differing_in_behaviour": 0,
+    "kinds": {}
+   }
+  },
+  "E1M5_M5CHAOS3": {
+   "map": "E1M5",
+   "script": "M5CHAOS3.lmp",
+   "genuine_sound_equal_m5c_real": true,
+   "genuine_sound_screens_identical": true,
+   "genuine_end": "reborn",
+   "genuine": {
+    "draws": 92,
+    "inaudible": 18,
+    "no_channel": 2,
+    "started": 90,
+    "starts": 110,
+    "tics": 648
+   },
+   "rust_end": {
+    "10": "Some(Died)",
+    "11": "Some(Died)"
+   },
+   "rust_tics": 648,
+   "t12": {
+    "detector_firings": 0,
+    "detector_first_tic": "-",
+    "detector_textures": 287,
+    "release_starts": 0,
+    "release_next_busy": 0,
+    "release_reads": 0,
+    "release_reads_next_busy": 0
+   },
+   "rust_sound_screens_identical": true,
+   "sound": {
+    "rows": {
+     "C": 250,
+     "K": 90,
+     "L": 15,
+     "R": 648,
+     "S": 110,
+     "T": 14
+    },
+    "differ": 0,
+    "listener_unchecked": 33,
+    "tics": 648
+   },
+   "frames": {
+    "10": {
+     "compared_whole": 648,
+     "face_equal": 648,
+     "face_zeroed_compared": 648,
+     "face_zeroed_equal": 648,
+     "frames": 648
+    },
+    "11": {
+     "compared_whole": 648,
+     "face_equal": 648,
+     "face_zeroed_compared": 648,
+     "face_zeroed_equal": 648,
+     "frames": 648
+    }
+   },
+   "mixer": {
+    "equal": true,
+    "differing_lines": 0,
+    "buffers": 415,
+    "starts": 90,
+    "stream_sha256": "7b195310673a4bbe0c3416ba3ad4d55079cd570eabb8d23d3dc602420813a219"
+   },
+   "strict32": {
+    "identical": true,
+    "tics_compared": 648,
+    "end64": 647,
+    "end32": 647,
+    "differing_rows": 0,
+    "differing_not_release": 0,
+    "differing_in_behaviour": 0,
+    "kinds": {}
+   }
+  },
+  "E1M5_M5DEMO1": {
+   "map": "E1M5",
+   "script": "M5DEMO1.lmp",
+   "genuine_sound_equal_m5c_real": true,
+   "genuine_sound_screens_identical": true,
+   "genuine_end": "marker",
+   "genuine": {
+    "draws": 289,
+    "inaudible": 11,
+    "started": 306,
+    "starts": 317,
+    "tics": 1710
+   },
+   "rust_end": {
+    "10": "None",
+    "11": "None"
+   },
+   "rust_tics": 1710,
+   "t12": {
+    "detector_firings": 0,
+    "detector_first_tic": "-",
+    "detector_textures": 287,
+    "release_starts": 0,
+    "release_next_busy": 0,
+    "release_reads": 0,
+    "release_reads_next_busy": 0
+   },
+   "rust_sound_screens_identical": true,
+   "sound": {
+    "rows": {
+     "C": 104,
+     "K": 306,
+     "L": 30,
+     "R": 1710,
+     "S": 317,
+     "T": 238
+    },
+    "differ": 0,
+    "listener_unchecked": 66,
+    "tics": 1710
+   },
+   "frames": {
+    "10": {
+     "compared_masked": 6,
+     "compared_whole": 1704,
+     "face_equal": 1710,
+     "face_zeroed_compared": 1704,
+     "face_zeroed_equal": 1704,
+     "frames": 1710
+    },
+    "11": {
+     "compared_masked": 6,
+     "compared_whole": 1704,
+     "face_equal": 1710,
+     "face_zeroed_compared": 1704,
+     "face_zeroed_equal": 1704,
+     "frames": 1710
+    }
+   },
+   "mixer": {
+    "equal": true,
+    "differing_lines": 0,
+    "buffers": 1074,
+    "starts": 306,
+    "stream_sha256": "cd1a0d66dd9e937669d840b489ff2511210235510d97f43a87ac21ae876a3a45"
+   },
+   "strict32": {
+    "identical": true,
+    "tics_compared": 1710,
+    "end64": 1709,
+    "end32": 1709,
+    "differing_rows": 0,
+    "differing_not_release": 0,
+    "differing_in_behaviour": 0,
+    "kinds": {}
+   }
+  },
+  "E1M5_M5DIE": {
+   "map": "E1M5",
+   "script": "M5DIE.lmp",
+   "genuine_sound_equal_m5c_real": true,
+   "genuine_sound_screens_identical": true,
+   "genuine_end": "reborn",
+   "genuine": {
+    "draws": 24,
+    "started": 24,
+    "starts": 24,
+    "tics": 333
+   },
+   "rust_end": {
+    "10": "None",
+    "11": "None"
+   },
+   "rust_tics": 333,
+   "t12": {
+    "detector_firings": 0,
+    "detector_first_tic": "-",
+    "detector_textures": 287,
+    "release_starts": 0,
+    "release_next_busy": 0,
+    "release_reads": 0,
+    "release_reads_next_busy": 0
+   },
+   "rust_sound_screens_identical": true,
+   "sound": {
+    "rows": {
+     "C": 166,
+     "K": 24,
+     "L": 10,
+     "R": 333,
+     "S": 24,
+     "T": 12
+    },
+    "differ": 0,
+    "listener_unchecked": 7,
+    "tics": 333
+   },
+   "frames": {
+    "10": {
+     "compared_whole": 333,
+     "face_equal": 333,
+     "face_zeroed_compared": 333,
+     "face_zeroed_equal": 333,
+     "frames": 333
+    },
+    "11": {
+     "compared_whole": 333,
+     "face_equal": 333,
+     "face_zeroed_compared": 333,
+     "face_zeroed_equal": 333,
+     "frames": 333
+    }
+   },
+   "mixer": {
+    "equal": true,
+    "differing_lines": 0,
+    "buffers": 229,
+    "starts": 24,
+    "stream_sha256": "31d4835baae796c8f288677b2182182a71d0e9ab637b7a03cc75713848c14512"
+   },
+   "strict32": {
+    "identical": true,
+    "tics_compared": 333,
+    "end64": 332,
+    "end32": 332,
+    "differing_rows": 0,
+    "differing_not_release": 0,
+    "differing_in_behaviour": 0,
+    "kinds": {}
+   }
+  },
+  "E1M5_M5DIE3": {
+   "map": "E1M5",
+   "script": "M5DIE3.lmp",
+   "genuine_sound_equal_m5c_real": true,
+   "genuine_sound_screens_identical": true,
+   "genuine_end": "reborn",
+   "genuine": {
+    "draws": 71,
+    "inaudible": 1,
+    "no_channel": 1,
+    "started": 70,
+    "starts": 72,
+    "tics": 431
+   },
+   "rust_end": {
+    "10": "None",
+    "11": "None"
+   },
+   "rust_tics": 431,
+   "t12": {
+    "detector_firings": 0,
+    "detector_first_tic": "-",
+    "detector_textures": 287,
+    "release_starts": 0,
+    "release_next_busy": 0,
+    "release_reads": 0,
+    "release_reads_next_busy": 0
+   },
+   "rust_sound_screens_identical": true,
+   "sound": {
+    "rows": {
+     "C": 207,
+     "K": 70,
+     "L": 15,
+     "R": 431,
+     "S": 72,
+     "T": 21
+    },
+    "differ": 0,
+    "listener_unchecked": 9,
+    "tics": 431
+   },
+   "frames": {
+    "10": {
+     "compared_masked": 2,
+     "compared_whole": 429,
+     "face_equal": 431,
+     "face_zeroed_compared": 429,
+     "face_zeroed_equal": 429,
+     "frames": 431
+    },
+    "11": {
+     "compared_masked": 2,
+     "compared_whole": 429,
+     "face_equal": 431,
+     "face_zeroed_compared": 429,
+     "face_zeroed_equal": 429,
+     "frames": 431
+    }
+   },
+   "mixer": {
+    "equal": true,
+    "differing_lines": 0,
+    "buffers": 286,
+    "starts": 70,
+    "stream_sha256": "64602283aa6003eb796c6be4e82872ddb33fdb98cd1dcbde1a22d90ef47b1708"
+   },
+   "strict32": {
+    "identical": true,
+    "tics_compared": 431,
+    "end64": 430,
+    "end32": 430,
+    "differing_rows": 0,
+    "differing_not_release": 0,
+    "differing_in_behaviour": 0,
+    "kinds": {}
+   }
+  },
+  "E1M5_M5FIGHT": {
+   "map": "E1M5",
+   "script": "M5FIGHT.lmp",
+   "genuine_sound_equal_m5c_real": true,
+   "genuine_sound_screens_identical": true,
+   "genuine_end": "marker",
+   "genuine": {
+    "draws": 886,
+    "inaudible": 209,
+    "started": 920,
+    "starts": 1129,
+    "tics": 6446
+   },
+   "rust_end": {
+    "10": "None",
+    "11": "None"
+   },
+   "rust_tics": 6446,
+   "t12": {
+    "detector_firings": 0,
+    "detector_first_tic": "-",
+    "detector_textures": 287,
+    "release_starts": 0,
+    "release_next_busy": 0,
+    "release_reads": 0,
+    "release_reads_next_busy": 0
+   },
+   "rust_sound_screens_identical": true,
+   "sound": {
+    "rows": {
+     "C": 200,
+     "K": 920,
+     "L": 36,
+     "R": 6446,
+     "S": 1129,
+     "T": 614
+    },
+    "differ": 0,
+    "listener_unchecked": 144,
+    "tics": 6446
+   },
+   "frames": {
+    "10": {
+     "compared_masked": 11,
+     "compared_whole": 6435,
+     "face_equal": 6446,
+     "face_zeroed_compared": 6435,
+     "face_zeroed_equal": 6435,
+     "frames": 6446
+    },
+    "11": {
+     "compared_masked": 13,
+     "compared_whole": 6433,
+     "face_equal": 6446,
+     "face_zeroed_compared": 6433,
+     "face_zeroed_equal": 6433,
+     "frames": 6446
+    }
+   },
+   "mixer": {
+    "equal": true,
+    "differing_lines": 0,
+    "buffers": 3966,
+    "starts": 920,
+    "stream_sha256": "6eefd3fa64bd63d0c0ee81a422f8b85e3327d5fdd70e64bd20276f9109190082"
+   },
+   "strict32": {
+    "identical": true,
+    "tics_compared": 6446,
+    "end64": 6445,
+    "end32": 6445,
+    "differing_rows": 0,
+    "differing_not_release": 0,
+    "differing_in_behaviour": 0,
+    "kinds": {}
+   }
+  },
+  "E1M5_M5FIGHT3": {
+   "map": "E1M5",
+   "script": "M5FIGHT3.lmp",
+   "genuine_sound_equal_m5c_real": true,
+   "genuine_sound_screens_identical": true,
+   "genuine_end": "marker",
+   "genuine": {
+    "draws": 2129,
+    "inaudible": 836,
+    "no_channel": 5,
+    "started": 2164,
+    "starts": 3005,
+    "tics": 7332
+   },
+   "rust_end": {
+    "10": "None",
+    "11": "None"
+   },
+   "rust_tics": 7332,
+   "t12": {
+    "detector_firings": 0,
+    "detector_first_tic": "-",
+    "detector_textures": 287,
+    "release_starts": 0,
+    "release_next_busy": 0,
+    "release_reads": 0,
+    "release_reads_next_busy": 0
+   },
+   "rust_sound_screens_identical": true,
+   "sound": {
+    "rows": {
+     "C": 236,
+     "K": 2164,
+     "L": 41,
+     "R": 7332,
+     "S": 3005,
+     "T": 900
+    },
+    "differ": 0,
+    "listener_unchecked": 686,
+    "tics": 7332
+   },
+   "frames": {
+    "10": {
+     "compared_masked": 18,
+     "compared_whole": 7314,
+     "face_equal": 7332,
+     "face_zeroed_compared": 7314,
+     "face_zeroed_equal": 7314,
+     "frames": 7332
+    },
+    "11": {
+     "compared_masked": 20,
+     "compared_whole": 7312,
+     "face_equal": 7332,
+     "face_zeroed_compared": 7312,
+     "face_zeroed_equal": 7312,
+     "frames": 7332
+    }
+   },
+   "mixer": {
+    "equal": true,
+    "differing_lines": 0,
+    "buffers": 4539,
+    "starts": 2164,
+    "stream_sha256": "e34f026cb749f5a9c9b4fc0aed47b6dc1eae6d092a28a91edd33dfe9aafae8f0"
+   },
+   "strict32": {
+    "identical": true,
+    "tics_compared": 7332,
+    "end64": 7331,
+    "end32": 7331,
+    "differing_rows": 0,
+    "differing_not_release": 0,
+    "differing_in_behaviour": 0,
+    "kinds": {}
+   }
+  },
+  "E1M5_M5IDLE": {
+   "map": "E1M5",
+   "script": "M5IDLE.lmp",
+   "genuine_sound_equal_m5c_real": true,
+   "genuine_sound_screens_identical": true,
+   "genuine_end": "marker",
+   "genuine": {
+    "starts": 0,
+    "tics": 2100
+   },
+   "rust_end": {
+    "10": "None",
+    "11": "None"
+   },
+   "rust_tics": 2100,
+   "t12": {
+    "detector_firings": 0,
+    "detector_first_tic": "-",
+    "detector_textures": 287,
+    "release_starts": 0,
+    "release_next_busy": 0,
+    "release_reads": 0,
+    "release_reads_next_busy": 0
+   },
+   "rust_sound_screens_identical": true,
+   "sound": {
+    "rows": {
+     "R": 2100
+    },
+    "differ": 0,
+    "listener_unchecked": 0,
+    "tics": 2100
+   },
+   "frames": {
+    "10": {
+     "compared_whole": 2100,
+     "face_equal": 2100,
+     "face_zeroed_compared": 2100,
+     "face_zeroed_equal": 2100,
+     "frames": 2100
+    },
+    "11": {
+     "compared_whole": 2100,
+     "face_equal": 2100,
+     "face_zeroed_compared": 2100,
+     "face_zeroed_equal": 2100,
+     "frames": 2100
+    }
+   },
+   "mixer": {
+    "equal": true,
+    "differing_lines": 0,
+    "buffers": 1292,
+    "starts": 0,
+    "stream_sha256": "c80903e4e33e69db208514cb515a397935dc7444bdf8ee2991d346fc11c5ab67"
+   },
+   "strict32": {
+    "identical": true,
+    "tics_compared": 2100,
+    "end64": 2099,
+    "end32": 2099,
+    "differing_rows": 0,
+    "differing_not_release": 0,
+    "differing_in_behaviour": 0,
+    "kinds": {}
+   }
+  },
+  "E1M5_M5IDLE3": {
+   "map": "E1M5",
+   "script": "M5IDLE3.lmp",
+   "genuine_sound_equal_m5c_real": true,
+   "genuine_sound_screens_identical": true,
+   "genuine_end": "marker",
+   "genuine": {
+    "starts": 0,
+    "tics": 2100
+   },
+   "rust_end": {
+    "10": "None",
+    "11": "None"
+   },
+   "rust_tics": 2100,
+   "t12": {
+    "detector_firings": 0,
+    "detector_first_tic": "-",
+    "detector_textures": 287,
+    "release_starts": 0,
+    "release_next_busy": 0,
+    "release_reads": 0,
+    "release_reads_next_busy": 0
+   },
+   "rust_sound_screens_identical": true,
+   "sound": {
+    "rows": {
+     "R": 2100
+    },
+    "differ": 0,
+    "listener_unchecked": 0,
+    "tics": 2100
+   },
+   "frames": {
+    "10": {
+     "compared_whole": 2100,
+     "face_equal": 2100,
+     "face_zeroed_compared": 2100,
+     "face_zeroed_equal": 2100,
+     "frames": 2100
+    },
+    "11": {
+     "compared_whole": 2100,
+     "face_equal": 2100,
+     "face_zeroed_compared": 2100,
+     "face_zeroed_equal": 2100,
+     "frames": 2100
+    }
+   },
+   "mixer": {
+    "equal": true,
+    "differing_lines": 0,
+    "buffers": 1292,
+    "starts": 0,
+    "stream_sha256": "c80903e4e33e69db208514cb515a397935dc7444bdf8ee2991d346fc11c5ab67"
+   },
+   "strict32": {
+    "identical": true,
+    "tics_compared": 2100,
+    "end64": 2099,
+    "end32": 2099,
+    "differing_rows": 0,
+    "differing_not_release": 0,
+    "differing_in_behaviour": 0,
+    "kinds": {}
+   }
+  },
+  "E1M5_M5WALK": {
+   "map": "E1M5",
+   "script": "M5WALK.lmp",
+   "genuine_sound_equal_m5c_real": true,
+   "genuine_sound_screens_identical": true,
+   "genuine_end": "exit",
+   "genuine": {
+    "draws": 948,
+    "inaudible": 250,
+    "started": 985,
+    "starts": 1235,
+    "tics": 7238
+   },
+   "rust_end": {
+    "10": "None",
+    "11": "None"
+   },
+   "rust_tics": 7238,
+   "t12": {
+    "detector_firings": 0,
+    "detector_first_tic": "-",
+    "detector_textures": 287,
+    "release_starts": 0,
+    "release_next_busy": 0,
+    "release_reads": 0,
+    "release_reads_next_busy": 0
+   },
+   "rust_sound_screens_identical": true,
+   "sound": {
+    "rows": {
+     "C": 200,
+     "K": 985,
+     "L": 36,
+     "R": 7238,
+     "S": 1235,
+     "T": 720
+    },
+    "differ": 0,
+    "listener_unchecked": 161,
+    "tics": 7238
+   },
+   "frames": {
+    "10": {
+     "compared_masked": 15,
+     "compared_whole": 7223,
+     "face_equal": 7238,
+     "face_zeroed_compared": 7223,
+     "face_zeroed_equal": 7223,
+     "frames": 7238
+    },
+    "11": {
+     "compared_masked": 18,
+     "compared_whole": 7220,
+     "face_equal": 7238,
+     "face_zeroed_compared": 7220,
+     "face_zeroed_equal": 7220,
+     "frames": 7238
+    }
+   },
+   "mixer": {
+    "equal": true,
+    "differing_lines": 0,
+    "buffers": 4465,
+    "starts": 985,
+    "stream_sha256": "0d950864d3b428c432e2476c7740c350dd7a7bd5de8d402ace2e98dd1963df75"
+   },
+   "strict32": {
+    "identical": true,
+    "tics_compared": 7238,
+    "end64": 7237,
+    "end32": 7237,
+    "differing_rows": 0,
+    "differing_not_release": 0,
+    "differing_in_behaviour": 0,
+    "kinds": {}
+   }
+  },
+  "E1M5_M5WALK3": {
+   "map": "E1M5",
+   "script": "M5WALK3.lmp",
+   "genuine_sound_equal_m5c_real": true,
+   "genuine_sound_screens_identical": true,
+   "genuine_end": "exit",
+   "genuine": {
+    "draws": 3032,
+    "inaudible": 1315,
+    "no_channel": 5,
+    "started": 3075,
+    "starts": 4395,
+    "tics": 9456
+   },
+   "rust_end": {
+    "10": "None",
+    "11": "None"
+   },
+   "rust_tics": 9456,
+   "t12": {
+    "detector_firings": 0,
+    "detector_first_tic": "-",
+    "detector_textures": 287,
+    "release_starts": 0,
+    "release_next_busy": 0,
+    "release_reads": 0,
+    "release_reads_next_busy": 0
+   },
+   "rust_sound_screens_identical": true,
+   "sound": {
+    "rows": {
+     "C": 236,
+     "K": 3075,
+     "L": 40,
+     "R": 9456,
+     "S": 4395,
+     "T": 1021
+    },
+    "differ": 0,
+    "listener_unchecked": 1223,
+    "tics": 9456
+   },
+   "frames": {
+    "10": {
+     "compared_masked": 28,
+     "compared_whole": 9428,
+     "face_equal": 9456,
+     "face_zeroed_compared": 9428,
+     "face_zeroed_equal": 9428,
+     "frames": 9456
+    },
+    "11": {
+     "compared_masked": 33,
+     "compared_whole": 9423,
+     "face_equal": 9456,
+     "face_zeroed_compared": 9423,
+     "face_zeroed_equal": 9423,
+     "frames": 9456
+    }
+   },
+   "mixer": {
+    "equal": true,
+    "differing_lines": 0,
+    "buffers": 5832,
+    "starts": 3075,
+    "stream_sha256": "fa389990b773eb6f059b026344ee0699708704c7f3d3d963a013f043ac1a7923"
+   },
+   "strict32": {
+    "identical": true,
+    "tics_compared": 9456,
+    "end64": 9455,
+    "end32": 9455,
+    "differing_rows": 0,
+    "differing_not_release": 0,
+    "differing_in_behaviour": 0,
+    "kinds": {}
+   }
+  },
+  "E1M6_M6CHAOS": {
+   "map": "E1M6",
+   "script": "M6CHAOS.lmp",
+   "genuine_sound_equal_m5c_real": true,
+   "genuine_sound_screens_identical": true,
+   "genuine_end": "reborn",
+   "genuine": {
+    "draws": 79,
+    "started": 84,
+    "starts": 84,
+    "tics": 1018
+   },
+   "rust_end": {
+    "10": "Some(Died)",
+    "11": "Some(Died)"
+   },
+   "rust_tics": 1018,
+   "t12": {
+    "detector_firings": 0,
+    "detector_first_tic": "-",
+    "detector_textures": 287,
+    "release_starts": 0,
+    "release_next_busy": 0,
+    "release_reads": 0,
+    "release_reads_next_busy": 0
+   },
+   "rust_sound_screens_identical": true,
+   "sound": {
+    "rows": {
+     "C": 170,
+     "K": 84,
+     "L": 11,
+     "R": 1018,
+     "S": 84,
+     "T": 48
+    },
+    "differ": 0,
+    "listener_unchecked": 47,
+    "tics": 1018
+   },
+   "frames": {
+    "10": {
+     "compared_masked": 1,
+     "compared_whole": 1017,
+     "face_equal": 1018,
+     "face_zeroed_compared": 1017,
+     "face_zeroed_equal": 1017,
+     "frames": 1018
+    },
+    "11": {
+     "compared_masked": 1,
+     "compared_whole": 1017,
+     "face_equal": 1018,
+     "face_zeroed_compared": 1017,
+     "face_zeroed_equal": 1017,
+     "frames": 1018
+    }
+   },
+   "mixer": {
+    "equal": true,
+    "differing_lines": 0,
+    "buffers": 643,
+    "starts": 84,
+    "stream_sha256": "ad0c111a5af823350a9bc61eba8164baf840afd72d741df080ea40b79d2e4a06"
+   },
+   "strict32": {
+    "identical": true,
+    "tics_compared": 1018,
+    "end64": 1017,
+    "end32": 1017,
+    "differing_rows": 0,
+    "differing_not_release": 0,
+    "differing_in_behaviour": 0,
+    "kinds": {}
+   }
+  },
+  "E1M6_M6DIE": {
+   "map": "E1M6",
+   "script": "M6DIE.lmp",
+   "genuine_sound_equal_m5c_real": true,
+   "genuine_sound_screens_identical": true,
+   "genuine_end": "reborn",
+   "genuine": {
+    "draws": 30,
+    "inaudible": 2,
+    "started": 30,
+    "starts": 32,
+    "tics": 350
+   },
+   "rust_end": {
+    "10": "None",
+    "11": "None"
+   },
+   "rust_tics": 350,
+   "t12": {
+    "detector_firings": 0,
+    "detector_first_tic": "-",
+    "detector_textures": 287,
+    "release_starts": 0,
+    "release_next_busy": 0,
+    "release_reads": 0,
+    "release_reads_next_busy": 0
+   },
+   "rust_sound_screens_identical": true,
+   "sound": {
+    "rows": {
+     "C": 177,
+     "K": 30,
+     "L": 9,
+     "R": 350,
+     "S": 32,
+     "T": 32
+    },
+    "differ": 0,
+    "listener_unchecked": 5,
+    "tics": 350
+   },
+   "frames": {
+    "10": {
+     "compared_masked": 1,
+     "compared_whole": 349,
+     "face_equal": 350,
+     "face_zeroed_compared": 349,
+     "face_zeroed_equal": 349,
+     "frames": 350
+    },
+    "11": {
+     "compared_masked": 2,
+     "compared_whole": 348,
+     "face_equal": 350,
+     "face_zeroed_compared": 348,
+     "face_zeroed_equal": 348,
+     "frames": 350
+    }
+   },
+   "mixer": {
+    "equal": true,
+    "differing_lines": 0,
+    "buffers": 221,
+    "starts": 30,
+    "stream_sha256": "c0da10806150c2b9016bd2f28deb5558d243ad80dcbddc3c6470c66f7696760e"
+   },
+   "strict32": {
+    "identical": true,
+    "tics_compared": 350,
+    "end64": 349,
+    "end32": 349,
+    "differing_rows": 0,
+    "differing_not_release": 0,
+    "differing_in_behaviour": 0,
+    "kinds": {}
+   }
+  },
+  "E1M6_M6FIGHT": {
+   "map": "E1M6",
+   "script": "M6FIGHT.lmp",
+   "genuine_sound_equal_m5c_real": true,
+   "genuine_sound_screens_identical": true,
+   "genuine_end": "marker",
+   "genuine": {
+    "draws": 147,
+    "inaudible": 4,
+    "no_channel": 1,
+    "started": 152,
+    "starts": 157,
+    "tics": 1435
+   },
+   "rust_end": {
+    "10": "None",
+    "11": "None"
+   },
+   "rust_tics": 1435,
+   "t12": {
+    "detector_firings": 0,
+    "detector_first_tic": "-",
+    "detector_textures": 287,
+    "release_starts": 0,
+    "release_next_busy": 0,
+    "release_reads": 0,
+    "release_reads_next_busy": 0
+   },
+   "rust_sound_screens_identical": true,
+   "sound": {
+    "rows": {
+     "C": 304,
+     "K": 152,
+     "L": 29,
+     "R": 1435,
+     "S": 157,
+     "T": 230
+    },
+    "differ": 0,
+    "listener_unchecked": 53,
+    "tics": 1435
+   },
+   "frames": {
+    "10": {
+     "compared_masked": 1,
+     "compared_whole": 1434,
+     "face_equal": 1435,
+     "face_zeroed_compared": 1434,
+     "face_zeroed_equal": 1434,
+     "frames": 1435
+    },
+    "11": {
+     "compared_masked": 1,
+     "compared_whole": 1434,
+     "face_equal": 1435,
+     "face_zeroed_compared": 1434,
+     "face_zeroed_equal": 1434,
+     "frames": 1435
+    }
+   },
+   "mixer": {
+    "equal": true,
+    "differing_lines": 0,
+    "buffers": 904,
+    "starts": 152,
+    "stream_sha256": "315f01a8c6f79da78105b5970b06da0ca5952b10524a9ec5680ded2e69e7070a"
+   },
+   "strict32": {
+    "identical": true,
+    "tics_compared": 1435,
+    "end64": 1434,
+    "end32": 1434,
+    "differing_rows": 0,
+    "differing_not_release": 0,
+    "differing_in_behaviour": 0,
+    "kinds": {}
+   }
+  },
+  "E1M6_M6IDLE": {
+   "map": "E1M6",
+   "script": "M6IDLE.lmp",
+   "genuine_sound_equal_m5c_real": true,
+   "genuine_sound_screens_identical": true,
+   "genuine_end": "marker",
+   "genuine": {
+    "starts": 0,
+    "tics": 2100
+   },
+   "rust_end": {
+    "10": "None",
+    "11": "None"
+   },
+   "rust_tics": 2100,
+   "t12": {
+    "detector_firings": 0,
+    "detector_first_tic": "-",
+    "detector_textures": 287,
+    "release_starts": 0,
+    "release_next_busy": 0,
+    "release_reads": 0,
+    "release_reads_next_busy": 0
+   },
+   "rust_sound_screens_identical": true,
+   "sound": {
+    "rows": {
+     "R": 2100
+    },
+    "differ": 0,
+    "listener_unchecked": 0,
+    "tics": 2100
+   },
+   "frames": {
+    "10": {
+     "compared_whole": 2100,
+     "face_equal": 2100,
+     "face_zeroed_compared": 2100,
+     "face_zeroed_equal": 2100,
+     "frames": 2100
+    },
+    "11": {
+     "compared_whole": 2100,
+     "face_equal": 2100,
+     "face_zeroed_compared": 2100,
+     "face_zeroed_equal": 2100,
+     "frames": 2100
+    }
+   },
+   "mixer": {
+    "equal": true,
+    "differing_lines": 0,
+    "buffers": 1292,
+    "starts": 0,
+    "stream_sha256": "c80903e4e33e69db208514cb515a397935dc7444bdf8ee2991d346fc11c5ab67"
+   },
+   "strict32": {
+    "identical": true,
+    "tics_compared": 2100,
+    "end64": 2099,
+    "end32": 2099,
+    "differing_rows": 0,
+    "differing_not_release": 0,
+    "differing_in_behaviour": 0,
+    "kinds": {}
+   }
+  },
+  "E1M6_M6WALK": {
+   "map": "E1M6",
+   "script": "M6WALK.lmp",
+   "genuine_sound_equal_m5c_real": true,
+   "genuine_sound_screens_identical": true,
+   "genuine_end": "exit",
+   "genuine": {
+    "draws": 950,
+    "inaudible": 99,
+    "no_channel": 1,
+    "started": 992,
+    "starts": 1092,
+    "tics": 7839
+   },
+   "rust_end": {
+    "10": "None",
+    "11": "None"
+   },
+   "rust_tics": 7839,
+   "t12": {
+    "detector_firings": 0,
+    "detector_first_tic": "-",
+    "detector_textures": 287,
+    "release_starts": 0,
+    "release_next_busy": 0,
+    "release_reads": 0,
+    "release_reads_next_busy": 0
+   },
+   "rust_sound_screens_identical": true,
+   "sound": {
+    "rows": {
+     "C": 304,
+     "K": 992,
+     "L": 34,
+     "R": 7839,
+     "S": 1092,
+     "T": 1079
+    },
+    "differ": 0,
+    "listener_unchecked": 402,
+    "tics": 7839
+   },
+   "frames": {
+    "10": {
+     "compared_masked": 14,
+     "compared_whole": 7825,
+     "face_equal": 7839,
+     "face_zeroed_compared": 7825,
+     "face_zeroed_equal": 7825,
+     "frames": 7839
+    },
+    "11": {
+     "compared_masked": 15,
+     "compared_whole": 7824,
+     "face_equal": 7839,
+     "face_zeroed_compared": 7824,
+     "face_zeroed_equal": 7824,
+     "frames": 7839
+    }
+   },
+   "mixer": {
+    "equal": true,
+    "differing_lines": 0,
+    "buffers": 4837,
+    "starts": 992,
+    "stream_sha256": "d554b86baaaeef31854ac3e63715eecba2e94c43e6864836e5bbe50be3d35f89"
+   },
+   "strict32": {
+    "identical": true,
+    "tics_compared": 7839,
+    "end64": 7838,
+    "end32": 7838,
+    "differing_rows": 0,
+    "differing_not_release": 0,
+    "differing_in_behaviour": 0,
+    "kinds": {}
+   }
+  },
+  "E1M7_M7CHAOS": {
+   "map": "E1M7",
+   "script": "M7CHAOS.lmp",
+   "genuine_sound_equal_m5c_real": true,
+   "genuine_sound_screens_identical": true,
+   "genuine_end": "reborn",
+   "genuine": {
+    "draws": 158,
+    "inaudible": 18,
+    "started": 161,
+    "starts": 179,
+    "tics": 1515
+   },
+   "rust_end": {
+    "10": "Some(Died)",
+    "11": "Some(Died)"
+   },
+   "rust_tics": 1515,
+   "t12": {
+    "detector_firings": 0,
+    "detector_first_tic": "-",
+    "detector_textures": 287,
+    "release_starts": 0,
+    "release_next_busy": 0,
+    "release_reads": 0,
+    "release_reads_next_busy": 0
+   },
+   "rust_sound_screens_identical": true,
+   "sound": {
+    "rows": {
+     "C": 177,
+     "K": 161,
+     "L": 21,
+     "R": 1515,
+     "S": 179,
+     "T": 18
+    },
+    "differ": 0,
+    "listener_unchecked": 93,
+    "tics": 1515
+   },
+   "frames": {
+    "10": {
+     "compared_masked": 3,
+     "compared_whole": 1512,
+     "face_equal": 1515,
+     "face_zeroed_compared": 1512,
+     "face_zeroed_equal": 1512,
+     "frames": 1515
+    },
+    "11": {
+     "compared_masked": 5,
+     "compared_whole": 1510,
+     "face_equal": 1515,
+     "face_zeroed_compared": 1510,
+     "face_zeroed_equal": 1510,
+     "frames": 1515
+    }
+   },
+   "mixer": {
+    "equal": true,
+    "differing_lines": 0,
+    "buffers": 947,
+    "starts": 161,
+    "stream_sha256": "bed38a51f2b0361e5093d8e60ca672675db67dd4209c2b99b04582c5bae941ba"
+   },
+   "strict32": {
+    "identical": true,
+    "tics_compared": 1515,
+    "end64": 1514,
+    "end32": 1514,
+    "differing_rows": 0,
+    "differing_not_release": 0,
+    "differing_in_behaviour": 0,
+    "kinds": {}
+   }
+  },
+  "E1M7_M7DIE": {
+   "map": "E1M7",
+   "script": "M7DIE.lmp",
+   "genuine_sound_equal_m5c_real": true,
+   "genuine_sound_screens_identical": true,
+   "genuine_end": "reborn",
+   "genuine": {
+    "draws": 50,
+    "no_channel": 1,
+    "started": 50,
+    "starts": 51,
+    "tics": 367
+   },
+   "rust_end": {
+    "10": "None",
+    "11": "None"
+   },
+   "rust_tics": 367,
+   "t12": {
+    "detector_firings": 0,
+    "detector_first_tic": "-",
+    "detector_textures": 287,
+    "release_starts": 0,
+    "release_next_busy": 0,
+    "release_reads": 0,
+    "release_reads_next_busy": 0
+   },
+   "rust_sound_screens_identical": true,
+   "sound": {
+    "rows": {
+     "C": 289,
+     "K": 50,
+     "L": 20,
+     "R": 367,
+     "S": 51,
+     "T": 12
+    },
+    "differ": 0,
+    "listener_unchecked": 8,
+    "tics": 367
+   },
+   "frames": {
+    "10": {
+     "compared_whole": 367,
+     "face_equal": 367,
+     "face_zeroed_compared": 367,
+     "face_zeroed_equal": 367,
+     "frames": 367
+    },
+    "11": {
+     "compared_whole": 367,
+     "face_equal": 367,
+     "face_zeroed_compared": 367,
+     "face_zeroed_equal": 367,
+     "frames": 367
+    }
+   },
+   "mixer": {
+    "equal": true,
+    "differing_lines": 0,
+    "buffers": 242,
+    "starts": 50,
+    "stream_sha256": "84b4c71c929369f6bd4845c53821768069465a5932f5d7a968fe1d37334117e1"
+   },
+   "strict32": {
+    "identical": true,
+    "tics_compared": 367,
+    "end64": 366,
+    "end32": 366,
+    "differing_rows": 0,
+    "differing_not_release": 0,
+    "differing_in_behaviour": 0,
+    "kinds": {}
+   }
+  },
+  "E1M7_M7FIGHT": {
+   "map": "E1M7",
+   "script": "M7FIGHT.lmp",
+   "genuine_sound_equal_m5c_real": true,
+   "genuine_sound_screens_identical": true,
+   "genuine_end": "marker",
+   "genuine": {
+    "draws": 189,
+    "inaudible": 31,
+    "started": 192,
+    "starts": 223,
+    "tics": 1221
+   },
+   "rust_end": {
+    "10": "None",
+    "11": "None"
+   },
+   "rust_tics": 1221,
+   "t12": {
+    "detector_firings": 0,
+    "detector_first_tic": "-",
+    "detector_textures": 287,
+    "release_starts": 0,
+    "release_next_busy": 0,
+    "release_reads": 0,
+    "release_reads_next_busy": 0
+   },
+   "rust_sound_screens_identical": true,
+   "sound": {
+    "rows": {
+     "C": 289,
+     "K": 192,
+     "L": 26,
+     "R": 1221,
+     "S": 223,
+     "T": 123
+    },
+    "differ": 0,
+    "listener_unchecked": 60,
+    "tics": 1221
+   },
+   "frames": {
+    "10": {
+     "compared_masked": 4,
+     "compared_whole": 1217,
+     "face_equal": 1221,
+     "face_zeroed_compared": 1217,
+     "face_zeroed_equal": 1217,
+     "frames": 1221
+    },
+    "11": {
+     "compared_masked": 4,
+     "compared_whole": 1217,
+     "face_equal": 1221,
+     "face_zeroed_compared": 1217,
+     "face_zeroed_equal": 1217,
+     "frames": 1221
+    }
+   },
+   "mixer": {
+    "equal": true,
+    "differing_lines": 0,
+    "buffers": 785,
+    "starts": 192,
+    "stream_sha256": "233f71d39ae5a5eacc48758c3caf2e23ea3fc80879a562874a897c183beafef5"
+   },
+   "strict32": {
+    "identical": true,
+    "tics_compared": 1221,
+    "end64": 1220,
+    "end32": 1220,
+    "differing_rows": 0,
+    "differing_not_release": 0,
+    "differing_in_behaviour": 0,
+    "kinds": {}
+   }
+  },
+  "E1M7_M7IDLE": {
+   "map": "E1M7",
+   "script": "M7IDLE.lmp",
+   "genuine_sound_equal_m5c_real": true,
+   "genuine_sound_screens_identical": true,
+   "genuine_end": "marker",
+   "genuine": {
+    "starts": 0,
+    "tics": 2100
+   },
+   "rust_end": {
+    "10": "None",
+    "11": "None"
+   },
+   "rust_tics": 2100,
+   "t12": {
+    "detector_firings": 0,
+    "detector_first_tic": "-",
+    "detector_textures": 287,
+    "release_starts": 0,
+    "release_next_busy": 0,
+    "release_reads": 0,
+    "release_reads_next_busy": 0
+   },
+   "rust_sound_screens_identical": true,
+   "sound": {
+    "rows": {
+     "R": 2100
+    },
+    "differ": 0,
+    "listener_unchecked": 0,
+    "tics": 2100
+   },
+   "frames": {
+    "10": {
+     "compared_whole": 2100,
+     "face_equal": 2100,
+     "face_zeroed_compared": 2100,
+     "face_zeroed_equal": 2100,
+     "frames": 2100
+    },
+    "11": {
+     "compared_whole": 2100,
+     "face_equal": 2100,
+     "face_zeroed_compared": 2100,
+     "face_zeroed_equal": 2100,
+     "frames": 2100
+    }
+   },
+   "mixer": {
+    "equal": true,
+    "differing_lines": 0,
+    "buffers": 1292,
+    "starts": 0,
+    "stream_sha256": "c80903e4e33e69db208514cb515a397935dc7444bdf8ee2991d346fc11c5ab67"
+   },
+   "strict32": {
+    "identical": true,
+    "tics_compared": 2100,
+    "end64": 2099,
+    "end32": 2099,
+    "differing_rows": 0,
+    "differing_not_release": 0,
+    "differing_in_behaviour": 0,
+    "kinds": {}
+   }
+  },
+  "E1M7_M7WALK": {
+   "map": "E1M7",
+   "script": "M7WALK.lmp",
+   "genuine_sound_equal_m5c_real": true,
+   "genuine_sound_screens_identical": true,
+   "genuine_end": "exit",
+   "genuine": {
+    "draws": 885,
+    "inaudible": 368,
+    "started": 941,
+    "starts": 1309,
+    "tics": 7736
+   },
+   "rust_end": {
+    "10": "None",
+    "11": "None"
+   },
+   "rust_tics": 7736,
+   "t12": {
+    "detector_firings": 0,
+    "detector_first_tic": "-",
+    "detector_textures": 287,
+    "release_starts": 0,
+    "release_next_busy": 0,
+    "release_reads": 0,
+    "release_reads_next_busy": 0
+   },
+   "rust_sound_screens_identical": true,
+   "sound": {
+    "rows": {
+     "C": 127,
+     "K": 941,
+     "L": 34,
+     "R": 7736,
+     "S": 1309,
+     "T": 644
+    },
+    "differ": 0,
+    "listener_unchecked": 388,
+    "tics": 7736
+   },
+   "frames": {
+    "10": {
+     "compared_masked": 17,
+     "compared_whole": 7719,
+     "face_equal": 7736,
+     "face_zeroed_compared": 7719,
+     "face_zeroed_equal": 7719,
+     "frames": 7736
+    },
+    "11": {
+     "compared_masked": 21,
+     "compared_whole": 7715,
+     "face_equal": 7736,
+     "face_zeroed_compared": 7715,
+     "face_zeroed_equal": 7715,
+     "frames": 7736
+    }
+   },
+   "mixer": {
+    "equal": true,
+    "differing_lines": 0,
+    "buffers": 4773,
+    "starts": 941,
+    "stream_sha256": "2f9e51d35b51a95dcb5d9d706f77795de3424d3a3c491697dc5352b394bc68c9"
+   },
+   "strict32": {
+    "identical": true,
+    "tics_compared": 7736,
+    "end64": 7735,
+    "end32": 7735,
+    "differing_rows": 0,
+    "differing_not_release": 0,
+    "differing_in_behaviour": 0,
+    "kinds": {}
+   }
+  },
+  "E1M8_M8CHAOS": {
+   "map": "E1M8",
+   "script": "M8CHAOS.lmp",
+   "genuine_sound_equal_m5c_real": true,
+   "genuine_sound_screens_identical": true,
+   "genuine_end": "reborn",
+   "genuine": {
+    "draws": 235,
+    "no_channel": 7,
+    "started": 228,
+    "starts": 235,
+    "tics": 2439
+   },
+   "rust_end": {
+    "10": "Some(Died)",
+    "11": "Some(Died)"
+   },
+   "rust_tics": 2439,
+   "t12": {
+    "detector_firings": 0,
+    "detector_first_tic": "-",
+    "detector_textures": 287,
+    "release_starts": 0,
+    "release_next_busy": 0,
+    "release_reads": 0,
+    "release_reads_next_busy": 0
+   },
+   "rust_sound_screens_identical": true,
+   "sound": {
+    "rows": {
+     "C": 211,
+     "K": 228,
+     "L": 9,
+     "R": 2439,
+     "S": 235,
+     "T": 5
+    },
+    "differ": 0,
+    "listener_unchecked": 57,
+    "tics": 2439
+   },
+   "frames": {
+    "10": {
+     "compared_masked": 5,
+     "compared_whole": 2434,
+     "face_equal": 2439,
+     "face_zeroed_compared": 2434,
+     "face_zeroed_equal": 2434,
+     "frames": 2439
+    },
+    "11": {
+     "compared_masked": 6,
+     "compared_whole": 2433,
+     "face_equal": 2439,
+     "face_zeroed_compared": 2433,
+     "face_zeroed_equal": 2433,
+     "frames": 2439
+    }
+   },
+   "mixer": {
+    "equal": true,
+    "differing_lines": 0,
+    "buffers": 1515,
+    "starts": 228,
+    "stream_sha256": "b06ecafb3952d6a9d80211dfbf29f77fd4794c48f844c3e5dabdad2884c80c82"
+   },
+   "strict32": {
+    "identical": true,
+    "tics_compared": 2439,
+    "end64": 2438,
+    "end32": 2438,
+    "differing_rows": 0,
+    "differing_not_release": 0,
+    "differing_in_behaviour": 0,
+    "kinds": {}
+   }
+  },
+  "E1M8_M8CHAOS3": {
+   "map": "E1M8",
+   "script": "M8CHAOS3.lmp",
+   "genuine_sound_equal_m5c_real": true,
+   "genuine_sound_screens_identical": true,
+   "genuine_end": "reborn",
+   "genuine": {
+    "draws": 300,
+    "no_channel": 9,
+    "started": 291,
+    "starts": 300,
+    "tics": 2424
+   },
+   "rust_end": {
+    "10": "Some(Died)",
+    "11": "Some(Died)"
+   },
+   "rust_tics": 2424,
+   "t12": {
+    "detector_firings": 0,
+    "detector_first_tic": "-",
+    "detector_textures": 287,
+    "release_starts": 0,
+    "release_next_busy": 0,
+    "release_reads": 0,
+    "release_reads_next_busy": 0
+   },
+   "rust_sound_screens_identical": true,
+   "sound": {
+    "rows": {
+     "C": 237,
+     "K": 291,
+     "L": 10,
+     "R": 2424,
+     "S": 300,
+     "T": 5
+    },
+    "differ": 0,
+    "listener_unchecked": 38,
+    "tics": 2424
+   },
+   "frames": {
+    "10": {
+     "compared_masked": 6,
+     "compared_whole": 2418,
+     "face_equal": 2424,
+     "face_zeroed_compared": 2418,
+     "face_zeroed_equal": 2418,
+     "frames": 2424
+    },
+    "11": {
+     "compared_masked": 9,
+     "compared_whole": 2415,
+     "face_equal": 2424,
+     "face_zeroed_compared": 2415,
+     "face_zeroed_equal": 2415,
+     "frames": 2424
+    }
+   },
+   "mixer": {
+    "equal": true,
+    "differing_lines": 0,
+    "buffers": 1504,
+    "starts": 291,
+    "stream_sha256": "65ca74d8583139ef272fa8cfc730af24358c32053ebf4adee3bcbd9e24a6ecdf"
+   },
+   "strict32": {
+    "identical": true,
+    "tics_compared": 2424,
+    "end64": 2423,
+    "end32": 2423,
+    "differing_rows": 0,
+    "differing_not_release": 0,
+    "differing_in_behaviour": 0,
+    "kinds": {}
+   }
+  },
+  "E1M8_M8DIE": {
+   "map": "E1M8",
+   "script": "M8DIE.lmp",
+   "genuine_sound_equal_m5c_real": true,
+   "genuine_sound_screens_identical": true,
+   "genuine_end": "reborn",
+   "genuine": {
+    "draws": 66,
+    "no_channel": 12,
+    "started": 54,
+    "starts": 66,
+    "tics": 553
+   },
+   "rust_end": {
+    "10": "None",
+    "11": "None"
+   },
+   "rust_tics": 553,
+   "t12": {
+    "detector_firings": 0,
+    "detector_first_tic": "-",
+    "detector_textures": 287,
+    "release_starts": 0,
+    "release_next_busy": 0,
+    "release_reads": 0,
+    "release_reads_next_busy": 0
+   },
+   "rust_sound_screens_identical": true,
+   "sound": {
+    "rows": {
+     "C": 273,
+     "K": 54,
+     "L": 9,
+     "R": 553,
+     "S": 66
+    },
+    "differ": 0,
+    "listener_unchecked": 7,
+    "tics": 553
+   },
+   "frames": {
+    "10": {
+     "compared_whole": 553,
+     "face_equal": 553,
+     "face_zeroed_compared": 553,
+     "face_zeroed_equal": 553,
+     "frames": 553
+    },
+    "11": {
+     "compared_whole": 553,
+     "face_equal": 553,
+     "face_zeroed_compared": 553,
+     "face_zeroed_equal": 553,
+     "frames": 553
+    }
+   },
+   "mixer": {
+    "equal": true,
+    "differing_lines": 0,
+    "buffers": 341,
+    "starts": 54,
+    "stream_sha256": "2fc949b960f6b139ea789055c7ae130e86ee69830b8e968d85a75d1f0039573d"
+   },
+   "strict32": {
+    "identical": true,
+    "tics_compared": 553,
+    "end64": 552,
+    "end32": 552,
+    "differing_rows": 0,
+    "differing_not_release": 0,
+    "differing_in_behaviour": 0,
+    "kinds": {}
+   }
+  },
+  "E1M8_M8DIE3": {
+   "map": "E1M8",
+   "script": "M8DIE3.lmp",
+   "genuine_sound_equal_m5c_real": true,
+   "genuine_sound_screens_identical": true,
+   "genuine_end": "reborn",
+   "genuine": {
+    "draws": 58,
+    "no_channel": 5,
+    "started": 53,
+    "starts": 58,
+    "tics": 344
+   },
+   "rust_end": {
+    "10": "None",
+    "11": "None"
+   },
+   "rust_tics": 344,
+   "t12": {
+    "detector_firings": 0,
+    "detector_first_tic": "-",
+    "detector_textures": 287,
+    "release_starts": 0,
+    "release_next_busy": 0,
+    "release_reads": 0,
+    "release_reads_next_busy": 0
+   },
+   "rust_sound_screens_identical": true,
+   "sound": {
+    "rows": {
+     "C": 320,
+     "K": 53,
+     "L": 9,
+     "R": 344,
+     "S": 58
+    },
+    "differ": 0,
+    "listener_unchecked": 6,
+    "tics": 344
+   },
+   "frames": {
+    "10": {
+     "compared_masked": 2,
+     "compared_whole": 342,
+     "face_equal": 344,
+     "face_zeroed_compared": 342,
+     "face_zeroed_equal": 342,
+     "frames": 344
+    },
+    "11": {
+     "compared_masked": 2,
+     "compared_whole": 342,
+     "face_equal": 344,
+     "face_zeroed_compared": 342,
+     "face_zeroed_equal": 342,
+     "frames": 344
+    }
+   },
+   "mixer": {
+    "equal": true,
+    "differing_lines": 0,
+    "buffers": 212,
+    "starts": 53,
+    "stream_sha256": "365d2f11604a59f8afd702f0a9e90081568f8b86dad05e0bab34ca64f6eb89b4"
+   },
+   "strict32": {
+    "identical": true,
+    "tics_compared": 344,
+    "end64": 343,
+    "end32": 343,
+    "differing_rows": 0,
+    "differing_not_release": 0,
+    "differing_in_behaviour": 0,
+    "kinds": {}
+   }
+  },
+  "E1M8_M8FIGHT": {
+   "map": "E1M8",
+   "script": "M8FIGHT.lmp",
+   "genuine_sound_equal_m5c_real": true,
+   "genuine_sound_screens_identical": true,
+   "genuine_end": "marker",
+   "genuine": {
+    "draws": 855,
+    "no_channel": 12,
+    "release_starts": 1,
+    "started": 852,
+    "starts": 864,
+    "tics": 5740
+   },
+   "rust_end": {
+    "10": "None",
+    "11": "None"
+   },
+   "rust_tics": 5740,
+   "t12": {
+    "detector_firings": 0,
+    "detector_first_tic": "-",
+    "detector_textures": 287,
+    "release_starts": 1,
+    "release_next_busy": 0,
+    "release_reads": 0,
+    "release_reads_next_busy": 0
+   },
+   "rust_sound_screens_identical": true,
+   "sound": {
+    "rows": {
+     "C": 273,
+     "K": 852,
+     "L": 22,
+     "R": 5740,
+     "S": 864,
+     "T": 364
+    },
+    "differ": 0,
+    "listener_unchecked": 286,
+    "tics": 5740
+   },
+   "frames": {
+    "10": {
+     "compared_masked": 34,
+     "compared_whole": 5706,
+     "face_equal": 5740,
+     "face_zeroed_compared": 5706,
+     "face_zeroed_equal": 5706,
+     "frames": 5740
+    },
+    "11": {
+     "compared_masked": 40,
+     "compared_whole": 5700,
+     "face_equal": 5740,
+     "face_zeroed_compared": 5700,
+     "face_zeroed_equal": 5700,
+     "frames": 5740
+    }
+   },
+   "mixer": {
+    "equal": true,
+    "differing_lines": 0,
+    "buffers": 3536,
+    "starts": 852,
+    "stream_sha256": "acb273a00d4edb7735b20e193aedcd1d3d5da6f230a4899493889e74d8c53cd3"
+   },
+   "strict32": {
+    "identical": true,
+    "tics_compared": 5740,
+    "end64": 5739,
+    "end32": 5739,
+    "differing_rows": 0,
+    "differing_not_release": 0,
+    "differing_in_behaviour": 0,
+    "kinds": {}
+   }
+  },
+  "E1M8_M8FIGHT3": {
+   "map": "E1M8",
+   "script": "M8FIGHT3.lmp",
+   "genuine_sound_equal_m5c_real": true,
+   "genuine_sound_screens_identical": true,
+   "genuine_end": "marker",
+   "genuine": {
+    "draws": 651,
+    "no_channel": 5,
+    "release_starts": 1,
+    "started": 651,
+    "starts": 656,
+    "tics": 3822
+   },
+   "rust_end": {
+    "10": "None",
+    "11": "None"
+   },
+   "rust_tics": 3822,
+   "t12": {
+    "detector_firings": 0,
+    "detector_first_tic": "-",
+    "detector_textures": 287,
+    "release_starts": 1,
+    "release_next_busy": 0,
+    "release_reads": 0,
+    "release_reads_next_busy": 0
+   },
+   "rust_sound_screens_identical": true,
+   "sound": {
+    "rows": {
+     "C": 327,
+     "K": 651,
+     "L": 23,
+     "R": 3822,
+     "S": 656,
+     "T": 401
+    },
+    "differ": 0,
+    "listener_unchecked": 173,
+    "tics": 3822
+   },
+   "frames": {
+    "10": {
+     "compared_masked": 29,
+     "compared_whole": 3793,
+     "face_equal": 3822,
+     "face_zeroed_compared": 3793,
+     "face_zeroed_equal": 3793,
+     "frames": 3822
+    },
+    "11": {
+     "compared_masked": 29,
+     "compared_whole": 3793,
+     "face_equal": 3822,
+     "face_zeroed_compared": 3793,
+     "face_zeroed_equal": 3793,
+     "frames": 3822
+    }
+   },
+   "mixer": {
+    "equal": true,
+    "differing_lines": 0,
+    "buffers": 2354,
+    "starts": 651,
+    "stream_sha256": "740d3d110e4e1982504700cc09a578ca7661c6545812284dc70fb228a1e1a01b"
+   },
+   "strict32": {
+    "identical": true,
+    "tics_compared": 3822,
+    "end64": 3821,
+    "end32": 3821,
+    "differing_rows": 0,
+    "differing_not_release": 0,
+    "differing_in_behaviour": 0,
+    "kinds": {}
+   }
+  },
+  "E1M8_M8IDLE": {
+   "map": "E1M8",
+   "script": "M8IDLE.lmp",
+   "genuine_sound_equal_m5c_real": true,
+   "genuine_sound_screens_identical": true,
+   "genuine_end": "marker",
+   "genuine": {
+    "starts": 0,
+    "tics": 2100
+   },
+   "rust_end": {
+    "10": "None",
+    "11": "None"
+   },
+   "rust_tics": 2100,
+   "t12": {
+    "detector_firings": 0,
+    "detector_first_tic": "-",
+    "detector_textures": 287,
+    "release_starts": 0,
+    "release_next_busy": 0,
+    "release_reads": 0,
+    "release_reads_next_busy": 0
+   },
+   "rust_sound_screens_identical": true,
+   "sound": {
+    "rows": {
+     "R": 2100
+    },
+    "differ": 0,
+    "listener_unchecked": 0,
+    "tics": 2100
+   },
+   "frames": {
+    "10": {
+     "compared_whole": 2100,
+     "face_equal": 2100,
+     "face_zeroed_compared": 2100,
+     "face_zeroed_equal": 2100,
+     "frames": 2100
+    },
+    "11": {
+     "compared_whole": 2100,
+     "face_equal": 2100,
+     "face_zeroed_compared": 2100,
+     "face_zeroed_equal": 2100,
+     "frames": 2100
+    }
+   },
+   "mixer": {
+    "equal": true,
+    "differing_lines": 0,
+    "buffers": 1292,
+    "starts": 0,
+    "stream_sha256": "c80903e4e33e69db208514cb515a397935dc7444bdf8ee2991d346fc11c5ab67"
+   },
+   "strict32": {
+    "identical": true,
+    "tics_compared": 2100,
+    "end64": 2099,
+    "end32": 2099,
+    "differing_rows": 0,
+    "differing_not_release": 0,
+    "differing_in_behaviour": 0,
+    "kinds": {}
+   }
+  },
+  "E1M8_M8IDLE3": {
+   "map": "E1M8",
+   "script": "M8IDLE3.lmp",
+   "genuine_sound_equal_m5c_real": true,
+   "genuine_sound_screens_identical": true,
+   "genuine_end": "marker",
+   "genuine": {
+    "starts": 0,
+    "tics": 2100
+   },
+   "rust_end": {
+    "10": "None",
+    "11": "None"
+   },
+   "rust_tics": 2100,
+   "t12": {
+    "detector_firings": 0,
+    "detector_first_tic": "-",
+    "detector_textures": 287,
+    "release_starts": 0,
+    "release_next_busy": 0,
+    "release_reads": 0,
+    "release_reads_next_busy": 0
+   },
+   "rust_sound_screens_identical": true,
+   "sound": {
+    "rows": {
+     "R": 2100
+    },
+    "differ": 0,
+    "listener_unchecked": 0,
+    "tics": 2100
+   },
+   "frames": {
+    "10": {
+     "compared_whole": 2100,
+     "face_equal": 2100,
+     "face_zeroed_compared": 2100,
+     "face_zeroed_equal": 2100,
+     "frames": 2100
+    },
+    "11": {
+     "compared_whole": 2100,
+     "face_equal": 2100,
+     "face_zeroed_compared": 2100,
+     "face_zeroed_equal": 2100,
+     "frames": 2100
+    }
+   },
+   "mixer": {
+    "equal": true,
+    "differing_lines": 0,
+    "buffers": 1292,
+    "starts": 0,
+    "stream_sha256": "c80903e4e33e69db208514cb515a397935dc7444bdf8ee2991d346fc11c5ab67"
+   },
+   "strict32": {
+    "identical": true,
+    "tics_compared": 2100,
+    "end64": 2099,
+    "end32": 2099,
+    "differing_rows": 0,
+    "differing_not_release": 0,
+    "differing_in_behaviour": 0,
+    "kinds": {}
+   }
+  },
+  "E1M8_M8WALK": {
+   "map": "E1M8",
+   "script": "M8WALK.lmp",
+   "genuine_sound_equal_m5c_real": true,
+   "genuine_sound_screens_identical": true,
+   "genuine_end": "exit",
+   "genuine": {
+    "draws": 1124,
+    "no_channel": 12,
+    "release_starts": 1,
+    "started": 1121,
+    "starts": 1133,
+    "tics": 5813
+   },
+   "rust_end": {
+    "10": "None",
+    "11": "None"
+   },
+   "rust_tics": 5813,
+   "t12": {
+    "detector_firings": 0,
+    "detector_first_tic": "-",
+    "detector_textures": 287,
+    "release_starts": 1,
+    "release_next_busy": 0,
+    "release_reads": 0,
+    "release_reads_next_busy": 0
+   },
+   "rust_sound_screens_identical": true,
+   "sound": {
+    "rows": {
+     "C": 273,
+     "K": 1121,
+     "L": 31,
+     "R": 5813,
+     "S": 1133,
+     "T": 378
+    },
+    "differ": 0,
+    "listener_unchecked": 195,
+    "tics": 5813
+   },
+   "frames": {
+    "10": {
+     "compared_masked": 65,
+     "compared_whole": 5748,
+     "face_equal": 5813,
+     "face_zeroed_compared": 5748,
+     "face_zeroed_equal": 5748,
+     "frames": 5813
+    },
+    "11": {
+     "compared_masked": 68,
+     "compared_whole": 5745,
+     "face_equal": 5813,
+     "face_zeroed_compared": 5745,
+     "face_zeroed_equal": 5745,
+     "frames": 5813
+    }
+   },
+   "mixer": {
+    "equal": true,
+    "differing_lines": 0,
+    "buffers": 3603,
+    "starts": 1121,
+    "stream_sha256": "633cdfbc8eb7c5a997df3b0e6b470f7b3b01ce7199a31e6ea2756b9a21ada524"
+   },
+   "strict32": {
+    "identical": true,
+    "tics_compared": 5813,
+    "end64": 5812,
+    "end32": 5812,
+    "differing_rows": 0,
+    "differing_not_release": 0,
+    "differing_in_behaviour": 0,
+    "kinds": {}
+   }
+  },
+  "E1M8_M8WALK3": {
+   "map": "E1M8",
+   "script": "M8WALK3.lmp",
+   "genuine_sound_equal_m5c_real": true,
+   "genuine_sound_screens_identical": true,
+   "genuine_end": "exit",
+   "genuine": {
+    "draws": 1381,
+    "no_channel": 5,
+    "release_starts": 1,
+    "started": 1383,
+    "starts": 1388,
+    "tics": 5505
+   },
+   "rust_end": {
+    "10": "None",
+    "11": "None"
+   },
+   "rust_tics": 5505,
+   "t12": {
+    "detector_firings": 0,
+    "detector_first_tic": "-",
+    "detector_textures": 287,
+    "release_starts": 1,
+    "release_next_busy": 0,
+    "release_reads": 0,
+    "release_reads_next_busy": 0
+   },
+   "rust_sound_screens_identical": true,
+   "sound": {
+    "rows": {
+     "C": 319,
+     "K": 1383,
+     "L": 30,
+     "R": 5505,
+     "S": 1388,
+     "T": 489
+    },
+    "differ": 0,
+    "listener_unchecked": 143,
+    "tics": 5505
+   },
+   "frames": {
+    "10": {
+     "compared_masked": 55,
+     "compared_whole": 5450,
+     "face_equal": 5505,
+     "face_zeroed_compared": 5450,
+     "face_zeroed_equal": 5450,
+     "frames": 5505
+    },
+    "11": {
+     "compared_masked": 57,
+     "compared_whole": 5448,
+     "face_equal": 5505,
+     "face_zeroed_compared": 5448,
+     "face_zeroed_equal": 5448,
+     "frames": 5505
+    }
+   },
+   "mixer": {
+    "equal": true,
+    "differing_lines": 0,
+    "buffers": 3410,
+    "starts": 1383,
+    "stream_sha256": "aece51a0b073a942c52f95badfe7dc7f2615a201f89863f48f968b86e387295f"
+   },
+   "strict32": {
+    "identical": true,
+    "tics_compared": 5505,
+    "end64": 5504,
+    "end32": 5504,
+    "differing_rows": 0,
+    "differing_not_release": 0,
+    "differing_in_behaviour": 0,
+    "kinds": {}
+   }
+  },
+  "E1M9_M9CHAOS": {
+   "map": "E1M9",
+   "script": "M9CHAOS.lmp",
+   "genuine_sound_equal_m5c_real": true,
+   "genuine_sound_screens_identical": true,
+   "genuine_end": "reborn",
+   "genuine": {
+    "draws": 159,
+    "inaudible": 60,
+    "no_channel": 4,
+    "started": 156,
+    "starts": 220,
+    "tics": 832
+   },
+   "rust_end": {
+    "10": "Some(Died)",
+    "11": "Some(Died)"
+   },
+   "rust_tics": 832,
+   "t12": {
+    "detector_firings": 0,
+    "detector_first_tic": "-",
+    "detector_textures": 287,
+    "release_starts": 0,
+    "release_next_busy": 0,
+    "release_reads": 0,
+    "release_reads_next_busy": 0
+   },
+   "rust_sound_screens_identical": true,
+   "sound": {
+    "rows": {
+     "C": 280,
+     "K": 156,
+     "L": 15,
+     "R": 832,
+     "S": 220,
+     "T": 74
+    },
+    "differ": 0,
+    "listener_unchecked": 50,
+    "tics": 832
+   },
+   "frames": {
+    "10": {
+     "compared_masked": 3,
+     "compared_whole": 829,
+     "face_equal": 832,
+     "face_zeroed_compared": 829,
+     "face_zeroed_equal": 829,
+     "frames": 832
+    },
+    "11": {
+     "compared_masked": 3,
+     "compared_whole": 829,
+     "face_equal": 832,
+     "face_zeroed_compared": 829,
+     "face_zeroed_equal": 829,
+     "frames": 832
+    }
+   },
+   "mixer": {
+    "equal": true,
+    "differing_lines": 0,
+    "buffers": 532,
+    "starts": 156,
+    "stream_sha256": "3fb599aa30596e428a10f7fb0549631b1dc83693bb14106e3fdbfa79fd761fcc"
+   },
+   "strict32": {
+    "identical": true,
+    "tics_compared": 832,
+    "end64": 831,
+    "end32": 831,
+    "differing_rows": 0,
+    "differing_not_release": 0,
+    "differing_in_behaviour": 0,
+    "kinds": {}
+   }
+  },
+  "E1M9_M9CHAOS3": {
+   "map": "E1M9",
+   "script": "M9CHAOS3.lmp",
+   "genuine_sound_equal_m5c_real": true,
+   "genuine_sound_screens_identical": true,
+   "genuine_end": "reborn",
+   "genuine": {
+    "draws": 242,
+    "inaudible": 119,
+    "no_channel": 4,
+    "started": 240,
+    "starts": 363,
+    "tics": 977
+   },
+   "rust_end": {
+    "10": "Some(Died)",
+    "11": "Some(Died)"
+   },
+   "rust_tics": 977,
+   "t12": {
+    "detector_firings": 0,
+    "detector_first_tic": "-",
+    "detector_textures": 287,
+    "release_starts": 0,
+    "release_next_busy": 0,
+    "release_reads": 0,
+    "release_reads_next_busy": 0
+   },
+   "rust_sound_screens_identical": true,
+   "sound": {
+    "rows": {
+     "C": 303,
+     "K": 240,
+     "L": 20,
+     "R": 977,
+     "S": 363,
+     "T": 98
+    },
+    "differ": 0,
+    "listener_unchecked": 44,
+    "tics": 977
+   },
+   "frames": {
+    "10": {
+     "compared_masked": 1,
+     "compared_whole": 976,
+     "face_equal": 977,
+     "face_zeroed_compared": 976,
+     "face_zeroed_equal": 976,
+     "frames": 977
+    },
+    "11": {
+     "compared_masked": 2,
+     "compared_whole": 975,
+     "face_equal": 977,
+     "face_zeroed_compared": 975,
+     "face_zeroed_equal": 975,
+     "frames": 977
+    }
+   },
+   "mixer": {
+    "equal": true,
+    "differing_lines": 0,
+    "buffers": 621,
+    "starts": 240,
+    "stream_sha256": "56c8fb5a28a00d129fc1d1cbb44931eebd48b4477adda07adcbebc61eabc9371"
+   },
+   "strict32": {
+    "identical": true,
+    "tics_compared": 977,
+    "end64": 976,
+    "end32": 976,
+    "differing_rows": 0,
+    "differing_not_release": 0,
+    "differing_in_behaviour": 0,
+    "kinds": {}
+   }
+  },
+  "E1M9_M9DIE": {
+   "map": "E1M9",
+   "script": "M9DIE.lmp",
+   "genuine_sound_equal_m5c_real": true,
+   "genuine_sound_screens_identical": true,
+   "genuine_end": "reborn",
+   "genuine": {
+    "draws": 69,
+    "no_channel": 1,
+    "started": 69,
+    "starts": 70,
+    "tics": 338
+   },
+   "rust_end": {
+    "10": "None",
+    "11": "None"
+   },
+   "rust_tics": 338,
+   "t12": {
+    "detector_firings": 0,
+    "detector_first_tic": "-",
+    "detector_textures": 287,
+    "release_starts": 0,
+    "release_next_busy": 0,
+    "release_reads": 0,
+    "release_reads_next_busy": 0
+   },
+   "rust_sound_screens_identical": true,
+   "sound": {
+    "rows": {
+     "C": 293,
+     "K": 69,
+     "L": 17,
+     "R": 338,
+     "S": 70,
+     "T": 28
+    },
+    "differ": 0,
+    "listener_unchecked": 9,
+    "tics": 338
+   },
+   "frames": {
+    "10": {
+     "compared_whole": 338,
+     "face_equal": 338,
+     "face_zeroed_compared": 338,
+     "face_zeroed_equal": 338,
+     "frames": 338
+    },
+    "11": {
+     "compared_whole": 338,
+     "face_equal": 338,
+     "face_zeroed_compared": 338,
+     "face_zeroed_equal": 338,
+     "frames": 338
+    }
+   },
+   "mixer": {
+    "equal": true,
+    "differing_lines": 0,
+    "buffers": 241,
+    "starts": 69,
+    "stream_sha256": "2db0c98388b39e3a77be2f436b988778869a2df7cda5c7cb265faf7f5679628d"
+   },
+   "strict32": {
+    "identical": true,
+    "tics_compared": 338,
+    "end64": 337,
+    "end32": 337,
+    "differing_rows": 0,
+    "differing_not_release": 0,
+    "differing_in_behaviour": 0,
+    "kinds": {}
+   }
+  },
+  "E1M9_M9DIE3": {
+   "map": "E1M9",
+   "script": "M9DIE3.lmp",
+   "genuine_sound_equal_m5c_real": true,
+   "genuine_sound_screens_identical": true,
+   "genuine_end": "reborn",
+   "genuine": {
+    "draws": 125,
+    "no_channel": 2,
+    "started": 124,
+    "starts": 126,
+    "tics": 417
+   },
+   "rust_end": {
+    "10": "None",
+    "11": "None"
+   },
+   "rust_tics": 417,
+   "t12": {
+    "detector_firings": 0,
+    "detector_first_tic": "-",
+    "detector_textures": 287,
+    "release_starts": 0,
+    "release_next_busy": 0,
+    "release_reads": 0,
+    "release_reads_next_busy": 0
+   },
+   "rust_sound_screens_identical": true,
+   "sound": {
+    "rows": {
+     "C": 370,
+     "K": 124,
+     "L": 18,
+     "R": 417,
+     "S": 126,
+     "T": 61
+    },
+    "differ": 0,
+    "listener_unchecked": 9,
+    "tics": 417
+   },
+   "frames": {
+    "10": {
+     "compared_whole": 417,
+     "face_equal": 417,
+     "face_zeroed_compared": 417,
+     "face_zeroed_equal": 417,
+     "frames": 417
+    },
+    "11": {
+     "compared_whole": 417,
+     "face_equal": 417,
+     "face_zeroed_compared": 417,
+     "face_zeroed_equal": 417,
+     "frames": 417
+    }
+   },
+   "mixer": {
+    "equal": true,
+    "differing_lines": 0,
+    "buffers": 279,
+    "starts": 124,
+    "stream_sha256": "a5dd834bc53ba2e7dab1a0e00a4c931d380c854ba6e67626f0f0ca5d5205c5f8"
+   },
+   "strict32": {
+    "identical": true,
+    "tics_compared": 417,
+    "end64": 416,
+    "end32": 416,
+    "differing_rows": 0,
+    "differing_not_release": 0,
+    "differing_in_behaviour": 0,
+    "kinds": {}
+   }
+  },
+  "E1M9_M9FIGHT": {
+   "map": "E1M9",
+   "script": "M9FIGHT.lmp",
+   "genuine_sound_equal_m5c_real": true,
+   "genuine_sound_screens_identical": true,
+   "genuine_end": "marker",
+   "genuine": {
+    "draws": 191,
+    "inaudible": 86,
+    "no_channel": 2,
+    "started": 192,
+    "starts": 280,
+    "tics": 1043
+   },
+   "rust_end": {
+    "10": "None",
+    "11": "None"
+   },
+   "rust_tics": 1043,
+   "t12": {
+    "detector_firings": 0,
+    "detector_first_tic": "-",
+    "detector_textures": 287,
+    "release_starts": 0,
+    "release_next_busy": 0,
+    "release_reads": 0,
+    "release_reads_next_busy": 0
+   },
+   "rust_sound_screens_identical": true,
+   "sound": {
+    "rows": {
+     "C": 340,
+     "K": 192,
+     "L": 31,
+     "R": 1043,
+     "S": 280,
+     "T": 123
+    },
+    "differ": 0,
+    "listener_unchecked": 40,
+    "tics": 1043
+   },
+   "frames": {
+    "10": {
+     "compared_masked": 4,
+     "compared_whole": 1039,
+     "face_equal": 1043,
+     "face_zeroed_compared": 1039,
+     "face_zeroed_equal": 1039,
+     "frames": 1043
+    },
+    "11": {
+     "compared_masked": 4,
+     "compared_whole": 1039,
+     "face_equal": 1043,
+     "face_zeroed_compared": 1039,
+     "face_zeroed_equal": 1039,
+     "frames": 1043
+    }
+   },
+   "mixer": {
+    "equal": true,
+    "differing_lines": 0,
+    "buffers": 664,
+    "starts": 192,
+    "stream_sha256": "651b151a5c942b6a4881673f5914c4ac3bd6c6c7a57e8407ccd97ede70ea4483"
+   },
+   "strict32": {
+    "identical": true,
+    "tics_compared": 1043,
+    "end64": 1042,
+    "end32": 1042,
+    "differing_rows": 0,
+    "differing_not_release": 0,
+    "differing_in_behaviour": 0,
+    "kinds": {}
+   }
+  },
+  "E1M9_M9FIGHT3": {
+   "map": "E1M9",
+   "script": "M9FIGHT3.lmp",
+   "genuine_sound_equal_m5c_real": true,
+   "genuine_sound_screens_identical": true,
+   "genuine_end": "marker",
+   "genuine": {
+    "draws": 307,
+    "inaudible": 127,
+    "no_channel": 11,
+    "started": 298,
+    "starts": 436,
+    "tics": 1095
+   },
+   "rust_end": {
+    "10": "None",
+    "11": "None"
+   },
+   "rust_tics": 1095,
+   "t12": {
+    "detector_firings": 0,
+    "detector_first_tic": "-",
+    "detector_textures": 287,
+    "release_starts": 0,
+    "release_next_busy": 0,
+    "release_reads": 0,
+    "release_reads_next_busy": 0
+   },
+   "rust_sound_screens_identical": true,
+   "sound": {
+    "rows": {
+     "C": 361,
+     "K": 298,
+     "L": 29,
+     "R": 1095,
+     "S": 436,
+     "T": 108
+    },
+    "differ": 0,
+    "listener_unchecked": 22,
+    "tics": 1095
+   },
+   "frames": {
+    "10": {
+     "compared_masked": 5,
+     "compared_whole": 1090,
+     "face_equal": 1095,
+     "face_zeroed_compared": 1090,
+     "face_zeroed_equal": 1090,
+     "frames": 1095
+    },
+    "11": {
+     "compared_masked": 5,
+     "compared_whole": 1090,
+     "face_equal": 1095,
+     "face_zeroed_compared": 1090,
+     "face_zeroed_equal": 1090,
+     "frames": 1095
+    }
+   },
+   "mixer": {
+    "equal": true,
+    "differing_lines": 0,
+    "buffers": 698,
+    "starts": 298,
+    "stream_sha256": "52f2ff56fddee22dff8ee48cc46a448ebdffbceea00b1a198dc916efb259aafa"
+   },
+   "strict32": {
+    "identical": true,
+    "tics_compared": 1095,
+    "end64": 1094,
+    "end32": 1094,
+    "differing_rows": 0,
+    "differing_not_release": 0,
+    "differing_in_behaviour": 0,
+    "kinds": {}
+   }
+  },
+  "E1M9_M9IDLE": {
+   "map": "E1M9",
+   "script": "M9IDLE.lmp",
+   "genuine_sound_equal_m5c_real": true,
+   "genuine_sound_screens_identical": true,
+   "genuine_end": "marker",
+   "genuine": {
+    "starts": 0,
+    "tics": 2100
+   },
+   "rust_end": {
+    "10": "None",
+    "11": "None"
+   },
+   "rust_tics": 2100,
+   "t12": {
+    "detector_firings": 0,
+    "detector_first_tic": "-",
+    "detector_textures": 287,
+    "release_starts": 0,
+    "release_next_busy": 0,
+    "release_reads": 0,
+    "release_reads_next_busy": 0
+   },
+   "rust_sound_screens_identical": true,
+   "sound": {
+    "rows": {
+     "R": 2100
+    },
+    "differ": 0,
+    "listener_unchecked": 0,
+    "tics": 2100
+   },
+   "frames": {
+    "10": {
+     "compared_whole": 2100,
+     "face_equal": 2100,
+     "face_zeroed_compared": 2100,
+     "face_zeroed_equal": 2100,
+     "frames": 2100
+    },
+    "11": {
+     "compared_whole": 2100,
+     "face_equal": 2100,
+     "face_zeroed_compared": 2100,
+     "face_zeroed_equal": 2100,
+     "frames": 2100
+    }
+   },
+   "mixer": {
+    "equal": true,
+    "differing_lines": 0,
+    "buffers": 1292,
+    "starts": 0,
+    "stream_sha256": "c80903e4e33e69db208514cb515a397935dc7444bdf8ee2991d346fc11c5ab67"
+   },
+   "strict32": {
+    "identical": true,
+    "tics_compared": 2100,
+    "end64": 2099,
+    "end32": 2099,
+    "differing_rows": 0,
+    "differing_not_release": 0,
+    "differing_in_behaviour": 0,
+    "kinds": {}
+   }
+  },
+  "E1M9_M9IDLE3": {
+   "map": "E1M9",
+   "script": "M9IDLE3.lmp",
+   "genuine_sound_equal_m5c_real": true,
+   "genuine_sound_screens_identical": true,
+   "genuine_end": "marker",
+   "genuine": {
+    "starts": 0,
+    "tics": 2100
+   },
+   "rust_end": {
+    "10": "None",
+    "11": "None"
+   },
+   "rust_tics": 2100,
+   "t12": {
+    "detector_firings": 0,
+    "detector_first_tic": "-",
+    "detector_textures": 287,
+    "release_starts": 0,
+    "release_next_busy": 0,
+    "release_reads": 0,
+    "release_reads_next_busy": 0
+   },
+   "rust_sound_screens_identical": true,
+   "sound": {
+    "rows": {
+     "R": 2100
+    },
+    "differ": 0,
+    "listener_unchecked": 0,
+    "tics": 2100
+   },
+   "frames": {
+    "10": {
+     "compared_whole": 2100,
+     "face_equal": 2100,
+     "face_zeroed_compared": 2100,
+     "face_zeroed_equal": 2100,
+     "frames": 2100
+    },
+    "11": {
+     "compared_whole": 2100,
+     "face_equal": 2100,
+     "face_zeroed_compared": 2100,
+     "face_zeroed_equal": 2100,
+     "frames": 2100
+    }
+   },
+   "mixer": {
+    "equal": true,
+    "differing_lines": 0,
+    "buffers": 1292,
+    "starts": 0,
+    "stream_sha256": "c80903e4e33e69db208514cb515a397935dc7444bdf8ee2991d346fc11c5ab67"
+   },
+   "strict32": {
+    "identical": true,
+    "tics_compared": 2100,
+    "end64": 2099,
+    "end32": 2099,
+    "differing_rows": 0,
+    "differing_not_release": 0,
+    "differing_in_behaviour": 0,
+    "kinds": {}
+   }
+  },
+  "E1M9_M9WALK": {
+   "map": "E1M9",
+   "script": "M9WALK.lmp",
+   "genuine_sound_equal_m5c_real": true,
+   "genuine_sound_screens_identical": true,
+   "genuine_end": "exit",
+   "genuine": {
+    "draws": 672,
+    "inaudible": 349,
+    "no_channel": 1,
+    "started": 689,
+    "starts": 1039,
+    "tics": 5963
+   },
+   "rust_end": {
+    "10": "None",
+    "11": "None"
+   },
+   "rust_tics": 5963,
+   "t12": {
+    "detector_firings": 0,
+    "detector_first_tic": "-",
+    "detector_textures": 287,
+    "release_starts": 0,
+    "release_next_busy": 0,
+    "release_reads": 0,
+    "release_reads_next_busy": 0
+   },
+   "rust_sound_screens_identical": true,
+   "sound": {
+    "rows": {
+     "C": 312,
+     "K": 689,
+     "L": 34,
+     "R": 5963,
+     "S": 1039,
+     "T": 558
+    },
+    "differ": 0,
+    "listener_unchecked": 133,
+    "tics": 5963
+   },
+   "frames": {
+    "10": {
+     "compared_masked": 15,
+     "compared_whole": 5948,
+     "face_equal": 5963,
+     "face_zeroed_compared": 5948,
+     "face_zeroed_equal": 5948,
+     "frames": 5963
+    },
+    "11": {
+     "compared_masked": 15,
+     "compared_whole": 5948,
+     "face_equal": 5963,
+     "face_zeroed_compared": 5948,
+     "face_zeroed_equal": 5948,
+     "frames": 5963
+    }
+   },
+   "mixer": {
+    "equal": true,
+    "differing_lines": 0,
+    "buffers": 3691,
+    "starts": 689,
+    "stream_sha256": "b570523bf62f8858d365d4f0dc2c90cbd5ac4c657af5d878e7e90e5c3f368361"
+   },
+   "strict32": {
+    "identical": true,
+    "tics_compared": 5963,
+    "end64": 5962,
+    "end32": 5962,
+    "differing_rows": 0,
+    "differing_not_release": 0,
+    "differing_in_behaviour": 0,
+    "kinds": {}
+   }
+  },
+  "E1M9_M9WALK3": {
+   "map": "E1M9",
+   "script": "M9WALK3.lmp",
+   "genuine_sound_equal_m5c_real": true,
+   "genuine_sound_screens_identical": true,
+   "genuine_end": "exit",
+   "genuine": {
+    "draws": 1689,
+    "inaudible": 732,
+    "no_channel": 2,
+    "started": 1723,
+    "starts": 2457,
+    "tics": 6828
+   },
+   "rust_end": {
+    "10": "None",
+    "11": "None"
+   },
+   "rust_tics": 6828,
+   "t12": {
+    "detector_firings": 0,
+    "detector_first_tic": "-",
+    "detector_textures": 287,
+    "release_starts": 0,
+    "release_next_busy": 0,
+    "release_reads": 0,
+    "release_reads_next_busy": 0
+   },
+   "rust_sound_screens_identical": true,
+   "sound": {
+    "rows": {
+     "C": 376,
+     "K": 1723,
+     "L": 37,
+     "R": 6828,
+     "S": 2457,
+     "T": 850
+    },
+    "differ": 0,
+    "listener_unchecked": 388,
+    "tics": 6828
+   },
+   "frames": {
+    "10": {
+     "compared_masked": 30,
+     "compared_whole": 6798,
+     "face_equal": 6828,
+     "face_zeroed_compared": 6798,
+     "face_zeroed_equal": 6798,
+     "frames": 6828
+    },
+    "11": {
+     "compared_masked": 33,
+     "compared_whole": 6795,
+     "face_equal": 6828,
+     "face_zeroed_compared": 6795,
+     "face_zeroed_equal": 6795,
+     "frames": 6828
+    }
+   },
+   "mixer": {
+    "equal": true,
+    "differing_lines": 0,
+    "buffers": 4226,
+    "starts": 1723,
+    "stream_sha256": "ee733443aeaa639535d7d5cfa991faebec7df386c5457340dd4388ddc420e2b1"
+   },
+   "strict32": {
+    "identical": true,
+    "tics_compared": 6828,
+    "end64": 6827,
+    "end32": 6827,
+    "differing_rows": 0,
+    "differing_not_release": 0,
+    "differing_in_behaviour": 0,
+    "kinds": {}
+   }
+  }
+ }
+}
