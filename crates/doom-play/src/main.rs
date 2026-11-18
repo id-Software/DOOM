@@ -8,6 +8,8 @@
 
 mod audio;
 mod keys;
+#[cfg(test)]
+mod session_tests;
 mod tic_stats;
 mod window;
 
