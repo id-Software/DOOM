@@ -41,7 +41,10 @@ jobs:
   plan:
     # The ONE place that sets the number of shards (M5b: sized so that no shard runs past
     # about 40 minutes; raise it as the diff grows). It feeds the matrix, the --shard
-    # argument and the summary.
+    # argument and the summary. M5c: 24, with mutants dealt out round-robin (--sharding
+    # round-robin below) instead of in consecutive slices: the slow doom-sim mutants come
+    # first in the list, and in slices five of sixteen shards ran 48 to over 120 minutes
+    # (two were cut off by the job limit) while the other eleven finished in 4 to 23.
     name: Mutants plan
     if: ${{ github.event_name == 'workflow_dispatch' || github.event.label.name == 'run-mutants' }}
     runs-on: ubuntu-latest
@@ -55,7 +58,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          count=16
+          count=24
           echo "count=$count" >> "$GITHUB_OUTPUT"
           echo "shards=$(python3 -c 'import json,sys; print(json.dumps(list(range(int(sys.argv[1])))))' "$count")" >> "$GITHUB_OUTPUT"
   mutants:
@@ -131,7 +134,7 @@ jobs:
             --cargo-test-arg=--test-threads=2 \
             --timeout 300 --build-timeout 900 \
             --in-diff "$RUNNER_TEMP/mutants.patch" \
-            --shard "$SHARD/$SHARDS" \
+            --shard "$SHARD/$SHARDS" --sharding round-robin \
             --output "$RUNNER_TEMP/mutants-out"
           rc=$?
           set -e
