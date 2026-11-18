@@ -542,22 +542,32 @@ monster/player behavior. Further stages require separate owner direction.
     picture or played with a real key or mouse; a human has to judge feel, latency and looks. See the
     [investigation note](M5B_REFERENCE_INVESTIGATION.md#4-owner-decisions-s1s23-with-recommendations).
   - **M5c (sound effects matched to linuxdoom-1.10, and the closing of the status bar face's idle glance
-    gap, S15).** Phase 1, the investigation, is done (2026-11-18); owner decisions T1–T16 are open. Sound
-    starts and the level-start wipe draw `M_Random`, so modelling both makes the idle face's left, ahead or
-    right glance match a vanilla session with sound; until then, frames are identical to the genuine engine
-    only under the declared sound-free, wipe-free contract. Until the owner rules, only the genuine-engine
-    tools and evidence of Phase 2 steps 1 and 2 are being built; no simulation, dependency or app change has
-    been made. Phase 2 steps 1 and 2 (the genuine-engine tools and evidence) are done and recorded (2026-11-18)
-    in the [evidence record](validation/M5C.md). See the [investigation note](M5C_REFERENCE_INVESTIGATION.md) and its
+    gap, S15).** In progress on the branch `feat/m5c-sound` (draft [PR #63](https://github.com/Copgunn/DOOM/pull/63);
+    status on 2026-11-18). Sound starts and the level-start wipe draw `M_Random`, so modelling both makes the idle
+    face's left, ahead or right glance match a vanilla session with sound; until then, frames are identical to the
+    genuine engine only under the declared sound-free, wipe-free contract, and **S15 is not closed**. The owner
+    confirmed decisions T1-T16 on 2026-11-18 (the reference is "linuxdoom-1.10 built with its in-process sound code
+    (one define removed)"). **Done and recorded** in the [evidence record](validation/M5C.md): the genuine sound-logic
+    and mixer harnesses with their goldens (steps 1 and 2); the proof that the audio library compiles and links in
+    CI on all three systems, with the diagnostic `doom-play --audio-probe` (it found no backend on the development
+    machine; no device has been opened anywhere); wire 25, with canonical sound records, the corrected scream and the
+    THING-loading truncation, compared with the genuine engine on the 64 synthetic items and the 61 real runs (step 3);
+    the crate `doom-sound` with the sound tables, mixer, sound logic, schedule, session, layout detector and saved
+    state, reproducing every genuine row of the 64 items end to end (step 4); the CI job
+    `M5c genuine sound (not required)` and the mutation workflow's coverage of `doom-sound` (step 8, part 1); and four
+    fuzz targets (step 11, part 1). **In progress, not done:** the display contract with sound (the `M_Random` index
+    and the wipe's draws), the game loop, the device and the launch flags, the real-map runs of the full sound logic
+    and of the frames, mutation testing of `doom-sound`, timings, the reviews and the final gates. Nobody has heard any
+    sound from this project. Support is in [COMPATIBILITY](COMPATIBILITY.md#sound-effects-m5c). See the
+    [investigation note](M5C_REFERENCE_INVESTIGATION.md) and its
     [owner decisions](M5C_REFERENCE_INVESTIGATION.md#5-owner-decisions-t1t16-with-recommendations).
-- **Simulation follow-up (proposed, pending the owner): model the THING-loading truncation under a new
-  wire.** `P_LoadThings` ends the whole THINGS loop at the first Doom II type (doomednums 64-69, 71, 84,
-  88, 89) when `gamemode != commercial` (p_setup.c:317-337); wires 12-24 spawn such a type-65 THING and
-  everything after it. A new wire would stop loading at the first such THING in registered and shareware
-  mode, with a synthetic map and genuine-engine evidence. Today's gap is recorded in
+- **Simulation follow-up (decided: the THING-loading truncation is closed under wire 25 only).** `P_LoadThings` ends the
+  whole THINGS loop at the first Doom II type (doomednums 64-69, 71, 84, 88, 89) when `gamemode != commercial`
+  (p_setup.c:317-337). Wire 25 (decision T4, confirmed 2026-11-18) stops loading there, with a synthetic map and
+  genuine-engine evidence; wires 12-24 still spawn a type-65 THING and everything after it, and stay as they are. The
+  gap is recorded in
   [COMPATIBILITY](COMPATIBILITY.md#known-gap-thing-loading-stops-at-the-first-doom-ii-type-outside-commercial-mode);
-  no Episode 1 map is affected. Decision T4 of the [M5c note](M5C_REFERENCE_INVESTIGATION.md#5-owner-decisions-t1t16-with-recommendations) proposes carrying this fix in wire 25
-  if the owner approves that wire.
+  no Episode 1 map is affected. Wire 25 is part of the M5c pull request.
 - Multiplayer and later experiments, after their source/game-context dependencies
   can be independently validated.
 
