@@ -451,6 +451,56 @@ fn thing_loading_truncation_under_wire_25() {
     ));
 }
 
+/// M5c review, MINOR 2: the admission bounds of wire 25 (`Episode1Bounds`, the
+/// landings and the transient allowance `slots - (1+K+R+P+B+D+L)`, M4b step 4)
+/// and the item total's cross-check count only the records `P_LoadThings` loads,
+/// the prefix before the first of the ten Doom II types (p_setup.c:317-337), as
+/// `totalkills` and `totalitems` count only spawned things (p_mobj.c:790, 792).
+/// The map: the room, a health bonus (2014, `MF_COUNTITEM`) after the start, then
+/// a type-65 record and a tail of 1,100 zombiemen, 8 health bonuses and 4
+/// landings that the original never loads. Wire 25 loads and plays it with the
+/// tail uncounted; wire 24, which loads every record, refuses it at load for want
+/// of actor slots (`StoreError::Capacity`).
+#[test]
+fn an_unloaded_thing_tail_is_not_counted_under_wire_25() {
+    let c = &cases()[0];
+    let near = |kind| record(c.position[0] + 64, c.position[1], 0, kind, 7);
+    let mut l = base();
+    let t = lump(&mut l, "THINGS");
+    t.splice(10..10, near(2014));
+    t.extend(near(65));
+    for _ in 0..1100 {
+        t.extend(near(3004));
+    }
+    for _ in 0..8 {
+        t.extend(near(2014));
+    }
+    for _ in 0..4 {
+        t.extend(near(14));
+    }
+    assert!(matches!(
+        load(&l, V2),
+        Err(SimError::Store(StoreError::Capacity))
+    ));
+    let mut s = setup(&l, V3);
+    let reference = setup(&base(), V3);
+    let total = |s: &Simulation| s.level_statistics().unwrap().total_items;
+    assert_eq!(total(&s), total(&reference) + 1);
+    assert_eq!(
+        s.level_statistics().unwrap().total_kills,
+        reference.level_statistics().unwrap().total_kills
+    );
+    assert_eq!(s.actor_order().count(), reference.actor_order().count() + 1);
+    for _ in 0..4 {
+        s.advance([TicCommand::default(); 4]).unwrap();
+        Diagnostic::decode_episode1_v3(
+            &s.snapshot().canonical_bytes(),
+            DiagnosticLimits::default(),
+        )
+        .unwrap();
+    }
+}
+
 /// A field edit for re-encoded captures: `None` drops the field.
 type Edit = dyn Fn(&str, &[u8]) -> Option<Vec<u8>>;
 
