@@ -65,6 +65,7 @@ dependencies = [
  "doom-map",
  "doom-render",
  "doom-sim",
+ "doom-sound",
  "doom-test-evidence",
  "doom-wad",
 ]

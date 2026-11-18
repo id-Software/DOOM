@@ -13,6 +13,7 @@ doom-sim = { path = "../doom-sim" }
 doom-render = { path = "../doom-render" }
 doom-wad = { path = "../doom-wad" }
 doom-map = { path = "../doom-map" }
+doom-sound = { path = "../doom-sound" }
 
 [dev-dependencies]
 doom-test-evidence = { path = "../doom-test-evidence" }
