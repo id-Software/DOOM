@@ -8,7 +8,9 @@ differences:
 
 - the version word is 41, `profile` is 25 and `context.schema` is
   `PLAYER-MONSTERS-EPISODE1-3-v1` (DELTA_FIELDS);
-- the group `events.sounds` after `events.pending`: `events.sounds.last.count` (u64) and
+- the group `events.sounds` after the last `events.pending` field (`events.pending.count`, as
+  DSIM40 writes no pending event; the Rust writer's place, after the last `events.pending.<i>`,
+  is the same field then): `events.sounds.last.count` (u64) and
   `events.sounds.last.<i>`, the records the tic made in call order, then
   `events.sounds.pending.count` (u64), always 0 in a demo run (records of explicit
   operations between tics; no genuine run makes one).
@@ -198,8 +200,13 @@ class Projector(M.Projector):
 
     def step(self, dump, following=None):
         fields, report = super().step(dump, following)
-        k = [p for p, _ in fields].index('events.pending.count')
-        return fields[:k + 1] + self.sound_fields(dump) + fields[k + 1:], report
+        k = _after_pending(fields)
+        return fields[:k] + self.sound_fields(dump) + fields[k:], report
+
+
+def _after_pending(fields):
+    """The index just after the last `events.pending` field (count and records) of a field list."""
+    return 1 + max(i for i, (p, _) in enumerate(fields) if p.startswith('events.pending.'))
 
 
 def snapshots(directory):
@@ -217,7 +224,7 @@ def project(directory, mapdata, skill, map_number, sounds):
 def compare40(directory, mapdata, skill, map_number, sounds):
     """Project every snapshot with DSIM41 and with the frozen DSIM40 projection; raise
     AssertionError unless they differ exactly in DELTA_FIELDS and the `events.sounds` group
-    (which sits right after `events.pending.count`). Returns the snapshot count."""
+    (which sits right after the last `events.pending` field). Returns the snapshot count."""
     count = 0
     for (tic, f41), (tic40, f40) in zip(project(directory, mapdata, skill, map_number, sounds),
                                         M.project(directory, mapdata, skill, map_number)):
@@ -228,9 +235,9 @@ def compare40(directory, mapdata, skill, map_number, sounds):
         v41, v40 = dict(f41), dict(f40)
         assert (v40['profile'], v41['profile']) == (n('I', 24), n('I', 25))
         assert (v40['context.schema'], v41['context.schema']) == (M.CONTEXT, CONTEXT)
-        paths = [p for p, _ in f41]; k = paths.index('events.pending.count')
+        paths = [p for p, _ in f41]; k = _after_pending([(p, v) for p, v in f41 if not p.startswith(SOUNDS)])
         group = [p for p in paths if p.startswith(SOUNDS)]
-        assert paths[k + 1:k + 1 + len(group)] == group and not any(p.startswith(SOUNDS) for p, _ in f40)
+        assert paths[k:k + len(group)] == group and not any(p.startswith(SOUNDS) for p, _ in f40)
         count += 1
     return count
 

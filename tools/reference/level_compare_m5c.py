@@ -29,8 +29,16 @@ stop, no sound disagreement and no genuine S or T row after the last dump. `--va
 the two differing values (local use only: real-IWAD values are map-derived). `--json OUT`
 writes the counts-only result (schema DOOM-M5C-COMPARE-v1).
 
+Both captures must also have the same frame layout, every tic (M5c review NOTE 7): in each, the
+records `events.last.<i>` and `events.pending.<i>` follow their count at once, `count` of them in
+order; and with those records set aside, the two captures hold the same field paths in the same
+order. The encoder writes both event lists with count 0, as DSIM40 does; the Rust capture lists
+the tic's events, and its load capture (tic 0) the pending events of the setup. So the position of
+the `events.sounds` group in the whole frame is compared: after the last `events.pending` field.
+
 The library entry `compare(..., mutate=f)` lets a self-test plant a fault: `f(tic, records)`
-returns the Rust record list (bytes) of that tic to compare in place of the decoded one.
+returns the Rust record list (bytes) of that tic to compare in place of the decoded one;
+`mutate_frame=g` does the same for the whole Rust field list, `g(tic, fields)`.
 """
 import argparse, hashlib, json, os, struct, sys
 from pathlib import Path
@@ -79,6 +87,26 @@ def stream_end(trailer):
     return ('last' if trailer == 'end' else (trailer or 'truncated')), None
 
 
+def _event_record(p):
+    for prefix in ('events.last.', 'events.pending.'):
+        if p.startswith(prefix) and p[len(prefix):].isdigit(): return True
+    return False
+
+
+def layout(fields):
+    """The field paths of a capture in order, without the `events.last.<i>` and `events.pending.<i>`
+    records; raises ValueError unless each list's records follow its count at once, in order."""
+    paths = [p for p, _ in fields]
+    for prefix in ('events.last', 'events.pending'):
+        if f'{prefix}.count' not in paths: raise ValueError(f'no {prefix}.count')
+        k = paths.index(f'{prefix}.count')
+        count = struct.unpack('<Q', fields[k][1])[0]
+        if paths[k + 1:k + 1 + count] != [f'{prefix}.{i}' for i in range(count)] or \
+                sum(p.startswith(prefix + '.') for p in paths) != count + 1:
+            raise ValueError(f'the {prefix} records do not follow their count')
+    return [p for p in paths if not _event_record(p)]
+
+
 def records_of(fields):
     """The `events.sounds.last` record bytes of a field list, validated: count, indices, then
     `events.sounds.pending.count`, all present and in order."""
@@ -117,7 +145,7 @@ def record_diff(tic, c, r, values):
     return out
 
 
-def compare(dump_dir, rust, mapdata, skill, map_number, sounds, values=False, mutate=None, keep=50):
+def compare(dump_dir, rust, mapdata, skill, map_number, sounds, values=False, mutate=None, keep=50, mutate_frame=None):
     """`rust` is a directory or a StreamCaptures. Returns (result dict, text lines)."""
     result = dict(schema=SCHEMA, tics_compared=0, match=False, first_divergence=None, projection_stop=None,
                   map_group_equal=None, skill=skill, map=map_number)
@@ -142,6 +170,7 @@ def compare(dump_dir, rust, mapdata, skill, map_number, sounds, values=False, mu
             rtic, data = got
             if rtic != tic: text.append(f'tic {tic}: the Rust capture is numbered {rtic}'); break
             vr, fr = L.decode(data)
+            if mutate_frame: fr = mutate_frame(tic, list(fr))
             bc, kc = stripped(S.VERSION, fields); br, kr = stripped(vr, fr)
             if result['map_group_equal'] is None:
                 mc = [x for x in fields if x[0].startswith('map.')]; mr = [x for x in fr if x[0].startswith('map.')]
@@ -153,6 +182,15 @@ def compare(dump_dir, rust, mapdata, skill, map_number, sounds, values=False, mu
             result['tics_compared'] += 1
             if vr != S.VERSION:
                 result['first_divergence'] = dict(tic=tic, field='version'); text.append(f'tic {tic}: version {S.VERSION} versus {vr}'); break
+            lc = layout(fields)
+            try: lr = layout(fr)
+            except ValueError as e:
+                result['first_divergence'] = dict(tic=tic, field=f'frame layout ({e})'); text.append(f'tic {tic}: Rust frame layout: {e}'); break
+            if lc != lr:
+                at = next((i for i, (x, y) in enumerate(zip(lc, lr)) if x != y), min(len(lc), len(lr)))
+                where = f'{lc[at] if at < len(lc) else "-"} (C) / {lr[at] if at < len(lr) else "-"} (Rust)'
+                result['first_divergence'] = dict(tic=tic, field=f'frame layout at field {at}: {where}')
+                text.append(f'tic {tic}: frame layout differs at field {at}: {where}'); break
             # the sound records (before the whole-engine verdict of this tic, so a tic whose state
             # also diverges still has its records compared)
             c_rec = records_of(fields)
