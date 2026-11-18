@@ -2,7 +2,14 @@
 //! public API. Each test names what it pins. Expectations come from C facts already cited next
 //! to the code (d_main.c:141-177, doomdef.h:250-277, d_event.h:108, g_game.c:1506-1523) or, for
 //! the app's own screens and font (no C reference exists for them), from small pictures written
-//! out by hand in the test: no expectation is taken from a copy of the code's own tables.
+//! out by hand in the test.
+//!
+//! What is and is not independent of the code: the C facts and the hand-drawn screen pictures
+//! are. The glyph shapes in `glyph_rows_of_a_few_known_shapes` are the font table's own entries
+//! copied (the app's font has no other source), so they pin the decoding of the art into bits
+//! and catch a changed entry, not the choice of shapes; the decoding itself is also pinned by a
+//! binary literal for 'A'. `error_messages_read_as_written` copies the messages' own strings, so
+//! it is a change detector.
 
 use doom_game::app::{
     APP_PALETTE, CLEAR, FrameRefusal, RecordError, Recorder, Screen, Witness, glyph,

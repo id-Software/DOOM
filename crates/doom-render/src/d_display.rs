@@ -602,6 +602,17 @@ impl DisplayState {
     /// old values (which follow the last frame drawn, not the inputs), `oldweaponsowned`,
     /// `st_firsttime` and `bg_drawn` against the embedded screen, the `M_Random` index and the
     /// face's pain band against the current health (a face stays up after the health changes).
+    /// Also accepted, although no run produces them (the checks are of ranges and of relations
+    /// that hold in every tic, not a replay of the tic that set the face):
+    ///
+    /// - at tic 0, everything that is not pinned above: the key boxes and the ready ammunition
+    ///   (not derived until the first tic), and the fresh values of the face (`faceindex`,
+    ///   `facecount` and `priority` 0), of `lastattackdown` (-1) and of the message (off with
+    ///   counter 0) are not required, so a tic-0 state with key boxes 0, 1 and 2 and priority 7
+    ///   at count 34, or a message showing with counter 100, passes;
+    /// - after tic 0: priority 4 without god mode or invulnerability in the inputs; priority 5
+    ///   with `lastattackdown` other than 1; priority 6 or 7 at count 34, or 8 at count 69,
+    ///   while the damage or bonus count that sets it that tic is 0.
     pub fn check(&self, sim: &Simulation) -> Result<StatusInputs, DisplayRestoreError> {
         if self.render.tic != sim.tic() {
             return Err(DisplayRestoreError::Tic {

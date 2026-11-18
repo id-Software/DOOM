@@ -25,7 +25,9 @@ pub use gamma::GAMMA;
 pub use recorder::{
     DemoCommands, RecordError, Recorder, TIC_CAP, Timestamp, session_name, wire24_admits,
 };
-pub use screens::{APP_PALETTE, CLEAR, Screen, glyph, labelled_pause_overlay, pause_overlay};
+pub use screens::{
+    APP_PALETTE, CLEAR, Screen, glyph, label_band, labelled_pause_overlay, pause_overlay,
+};
 
 use crate::input::{Event, EventLayer, Input, InputError, MouseButton, Preset, RecordedTic, keys};
 use doom_render::hu_stuff::Message;
@@ -50,6 +52,11 @@ pub const SAVE_INTERVAL: usize = 35 * 30;
 /// The label of a session with [`SessionConfig::unrecorded_full_turning`], wherever its state is
 /// shown (decision S3 (ii), owner ruling 2026-11-17).
 pub const UNRECORDED_LABEL: &str = "not recorded: no demo, cannot be replayed";
+/// While playing, the pictures of an unrecorded session's first this many tics (five seconds)
+/// carry [`UNRECORDED_LABEL`] in a band over the top ([`label_band`]): the picture before the
+/// first tic and those of tics 0 to 174. Only the presented picture carries it, never the game
+/// frame; a recorded session never shows it.
+pub const UNRECORDED_LABEL_TICS: u64 = 5 * TICRATE;
 /// The pause overlay's label while the last write of the demo failed (the reason is on the end
 /// screen and on doom-play's standard error).
 pub const SAVE_FAILED_LABEL: &str = "LAST DEMO SAVE FAILED";
@@ -854,8 +861,11 @@ impl App {
     /// The picture to present, as 320×200 RGBA in `out` ([`PICTURE_BYTES`] bytes; a shorter
     /// buffer receives the leading whole pixels and a longer one keeps its tail): the game
     /// frame through its PLAYPAL palette and gamma table `gamma` (0–4, decision S13; larger
-    /// values use 4), with the pause overlay composed on top while paused (naming a failed save
-    /// of the demo), or the end screen in the app's palette. The game frame is never changed.
+    /// values use 4), with the pause overlay composed on a half-bright picture while paused
+    /// (naming a failed save of the demo), or the end screen in the app's palette. While an
+    /// unrecorded session plays, the pictures of its first [`UNRECORDED_LABEL_TICS`] tics carry
+    /// [`label_band`] (the game picture at full brightness around it). The game frame is never
+    /// changed.
     pub fn picture(&self, gamma: usize, out: &mut [u8]) {
         let ramp = &GAMMA[gamma.min(GAMMA.len() - 1)];
         let app = |c: u8| APP_PALETTE[usize::from(c)];
@@ -867,11 +877,18 @@ impl App {
             return;
         }
         let palette = self.frame().and_then(|(_, n)| self.data.assets.palette(n));
-        let overlay = (self.mode == Mode::Paused).then(|| match (self.recorded(), &self.save) {
-            (false, _) => labelled_pause_overlay(UNRECORDED_LABEL),
-            (true, SaveStatus::Failed(_)) => labelled_pause_overlay(SAVE_FAILED_LABEL),
-            (true, _) => pause_overlay(),
-        });
+        let paused = self.mode == Mode::Paused;
+        let overlay = match (&self.mode, self.recorded(), &self.save) {
+            (Mode::Paused, false, _) => Some(labelled_pause_overlay(UNRECORDED_LABEL)),
+            (Mode::Paused, true, SaveStatus::Failed(_)) => {
+                Some(labelled_pause_overlay(SAVE_FAILED_LABEL))
+            }
+            (Mode::Paused, true, _) => Some(pause_overlay()),
+            (Mode::Playing, false, _) if self.sim.tic() <= UNRECORDED_LABEL_TICS => {
+                Some(label_band(UNRECORDED_LABEL))
+            }
+            _ => None,
+        };
         let pixels = out.chunks_exact_mut(4).take(SCREENWIDTH * SCREENHEIGHT);
         for (i, px) in pixels.enumerate() {
             let rgb = match (&overlay, palette) {
@@ -879,11 +896,7 @@ impl App {
                 (_, Some(pal)) => {
                     let at = usize::from(self.frame.pixels()[i]) * 3;
                     let c = [0, 1, 2].map(|k| ramp[usize::from(pal[at + k])]);
-                    if overlay.is_some() {
-                        c.map(|v| v / 2)
-                    } else {
-                        c
-                    }
+                    if paused { c.map(|v| v / 2) } else { c }
                 }
                 (_, None) => [0, 0, 0],
             };

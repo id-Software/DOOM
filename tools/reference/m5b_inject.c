@@ -22,8 +22,11 @@
  * header-only demo lump (G_InitNew with the header's skill and map, g_game.c:1582-1619), so the load
  * dump is the demo mode's; then, before each genuine G_Ticker, demoplayback is cleared (the value
  * G_InitNew leaves in a live game, g_game.c:1445; its other readers are p_tick.c:141 with the menu,
- * never active here, G_Responder at g_game.c:522, which gets no events here, and the precache test
- * of r_data.c:758, only at the load) and tic k's command is written to
+ * never active here, G_Responder at g_game.c:522, which gets no events here, the precache test of
+ * r_data.c:758, only at the load, M_NewGame at m_menu.c:875, never called, HSendPacket, HGetPacket,
+ * D_QuitNetGame and TryRunTics at d_net.c:156, 205, 609 and 686, none of which runs (the runner calls
+ * G_Ticker itself, and NetUpdate and I_Quit are the stubs), and G_CheckDemoStatus at g_game.c:1658,
+ * never called, since the injection ends through I_Quit) and tic k's command is written to
  * netcmds[consoleplayer][(gametic/ticdup)%BACKUPTICS] in place of G_BuildTiccmd's output.
  * consistancy and chatchar are 0, as G_BuildTiccmd leaves them in single player (g_game.c:252-253,
  * where nothing writes consistancy outside a netgame, g_game.c:681; g_game.c:328 with the empty

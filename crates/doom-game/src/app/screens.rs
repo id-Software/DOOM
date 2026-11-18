@@ -226,6 +226,17 @@ pub fn labelled_pause_overlay(label: &str) -> Screen {
     s
 }
 
+/// The band that names an unrecorded session over the top of the presented picture during its
+/// first [`super::UNRECORDED_LABEL_TICS`] tics (so the label is seen while playing even without
+/// a window title, as in fullscreen): `label` in a framed box over [`CLEAR`] pixels.
+pub fn label_band(label: &str) -> Screen {
+    let mut s = Screen::filled(CLEAR);
+    s.fill_rect(30, 2, 290, 16, GREY);
+    s.fill_rect(31, 3, 289, 15, BACKGROUND);
+    s.centred(5, label, YELLOW);
+    s
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

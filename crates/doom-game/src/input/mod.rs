@@ -151,8 +151,12 @@ pub enum Event {
     },
 }
 
-/// A refused input. The refusing call leaves the responder and command-building state
-/// unchanged; [`Input`] drops the refused event from its ring.
+/// A refused input. The refused event itself changes nothing in the responder and
+/// command-building state, and [`Input`] drops it from its ring; the events after it stay
+/// queued and no command is built ([`Input::tic`]). The events before it in the same call were
+/// already responded to and keep their effect: posting `KeyDown(b'w')` and then a withheld
+/// `KeyDown(keys::KEY_F[0])` (F1) and calling [`Input::tic`] sets `gamekeydown['w']` and returns
+/// [`InputError::WithheldKey`]. (In the app a refusal ends the session.)
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum InputError {
     /// A keydown of a [`keys::WITHHELD`] key: linuxdoom would act on it outside the command

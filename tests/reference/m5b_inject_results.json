@@ -6,7 +6,7 @@
   "overflow",
   "address"
  ],
- "inject_contract_sha256": "3240203c48ba119574ea83d519bd657e6057e298b3b0303abe2b251ffd49141b",
+ "inject_contract_sha256": "aa5c5ba1e94d5285a34a15300fc4856e5802167a8a2df3e066991553d40d96cf",
  "gfx_sha256": "50d0f0f881e2347a3527405b97a8f5abd949cff923a7078d03ec8c20a40ca032",
  "asan_options": "detect_leaks=0 (leak detection disabled)",
  "scripts": {

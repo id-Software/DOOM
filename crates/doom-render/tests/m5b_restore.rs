@@ -402,7 +402,9 @@ fn adjusted_inputs_no_player_state_holds_are_refused_before_any_change() {
         assert_eq!(r, Err(DisplayObserveError::AdjustedInputOutOfRange(name)));
         assert_eq!(encoded(&d), before, "{name}");
     }
-    // in range: observed and drawn, and the state still decodes and passes the checks
+    // in range: observed and drawn, and the state still encodes and decodes (only that is
+    // asserted; `DisplayState::check` would refuse it as `oldhealth`, since the adjusted health
+    // of 0 is not the simulation's 100)
     let r = d.observe_with(&next, &commands[20], |i, _| {
         (i.health, i.damagecount, i.bonuscount) = (0, 100, i32::MAX - 7);
     });

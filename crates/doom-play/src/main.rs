@@ -43,10 +43,12 @@ usage: doom-play --iwad PATH [options]
                        resolution (multiples of 256), but nothing is recorded: no demo is
                        written, so the session cannot be replayed or verified against the
                        genuine engine afterwards. The window title, the pause overlay
-                       and the end screens say \"not recorded: no demo, cannot be replayed\".
+                       and the end screens say \"not recorded: no demo, cannot be replayed\",
+                       and so does a band over the top of the picture for the first five
+                       seconds (175 tics) of every session, in a window or fullscreen.
   --help               this text
 
-Keys: Esc or Pause pauses (then Esc resumes, R restarts, Q quits); on an end screen
+Keys: Esc or Pause pauses (then Esc or Pause resumes, R restarts, Q quits); on an end screen
 R restarts and Q or Esc quits. When the window library reports that the window was
 minimised or lost focus, the game pauses and every held key is released. Every session
 (unless --unrecorded-full-turning) is recorded as a version-110 demo named
@@ -56,8 +58,8 @@ the pause box says so, the end screen and the exit message give the reason, and 
 is tried again on quit and restart.
 
 Limits: an OpenGL 2.1 (or OpenGL ES 2) driver is required. There is no sound, menu,
-automap, intermission or next level; the session ends at the level's exit or the player's
-death. Cheat codes have no effect: their keys reach the game as ordinary keys.";
+automap, intermission or next level; the session ends at the level's exit, or when the
+dead player presses use. Cheat codes have no effect: their keys reach the game as ordinary keys.";
 
 /// The parsed command line.
 #[derive(Debug)]
@@ -198,23 +200,11 @@ impl Host for FsHost {
         self.dir.join(name).exists()
     }
     /// Creates the file with `create_new`, so a name another session (or process) took is
-    /// never replaced.
+    /// never replaced; see [`claim_new`].
     fn claim(&mut self, name: &str, bytes: &[u8]) -> Result<bool, String> {
-        let path = self.dir.join(name);
-        let fail = |e: std::io::Error| format!("{}: {e}", path.display());
-        std::fs::create_dir_all(&self.dir).map_err(fail)?;
-        let file = std::fs::OpenOptions::new()
-            .write(true)
-            .create_new(true)
-            .open(&path);
-        match file {
-            Err(e) if e.kind() == std::io::ErrorKind::AlreadyExists => Ok(false),
-            Err(e) => Err(fail(e)),
-            Ok(mut f) => {
-                let written = f.write_all(bytes).and_then(|()| f.sync_all());
-                written.map(|()| true).map_err(fail)
-            }
-        }
+        claim_new(&self.dir, name, bytes, |f, b| {
+            f.write_all(b).and_then(|()| f.sync_all())
+        })
     }
     /// Writes a temporary file whose name holds the process id (two processes never share
     /// it), flushes it to the disk and renames it over the session's file; a failed write
@@ -229,6 +219,38 @@ impl Host for FsHost {
             let _ = std::fs::remove_file(&tmp);
         }
         written.map_err(|e| format!("{}: {e}", path.display()))
+    }
+}
+
+/// Creates `dir/name` exclusively (`create_new`) and writes `bytes` into it with `write`:
+/// `Ok(false)` when the name is taken (that file is left alone). When the first write fails
+/// after the create (a full disk, say), the file this call created is removed before the error
+/// is returned, so no empty or partial file that looks like a session demo is left behind and
+/// the retry can take the same name.
+fn claim_new(
+    dir: &Path,
+    name: &str,
+    bytes: &[u8],
+    write: impl FnOnce(&mut std::fs::File, &[u8]) -> std::io::Result<()>,
+) -> Result<bool, String> {
+    let path = dir.join(name);
+    let fail = |e: std::io::Error| format!("{}: {e}", path.display());
+    std::fs::create_dir_all(dir).map_err(fail)?;
+    let file = std::fs::OpenOptions::new()
+        .write(true)
+        .create_new(true)
+        .open(&path);
+    match file {
+        Err(e) if e.kind() == std::io::ErrorKind::AlreadyExists => Ok(false),
+        Err(e) => Err(fail(e)),
+        Ok(mut f) => match write(&mut f, bytes) {
+            Ok(()) => Ok(true),
+            Err(e) => {
+                drop(f);
+                let _ = std::fs::remove_file(&path);
+                Err(fail(e))
+            }
+        },
     }
 }
 
