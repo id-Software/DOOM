@@ -62,8 +62,9 @@
  *                       the sfx that occupied SLOT before the call (or -), and the other channels
  *                       the call freed (the single-instance rule, i_sound.c:285-306), or -
  *   m TIC SEQ EXPECTED GOT     the HANDLE column of the list differs from the genuine handle
- *   o TIC SEQ SFX       the started non-linked sfx has padded length 0: its first mixed frame
- *                       reads one byte past its 8-byte block (i_sound.c:230-247, 591, 606)
+ *   o TIC SEQ SFX       the started sfx has no sample byte at its start: a non-linked sfx with
+ *                       padded length 0 (or a linked one whose target has length 0), so its one
+ *                       mixed frame reads one byte past an 8-byte block (i_sound.c:230-247, 591, 606)
  *   sn TIC SEQ COUNT GAMETIC SFX VOL SEP PITCH PRIO > FIRST LAST HSHA SSHA MASK
  *                       an n row: first and last handle, SHA-256 of the handles and of the slots
  *                       (one decimal per line), and the occupancy mask after the last start
@@ -165,6 +166,7 @@ static sha_t whole;
 static unsigned char cap[BUFBYTES]; static size_t capn; static int capcalls;
 static long perturb_byte = -1, total_bytes;
 static int probe;
+static int cur_tic, cur_seq;                    /* the call in progress, for the x row of an I_Error */
 
 void fake_capture (const void *buf, size_t n)
 {
@@ -304,7 +306,7 @@ static int do_start (row_t *r, int *h_out, int echo)
 {
     int bh[8], bid[8], k, slot, h, before = mask (), lv, rv; unsigned char *bc[8]; char freed[32]; int fl = 0;
     for (k = 0; k < 8; k++) { bh[k] = channelhandles[k]; bc[k] = channels[k]; bid[k] = channelids[k]; }
-    gametic = r->gametic;
+    gametic = r->gametic; cur_tic = r->tic; cur_seq = r->seq;
     h = I_StartSound (r->sfx, r->vol, r->sep, r->pitch, r->prio);     /* s_sound.c:389-394 */
     slot = find_slot (bh, bc, h);
     if (slot < 0) { fprintf (stderr, "m5c_mixer: cannot find the channel of handle %d\n", h); exit (5); }
@@ -321,7 +323,8 @@ static int do_start (row_t *r, int *h_out, int echo)
     if (bc[slot]) fprintf (out, "%d", bid[slot]); else fputc ('-', out);
     fprintf (out, " %s\n", fl ? freed : "-");
     if (r->handle >= 0 && r->handle != h) fprintf (out, "m %d %d %d %d\n", r->tic, r->seq, r->handle, h);
-    if (!S_sfx[r->sfx].link && lengths[r->sfx] == 0) fprintf (out, "o %d %d %d\n", r->tic, r->seq, r->sfx);
+    if (lengths[r->sfx] == 0 && (!S_sfx[r->sfx].link || lengths[S_sfx[r->sfx].link - S_sfx] == 0))
+        fprintf (out, "o %d %d %d\n", r->tic, r->seq, r->sfx);
     return slot;
 }
 
@@ -405,7 +408,8 @@ int main (int argc, char **argv)
         if (nbuf >= max_buffers) { row_break (); fprintf (out, "x limit - %ld buffers mixed and a channel is still busy\n", nbuf); break; }
         while (ri < nrows && rows[ri].tic == t) {
             row_t *r = &rows[ri];
-            if (setjmp (stub_jmp)) { row_break (); fprintf (out, "x %d %d %s\n", r->tic, r->seq, stub_msg); goto end; }
+            cur_tic = r->tic; cur_seq = r->seq;
+            if (setjmp (stub_jmp)) { row_break (); fprintf (out, "x %d %d %s\n", cur_tic, cur_seq, stub_msg); goto end; }
             if (r->kind == 'g') {
                 int lump = I_GetSfxLumpNum (&S_sfx[r->sfx]);     /* i_sound.c:451-456 */
                 row_break ();

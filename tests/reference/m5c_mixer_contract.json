@@ -317,7 +317,7 @@
   ]
  },
  "runner_sha256": {
-  "tools/reference/m5c_mixer_driver.c": "763cdfbf7ab3a4e84394dcfb1b1557b29a031334cb8cb522a266b49a54a8a305",
+  "tools/reference/m5c_mixer_driver.c": "8712383a896c7ff4a9be330e1457c7e321262180f215568ea211ee78b2b15af3",
   "tools/reference/m5c_mixer_stubs.c": "b82c9d22fa4459ff3062285ed60547a8949dc3f6f468b54f0ea16321ff2153ea",
   "tools/reference/m5c_mixer_fakesnd.c": "a025edfc89da4e0a0502722d4764254d51e88b7a6cb5111ad8cb5189f4c81974",
   "tools/reference/m5c_fakesnd/linux/soundcard.h": "f5bd074296a8ebfc3caff0aa6181319604cc4cb81742bce036e8ea1fd76953f5"
