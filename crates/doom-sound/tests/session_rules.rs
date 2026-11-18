@@ -244,6 +244,26 @@ fn an_unplaced_start_of_another_actor_is_refused() {
         })
     ));
     assert_eq!(s, before);
+    // The listener's own body WITH a placement is refused too: the C never measures it
+    // (s_sound.c:304), and the simulation never records one.
+    let placed_listener = SoundRecord::Start {
+        sfx: DOROPN,
+        origin: SoundOrigin::Actor(player()),
+        at: Some(SoundPlacement {
+            origin: [64 << 16, 0],
+            listener: [0, 0],
+            listener_angle: 0,
+        }),
+    };
+    assert_eq!(
+        s.tic(&[placed_listener], 2, &listener(), &at),
+        Err(SessionRefusal::Sound {
+            tic: 0,
+            at: RefusedAt::Record(0),
+            refusal: SoundRefusal::Placement
+        })
+    );
+    assert_eq!(s, before);
     // The listener's own body without a placement is its non-positional start.
     let t = s
         .tic(&[unplaced(player())], 2, &listener(), &at)

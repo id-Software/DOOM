@@ -242,8 +242,9 @@ impl Sound {
     /// `M_Random` index `rndindex` (the miscellaneous stream, m_random.c:63-67), then
     /// `S_UpdateSounds` with `listener` and `positions` read after the tic, then the due buffer.
     /// A start of an actor other than `listener.actor` without a placement is refused
-    /// ([`SoundRefusal::Placement`]): the C measures it (s_sound.c:304). On a refusal nothing
-    /// changes.
+    /// ([`SoundRefusal::Placement`]): the C measures it (s_sound.c:304). So is a start of
+    /// `listener.actor` itself WITH a placement: the C never measures the listener's own body
+    /// (the same line), and the simulation never records one. On a refusal nothing changes.
     pub fn tic(
         &mut self,
         records: &[SoundRecord],
@@ -278,14 +279,15 @@ impl Sound {
             // logic checks it before the placement). The body after the tic is the body at the
             // call: `players[0].mo` is set only by P_SpawnPlayer (p_mobj.c:675), which a
             // single-player session reaches again only through a reborn's level reload
-            // (g_game.c:928-931), never inside a tic.
+            // (g_game.c:928-931), never inside a tic. The converse holds by the same line: the
+            // listener's own body is never measured, so its start carries no placement.
             if let SoundRecord::Start {
                 sfx,
                 origin: SoundOrigin::Actor(a),
-                at: None,
+                at,
             } = *record
             {
-                if a != listener.actor {
+                if (a == listener.actor) != at.is_none() {
                     let why = match SfxId::new(i64::from(sfx)) {
                         Some(_) => SoundRefusal::Placement,
                         None => SoundRefusal::SfxId { sfx },
