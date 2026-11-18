@@ -754,3 +754,194 @@ fn dsim41_reader_refuses_forged_frames() {
         assert_eq!(read(&f), expected, "slot {slot}");
     }
 }
+
+// ---------------------------------------------------------------------------------------------
+// Tests for the mutants the first M5c mutation run missed (step 10). Each names the C fact or
+// documented rule it rests on and the mutants it kills.
+// ---------------------------------------------------------------------------------------------
+
+/// `sound::same_calls` ("whether `records` are exactly the calls of `events`: sound, origin and
+/// order; placements are not compared"): the records of the events themselves match, a
+/// different sound, a missing record, an extra event or events that cannot be split (a
+/// transient placement with no start before it) do not, and a different placement does not
+/// matter.
+/// Kills sound.rs `same_calls` -> `true` and `||` -> `&&` in it.
+#[test]
+fn same_calls_compares_sound_origin_and_order_but_not_placements() {
+    let (me, other) = (ActorId::from_parts(1, 1), ActorId::from_parts(2, 1));
+    let at = sound::SoundPlacement {
+        origin: [1, 2],
+        listener: [3, 4],
+        listener_angle: 5,
+    };
+    let sound_event = |actor, sound| Event::ActorState(ActorStateEvent::Sound { actor, sound });
+    let placed = |sfx, origin, at| {
+        Event::SoundRecord(SoundRecord::Start {
+            sfx,
+            origin,
+            at: Some(at),
+        })
+    };
+    let events = vec![
+        sound_event(Some(other), 7),
+        placed(7, SoundOrigin::Actor(other), at),
+        Event::RemovalMarked(other),
+        sound_event(None, 8),
+    ];
+    let start = |sfx, origin, at| SoundRecord::Start { sfx, origin, at };
+    let records = vec![
+        start(7, SoundOrigin::Actor(other), Some(at)),
+        SoundRecord::Stop { actor: other },
+        start(8, SoundOrigin::None, None),
+    ];
+    assert!(sound::same_calls(&events, Some(me), &records));
+    // The placement is not compared.
+    let moved = sound::SoundPlacement {
+        origin: [9, 9],
+        ..at
+    };
+    let mut r = records.clone();
+    r[0] = start(7, SoundOrigin::Actor(other), Some(moved));
+    assert!(sound::same_calls(&events, Some(me), &r));
+    // A different sound, origin or kind of record, the order, one record too few or too many.
+    let mut r = records.clone();
+    r[2] = start(9, SoundOrigin::None, None);
+    assert!(!sound::same_calls(&events, Some(me), &r));
+    let mut r = records.clone();
+    r[0] = start(7, SoundOrigin::Actor(me), Some(at));
+    assert!(!sound::same_calls(&events, Some(me), &r));
+    let mut r = records.clone();
+    r.swap(1, 2);
+    assert!(!sound::same_calls(&events, Some(me), &r));
+    assert!(!sound::same_calls(&events, Some(me), &records[..2]));
+    let mut r = records.clone();
+    r.push(SoundRecord::Stop { actor: me });
+    assert!(!sound::same_calls(&events, Some(me), &r));
+    assert!(sound::same_calls(&[], Some(me), &[]));
+    // Events that cannot be split: a transient placement with no start before it. The calls it
+    // leaves before the error are as many as the records, which must not make them agree.
+    let torn = vec![sound_event(None, 8), placed(8, SoundOrigin::None, at)];
+    let one = [start(8, SoundOrigin::None, None)];
+    assert!(sound::split(&torn, Some(me), &mut Vec::new(), false).is_err());
+    assert!(!sound::same_calls(&torn, Some(me), &one));
+}
+
+/// `M_AddToBox` (m_bbox.c:51-58) tests `x < left` first and only otherwise `x > right`: a point
+/// whose x equals the current left edge is not below it, so it can raise the right edge, which
+/// is still `MININT` after a first point. Likewise for y. Two equal points give a box of one
+/// point: left = right and bottom = top.
+/// Kills sound.rs `add_to_box` `x < b[2]` -> `<=`.
+#[test]
+fn add_to_box_second_point_with_the_same_x_sets_the_right_edge() {
+    let mut b = sound::CLEAR_BOX;
+    sound::add_to_box(&mut b, [10, 0]);
+    assert_eq!(b, [i32::MIN, 0, 10, i32::MIN]);
+    sound::add_to_box(&mut b, [10, 0]);
+    assert_eq!(b, [0, 0, 10, 10]);
+}
+
+/// A removed-or-not actor's current x, y are readable by handle (`Simulation::sound_origin_xy`):
+/// the player's body stands where its THING put it (`P_SpawnPlayer`, p_mobj.c:675-ff: x, y =
+/// the thing's x, y in 16.16) and is the listener's own position; a handle that does not
+/// resolve gives `None`.
+/// Kills sound.rs `Simulation::sound_origin_xy` -> `None`, `Some([-1; 2])`, `Some([0; 2])` and
+/// `Some([1; 2])`.
+#[test]
+fn sound_origin_xy_reads_the_actor_position() {
+    let c = &cases()[0];
+    let s = setup(&with_start(room(c.map), 0, c.position, 0), V3);
+    let me = body(&s);
+    let at = [
+        i32::from(c.position[0]) << 16,
+        i32::from(c.position[1]) << 16,
+    ];
+    assert!(at[0] > 1 || at[0] < -1 || at[1] > 1 || at[1] < -1);
+    assert_eq!(s.sound_origin_xy(me), Some(at));
+    assert_eq!(s.sound_listener().unwrap().xy, at);
+    // Every other actor reads its own position, which is not the player's.
+    let mut others = 0;
+    for id in s.actor_order().filter(|id| *id != me) {
+        let xy = s.sound_origin_xy(id).unwrap();
+        assert_eq!(
+            xy,
+            s.actor(id).unwrap().position().map(doom_types::Fixed::bits)
+        );
+        others += 1;
+    }
+    assert!(others > 0);
+    assert_eq!(s.sound_origin_xy(ActorId::from_parts(60_000, 1)), None);
+}
+
+/// An explicit operation that plays a sound (here the entry of a barrel into its explosion
+/// state, whose action `A_Scream` starts the barrel's death sound `sfx_barexp`: info.c:945,
+/// 1903; p_enemy.c:1535-1560; `P_SetMobjState` runs the action at once) leaves its record,
+/// with the placement read at the call, in the pending list, beside the event that made it;
+/// the next tic's preflight requires the two to agree (`sound::same_calls`) and publishes the
+/// record first.
+/// Kills demon_expanded_map.rs `Simulation::take_operation_sounds` -> `Ok(vec![])`.
+#[test]
+fn an_explicit_operations_sound_is_kept_as_a_pending_record() {
+    // The barrel's explosion state (`S_BEXP2`) in this simulation's numbering: the state after
+    // the one a kill enters (808 in the M3h9b trace of a kill).
+    const BEXP2: u16 = 809;
+    let barexp = lifecycle::source_sound("sfx_barexp").unwrap();
+    let mut s = setup(&base(), V3);
+    let me = body(&s);
+    let listener = s.sound_listener().unwrap();
+    let barrel = s
+        .actor_order()
+        .find(|id| *id != me)
+        .expect("the room holds a barrel");
+    s.enter_demon_state(barrel, StateId(BEXP2)).unwrap();
+    assert_eq!(sounds(s.pending_events()), [(Some(barrel), barexp)]);
+    let want = SoundRecord::Start {
+        sfx: barexp,
+        origin: SoundOrigin::Actor(barrel),
+        at: Some(sound::SoundPlacement {
+            origin: s.sound_origin_xy(barrel).unwrap(),
+            listener: listener.xy,
+            listener_angle: listener.angle,
+        }),
+    };
+    assert_eq!(s.pending_sound_records(), [want]);
+    // The transient placement left the pending events, and what is kept is exactly the calls
+    // of the pending events: the check the next tic makes (`sound::same_calls`).
+    assert!(
+        !s.pending_events()
+            .iter()
+            .any(|e| matches!(e, Event::SoundRecord(_)))
+    );
+    assert!(sound::same_calls(
+        s.pending_events(),
+        Some(me),
+        s.pending_sound_records()
+    ));
+}
+
+/// The DSIM41 reader bounds a record count by the number of fields in the frame (a Rust-only
+/// safety rule of the reader, `Limit`): a count above that number is refused as `Limit`, a count
+/// equal to it is not (the records it names are then missing, which is another refusal).
+/// Kills diagnostic.rs `validate_sound_records` `count > self.fields.len()` -> `==` and `>=`.
+#[test]
+fn dsim41_reader_bounds_the_record_count_by_the_field_count() {
+    let limits = DiagnosticLimits::default();
+    let read = |f: &[(String, Vec<u8>)]| Diagnostic::decode_episode1_v3(&encode41(f), limits).err();
+    let count = |n: u64| n.to_le_bytes().to_vec();
+    let s = setup(&base(), V3);
+    let frame = owned_fields(&s);
+    assert_eq!(read(&frame), None);
+    let n = frame.len() as u64;
+    for prefix in ["events.sounds.last", "events.sounds.pending"] {
+        let path = format!("{prefix}.count");
+        let mut f = frame.clone();
+        set(&mut f, &path, count(n + 1));
+        assert_eq!(read(&f), Some(DiagnosticError::Limit), "{prefix} above");
+        let mut f = frame.clone();
+        set(&mut f, &path, count(n));
+        let e = read(&f);
+        assert!(
+            e.is_some() && e != Some(DiagnosticError::Limit),
+            "{prefix} equal: {e:?}"
+        );
+    }
+}
