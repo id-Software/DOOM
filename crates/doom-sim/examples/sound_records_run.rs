@@ -25,7 +25,12 @@
 //! against the genuine engine, tools/reference/level_compare_m5c.py) also writes
 //! every wire-25 capture as `<dir>/tic_NNNNN.bin` (the canonical DSIM41 bytes,
 //! capture N after N tics) and, when the run is refused, `<dir>/refused.txt`
-//! (`<tic> <error>`), the layout of `player_level_run --captures`. `--alone` runs
+//! (`<tic> <error>`), the layout of `player_level_run --captures`.
+//! `--capture-stream <path>` writes the same captures to one stream instead (a
+//! pipe for the real-map comparison, which then needs no disk for them): per
+//! capture u32 tic, u64 length and the bytes, then a trailer u32 0xffffffff, u64
+//! length and the UTF-8 text `end` or `refused <tic> <error>`; little endian.
+//! `--alone` runs
 //! wire 25 by itself, without wire 24 and checks 1 and 2: for a map the two wires
 //! do not load alike (the THING-loading truncation, M5c decision T4). Nothing is
 //! written but `--out` and `--captures`; frozen tools and examples are untouched.
@@ -39,15 +44,15 @@ use doom_sim::{
     sound::{SoundOrigin, SoundRecord},
     *,
 };
-use std::{error::Error, fmt::Write as _, fs, path::PathBuf};
+use std::{error::Error, fmt::Write as _, fs, io::Write as _, path::PathBuf};
 
 const USAGE: &str = "usage: sound_records_run --wad <path> --map E1Mn --demo <lmp> [--out <file>] \
-     [--captures <dir>] [--alone]";
+     [--captures <dir> | --capture-stream <path>] [--alone]";
 
 fn main() -> Result<(), Box<dyn Error>> {
     let mut args = std::env::args().skip(1);
     let (mut wad, mut map, mut demo, mut out) = (None, None, None, None);
-    let (mut captures, mut alone) = (None::<PathBuf>, false);
+    let (mut captures, mut alone, mut stream) = (None::<PathBuf>, false, None::<PathBuf>);
     while let Some(a) = args.next() {
         let mut value = || args.next().ok_or_else(|| format!("{a} needs a value"));
         match a.as_str() {
@@ -57,6 +62,7 @@ fn main() -> Result<(), Box<dyn Error>> {
             "--out" => out = Some(PathBuf::from(value()?)),
             "--captures" => captures = Some(PathBuf::from(value()?)),
             "--alone" => alone = true,
+            "--capture-stream" => stream = Some(PathBuf::from(value()?)),
             "--help" | "-h" => {
                 println!("{USAGE}");
                 return Ok(());
@@ -87,6 +93,13 @@ fn main() -> Result<(), Box<dyn Error>> {
     if let Some(dir) = &captures {
         fs::create_dir_all(dir)?;
     }
+    if captures.is_some() && stream.is_some() {
+        return Err("--captures and --capture-stream exclude each other".into());
+    }
+    let mut sink = match &stream {
+        Some(path) => Some(std::io::BufWriter::new(fs::File::create(path)?)),
+        None => None,
+    };
     let mut rows = String::new();
     let mut seq = 0_u64;
     let mut written: Result<(), std::io::Error> = Ok(());
@@ -95,6 +108,13 @@ fn main() -> Result<(), Box<dyn Error>> {
             written = fs::write(
                 dir.join(format!("tic_{tic:05}.bin")),
                 s.snapshot().canonical_bytes(),
+            );
+        }
+        if let (Some(w), true) = (sink.as_mut(), written.is_ok()) {
+            written = frame(
+                w,
+                u32::try_from(tic).unwrap_or(u32::MAX - 1),
+                &s.snapshot().canonical_bytes(),
             );
         }
         if tic == 0 {
@@ -144,6 +164,14 @@ fn main() -> Result<(), Box<dyn Error>> {
     if let (Some(dir), Some((tic, error))) = (&captures, &outcome.refused) {
         fs::write(dir.join("refused.txt"), format!("{tic} {error}\n"))?;
     }
+    if let Some(mut w) = sink {
+        let trailer = outcome
+            .refused
+            .as_ref()
+            .map_or_else(|| "end".to_owned(), |(t, e)| format!("refused {t} {e}"));
+        frame(&mut w, u32::MAX, trailer.as_bytes())?;
+        w.flush()?;
+    }
     let summary = format!(
         "Z,captures,{},tics,{},starts,{},placed,{},stops,{},screams_replaced,{},refused,{}",
         outcome.captures,
@@ -164,4 +192,11 @@ fn main() -> Result<(), Box<dyn Error>> {
         fs::write(out, rows)?;
     }
     Ok(())
+}
+
+/// One `--capture-stream` frame: u32 tic, u64 length, then the bytes.
+fn frame(w: &mut impl std::io::Write, tic: u32, bytes: &[u8]) -> std::io::Result<()> {
+    w.write_all(&tic.to_le_bytes())?;
+    w.write_all(&(bytes.len() as u64).to_le_bytes())?;
+    w.write_all(bytes)
 }
