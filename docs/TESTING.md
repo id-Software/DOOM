@@ -2369,6 +2369,23 @@ path to your own `DOOM.WAD` as an argument, for example `doom-play.exe --iwad C:
 (`doom-play.exe --help` lists every option; an OpenGL 2.1 or OpenGL ES 2 driver is required). The job ran
 successfully on the M5b pull request on 2026-11-17. **Nobody has downloaded the artifact or run it on Windows.**
 
+### M5b timings
+
+Recorded, never gated; run alone on an idle machine (check `uptime` and `ps -eo pcpu,args --sort=-pcpu | head -5`
+first), built and run from ext4 (`CARGO_TARGET_DIR=~/scratch/m5b/step13/target`), never from `/mnt/*`. The
+[M5b record](validation/M5B.md#step-13-timings) owns the results.
+
+```sh
+# frame time per room and screenblocks: Display observe+draw, Display draw and the M5a Renderer on the same frames
+# (frames, total, mean, median, p95, max in microseconds); run three times
+cargo run -p doom-render --release --example m5b_bench -- [--rooms M5MSG,M5PALRD,M5PALBN,M5STDIG,M5EVIL] [--screenblocks 10,11] [--warmup 1]
+# tic jitter of the real loop under WSLg: executed and dropped tics and the interval distribution on stderr at exit
+# (X11: env -u WAYLAND_DISPLAY; Wayland: env -u DISPLAY); idle, no input, about 100 s
+R=tests/reference
+cargo run --release -p doom-play -- --iwad $R/m5b_wads/stdigit.wad --wad $R/m5b_gfx.wad \
+    --sessions ~/scratch/m5b/step13/sessions --quit-after-tics 3500 --tic-stats
+```
+
 ## Mutation testing
 
 M4a used cargo-mutants 27.1.0 with cargo-nextest 0.9.151. These are separate

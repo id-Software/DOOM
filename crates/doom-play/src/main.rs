@@ -5,6 +5,7 @@
 //! [`doom_game::app::App`]'s input calls. No `unsafe` (forbidden by the workspace lints).
 
 mod keys;
+mod tic_stats;
 mod window;
 
 use doom_game::app::{App, GameData, Host, SessionConfig, Timestamp, UNRECORDED_LABEL};
@@ -34,6 +35,8 @@ usage: doom-play --iwad PATH [options]
   --fullscreen         borderless fullscreen instead of a window
   --screenblocks N     10 (default, status bar row) or 11 (full view)
   --quit-after-tics N  measurement aid: save and quit after N tics (or at a session end)
+  --tic-stats          measurement aid: print, on exit, the intervals between executed tics
+                       (taken from the loop's monotonic clock) to stderr; no other effect
   --unrecorded-full-turning
                        opt-in, never implied by another option: mouse and keyboard turns
                        are executed at full resolution instead of being rounded to demo
@@ -70,6 +73,7 @@ struct Options {
     fullscreen: bool,
     screenblocks: u8,
     quit_after: Option<u64>,
+    tic_stats: bool,
     unrecorded: bool,
 }
 
@@ -100,6 +104,7 @@ fn parse(args: impl IntoIterator<Item = String>) -> Result<Option<Options>, Stri
         fullscreen: false,
         screenblocks: 10,
         quit_after: None,
+        tic_stats: false,
         unrecorded: false,
     };
     let mut it = args.into_iter();
@@ -141,6 +146,7 @@ fn parse(args: impl IntoIterator<Item = String>) -> Result<Option<Options>, Stri
                 }
             }
             "--fullscreen" => o.fullscreen = true,
+            "--tic-stats" => o.tic_stats = true,
             "--unrecorded-full-turning" => o.unrecorded = true,
             "--screenblocks" => {
                 o.screenblocks = number(&flag, &value()?, |s| (10..=11).contains(s))?;
@@ -290,6 +296,7 @@ fn run(o: Options) -> Result<(), String> {
             square: o.square,
             fullscreen: o.fullscreen,
             quit_after: o.quit_after,
+            tic_stats: o.tic_stats,
         },
     );
     Ok(())

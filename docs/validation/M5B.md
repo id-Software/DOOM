@@ -10,7 +10,7 @@ render state and the `Display` state are saved as described in
 [STATE_FORMAT](../STATE_FORMAT.md#display-state-ddsp-version-1-m5b). Exact review state and CI belong to GitHub.
 
 This is the second documentation pass, written on 2026-11-17 (America/Los_Angeles). A third pass adds the final
-mutation, timing and gate numbers; where a step's section says so, or is missing, that step had not been run or
+mutation and gate numbers; where a step's section says so, or is missing, that step had not been run or
 its result had not been written up on that date.
 
 **Wording rule.** A frame is described as identical to the genuine engine under the declared sound-free,
@@ -33,7 +33,7 @@ wipe-free contract (decision S15), never as identical to a vanilla session witho
 | 10 | 2026-11-17 | Documentation: the first pass, this second pass and the status bar animation ([below](#step-10-the-status-bar-animation)); a third pass adds the final numbers |
 | 11 | 2026-11-17 | Interim: the first mutation run is recorded ([below](#step-11-mutation-testing-interim-the-first-run)); dispositions and the second run are pending |
 | 12 | 2026-11-17 | Recorded: both fuzz targets ([below](#step-12-fuzz-targets)) |
-| 13 | not yet run | Timings |
+| 13 | 2026-11-17 | Recorded: frame time and tic jitter, WSLg only ([below](#step-13-timings)) |
 | 14 | 2026-11-17 | Recorded: two independent reviews and their fixes ([below](#independent-reviews-and-their-fixes)) |
 
 No IWAD was read in steps 1 to 4, 6, 7 (except the one local real-map run named there), 7b, 9, 11 and 12. Steps
@@ -571,6 +571,113 @@ self-consistency only; nothing is compared with the genuine engine.
 **Not run:** sanitizers other than address; a long campaign for either target (the largest is 614 s); minimisation;
 Clippy on the fuzz workspace; timings or Windows and macOS.
 
+## Step 13: timings
+
+Recorded, never gated (decision R15 of M5a carries over; no threshold and no CI step was added). Observed
+2026-11-17 (America/Los_Angeles), 18:31 to 18:42 for the measurements, at commit `3e8865b` plus the two measurement
+aids described below (uncommitted when measured, committed with this record). Machine: Intel Core i7-8750H @ 2.20 GHz,
+WSL2 (kernel 6.18.58.1-microsoft-standard-WSL2, WSLg 1.0.79); rustc 1.100.0 (0ef1bc386 2026-11-09); release profile.
+Binaries were built in and run from the Linux filesystem (ext4): `CARGO_TARGET_DIR=~/scratch/m5b/step13/target`; the
+repository is on ext4 under `/home`; nothing ran from `/mnt/*`. The owner had said the machine was idle. Before the
+frame runs `uptime` showed load average 0.96, 1.47, 3.52 (decaying from the release build a few minutes earlier;
+0.88 at the first run) and the busiest processes were `claude --rc` (2.5 %) and rust-analyzer (0.6 %, resident and
+idle); before the loop runs 0.87, 1.37, 3.37 with the same two. Nothing else was started while a measurement ran;
+the load averages logged at the start of each loop run were 0.48 to 1.17. No IWAD was read; every case is a committed
+synthetic room with `tests/reference/m5b_gfx.wad`. No real-map number was taken.
+
+### Frame time with the status bar and HUD
+
+New example `m5b_bench` ([command](../TESTING.md#m5b-timings)). One unmeasured warm-up replay, then one measured
+replay per room and screenblocks, each on a freshly loaded simulation; the simulation advance is outside every timer.
+Per frame it times `Display::observe` plus `Display::draw`, `Display::draw` alone, and, on the same frames, the M5a
+`Renderer::observe` plus `render` (the 3D view alone, no status bar or HUD; the M5a example `m5a_bench` times
+`render` only and could not be used because it has no `Display`). The whole sequence ran 3 times; each cell is the
+three runs separated by `/`, in microseconds. Rooms: `M5MSG` (message showing, by the room's design), `M5PALRD` and
+`M5PALBN` (red and bonus palette flashes), `M5STDIG` and `M5EVIL` (plain views with the status bar's numbers and
+face changing). Every replay ran to the end of its script with no refusal.
+
+| Room | Screenblocks | Frames | Series | Median | p95 | Max |
+| --- | --- | --- | --- | --- | --- | --- |
+| M5MSG | 10 | 696 | Display observe+draw | 549/551/552 | 622/602/624 | 964/1116/1396 |
+| M5MSG | 10 | 696 | Display draw | 392/393/392 | 439/440/441 | 742/801/876 |
+| M5MSG | 10 | 696 | Renderer observe+render | 534/536/539 | 603/589/610 | 1065/907/1287 |
+| M5MSG | 11 | 696 | Display observe+draw | 583/579/571 | 693/672/651 | 1485/913/1088 |
+| M5MSG | 11 | 696 | Display draw | 420/416/412 | 476/461/459 | 1089/701/869 |
+| M5MSG | 11 | 696 | Renderer observe+render | 575/575/566 | 688/623/631 | 1226/1089/1259 |
+| M5PALRD | 10 | 175 | Display observe+draw | 303/303/301 | 360/345/354 | 525/435/682 |
+| M5PALRD | 10 | 175 | Display draw | 263/261/261 | 304/294/314 | 467/397/624 |
+| M5PALRD | 10 | 175 | Renderer observe+render | 293/290/288 | 342/329/346 | 533/514/558 |
+| M5PALRD | 11 | 175 | Display observe+draw | 329/326/325 | 372/394/374 | 476/661/591 |
+| M5PALRD | 11 | 175 | Display draw | 288/287/285 | 314/349/320 | 438/516/516 |
+| M5PALRD | 11 | 175 | Renderer observe+render | 325/321/322 | 373/358/362 | 561/474/601 |
+| M5PALBN | 10 | 130 | Display observe+draw | 352/350/396 | 400/451/976 | 548/554/1358 |
+| M5PALBN | 10 | 130 | Display draw | 290/288/318 | 352/343/758 | 474/487/1062 |
+| M5PALBN | 10 | 130 | Renderer observe+render | 340/335/372 | 374/398/1052 | 706/674/1672 |
+| M5PALBN | 11 | 130 | Display observe+draw | 377/371/385 | 438/449/470 | 966/713/601 |
+| M5PALBN | 11 | 130 | Display draw | 311/309/318 | 368/349/396 | 638/589/486 |
+| M5PALBN | 11 | 130 | Renderer observe+render | 364/363/386 | 422/413/467 | 611/530/664 |
+| M5STDIG | 10 | 877 | Display observe+draw | 366/359/360 | 434/448/435 | 938/803/3770 |
+| M5STDIG | 10 | 877 | Display draw | 298/294/294 | 342/353/342 | 723/732/3696 |
+| M5STDIG | 10 | 877 | Renderer observe+render | 352/346/348 | 418/442/421 | 729/801/779 |
+| M5STDIG | 11 | 877 | Display observe+draw | 375/378/399 | 456/460/507 | 978/823/854 |
+| M5STDIG | 11 | 877 | Display draw | 310/313/328 | 365/370/404 | 670/662/644 |
+| M5STDIG | 11 | 877 | Renderer observe+render | 369/374/397 | 450/455/502 | 698/697/749 |
+| M5EVIL | 10 | 413 | Display observe+draw | 345/346/340 | 387/390/397 | 579/587/612 |
+| M5EVIL | 10 | 413 | Display draw | 290/290/285 | 323/326/331 | 522/516/543 |
+| M5EVIL | 10 | 413 | Renderer observe+render | 330/332/327 | 369/382/381 | 653/738/664 |
+| M5EVIL | 11 | 413 | Display observe+draw | 378/367/373 | 457/488/497 | 1157/983/895 |
+| M5EVIL | 11 | 413 | Display draw | 321/311/315 | 380/413/421 | 1038/928/801 |
+| M5EVIL | 11 | 413 | Renderer observe+render | 369/363/370 | 461/473/540 | 4741/748/4529 |
+
+Run 3's `M5PALBN` at screenblocks 10 (median 396 against 352 and 350) and its 3,770 us maxima in `M5STDIG` are
+scheduler noise: the same run's other cases agree with runs 1 and 2. Maxima are single-frame outliers. `Renderer
+observe+render` includes the renderer's `observe`, which the `Display draw` series does not, so the two are not
+like-for-like; `Display observe+draw` is the matching series.
+
+### Tic jitter of the real loop
+
+New opt-in flag `doom-play --tic-stats` ([command](../TESTING.md#m5b-timings)): it keeps in memory the
+monotonic-clock time (the loop's own, microseconds) at which each `App::update` ran its tics, counts the dropped tics
+`App::update` reports, and prints a summary to stderr on exit. A tic executed in the same `update` as another has the
+same time (interval 0); this never occurred (see the minima). The window ran on the synthetic room `M5STDIG`
+(`stdigit.wad` as the IWAD with `m5b_gfx.wad` as the extra WAD), idle (no key or mouse input), `--quit-after-tics
+3500`, release build, three runs each under X11 (`DISPLAY` set, `WAYLAND_DISPLAY` unset) and Wayland (`DISPLAY`
+unset), alternated, about 100 s each (the process ran 100 s from `date` stamps: 18:31:50-18:33:30 and so on). Each run
+executed all 3,500 tics and dropped none. Intervals are between consecutive executed tics, in microseconds; 1/35 s
+is 28,571.4 us.
+
+| Backend | Run | Executed | Dropped | Mean | SD | Min | Median | p95 | p99 | Max | >1 ms off | >5 ms off |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| X11 | run | 3500 | 0 | 28571.4 | 61.3 | 27540 | 28571 | 28670 | 28719 | 29608 | 2 | 0 |
+| Wayland | run | 3500 | 0 | 28571.4 | 166.6 | 24247 | 28571 | 28695 | 28740 | 35703 | 3 | 1 |
+| X11 | run | 3500 | 0 | 28571.5 | 63.7 | 27988 | 28571 | 28691 | 28728 | 29159 | 0 | 0 |
+| Wayland | run | 3500 | 0 | 28571.4 | 67.6 | 27473 | 28572 | 28681 | 28723 | 29659 | 2 | 0 |
+| X11 | run | 3500 | 0 | 28571.4 | 53.7 | 28285 | 28571 | 28665 | 28705 | 28949 | 0 | 0 |
+| Wayland | run | 3500 | 0 | 28571.4 | 91.1 | 25459 | 28571 | 28667 | 28705 | 31701 | 2 | 0 |
+
+The wall time from the first to the last tic was 99.971 to 99.972 s in every run, equal to the expected 3,499/35 s
+by construction: the tic clock is computed from its origin ("no accumulated rounding"), so a late tic is followed by
+a shorter interval and the mean cannot drift; the spread is in the intervals. Stderr under X11 showed no driver
+message; under Wayland it showed `Wayland compositor does not support cursor shape`, libEGL warnings (`failed to get
+driver name for fd -1`, `MESA-LOADER: failed to retrieve device information`, `egl: failed to create dri2 screen`)
+and `MESA: error: ZINK: failed to choose pdev`; the GL renderer was not printed, so which software or virtual GPU
+path drew is not known.
+
+### Reading
+
+A frame with the status bar, HUD and 3D view cost a median of 0.30 to 0.58 ms and a p95 of at most about 1.0 ms here,
+against the 28.6 ms tic, so drawing used about 1 to 2 % of a tic and the status bar and HUD added nothing measurable
+over the view alone. The loop ran all 3,500 tics at 35 Hz with no drops: 99 % of intervals were within about 170 us
+of 1/35 s, and the worst interval was 35.7 ms (a 7 ms late tic, once, under Wayland); at most 3 of 3,499 intervals per
+run were more than 1 ms off and 1 of the 21,000 more than 5 ms.
+
+Limits: WSL2 under WSLg only, on a shared host that was idle as described, with a software or virtual GPU path that
+was not identified; no input during the loop runs (key and mouse events were not measured, and the update's own
+cost is inside the interval); `draw` time is not window presentation time (the texture upload, the GL draw and the
+buffer swap are outside the example's timers, and the loop runs did not time them); nobody judged smoothness by eye;
+one synthetic room for the loop and five for the frames; nothing was measured on Windows or macOS, with a real
+GPU, or on a real map.
+
 ## Independent reviews and their fixes
 
 Two independent reviews read the code at 334cd4b (their snapshot had one docs-only commit on top) on 2026-11-17,
@@ -650,5 +757,5 @@ frames it draws equal the genuine engine's under the declared contract; it canno
 
 ## Still to come in this record
 
-A third pass adds the dispositions of the mutation survivors and the second mutation run (step 11), the timings
-run alone on an idle machine from ext4 (step 13) and the final gates.
+A third pass adds the dispositions of the mutation survivors and the second mutation run (step 11) and the final
+gates; the timings (step 13) are recorded above.

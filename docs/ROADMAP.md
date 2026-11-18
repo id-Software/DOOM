@@ -535,7 +535,7 @@ monster/player behavior. Further stages require separate owner direction.
     runs through the Rust display, the opt-in unrecorded full-resolution turning mode (S3 (ii)), the CI jobs
     and the Windows artifact job (it ran successfully on the pull request), both fuzz targets, the README
     animation, and two independent reviews with their fixes; the first mutation run is recorded as an interim
-    result. Remaining: the dispositions of the mutation survivors and the second run, timings, the final gates
+    result; frame-time and tic-jitter timings (WSLg only, recorded, not gated) are in the record. Remaining: the dispositions of the mutation survivors and the second run, the final gates
     and the owner's review. [Support](COMPATIBILITY.md#playable-build-m5b) is written. Nobody has yet seen the
     picture or played with a real key or mouse; a human has to judge feel, latency and looks. See the
     [investigation note](M5B_REFERENCE_INVESTIGATION.md#4-owner-decisions-s1s23-with-recommendations).

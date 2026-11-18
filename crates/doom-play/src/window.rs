@@ -6,6 +6,7 @@
 
 use crate::FsHost;
 use crate::keys::doom_key;
+use crate::tic_stats::TicStats;
 use doom_game::app::{App, Mode, PICTURE_BYTES, SaveStatus, TICRATE, UNRECORDED_LABEL};
 use doom_game::input::MouseButton;
 use doom_render::{SCREENHEIGHT, SCREENWIDTH};
@@ -29,6 +30,8 @@ pub struct Presentation {
     pub fullscreen: bool,
     /// The measurement aid: save and quit after this many tics or at a session end.
     pub quit_after: Option<u64>,
+    /// The measurement aid: print the tic interval summary to stderr on exit.
+    pub tic_stats: bool,
 }
 
 #[repr(C)]
@@ -102,6 +105,7 @@ struct Stage {
     captured: bool,
     motion: (f32, f32),
     reported: bool,
+    stats: Option<TicStats>,
 }
 
 impl Stage {
@@ -173,6 +177,7 @@ impl Stage {
             captured: false,
             motion: (0.0, 0.0),
             reported: false,
+            stats: p.tic_stats.then(TicStats::default),
         }
     }
 
@@ -186,6 +191,9 @@ impl Stage {
             return;
         }
         self.reported = true;
+        if let Some(s) = &self.stats {
+            eprintln!("doom-play: {}", s.summary());
+        }
         let path = self.host.dir.join(self.app.session_name());
         match self.app.save_status() {
             _ if !self.app.recorded() => eprintln!("doom-play: {UNRECORDED_LABEL}"),
@@ -214,7 +222,10 @@ impl EventHandler for Stage {
         };
         std::thread::sleep(wait);
         let now = self.now();
-        self.app.update(now, &mut self.host);
+        let u = self.app.update(now, &mut self.host);
+        if let Some(s) = &mut self.stats {
+            s.record(now, u.ran, u.dropped);
+        }
         let capture = self.app.wants_mouse_capture();
         if capture != self.captured {
             self.captured = capture;
