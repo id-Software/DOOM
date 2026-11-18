@@ -23,7 +23,7 @@ mod common;
 mod m5b;
 
 use doom_render::{Display, DisplayConfig, DisplayRefusal, Frame, RenderRefusal};
-use m5b::{Stream, cheats, items, load, read_stream, results};
+use m5b::{Item, Stream, cheats, items, load, read_stream, results};
 
 #[derive(Debug, Default)]
 struct Counts {
@@ -36,15 +36,74 @@ struct Counts {
     messages: usize,
 }
 
+/// The 59 items split into `PARTS` groups of near-equal work (frames of both configurations,
+/// longest first onto the lightest group; ties by position, so the split is deterministic), so
+/// that the groups run in parallel test threads. Every item is in exactly one group.
+fn part_items(part: usize) -> Vec<Item> {
+    let results = results();
+    let all = items();
+    assert_eq!(all.len(), 59);
+    let frames = |i: &Item| -> u64 {
+        [10, 11]
+            .iter()
+            .map(|sb| {
+                results["items"][&i.lump]["views"][sb.to_string()]["frames"]
+                    .as_u64()
+                    .expect("frames")
+            })
+            .sum()
+    };
+    let mut order: Vec<usize> = (0..all.len()).collect();
+    order.sort_by_key(|&k| (std::cmp::Reverse(frames(&all[k])), k));
+    let mut load = [0u64; PARTS];
+    let mut owner = vec![0usize; all.len()];
+    for k in order {
+        let lightest = (0..PARTS).min_by_key(|&p| (load[p], p)).expect("parts");
+        load[lightest] += frames(&all[k]);
+        owner[k] = lightest;
+    }
+    all.into_iter()
+        .enumerate()
+        .filter(|(k, _)| owner[*k] == part)
+        .map(|(_, i)| i)
+        .collect()
+}
+
+const PARTS: usize = 6;
+
+/// The counts of each part: (frames, whole digests, masked, not compared, refused2d, ends).
+/// They sum to 42,352 frames (2 x 21,176), 41,982 whole digests, 300 masked, 70 not compared,
+/// 0 refused2d and 6 ends (`the_parts_sum_to_the_totals`), so a change in what is skipped fails.
+const PART_COUNTS: [(usize, usize, usize, usize, usize, usize); PARTS] = [
+    (8460, 8460, 0, 0, 0, 0),
+    (6784, 6784, 0, 0, 0, 4),
+    (6790, 6522, 268, 0, 0, 0),
+    (6758, 6656, 32, 70, 0, 0),
+    (6756, 6756, 0, 0, 0, 2),
+    (6804, 6804, 0, 0, 0, 0),
+];
+
 #[test]
-fn every_item_matches_the_genuine_display() {
+fn the_parts_sum_to_the_totals() {
+    let sum = PART_COUNTS.iter().fold([0; 6], |a, p| {
+        [
+            a[0] + p.0,
+            a[1] + p.1,
+            a[2] + p.2,
+            a[3] + p.3,
+            a[4] + p.4,
+            a[5] + p.5,
+        ]
+    });
+    assert_eq!(sum, [2 * 21_176, 41_982, 300, 70, 0, 6]);
+}
+
+fn run_part(part: usize) {
     let results = results();
     let mut total = Counts::default();
     let mut failures: Vec<String> = Vec::new();
     let mut ends = Vec::new();
-    let all = items();
-    assert_eq!(all.len(), 59);
-    for item in &all {
+    for item in &part_items(part) {
         let configs = [10u8, 11];
         let streams: Vec<Stream> = configs
             .iter()
@@ -196,17 +255,35 @@ fn every_item_matches_the_genuine_display() {
     }
     failures.truncate(40);
     assert!(failures.is_empty(), "{}", failures.join("\n"));
-    assert_eq!(total.frames, 2 * 21_176, "{total:?}");
     // what is compared how: a change in what is skipped fails here
     assert_eq!(
         (
+            total.frames,
             total.digests,
             total.masked,
             total.non_comparable,
-            total.refused2d
+            total.refused2d,
+            ends.len()
         ),
-        (41_982, 300, 70, 0),
-        "{total:?}"
+        PART_COUNTS[part],
+        "{total:?} {ends:?}"
     );
-    assert_eq!(ends.len(), 6, "{ends:?}");
 }
+
+macro_rules! parts {
+    ($($name:ident = $n:expr),*) => {$(
+        #[test]
+        fn $name() {
+            run_part($n);
+        }
+    )*};
+}
+
+parts!(
+    items_part_0 = 0,
+    items_part_1 = 1,
+    items_part_2 = 2,
+    items_part_3 = 3,
+    items_part_4 = 4,
+    items_part_5 = 5
+);

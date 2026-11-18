@@ -4,10 +4,11 @@
 //! that the C implies; none is a captured Rust output. Each test names the mutants it kills as
 //! `file:line:col` of the 334cd4b sources. The doc of each test says what it pins.
 //!
-//! Tests below the public API: none. Everything runs through `Display`, `DisplayState`,
-//! `StatusBarState::tick`, `HudState::erase` and `status_inputs`, which are public. Display
-//! inputs are altered only through `Display::observe_with` (the documented hook of decision S1)
-//! and through restored states, as the existing tests do.
+//! Tests below the public API: none here. Everything runs through `Display`, `DisplayState`,
+//! `StatusBarState::tick`, `HudState::erase` and `status_inputs`, which are public. The
+//! mutants that no public route reaches (negative numbers, width-2 numbers, `val == false`
+//! binary icons, `copy_bg` range checks) are killed by unit tests in `src/st_lib.rs` and
+//! `src/v_video.rs`, each saying why.
 mod common;
 mod m5b;
 
@@ -101,8 +102,6 @@ struct Base {
     res: Arc<Resources>,
     d: Display,
     sim: Simulation,
-    commands: Vec<TicCommand>,
-    pre: usize,
 }
 
 fn base(loaded: Loaded, pre: usize) -> Base {
@@ -116,28 +115,10 @@ fn base(loaded: Loaded, pre: usize) -> Base {
         d.observe(&sim, cmd).expect("observe");
         d.draw(&sim, &mut frame).expect("draw");
     }
-    Base {
-        res,
-        d,
-        sim,
-        commands,
-        pre,
-    }
+    Base { res, d, sim }
 }
 
 impl Base {
-    /// The next tic observed with `adjust` on the status bar inputs, then drawn.
-    fn next(&self, adjust: impl FnOnce(&mut StatusInputs)) -> Result<Vec<u8>, DisplayRefusal> {
-        let (mut d, mut sim) = (self.d.clone(), self.sim.clone());
-        let cmd = self.commands[self.pre];
-        step(&mut sim, cmd);
-        d.observe_with(&sim, &cmd, |i, _| adjust(i))
-            .expect("observe");
-        let mut frame = Frame::new();
-        d.draw(&sim, &mut frame)?;
-        Ok(frame.pixels().to_vec())
-    }
-
     /// The current tic drawn again with the HUD message line replaced by `text`, shown.
     fn with_message(&self, text: &[u8]) -> Vec<u8> {
         let mut st = self.d.state().expect("state");
@@ -166,75 +147,9 @@ fn header(res: &Resources, name: &str) -> [i32; 4] {
 // status bar numbers (st_lib.c:91-148)
 // ---------------------------------------------------------------------------------------------
 
-/// The health number of the final frame, with the invulnerability power forced so that the face
-/// is the god face (st_stuff.c:889-900) whatever the health: a negative health would otherwise
-/// index past the 42 faces (the genuine health is never negative, p_inter.c:870-872, so the
-/// negative branches of `STlib_drawNum` are reached only through this hook).
-fn health_frame(b: &Base, health: i32) -> Vec<u8> {
-    b.next(|i| {
-        i.health = health;
-        i.powers[0] = 1;
-    })
-    .expect("frame")
-}
-
-/// Pins st_lib.c:100-110 for the 3-digit health percentage (`numdigits == 3`): a negative value
-/// below -99 is -99 (kills st_lib.rs:35:25 `==`->`!=`, 35:30 `&&`->`||`, 35:37 `<`->`==` and
-/// `<`->`>`, 35:39 delete `-`, 36:19 delete `-`, 33:18 `==`->`!=`, 33:23 `&&`->`||`), a value in
-/// -98..-1 is shown unclamped (the same mutants), and `num = -num` runs (38:15 delete `-` would
-/// index a digit with a negative remainder).
-#[test]
-fn negative_numbers_clamp_at_minus_99_for_three_digits() {
-    let b = base(load(&item("M5STDIG")), 3);
-    let at = |h| health_frame(&b, h);
-    // st_lib.c:106-107: `numdigits == 3 && num < -99` -> -99.
-    assert_eq!(at(-250), at(-99), "-250 is drawn as -99");
-    assert_eq!(at(-100), at(-99), "-100 is drawn as -99");
-    // Below the clamp the value is drawn as it is (st_lib.c:106 is false): -98 is not -99, -50
-    // is not -99 and not -9 (the numdigits == 2 clamp does not apply to a 3-digit number).
-    assert_ne!(at(-98), at(-99));
-    assert_ne!(at(-50), at(-99));
-    assert_ne!(at(-50), at(-9));
-    // A negative number is not its absolute value: the minus sign is drawn (st_lib.c:143-144).
-    assert_ne!(at(-50), at(50));
-    assert_ne!(at(-99), at(99));
-}
-
-/// Pins st_lib.c:143-144, `V_DrawPatch(x - 8, n->y, FG, sttminus)`: the minus sign is drawn 8
-/// pixels left of the leftmost digit (kills st_lib.rs:59:19 `-`->`+` and `-`->`/`). The health
-/// number is at x 90, y 171 (ST_HEALTHX, ST_HEALTHY, st_stuff.c:144-145), width 3; for `-5` the
-/// leftmost digit is at `90 - w`, so the frames of `-5` and `5` differ only inside the minus
-/// patch's rectangle at `(90 - w - 8 - leftoffset, 171 - topoffset)`, and do differ there.
-#[test]
-fn the_minus_sign_is_eight_pixels_left_of_the_digits() {
-    let b = base(load(&item("M5STDIG")), 3);
-    let (neg, pos) = (health_frame(&b, -5), health_frame(&b, 5));
-    let w = header(&b.res, "STTNUM0")[0];
-    let [mw, mh, lo, top] = header(&b.res, "STTMINUS");
-    let (left, upper) = (90 - w - 8 - lo, 171 - top);
-    let mut differing = 0;
-    for (k, (a, p)) in neg.iter().zip(&pos).enumerate() {
-        if a != p {
-            let (x, y) = ((k % 320) as i32, (k / 320) as i32);
-            assert!(
-                (left..left + mw).contains(&x) && (upper..upper + mh).contains(&y),
-                "pixel ({x}, {y}) differs outside the minus sign at {left}, {upper} {mw}x{mh}"
-            );
-            differing += 1;
-        }
-    }
-    assert!(differing > 0, "the minus sign is drawn");
-}
-
-/// Pins st_lib.c:131-137, `while (num && numdigits--)`: only the `numdigits` least significant
-/// digits are drawn, whatever the value (kills st_lib.rs:52:28 `>`->`>=`, 53:14 `-=`->`+=` and
-/// `-=`->`/=`). Health 1234 shows 234.
-#[test]
-fn a_number_shows_only_its_width_in_digits() {
-    let b = base(load(&item("M5STDIG")), 3);
-    assert_eq!(health_frame(&b, 1234), health_frame(&b, 234));
-    assert_ne!(health_frame(&b, 234), health_frame(&b, 34));
-}
+// The negative-number, minus-sign and digit-count tests of `STlib_drawNum` (st_lib.c:91-148) are
+// unit tests in `src/st_lib.rs`: `Display::observe_with` refuses a health no player holds, so no
+// public route draws a negative number.
 
 // ---------------------------------------------------------------------------------------------
 // st_lib.c's I_Error guards (st_lib.c:233, 282), reached through a status bar patch whose
@@ -393,6 +308,25 @@ fn the_turn_thresholds_are_strict() {
     assert_eq!(facing(0x3fff_ffff), 3, "diffang == ANG180 + 1: turn right");
 }
 
+/// st_stuff.c:798: `if (priority < 8)` guards the attacker branch; the evil grin has set
+/// priority 8 (st_stuff.c:790), so an attack on the same tic keeps priority 8, the grin's
+/// face counter (only decremented, st_stuff.c:920-921) and the face. (Kills the mutant of that
+/// comparison, `<`->`<=`; it was a survivor of the later run, not of the 334cd4b one.)
+#[test]
+fn an_attack_does_not_replace_the_evil_grin() {
+    let mut s = fresh();
+    (s.priority, s.facecount, s.faceindex) = (8, 5, 11);
+    s.oldhealth = 100;
+    let p = StatusInputs {
+        health: 100,
+        damagecount: 5,
+        attacker: Attacker::At([100 << 16, 0]),
+        ..StatusInputs::default()
+    };
+    s.tick(&p).expect("tick");
+    assert_eq!((s.priority, s.facecount, s.faceindex), (8, 4, 11));
+}
+
 /// st_stuff.c:861-873: `if (priority < 6)` guards the rapid-fire counter; at priority 6 an
 /// `attackdown` of false must not reset `lastattackdown` to -1 (kills st_stuff.rs:356:26 `<`->`<=`).
 #[test]
@@ -499,12 +433,27 @@ fn value_bounds_are_exact() {
     s.status.ready_ammo = Some(3);
     assert!(decoded(&s).is_ok(), "ready_ammo 3");
     let mut d = b.d.clone();
-    assert!(d.restore(s.clone(), &b.sim).is_ok(), "restore ready_ammo 3");
+    // `restore` now also checks consistency with the simulation, so index 3 (a value the bound
+    // admits) is refused as `Inconsistent`, after the value check; it must not be `Value`.
+    assert_eq!(
+        d.restore(s.clone(), &b.sim),
+        Err(DisplayRestoreError::Inconsistent("keyboxes or ready_ammo")),
+        "restore ready_ammo 3 passes the value bound"
+    );
     s.status.ready_ammo = Some(4);
     assert_eq!(
         d.restore(s, &b.sim),
         Err(DisplayRestoreError::Value("ready_ammo"))
     );
+    // The face histories: -1 (no face yet, st_lib.c:203) is admitted, -2 and one past the dead
+    // face (st_stuff.c:889-900, 41 faces + the dead one) are refused.
+    let mut s = good.clone();
+    s.status.face_old = -1;
+    assert!(decoded(&s).is_ok(), "face_old -1");
+    s.status.face_old = -2;
+    invalid(&s, "face_old");
+    s.status.face_old = DEADFACE + 1;
+    invalid(&s, "face_old");
     // The line: 81 characters, and a NUL in a short line.
     let mut s = good.clone();
     s.hud.line.text = vec![b'A'; 80];
@@ -531,9 +480,18 @@ fn the_decoder_refuses_each_unused_flag_alone() {
         b[at + i] = v;
         assert_eq!(DisplayState::decode(&b).err(), e, "{name}");
     };
-    flags("clean", 4, bytes[at + 4], None);
-    // owned bit 9 alone (the byte after the mask's low byte).
     let bad = |n| Some(StateDecodeError::Invalid(n));
+    flags("clean", 4, bytes[at + 4], None);
+    // screenblocks is 10 or 11 and the flags byte has two bits, each refused alone.
+    flags("screenblocks 12", 0, 12, bad("display flags"));
+    flags("screenblocks 9", 0, 9, bad("display flags"));
+    flags(
+        "display flag bit 2",
+        1,
+        bytes[at + 1] | 4,
+        bad("display flags"),
+    );
+    // owned bit 9 alone (the byte after the mask's low byte).
     flags("owned bit 9", 4, bytes[at + 4] | 2, bad("display flags"));
     // status flag bit 3 alone, HUD flag bit 4 alone.
     flags("status bit 3", 43, bytes[at + 43] | 8, bad("status flags"));

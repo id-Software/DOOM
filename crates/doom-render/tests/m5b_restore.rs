@@ -88,11 +88,12 @@ const CASES: &[(&str, usize, usize, &str)] = &[
     ),
 ];
 
-#[test]
-fn restore_and_continue_matches_the_uninterrupted_run() {
-    for &(lump, restore, target, why) in CASES {
+/// One case at one screenblocks value (each is its own test, so the 10 run on parallel threads).
+fn restore_and_continue(case: usize, sb: u8) {
+    let (lump, restore, target, why) = CASES[case];
+    {
         let it = item(lump);
-        for sb in [10u8, 11] {
+        {
             let golden = read_stream(lump, sb);
             let (res, level, mut sim, commands) = load(&it);
             let cfg = DisplayConfig { screenblocks: sb };
@@ -135,6 +136,34 @@ fn restore_and_continue_matches_the_uninterrupted_run() {
         }
     }
 }
+
+macro_rules! cases {
+    ($($name:ident = ($case:expr, $sb:expr)),*) => {$(
+        #[test]
+        fn $name() {
+            restore_and_continue($case, $sb);
+        }
+    )*};
+}
+
+#[test]
+fn the_cases_are_the_five_of_the_generated_tests() {
+    let lumps: Vec<&str> = CASES.iter().map(|c| c.0).collect();
+    assert_eq!(lumps, ["M5MSG", "M5STARM", "M5STDIG", "M5LOOK", "M5PALST"],);
+}
+
+cases!(
+    restore_and_continue_m5msg_sb10 = (0, 10),
+    restore_and_continue_m5msg_sb11 = (0, 11),
+    restore_and_continue_m5starm_sb10 = (1, 10),
+    restore_and_continue_m5starm_sb11 = (1, 11),
+    restore_and_continue_m5stdig_sb10 = (2, 10),
+    restore_and_continue_m5stdig_sb11 = (2, 11),
+    restore_and_continue_m5look_sb10 = (3, 10),
+    restore_and_continue_m5look_sb11 = (3, 11),
+    restore_and_continue_m5palst_sb10 = (4, 10),
+    restore_and_continue_m5palst_sb11 = (4, 11)
+);
 
 /// D_Display's `fullscreen` rule (d_main.c:242-243): after switching from screenblocks 11 to
 /// 10, the next frame is a refresh (`ST_doRefresh`, st_stuff.c:1089-1100). From the switch on,

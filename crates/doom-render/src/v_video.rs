@@ -320,4 +320,63 @@ mod tests {
             assert_eq!(c.copy_bg([4, 1], [-1, 0], [4, 1]), Ok(()));
         });
     }
+
+    /// Pins the range checks of v_video.c:171-182 and the `width < 0` test of 186-187, each
+    /// edge alone (the status bar's own calls never leave the range, so only a direct call
+    /// reaches them: `Canvas` is crate-private and `copy_bg` is not on the public API).
+    /// Source right edge: `srcx + width > SCREENWIDTH` is refused as a bad rectangle, before BG
+    /// is looked at.
+    #[test]
+    fn copy_rect_source_right_edge_is_exact() {
+        with_canvas(lump(0, 0, 3, 0), |c, _| {
+            assert_eq!(
+                c.copy_bg([300, 0], [30, 1], [0, 0]),
+                Err(DrawError::BadCopyRect)
+            );
+        });
+    }
+
+    /// v_video.c:171-182: `srcy + height > SCREENHEIGHT` is a bad rectangle (1 + 200 > 200),
+    /// while `srcy + height == SCREENHEIGHT` passes the screen test and is stopped only by BG's
+    /// 32 rows (`CopyOutsideBackground`).
+    #[test]
+    fn copy_rect_source_bottom_edge_is_exact() {
+        with_canvas(lump(0, 0, 3, 0), |c, _| {
+            assert_eq!(
+                c.copy_bg([0, 1], [1, 200], [0, 0]),
+                Err(DrawError::BadCopyRect)
+            );
+            assert_eq!(
+                c.copy_bg([0, 0], [1, 200], [0, 0]),
+                Err(DrawError::CopyOutsideBackground)
+            );
+        });
+    }
+
+    /// v_video.c:186-194: a zero width is not negative, so the copy is a no-op `Ok`.
+    #[test]
+    fn copy_rect_zero_width_is_a_noop() {
+        with_canvas(lump(0, 0, 3, 0), |c, _| {
+            assert_eq!(c.copy_bg([0, 0], [0, 1], [0, 0]), Ok(()));
+        });
+    }
+
+    /// v_video.c:171-182 and 186-195: a rectangle that ends exactly on the destination's right
+    /// edge (`destx + width == 320`), its bottom edge (`desty + height == 200`) or BG's last row
+    /// (`srcy + height == 32`) fits and is copied. Direct call: not on the public API.
+    #[test]
+    fn copy_rect_that_ends_exactly_on_an_edge_is_copied() {
+        with_canvas(lump(0, 0, 3, 0), |c, _| {
+            for s in [0, 31 * 320] {
+                c.bg[s] = 77;
+                c.bg_defined[s] = true;
+            }
+            assert_eq!(c.copy_bg([0, 0], [1, 1], [319, 0]), Ok(()));
+            assert_eq!(c.fg[319], 77);
+            assert_eq!(c.copy_bg([0, 0], [1, 1], [0, 199]), Ok(()));
+            assert_eq!(c.fg[199 * 320], 77);
+            assert_eq!(c.copy_bg([0, 31], [1, 1], [0, 5]), Ok(()));
+            assert_eq!(c.fg[5 * 320], 77);
+        });
+    }
 }
