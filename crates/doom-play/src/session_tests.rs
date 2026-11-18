@@ -315,3 +315,26 @@ fn sound_options_change_no_tic_frame_index_sound_report_stream_or_demo() {
     assert_eq!(again.seen, seen);
     assert_eq!(again.tee.rec.buffers, rec.buffers);
 }
+
+/// Review finding M2 (review-app): the exit lines (`window::exit_lines`) carry the run's
+/// layout-dependence line between the tic statistics and the save line; a session the detector of
+/// decision T12 never labelled (this script holds no switch release) adds none. The line itself,
+/// for a session whose detector fires, is tested in doom-game's tests/m5c_app.rs.
+#[test]
+fn the_exit_lines_hold_no_layout_line_for_an_unlabelled_session() {
+    let data = load();
+    let (_, app, _) = run(&data, Output::for_launch(true, Volume::FULL).0, 0, &[]);
+    assert_eq!(app.layout_dependent_line(), None);
+    let fs = crate::FsHost {
+        dir: std::path::PathBuf::from("sessions"),
+        audio: Output::Discard(crate::audio::Discard::default()),
+    };
+    let lines = crate::window::exit_lines(&app, &fs, None);
+    assert_eq!(lines.len(), 1, "{lines:?}");
+    assert!(lines[0].starts_with("saved "), "{lines:?}");
+    let stats = crate::tic_stats::TicStats::default();
+    let lines = crate::window::exit_lines(&app, &fs, Some(&stats));
+    assert_eq!(lines.len(), 2, "{lines:?}");
+    assert!(lines[0].starts_with("tic-stats: "), "{lines:?}");
+    assert!(!lines.iter().any(|l| l.contains("layout-dependent")));
+}

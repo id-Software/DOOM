@@ -390,3 +390,84 @@ fn a_sound_refusal_ends_the_session_with_the_sound_state_preserved() {
         }
     }
 }
+
+/// Review finding M2 (review-app): decision T12 counts a layout-dependent session "separately in
+/// every report". A session whose detector fires (a switch release with its next slot busy, at
+/// the edge of audibility, where texture number 0 read as x by a 32-bit build would be inaudible:
+/// s_sound.c:796-815 with p_spec.c:1151) gives one plain line naming the first tic and the count;
+/// an unlabelled session gives none unless an earlier session of the run was labelled; the app's
+/// scripted session (no release) gives none.
+#[test]
+fn a_layout_dependent_session_gives_one_plain_line() {
+    use doom_game::app::layout_dependent_line;
+    use doom_sound::logic::{Listener, OriginPositions, S_CLIPPING_DIST, SoundOrigin};
+    use doom_sound::logic::{SoundPlacement, SoundRecord};
+    use doom_sound::session::SoundConfig;
+    struct Quiet;
+    impl OriginPositions for Quiet {
+        fn actor_xy(&self, _: doom_sim::ActorId) -> Option<[i32; 2]> {
+            None
+        }
+        fn sector_xy(&self, _: u16) -> Option<[i32; 2]> {
+            None
+        }
+        fn button_xy(&self, _: u8) -> Option<[i32; 2]> {
+            Some([0, 0])
+        }
+    }
+    let data = load(None);
+    let set = data.sound().expect("sound").set().clone();
+    // The declared reading (34, 0) is audible with volume 1; (0, 34) is not.
+    let edge = S_CLIPPING_DIST - (130 << 16);
+    let listener = Listener {
+        actor: doom_sim::ActorId::from_parts(0, 0),
+        xy: [edge + 34, 0],
+        angle: 0,
+    };
+    let release = SoundRecord::Start {
+        sfx: 23,
+        origin: SoundOrigin::Button(0),
+        at: Some(SoundPlacement {
+            origin: [34, 0],
+            listener: listener.xy,
+            listener_angle: 0,
+        }),
+    };
+    let mut s = Sound::new(set, SoundConfig::fresh(1, 1)).expect("session");
+    s.tic(&[], 0, &listener, &Quiet).expect("tic 0");
+    s.tic(&[release], 0, &listener, &Quiet).expect("tic 1");
+    let d = s.detector();
+    assert_eq!((d.layout_dependent_from(), d.firings()), (Some(1), 1));
+    assert_eq!(
+        layout_dependent_line(Some(d), 0).as_deref(),
+        Some(
+            "layout-dependent session from tic 1 (1 detector firing): a 32-bit build could have \
+             played a switch-release sound differently; this one used the 64-bit reading"
+        )
+    );
+    assert!(
+        layout_dependent_line(Some(d), 2)
+            .is_some_and(|l| l.ends_with("; 2 earlier sessions of this run were labelled too"))
+    );
+    let fresh = Sound::new(
+        data.sound().expect("sound").set().clone(),
+        SoundConfig::fresh(1, 1),
+    )
+    .expect("session")
+    .detector();
+    assert_eq!(layout_dependent_line(Some(fresh), 0), None);
+    assert_eq!(layout_dependent_line(None, 0), None);
+    assert_eq!(
+        layout_dependent_line(Some(fresh), 1).as_deref(),
+        Some(
+            "this session is not layout-dependent; 1 earlier session of this run was labelled too"
+        )
+    );
+    let mut a = Driver::new(data.clone());
+    a.run(&walk_script());
+    assert!(starts(&a.host.seen) > 0);
+    assert_eq!(a.app.layout_dependent_line(), None);
+    // a restart keeps the run's count (here 0 labelled)
+    a.app.restart(&mut a.host);
+    assert_eq!(a.app.layout_dependent_line(), None);
+}

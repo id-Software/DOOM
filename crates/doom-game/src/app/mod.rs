@@ -52,6 +52,7 @@ use doom_render::{
 use doom_sim::{
     MapContextOptions, PlayerSlot, SimError, Simulation, Skill, TicCommand, WeaponInventory,
 };
+use doom_sound::detector::LayoutDetector;
 use doom_sound::lumps::{SoundCaps, SoundLoadError, SoundSet};
 use doom_sound::session::{SessionRefusal, Sound, SoundConfig, TicSound};
 use std::fmt;
@@ -629,6 +630,33 @@ pub struct App {
     screen: Option<Screen>,
     quit: bool,
     audio_notes: Vec<AudioNote>,
+    /// Earlier sessions of this run (before a restart) that the layout detector of decision T12
+    /// labelled layout-dependent.
+    layout_earlier: u64,
+}
+
+/// The one plain line that says a run held a session labelled layout-dependent by the detector of
+/// decision T12 ("counted separately in every report"): `current` is the current session's
+/// detector, `earlier` the number of earlier sessions of the run that were labelled. `None` when
+/// no session was.
+pub fn layout_dependent_line(current: Option<LayoutDetector>, earlier: u64) -> Option<String> {
+    let earlier_text = match earlier {
+        0 => String::new(),
+        1 => "; 1 earlier session of this run was labelled too".to_string(),
+        n => format!("; {n} earlier sessions of this run were labelled too"),
+    };
+    match current.and_then(|d| d.layout_dependent_from().map(|t| (t, d.firings()))) {
+        Some((tic, firings)) => Some(format!(
+            "layout-dependent session from tic {tic} ({firings} detector {}): a 32-bit build \
+             could have played a switch-release sound differently; this one used the 64-bit \
+             reading{earlier_text}",
+            if firings == 1 { "firing" } else { "firings" }
+        )),
+        None if earlier > 0 => Some(format!(
+            "this session is not layout-dependent{earlier_text}"
+        )),
+        None => None,
+    }
 }
 
 /// A notification for the host's [`AudioSink`], kept until the next call that has the host
@@ -663,6 +691,7 @@ impl App {
             screen: None,
             quit: false,
             audio_notes: Vec::new(),
+            layout_earlier: 0,
             data,
             cfg,
         };
@@ -677,6 +706,10 @@ impl App {
             self.audio_notes.push(AudioNote::Resume);
         }
         self.audio_notes.push(AudioNote::SessionStart);
+        let labelled = self
+            .sound()
+            .is_some_and(|s| s.detector().layout_dependent_from().is_some());
+        self.layout_earlier += u64::from(labelled);
         let controls = self.cfg.preset.controls();
         self.sim = self.data.start.clone();
         self.input = Input::new(controls);
@@ -726,6 +759,13 @@ impl App {
     /// schedule and the layout detector of decision T12.
     pub fn sound(&self) -> Option<&Sound> {
         self.frames.as_ref().and_then(FrameSource::sound)
+    }
+
+    /// The run's layout-dependence line ([`layout_dependent_line`]) for the current session and
+    /// the earlier sessions of this run, or `None` when no session was labelled. The window prints
+    /// it on standard error at exit; nothing is drawn.
+    pub fn layout_dependent_line(&self) -> Option<String> {
+        layout_dependent_line(self.sound().map(Sound::detector), self.layout_earlier)
     }
 
     /// Creates the session's file under the first free name made from the session's start

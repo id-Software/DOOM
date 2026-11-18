@@ -185,30 +185,14 @@ impl Stage {
         u64::try_from(self.start.elapsed().as_micros()).unwrap_or(u64::MAX)
     }
 
-    /// Prints where the session went, once.
+    /// Prints where the session went, once ([`exit_lines`]).
     fn report(&mut self) {
         if self.reported {
             return;
         }
         self.reported = true;
-        if let Some(s) = &self.stats {
-            eprintln!("doom-play: {}", s.summary());
-            if let Some((backend, c)) = self.host.audio.device_counters() {
-                eprintln!(
-                    "doom-play: audio ({backend}): {} underruns ({} frames of silence), {} \
-                     overruns ({} frames dropped)",
-                    c.underruns, c.underrun_frames, c.overruns, c.dropped_frames
-                );
-            }
-        }
-        let path = self.host.dir.join(self.app.session_name());
-        match self.app.save_status() {
-            _ if !self.app.recorded() => eprintln!("doom-play: {UNRECORDED_LABEL}"),
-            SaveStatus::Saved(tics) => {
-                eprintln!("doom-play: saved {} ({tics} tics)", path.display())
-            }
-            SaveStatus::Failed(e) => eprintln!("doom-play: the session was not saved: {e}"),
-            SaveStatus::NotSaved => eprintln!("doom-play: the session was not saved"),
+        for line in exit_lines(&self.app, &self.host, self.stats.as_ref()) {
+            eprintln!("doom-play: {line}");
         }
     }
 
@@ -307,6 +291,33 @@ impl EventHandler for Stage {
     fn quit_requested_event(&mut self) {
         self.quit();
     }
+}
+
+/// The lines printed on standard error at exit, each after `doom-play: `: with `--tic-stats`
+/// the tic interval summary and the device's counters; the run's layout-dependence line when a
+/// session of the run was labelled by the detector of decision T12 (always, with or without
+/// `--tic-stats`); then where the session's demo went.
+pub(crate) fn exit_lines(app: &App, host: &FsHost, stats: Option<&TicStats>) -> Vec<String> {
+    let mut lines = Vec::new();
+    if let Some(s) = stats {
+        lines.push(s.summary());
+        if let Some((backend, c)) = host.audio.device_counters() {
+            lines.push(format!(
+                "audio ({backend}): {} underruns ({} frames of silence), {} overruns ({} frames \
+                 dropped)",
+                c.underruns, c.underrun_frames, c.overruns, c.dropped_frames
+            ));
+        }
+    }
+    lines.extend(app.layout_dependent_line());
+    let path = host.dir.join(app.session_name());
+    lines.push(match app.save_status() {
+        _ if !app.recorded() => UNRECORDED_LABEL.to_string(),
+        SaveStatus::Saved(tics) => format!("saved {} ({tics} tics)", path.display()),
+        SaveStatus::Failed(e) => format!("the session was not saved: {e}"),
+        SaveStatus::NotSaved => "the session was not saved".to_string(),
+    });
+    lines
 }
 
 fn button_of(button: miniquad::MouseButton) -> Option<MouseButton> {
