@@ -267,9 +267,12 @@ const PART_COUNTS: [Counts; PARTS] = [
     counts([6264, 6264, 0, 0, 6264, 6264, 4, 18, 3872]),
 ];
 
-/// The 45,540 golden frames (22,770 per screen size), every face index equal, the face-zeroed
-/// digest equal on all 45,470 digest-compared frames, 6 renderer ends, 200 messages, and 28,082
-/// buffers (14,041 per screen size: the sound does not depend on the screen size).
+/// The 45,540 golden frames (22,770 per screen size), every face index equal, 6 renderer ends,
+/// 200 messages, and 28,082 buffers (14,041 per screen size: the sound does not depend on the
+/// screen size). Of the 45,470 frames that are not switch-parity frames (the 70 are not
+/// digest-compared), 45,170 have their whole-frame and face-zeroed digests compared; the other
+/// 300 are tracker-flagged frames, compared on the masked digest and flagged columns, whose
+/// face-zeroed digest is `undefined` in the goldens and is counted without a comparison.
 #[test]
 fn the_parts_sum_to_the_totals() {
     let sum = PART_COUNTS.iter().fold([0; 9], |a, c| {

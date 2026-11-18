@@ -5,8 +5,11 @@
 //! as in M5a and M5b), then continued to the end of the item. Every frame, palette number, palette
 //! set, face, `message_on`, message taken, `M_Random` index, the tic's sound report (every start
 //! echo, stop, the update, the draws and the buffer), the channel table and the mixer, and both
-//! encodings at the end must equal the uninterrupted run's, and every frame its genuine golden of
-//! `tests/reference/m5c_frames`.
+//! encodings at the end must equal the uninterrupted run's; and each frame is compared with its
+//! genuine golden of `tests/reference/m5c_frames` (the whole-frame and face-zeroed digests and
+//! the status row), except the 70 frames of M5SWTCH (35 per screen size) whose switch parity the
+//! renderer reports unknown, for which only the status row is compared. None of the seven items
+//! has a masked (tracker-flagged) frame.
 //!
 //! Forged or mismatched saves are refused and nothing is built; a version-1 display state of the
 //! M5b configuration (`GameData::load`) still restores as the M5b contract.
