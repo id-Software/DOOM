@@ -1,10 +1,12 @@
 #!/usr/bin/env python3
-"""Deterministic seed inputs for fuzz_targets/sound_lumps.rs, sound_mixer.rs and sound_logic.rs (M5c).
+"""Deterministic seed inputs for fuzz_targets/sound_lumps.rs, sound_mixer.rs, sound_logic.rs and
+sound_state.rs (M5c).
 
     python3 tools/seed_sound_fuzz.py lumps DIR     # max_len 4096
     python3 tools/seed_sound_fuzz.py mixer DIR     # max_len 2050
     python3 tools/seed_sound_fuzz.py logic DIR     # max_len 1060
-    python3 tools/seed_sound_fuzz.py --check [DIR_LUMPS DIR_MIXER DIR_LOGIC]
+    python3 tools/seed_sound_fuzz.py state DIR     # max_len 2048
+    python3 tools/seed_sound_fuzz.py --check [DIR_LUMPS DIR_MIXER DIR_LOGIC DIR_STATE]
     python3 tools/seed_sound_fuzz.py --self-test
 
 Seeds come only from committed synthetic data (tests/reference/m5c_sfx.wad, m5c_sfx_edge.wad, the
@@ -13,7 +15,10 @@ tests/reference/m5c_sound) and fixed-seed edge cases; nothing is taken from Rust
 is read. The layouts of the inputs are documented in each target's header comment. The mapping of
 the genuine streams onto the logic target is coarse (the target's coordinates are 8-bit
 multiples of 65536 and its origins are small numbers): a seed starts the fuzzer near real call
-shapes, it does not replay the stream.
+shapes, it does not replay the stream. The state target's decoder seeds are DSND version 1 bytes
+written here from the layout documented in crates/doom-sound/src/state.rs (an independent writer:
+the mixer ends are the padded lengths of getsfx, i_sound.c:230, computed from m5c_sfx.wad, and the
+steps are read from the committed generated steptable), valid ones and corrupted copies.
 
 --check writes nothing: it builds every seed list twice (the lists must be equal), checks every
 length against the target's max_len and, when directories are given, that each holds exactly the
@@ -28,7 +33,7 @@ import tempfile
 from pathlib import Path
 
 REFERENCE = Path(__file__).resolve().parent.parent / 'tests' / 'reference'
-LUMPS_MAX, MIXER_MAX, LOGIC_MAX = 4096, 2050, 1060
+LUMPS_MAX, MIXER_MAX, LOGIC_MAX, STATE_MAX = 4096, 2050, 1060, 2048
 WADS = ['m5c_sfx.wad', 'm5c_sfx_edge.wad']
 
 
@@ -172,7 +177,126 @@ def logic_seeds():
     return list(dict.fromkeys(seeds))
 
 
-TARGETS = {'lumps': (lumps_seeds, LUMPS_MAX), 'mixer': (mixer_seeds, MIXER_MAX), 'logic': (logic_seeds, LOGIC_MAX)}
+def steptable():
+    text = (Path(__file__).resolve().parent.parent / 'crates' / 'doom-sound' / 'src' / 'steptable.rs').read_text()
+    import re
+    body = text[text.index('= ['):]
+    values = [int(v) for v in re.findall(r'\d+', body)]
+    assert len(values) == 256, len(values)
+    return values
+
+
+def padded_lengths():
+    """getsfx's padded length per sound number of m5c_sfx.wad (i_sound.c:213-241): own lump or the
+    dspistol copy, size - 8 rounded up to 512, 0 for a lump of 8 bytes or fewer."""
+    names = sfx_names()
+    have = {n.upper(): data for n, data in wad_lumps('m5c_sfx.wad')}
+    out = {}
+    for i in range(1, 109):
+        data = have.get('DS' + names[i].upper(), have.get('DSPISTOL'))
+        size = len(data)
+        out[i] = ((size - 8 + 511) // 512) * 512 if size > 8 else 0
+    return out, {i for i in range(1, 109) if 'DS' + names[i].upper() in have}
+
+
+def dsnd(tic, channels, mixer, looked=(), label=None, firings=0, textures=80, gamemap=1,
+         volume=8, handlenums=0):
+    """DSND version 1 (crates/doom-sound/src/state.rs). channels: list of None or
+    (sfx, kind, ident, handle); mixer: 8 entries of None or (sfx, pos, end, step, frac, start,
+    handle, left, right)."""
+    buffers = -(-315 * tic // 512)
+    out = b'DSND' + struct.pack('<HQQBBiI', 1, tic, buffers, volume, len(channels), gamemap, textures)
+    out += struct.pack('<BQQ', 1 if label is not None else 0, label or 0, firings)
+    bits = bytearray(14)
+    for n in looked:
+        bits[n // 8] |= 1 << (n % 8)
+    out += bytes(bits)
+    for c in channels:
+        if c is None:
+            out += b'\0'
+            continue
+        sfx, kind, ident, handle = c
+        out += bytes([1, sfx, kind])
+        if kind == 1:
+            out += struct.pack('<IQ', *ident)
+        elif kind == 2:
+            out += struct.pack('<H', ident)
+        elif kind == 3:
+            out += bytes([ident])
+        out += struct.pack('<i', handle)
+    out += struct.pack('<H', handlenums)
+    for m in mixer:
+        if m is None:
+            out += b'\0'
+            continue
+        out += bytes([1, m[0]]) + struct.pack('<IIIIiiBB', *m[1:])
+    return out
+
+
+def state_seeds():
+    seeds = []
+    steps = steptable()
+    ends, own = padded_lengths()
+    free8 = [None] * 8
+    valid = [dsnd(0, [None] * 3, free8)]
+    valid.append(dsnd(1, [(1, 0, None, 100), None, None], [(1, 0, ends[1], steps[128], 0, 0, 100, 8, 8)] + [None] * 7,
+                      looked=[1], handlenums=101))
+    valid.append(dsnd(40, [(1, 0, None, 100), (20, 1, (3, 7), 101), (20, 2, 2, 102)],
+                      [(1, 10, ends[1], steps[120], 65535, 39, 100, 127, 0), None,
+                       (20, 0, ends[20], steps[0], 0, 0, 101, 3, 4)] + [None] * 5,
+                      looked=[1, 20], label=12, firings=3, handlenums=103))
+    valid.append(dsnd(545, [(23, 3, 14, 65535), None, None, (82, 1, (9, 1), 300)], free8,
+                      looked=sorted(own)[:10], gamemap=8, handlenums=0, textures=65536))
+    valid.append(dsnd(2147483647, [None] * 64, free8, volume=127))
+    seeds += [bytes([0]) + v for v in valid]
+    rng = random.Random(0x4d35e)
+    for v in valid:
+        for _ in range(12):
+            b = bytearray(v)
+            for _ in range(rng.randint(1, 3)):
+                b[rng.randrange(len(b))] ^= 1 << rng.randrange(8)
+            seeds.append(bytes([0]) + bytes(b))
+        seeds.append(bytes([0]) + v[:rng.randrange(len(v))])
+    # The session: the coarse call shapes of the genuine streams, as for the logic target, with a
+    # tic op after each stream tic and a save every tenth tic.
+    for path in sorted((REFERENCE / 'm5c_sound').glob('*.sound')):
+        body = b''
+        last_tic = None
+        ntic = 0
+        for line in path.read_text().splitlines():
+            p = line.split(',')
+            if p[0] != 'S' or len(p) < 22:
+                continue
+            if len(body) >= 8 * 110:
+                break
+            tic = int(p[1])
+            if tic != last_tic:
+                if last_tic is not None:
+                    body += op(2, last_tic & 0xff, 0, 0, 0, 0, 0)
+                    ntic += 1
+                    if ntic % 10 == 0:
+                        body += op(3)
+                last_tic = tic
+            kind = KINDS[p[4]]
+            oid = int(p[5]) if p[5] != '-1' else 0
+            flags = 0x10 if p[17] != '-' else 0
+            xs = [(int(v) >> 16) & 0xff if v != '-' else 0 for v in (p[17], p[18], p[19], p[20])]
+            body += op(flags, int(p[3]) & 0xff, kind, oid & 0xff, *xs)
+        body += op(2) + op(3)
+        seeds.append(bytes([1, 0, 80]) + body)
+    for n in range(40):
+        body = b''
+        for _ in range(rng.randint(4, 120)):
+            body += op(rng.choice((0, 0x10, 0x10, 1, 2, 2, 2, 3)),
+                       *[rng.choice((rng.randrange(256), rng.choice((0, 1, 20, 23, 32, 86, 87, 108, 109))))
+                         for _ in range(7)])
+        seeds.append(bytes([1, rng.randrange(3), rng.choice((0, 1, 19, 80, 255))]) + body)
+    assert all(len(s) <= STATE_MAX for s in seeds)
+    return list(dict.fromkeys(seeds))
+
+
+TARGETS = {'lumps': (lumps_seeds, LUMPS_MAX), 'mixer': (mixer_seeds, MIXER_MAX), 'logic': (logic_seeds, LOGIC_MAX),
+           'state': (state_seeds, STATE_MAX)}
 
 
 def named(target):
@@ -241,8 +365,8 @@ def main():
         return
     if args.check is not None:
         dirs = args.check
-        if dirs and len(dirs) != 3:
-            parser.error('--check takes no directory or three (lumps mixer logic)')
+        if dirs and len(dirs) != len(TARGETS):
+            parser.error('--check takes no directory or four (lumps mixer logic state)')
         sys.exit(0 if check(dirs) else 1)
     if not args.target or not args.directory:
         parser.error('target and directory are required')

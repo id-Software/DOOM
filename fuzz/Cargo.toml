@@ -430,3 +430,10 @@ path = "fuzz_targets/sound_logic.rs"
 test = false
 doc = false
 bench = false
+
+[[bin]]
+name = "sound_state"
+path = "fuzz_targets/sound_state.rs"
+test = false
+doc = false
+bench = false
