@@ -110,6 +110,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "doom-sound"
+version = "0.1.0"
+dependencies = [
+ "doom-render",
+ "doom-sim",
+ "doom-test-evidence",
+ "doom-types",
+ "doom-wad",
+]
+
+[[package]]
 name = "doom-test-evidence"
 version = "0.1.0"
 dependencies = [
