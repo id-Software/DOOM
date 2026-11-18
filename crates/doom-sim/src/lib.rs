@@ -140,6 +140,8 @@ pub use barrels::EXPLOSION_SIGHT_QUERIES;
 pub mod demo;
 mod e1m1_rules;
 mod episode1;
+/// Canonical sound records (wire 25): `SoundRecord`, `SoundOrigin`, `SoundPlacement`.
+pub mod sound;
 pub use episode1::Episode1Bounds;
 mod level;
 mod level_stats;
