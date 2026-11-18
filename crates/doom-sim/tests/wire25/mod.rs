@@ -189,6 +189,52 @@ pub fn run_pair(
     Ok(out)
 }
 
+/// Runs `commands` under wire 25 alone (no wire-24 run, no checks 1 and 2): for a
+/// map the two wires do not load alike (the THING-loading truncation of wire 25,
+/// p_setup.c:317-337). `each` sees the simulation as in [`run_pair`]; the outcome
+/// counts captures, tics and records, and a refusal ends the run.
+pub fn run_alone(
+    map: &doom_map::Map,
+    map_number: u8,
+    skill: Skill,
+    commands: &[TicCommand],
+    mut each: impl FnMut(usize, &Simulation),
+) -> Result<Outcome, String> {
+    let mut b = build(true, map.clone(), map_number, skill)?;
+    let mut out = Outcome::default();
+    let count = |s: &Simulation, out: &mut Outcome| {
+        out.captures += 1;
+        for r in s.sound_records() {
+            match r {
+                SoundRecord::Start { at, .. } => {
+                    out.starts += 1;
+                    out.placed += usize::from(at.is_some());
+                }
+                SoundRecord::Stop { .. } => out.stops += 1,
+            }
+        }
+    };
+    count(&b, &mut out);
+    each(0, &b);
+    for (i, c) in commands.iter().enumerate() {
+        let tic = i + 1;
+        let cmd = [
+            *c,
+            TicCommand::default(),
+            TicCommand::default(),
+            TicCommand::default(),
+        ];
+        if let Err(e) = b.advance(cmd) {
+            out.refused = Some((tic, format!("{e:?}")));
+            break;
+        }
+        out.tics += 1;
+        count(&b, &mut out);
+        each(tic, &b);
+    }
+    Ok(out)
+}
+
 /// The 64 synthetic items of the genuine M5c sound streams
 /// (tests/reference/m5c_sound/LUMP.sound): every item of
 /// tools/reference/m5b_reference.py (the M5a rooms, the M4b scripts, the M5b rooms

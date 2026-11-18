@@ -19,7 +19,16 @@
 //!
 //! `tic` is the 0-based number of the tic that made the record (the genuine
 //! stream's numbering); records of explicit operations do not occur in a demo
-//! run. Nothing is written but `--out`; frozen tools and examples are untouched.
+//! run.
+//!
+//! `--captures <dir>` (M5c step 3b, for the whole-engine comparison of wire 25
+//! against the genuine engine, tools/reference/level_compare_m5c.py) also writes
+//! every wire-25 capture as `<dir>/tic_NNNNN.bin` (the canonical DSIM41 bytes,
+//! capture N after N tics) and, when the run is refused, `<dir>/refused.txt`
+//! (`<tic> <error>`), the layout of `player_level_run --captures`. `--alone` runs
+//! wire 25 by itself, without wire 24 and checks 1 and 2: for a map the two wires
+//! do not load alike (the THING-loading truncation, M5c decision T4). Nothing is
+//! written but `--out` and `--captures`; frozen tools and examples are untouched.
 //! Without `--wad` it prints its usage and exits successfully.
 
 #[path = "../tests/wire25/mod.rs"]
@@ -32,11 +41,13 @@ use doom_sim::{
 };
 use std::{error::Error, fmt::Write as _, fs, path::PathBuf};
 
-const USAGE: &str = "usage: sound_records_run --wad <path> --map E1Mn --demo <lmp> [--out <file>]";
+const USAGE: &str = "usage: sound_records_run --wad <path> --map E1Mn --demo <lmp> [--out <file>] \
+     [--captures <dir>] [--alone]";
 
 fn main() -> Result<(), Box<dyn Error>> {
     let mut args = std::env::args().skip(1);
     let (mut wad, mut map, mut demo, mut out) = (None, None, None, None);
+    let (mut captures, mut alone) = (None::<PathBuf>, false);
     while let Some(a) = args.next() {
         let mut value = || args.next().ok_or_else(|| format!("{a} needs a value"));
         match a.as_str() {
@@ -44,6 +55,8 @@ fn main() -> Result<(), Box<dyn Error>> {
             "--map" => map = Some(value()?),
             "--demo" => demo = Some(PathBuf::from(value()?)),
             "--out" => out = Some(PathBuf::from(value()?)),
+            "--captures" => captures = Some(PathBuf::from(value()?)),
+            "--alone" => alone = true,
             "--help" | "-h" => {
                 println!("{USAGE}");
                 return Ok(());
@@ -71,9 +84,19 @@ fn main() -> Result<(), Box<dyn Error>> {
     let bytes = fs::read(wad)?;
     let wad = doom_wad::Wad::parse(&bytes, doom_wad::Limits::default())?;
     let level = doom_map::Map::from_wad(&wad, &map, doom_map::MapLimits::default())?;
+    if let Some(dir) = &captures {
+        fs::create_dir_all(dir)?;
+    }
     let mut rows = String::new();
     let mut seq = 0_u64;
-    let outcome = wire25::run_pair(&level, number, skill, &demo.commands, |tic, s| {
+    let mut written: Result<(), std::io::Error> = Ok(());
+    let each = |tic: usize, s: &Simulation| {
+        if let (Some(dir), true) = (&captures, written.is_ok()) {
+            written = fs::write(
+                dir.join(format!("tic_{tic:05}.bin")),
+                s.snapshot().canonical_bytes(),
+            );
+        }
         if tic == 0 {
             return;
         }
@@ -111,7 +134,16 @@ fn main() -> Result<(), Box<dyn Error>> {
                 }
             }
         }
-    })?;
+    };
+    let outcome = if alone {
+        wire25::run_alone(&level, number, skill, &demo.commands, each)?
+    } else {
+        wire25::run_pair(&level, number, skill, &demo.commands, each)?
+    };
+    written?;
+    if let (Some(dir), Some((tic, error))) = (&captures, &outcome.refused) {
+        fs::write(dir.join("refused.txt"), format!("{tic} {error}\n"))?;
+    }
     let summary = format!(
         "Z,captures,{},tics,{},starts,{},placed,{},stops,{},screams_replaced,{},refused,{}",
         outcome.captures,
