@@ -1680,6 +1680,8 @@ mod specials_evidence;
 mod v_prime_tests;
 #[cfg(test)]
 mod wire24_rejection_tests;
+#[cfg(test)]
+mod wire25_tests;
 
 #[cfg(test)]
 mod m4p_elision_tests;
