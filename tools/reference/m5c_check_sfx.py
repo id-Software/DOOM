@@ -192,6 +192,11 @@ def self_test(d):
 
 def main():
     args = sys.argv[1:]
+    if args[:1] in (['-h'], ['--help']):
+        print(__doc__)
+        return
+    if args[:1] and args[0].startswith('-') and args[0] != '--self-test':
+        sys.exit(f'm5c_check_sfx: unknown option {args[0]} (see --help)')
     if args[:1] == ['--self-test']:
         self_test(Path(args[1]) if len(args) > 1 else DIR)
         return

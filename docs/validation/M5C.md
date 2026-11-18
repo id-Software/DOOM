@@ -58,7 +58,7 @@ What was built, all new files (hand-written lines by `wc -l`; generated data sep
   clipping lumps, a 22,050 Hz header, a wrong header count, a missing `pstart`, a `dschgun` the link ignores;
   41,707 bytes) and `m5c_music.wad` (the nine `D_E1M1`-`D_E1M9` placeholders `S_Start` looks up, our own ASCII,
   939 bytes). The tones are computed from integers: no id audio. The music lumps are a separate WAD so that
-  `m5c_sfx.wad` keeps the digest the note's section 3.3 recorded. `m5c_check_sfx.py` (208 lines) is an independent
+  `m5c_sfx.wad` keeps the digest the note's section 3.3 recorded. `m5c_check_sfx.py` (213 lines) is an independent
   verifier with its own parse of `sounds.c`.
 - **1b, the runner.** `m5c_build.py` (274 lines) builds the M5b runner fork with `s_sound.c` and `f_wipe.c`
   compiled whole and unmodified and `i_sound.c` whole with two declared errno lines: 49 genuine files, 39 wrapped
@@ -85,7 +85,7 @@ What was built, all new files (hand-written lines by `wc -l`; generated data sep
 - **1e, the real maps (local only).** `tools/local/m5c_real.py` (197 lines) and its record
   `tests/reference/m5c_real_results.json` (298,725 bytes; counts and digests only).
 
-Hand-written: 4,085 lines in 1a to 1e (the nine files above), of which about 2,370 are new against the forked M5b
+Hand-written: 4,090 lines in 1a to 1e (the nine files above; 4,085 as the step ended, plus 5 added to `m5c_check_sfx.py` on 2026-11-18 so that `--help` prints its usage and an unknown option is refused), of which about 2,370 are new against the forked M5b
 text. Generated data: about 12.85 MB, of which the frames are 10.09 MB.
 
 **What was run** (by the step's agent):

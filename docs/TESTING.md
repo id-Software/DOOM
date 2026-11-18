@@ -2400,7 +2400,7 @@ integrated, in-process build of T2.
 ```sh
 # generators, verifiers and contracts (Python only, no compiler)
 python3 tools/reference/m5c_sfx.py [--out DIR] [--list] [--check]        # the three PWADs: tests/reference/m5c_sfx.wad, m5c_sfx_edge.wad, m5c_music.wad
-python3 tools/reference/m5c_check_sfx.py [DIR]                           # their independent verifier (it has no --help; it takes a directory or none)
+python3 tools/reference/m5c_check_sfx.py [DIR]                           # their independent verifier (it takes a directory or none)
 python3 tools/reference/m5c_check_sfx.py --self-test                      # plants 9 defects and requires each to be found
 python3 tools/reference/m5c_wad.py [--only NAME] [--list] [--manifest] [--check]   # the 4 rooms in tests/reference/m5c_wads/ and 5 scripts in m5c_scripts/
 python3 tools/reference/m5c_build.py --check                              # tests/reference/m5c_runner_contract.json (DOOM-M5C-RUNNER-v1)
