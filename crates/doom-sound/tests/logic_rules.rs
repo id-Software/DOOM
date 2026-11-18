@@ -304,6 +304,23 @@ fn refusals_preserve_the_state() {
         Err(SoundRefusal::Placement)
     );
     check(&w);
+    // Review finding M1 (review-sound): a sector or button origin is never the listener, so
+    // s_sound.c:304-320 always measures it; such a start without a placement is refused, not
+    // played as the listener's own sound (and a switch release never skips the T12 detector).
+    for origin in [SoundOrigin::Sector(3), SoundOrigin::Button(0)] {
+        assert_eq!(
+            w.start(20, origin, None, 1),
+            Err(SoundRefusal::Placement),
+            "{origin:?}"
+        );
+        check(&w);
+        let mut placed = edge_world();
+        assert_eq!(
+            placed.start(20, origin, Some(p), 1).map(|e| e.outcome),
+            Ok(StartOutcome::Started),
+            "{origin:?} with a placement"
+        );
+    }
     // With no channel free the lump is never looked up (s_sound.c:352-355 before 363-365): the
     // missing-lump start is then a plain no-channel start.
     let mut w = world(sound_set("m5c_sfx_edge.wad"), LogicConfig::fresh(1));

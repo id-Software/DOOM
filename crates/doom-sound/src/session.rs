@@ -32,6 +32,7 @@ use crate::logic::{
 use crate::lumps::SoundSet;
 use crate::mixer::{Buffer, Mixer};
 use crate::schedule::Schedule;
+use crate::sounds::SfxId;
 
 /// A session's configuration.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -198,7 +199,9 @@ impl Sound {
     /// Runs the next tic (see the module documentation): the tic's `records` in order with the
     /// `M_Random` index `rndindex` (the miscellaneous stream, m_random.c:63-67), then
     /// `S_UpdateSounds` with `listener` and `positions` read after the tic, then the due buffer.
-    /// On a refusal nothing changes.
+    /// A start of an actor other than `listener.actor` without a placement is refused
+    /// ([`SoundRefusal::Placement`]): the C measures it (s_sound.c:304). On a refusal nothing
+    /// changes.
     pub fn tic(
         &mut self,
         records: &[SoundRecord],
@@ -228,6 +231,26 @@ impl Sound {
         let mut echoes = Vec::with_capacity(records.len());
         let mut draws: u16 = 0;
         for (i, record) in records.iter().enumerate() {
+            // s_sound.c:304: an actor other than `players[consoleplayer].mo` is always measured,
+            // so its start must carry a placement (the sound number is checked first, as the
+            // logic checks it before the placement). The body after the tic is the body at the
+            // call: `players[0].mo` is set only by P_SpawnPlayer (p_mobj.c:675), which a
+            // single-player session reaches again only through a reborn's level reload
+            // (g_game.c:928-931), never inside a tic.
+            if let SoundRecord::Start {
+                sfx,
+                origin: SoundOrigin::Actor(a),
+                at: None,
+            } = *record
+            {
+                if a != listener.actor {
+                    let why = match SfxId::new(i64::from(sfx)) {
+                        Some(_) => SoundRefusal::Placement,
+                        None => SoundRefusal::SfxId { sfx },
+                    };
+                    return Err(refused(RefusedAt::Record(i), why));
+                }
+            }
             let echo = logic
                 .apply(record, &mut rng, &mut mixer, gametic)
                 .map_err(|r| refused(RefusedAt::Record(i), r))?;

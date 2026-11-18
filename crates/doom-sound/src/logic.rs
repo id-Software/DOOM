@@ -96,8 +96,12 @@ pub enum SoundRefusal {
         /// The slot.
         slot: u8,
     },
-    /// A start record whose placement does not match its origin: a NULL origin with a placement
-    /// (s_sound.c:304 never measures a NULL origin).
+    /// A start record whose placement does not match its origin (s_sound.c:304 measures exactly
+    /// an origin that is neither NULL nor `players[consoleplayer].mo`): a NULL origin with a
+    /// placement, or without one a sector or button origin (never the listener) or, in a
+    /// session ([`crate::session::Sound::tic`]), an actor that is not the listener. Such a
+    /// record is the producer's fault; playing it unmeasured would also skip the layout
+    /// detector of decision T12 for a switch release.
     Placement,
     /// `S_UpdateSounds` found an occupied channel whose origin's position cannot be read: a
     /// broken invariant (every removal stops its origin's channel, p_mobj.c:565-566), never a
@@ -472,7 +476,10 @@ impl SoundLogic {
     /// (s_sound.c:397-407, 254-395), with `gametic` the global's value at the call.
     ///
     /// `at` is present exactly for a positional start, an origin that is neither NULL nor the
-    /// listener's body (s_sound.c:304), and holds the positions read at the call.
+    /// listener's body (s_sound.c:304), and holds the positions read at the call. A NULL origin
+    /// with a placement and a sector or button origin without one are refused
+    /// ([`SoundRefusal::Placement`]); an actor origin without one is taken as the listener's
+    /// body, which only the session can check.
     pub fn start(
         &mut self,
         sfx: u16,
@@ -489,7 +496,12 @@ impl SoundLogic {
                 return Err(SoundRefusal::ButtonPastArray { slot });
             }
         }
-        if origin == SoundOrigin::None && at.is_some() {
+        // s_sound.c:304: a NULL origin is never measured; a sector's `soundorg` or a button's
+        // (p_spec.c:1151) is never `players[consoleplayer].mo`, so it is always measured and
+        // its start must carry the positions read at the call. (An actor that is not the
+        // listener is the session's check, `Sound::tic`: the logic does not know the listener.)
+        let measured = matches!(origin, SoundOrigin::Sector(_) | SoundOrigin::Button(_));
+        if (origin == SoundOrigin::None && at.is_some()) || (measured && at.is_none()) {
             return Err(SoundRefusal::Placement);
         }
         let info = id.info();

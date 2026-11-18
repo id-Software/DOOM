@@ -200,6 +200,57 @@ fn a_refused_record_leaves_the_session_unchanged() {
     assert_eq!(s, before);
 }
 
+/// Review finding M1 (review-sound): an actor that is not the listener is always measured
+/// (s_sound.c:304-320), so its start without a placement is refused with the session unchanged;
+/// the listener's own body takes none.
+#[test]
+fn an_unplaced_start_of_another_actor_is_refused() {
+    let mut s = session();
+    let at = Positions {
+        actor: Some([64 << 16, 0]),
+    };
+    let before = s.clone();
+    let unplaced = |actor| SoundRecord::Start {
+        sfx: DOROPN,
+        origin: SoundOrigin::Actor(actor),
+        at: None,
+    };
+    let r = s.tic(
+        &[unplaced(player()), unplaced(monster())],
+        2,
+        &listener(),
+        &at,
+    );
+    assert_eq!(
+        r,
+        Err(SessionRefusal::Sound {
+            tic: 0,
+            at: RefusedAt::Record(1),
+            refusal: SoundRefusal::Placement
+        })
+    );
+    assert_eq!(s, before);
+    // A bad sound number is still refused as such first.
+    let bad = SoundRecord::Start {
+        sfx: 0,
+        origin: SoundOrigin::Actor(monster()),
+        at: None,
+    };
+    assert!(matches!(
+        s.tic(&[bad], 2, &listener(), &at),
+        Err(SessionRefusal::Sound {
+            refusal: SoundRefusal::SfxId { sfx: 0 },
+            ..
+        })
+    ));
+    assert_eq!(s, before);
+    // The listener's own body without a placement is its non-positional start.
+    let t = s
+        .tic(&[unplaced(player())], 2, &listener(), &at)
+        .expect("tic");
+    assert_eq!((t.draws, t.rndindex), (1, 3));
+}
+
 #[test]
 fn a_refused_update_leaves_the_session_unchanged() {
     let mut s = session();

@@ -18,7 +18,8 @@
 //! at `(d << 16, e << 16)` and angle `f << 24`, where an origin is "gone" when bit
 //! `(cnum, kind)` of `a` says so; 3 `level_start`; 4 advance `gametic` by `a`; 5 mix one buffer.
 //!
-//! Invariants: every result is `Ok` or a typed `SoundRefusal`; on `Err` the logic, the mixer and
+//! Invariants: every result is `Ok` or a typed `SoundRefusal`; a sector or button start without a
+//! placement is refused (s_sound.c:304 always measures such an origin); on `Err` the logic, the mixer and
 //! the random indices are all equal to clones taken before the call; the table keeps exactly the
 //! configured number of channels; no non-NULL origin holds two channels after a start (s_sound.c:
 //! 349 frees the first, 842-846); the gameplay index never moves; a start draws at most once and
@@ -161,7 +162,20 @@ fuzz_target!(|data: &[u8]| {
                     origin,
                     at,
                 };
-                match logic.apply(&record, &mut rng, &mut mixer, gametic) {
+                let r = logic.apply(&record, &mut rng, &mut mixer, gametic);
+                if at.is_none() && matches!(origin, SoundOrigin::Sector(_) | SoundOrigin::Button(_))
+                {
+                    assert!(
+                        matches!(
+                            r,
+                            Err(SoundRefusal::Placement
+                                | SoundRefusal::SfxId { .. }
+                                | SoundRefusal::ButtonPastArray { .. })
+                        ),
+                        "an unplaced sector or button start was accepted: {r:?}"
+                    );
+                }
+                match r {
                     Err(_) => unchanged(&logic, &mixer, &rng),
                     Ok(RecordEcho::Stop(_)) => panic!("a start answered with a stop"),
                     Ok(RecordEcho::Start(s)) => {
