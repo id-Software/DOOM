@@ -1,0 +1,21 @@
+[package]
+name = "doom-sound"
+description = "Platform-free port of linuxdoom-1.10's sound logic (s_sound.c) and in-process mixer (i_sound.c), with no audio device"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+publish.workspace = true
+
+[dependencies]
+doom-types.workspace = true
+doom-sim = { path = "../doom-sim" }
+doom-render = { path = "../doom-render" }
+
+[dev-dependencies]
+doom-wad = { path = "../doom-wad" }
+doom-test-evidence = { path = "../doom-test-evidence" }
+
+[lints]
+workspace = true
