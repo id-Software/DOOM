@@ -1081,9 +1081,17 @@ impl Simulation {
                 self.events.extend(special_events);
                 self.events.push(Event::Phase(Phase::Respawn));
             }
-            None => self
-                .events
-                .extend([Event::Phase(Phase::Specials), Event::Phase(Phase::Respawn)]),
+            None => {
+                // Two pushes, one copy of an event each, the same on every
+                // build. The array form's out-of-line `extend` body copied both
+                // events with one fused `memcpy` only as long as the pinned
+                // compiler split the crate's code-generation units as it did at
+                // 6d02210; 591c793 changed that split without touching this path,
+                // and the body then copied the array and each event, three calls
+                // per tic (M4a_corpse_continuation: 8,407 -> 9,207 `memcpy` calls).
+                self.events.push(Event::Phase(Phase::Specials));
+                self.events.push(Event::Phase(Phase::Respawn));
+            }
         }
         self.commands = commands;
         self.tic += 1;
