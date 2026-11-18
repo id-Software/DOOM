@@ -23,7 +23,8 @@ use std::time::{SystemTime, UNIX_EPOCH};
 
 const HELP: &str = "\
 doom-play: play one Episode 1 map of DOOM in a window, with the Linux DOOM 1.10 game rules
-and sound effects (no cheats, menu or music; see Sound and Limits).
+and the sound effects of linuxdoom-1.10 built with its in-process sound code (one define
+removed); no cheats, menu or music (see Sound and Limits).
 
 usage: doom-play --iwad PATH [options]
        doom-play --audio-probe
@@ -89,8 +90,9 @@ Limits: an OpenGL 2.1 (or OpenGL ES 2) driver is required. There is no music, me
 automap, intermission or next level; the session ends at the level's exit, or when the
 dead player presses use. Cheat codes have no effect: their keys reach the game as ordinary
 keys. The status bar face's idle glance follows the sound's random draws as the genuine
-engine replaying the session's demo does; a vanilla player's menu keys (Esc, -, =, F1-F10),
-which start menu sounds, are not part of a demo and are not modelled.";
+engine replaying the session's demo does, under the declared schedule and build; a vanilla
+player's menu keys (Esc, -, =, F1-F10), which start menu sounds, are not part of a demo and
+are not modelled.";
 
 /// The parsed command line.
 #[derive(Debug)]
@@ -560,6 +562,17 @@ mod tests {
              in-process sound code (one define\nremoved), under the declared schedule"
         ));
         assert!(HELP.contains("is presentation and is not part of any claim"));
+        // review-app M3: the header names the sound's reference with its qualifier (ruling T2)
+        // and the face sentence names the declared schedule and build (ruling T14)
+        assert!(HELP.contains(
+            "and the sound effects of linuxdoom-1.10 built with its in-process sound code (one \
+             define\nremoved)"
+        ));
+        assert!(!HELP.contains("game rules\nand sound effects"));
+        assert!(HELP.contains(
+            "as the genuine\nengine replaying the session's demo does, under the declared \
+             schedule and build;"
+        ));
         assert!(HELP.contains("There is no music, menu"));
         assert!(!HELP.contains("There is no sound") && !HELP.contains("menu or sound"));
         assert!(!HELP.contains("does not use the device yet"));
