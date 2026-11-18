@@ -4,7 +4,7 @@ Phase 1 note for milestone M5c, which gives the playable build Doom's sound effe
 
 The behavioural authority is the original id Software Linux DOOM 1.10 at `a77dfb96cb91780ca334d0d4cfd86957558007e0`. Milestone status lives in [ROADMAP](ROADMAP.md), support in [COMPATIBILITY](COMPATIBILITY.md), schemas in [STATE_FORMAT](STATE_FORMAT.md) and commands in [TESTING](TESTING.md) (see the [documentation authority map](README.md#documentation-authority)). Observations of this milestone will be in `docs/validation/M5C.md`, which Phase 2 creates. This note records only counts, pass/fail facts and digests from runs against the IWAD: no lump content, no IWAD-derived names, sizes, coordinates or geometry, and never audio. All dates are America/Los_Angeles.
 
-**Status / next step (2026-11-18 04:10 PST).** Phase 1 (this investigation) is **complete with this commit; the owner decisions T1–T16 ([§5](#5-owner-decisions-t1t16-with-recommendations)) are all open**, and the owner has not seen them yet. **Done:** preflight (pull request #62 merged as `639407f`; branch `feat/m5c-sound` from master), the owner-approved housekeeping commit `7f7fd99`, and this note. **Nothing else is in the tree:** no code, test, tool or golden has changed; the two genuine-engine prototypes and every Phase 1 report are in scratch (`~/scratch/m5c/proto-soundlogic/tools/`, `~/scratch/m5c/proto-mixer/proto/`, `~/scratch/m5c/reports/`), with the files Phase 2 lifts named in [§3](#3-harness-design-evidence-first). **Next:** Phase 2 steps 1 and 2 only ([§6.4](#64-what-proceeds-before-the-rulings)): the synthetic sound lumps, rooms and scripts, the genuine sound-logic runner and the genuine mixer harness, with the handle convention (T2), the update and buffer schedule (T5) and the wipe's draws (T6) as switches of the tools and goldens generated for the recommended values. **Not allowed before the owner rules:** any change to the simulation, any new dependency, any change to the app (steps 3 to 7). **Failing checks:** none known; no pull request is open yet, so CI has not run on this branch; post-merge CI on master for `639407f` had 6 of 8 jobs green and 2 still running at 02:46 PST. **Open owner decisions:** T1–T16; T2, T3, T5 and T6 decide what the goldens contain. The owner has not playtested M5b; input, pacing and presentation are not to change on a guess about feel. Nobody has heard any sound from this project: every audio trial wrote digital silence. `/mnt/c` free: 28 GB at 04:06 PST (floor 20 GB). To resume: `git checkout feat/m5c-sound && git pull --ff-only origin feat/m5c-sound`, read this line and §5, check whether the owner has ruled, then start step 1 from `~/scratch/m5c/proto-soundlogic/tools/` and step 2 from `~/scratch/m5c/proto-mixer/proto/` (if scratch is gone, the designs in §3 are enough to rebuild them).
+**Status / next step (2026-11-18 04:19 PST).** Phase 1 (this investigation) is **complete with this commit; the owner decisions T1–T16 ([§5](#5-owner-decisions-t1t16-with-recommendations)) are all open**, and the owner has not seen them yet. **Done:** preflight (pull request #62 merged as `639407f`; branch `feat/m5c-sound` from master), the owner-approved housekeeping commit `7f7fd99`, and this note, which a follow-up documents-only commit then tidied for consistency (wording, cross-references and headings) with no fact, number, citation or recommendation changed. **Nothing else is in the tree:** no code, test, tool or golden has changed; the two genuine-engine prototypes and every Phase 1 report are in scratch (`~/scratch/m5c/proto-soundlogic/tools/`, `~/scratch/m5c/proto-mixer/proto/`, `~/scratch/m5c/reports/`), with the files Phase 2 lifts named in [§3](#3-harness-design-evidence-first). **Next:** Phase 2 steps 1 and 2 only ([§6.4](#64-what-proceeds-before-the-rulings)): the synthetic sound lumps, rooms and scripts, the genuine sound-logic runner and the genuine mixer harness, with the handle convention (T2), the update and buffer schedule (T5) and the wipe's draws (T6) as switches of the tools and goldens generated for the recommended values. **Not allowed before the owner rules:** any change to the simulation, any new dependency, any change to the app (steps 3 to 7). **Failing checks:** none known; no pull request is open yet, so CI has not run on this branch; post-merge CI on master for `639407f` had 6 of 8 jobs green and 2 still running at 02:46 PST. **Open owner decisions:** T1–T16; T2, T3, T5 and T6 decide what the goldens contain. The owner has not playtested M5b; input, pacing and presentation are not to change on a guess about feel. Nobody has heard any sound from this project: every audio trial wrote digital silence. `/mnt/c` free: 28 GB at 04:06 PST (floor 20 GB). To resume: `git checkout feat/m5c-sound && git pull --ff-only origin feat/m5c-sound`, read this line and §5, check whether the owner has ruled, then start step 1 from `~/scratch/m5c/proto-soundlogic/tools/` and step 2 from `~/scratch/m5c/proto-mixer/proto/` (if scratch is gone, the designs in §3 are enough to rebuild them).
 
 ## Summary
 
@@ -705,10 +705,10 @@ order of `S_StartSoundAtVolume`):
    things are loaded (p_setup.c:607, 618, 664), so during the rest of `P_SetupLevel`
    `players[consoleplayer].mo` still points at the previous level's (now freed) player mobj,
    or is NULL on the first level, until `P_SpawnPlayer` replaces it. Inference: a positional
-   start in that window would read freed memory or dereference NULL; I found no start in it
+   start in that window would read freed memory or dereference NULL; none was found in it
    (`G_CheckSpot` suppresses its telefog sound on the first frame with
    `players[consoleplayer].viewz != 1`, g_game.c:885-886, viewz being set to 1 at
-   p_setup.c:604), but I did not audit every call site.
+   p_setup.c:604), but this section did not audit every call site.
 5. **During death**: the player's mobj is not removed; `player->mo` keeps pointing at the
    corpse, which stays the listener. `P_DeathThink` turns `player->mo->angle` toward the
    attacker in ANG5 steps (p_user.c:200-221), so the listener's facing (and every separation)
@@ -743,30 +743,30 @@ Work directory `~/scratch/m5c/c-ssound/` (outside the repository). Compiler gcc 
 
 Results:
 
-1. **T1, `S_AdjustSoundParams`**: 576 cases (maps 1 and 8; `snd_SfxVolume` 8, 15, 1; 16
+1. **Test 1, `S_AdjustSoundParams`**: 576 cases (maps 1 and 8; `snd_SfxVolume` 8, 15, 1; 16
    offsets including 159/160/161, 1199/1200/1201 units and ±20000 on both axes; 6 listener
    angles including 0, 0x40000000, 0x80000000, 0xC0000000, 0x12345678, 0xFFFFFFFF). An
    independent Python restatement of 1.1.5's prose (`enc.py`, which parses `finesine` and
    `tantoangle` from tables.c and re-implements `SlopeDiv` and `R_PointToAngle`; written from
-   this report, not from Rust) reproduces rc, vol and sep in **576 of 576** cases, with
+   this section, not from Rust) reproduces rc, vol and sep in **576 of 576** cases, with
    truncating division on map 8 (a case like d = 1000 on map 8 at volume 8 gives 14; floor
-   would give 13). `*pitch` was never written (576 of 576 rows kept the sentinel). T1 output is
+   would give 13). `*pitch` was never written (576 of 576 rows kept the sentinel). Test 1's output is
    byte-identical between runs A and B. `finesine[0..8191]` min/max counted: -65535/65535.
-2. **T2, lifetime**: build S: pistol (handle 1) freed at the first update (`gametic` 1),
+2. **Test 2, lifetime**: build S: pistol (handle 1) freed at the first update (`gametic` 1),
    doropn (handle 20) freed exactly at the update with `gametic` 20. Build M: handles 100 and
    101, neither freed through `gametic` 22.
-3. **T3, allocation and priority** (`gametic` held at 0 so nothing expires): channels filled
+3. **Test 3, allocation and priority** (`gametic` held at 0 so nothing expires): channels filled
    by posact(120), stnmov(119), sawidl(118); bgact(120) evicted channel 0 (first with
    priority ≥ 120); dmact(120) evicted channel 0 again (equal priority evicts); telept(32)
    evicted channel 0 (first in index order with ≥ 32); a NULL-origin oof(96) evicted channel 1
    (stnmov 119); a NULL-origin noway took channel 1 again (it freed the NULL-origin oof via
    `S_StopSound(NULL)` and reused the freed slot); slop from the origin of channel 0 reused
    channel 0. Same channel choices in both builds; handles differ as in 1.1.6.
-4. **T4, `M_Random` draws**: itemup 0, tink 0, sawup 1, pistol 1, a pistol 5000 units away on
+4. **Test 4, `M_Random` draws**: itemup 0, tink 0, sawup 1, pistol 1, a pistol 5000 units away on
    map 1: 0 (inaudible), the same on map 8: 1, chgun 1, chgun at `snd_SfxVolume` 0: 0 (link
    volume < 1 return), a NULL-origin pistol at volume 0: 1, a sound refused for lack of a
    channel (posact 120 against three telept 32): 1 draw, and the channel table unchanged.
-5. **T5**: `sfx_id` 0 gives `I_Error: Bad sfx #: 0`; `sfx_id` = `NUMSFX` (109) passed the check
+5. **Test 5**: `sfx_id` 0 gives `I_Error: Bad sfx #: 0`; `sfx_id` = `NUMSFX` (109) passed the check
    (no `I_Error`), confirming the off-by-one (what it then did depends on the memory after
    `S_sfx`; it is undefined).
 6. stderr: "16bit and not pre-cached - wtf?" printed 21 times in run A, once per start that
@@ -778,7 +778,9 @@ Results:
    28-30, 46-50, 53, 54, 56, 70-74, 78-80, 86, 91, 92, 94-108) and **1 id in DOOM2.WAD (86,
    `sfx_chgun`)**. Starting any of those, once it obtains a channel, is a fatal `I_Error` in
    both builds. Whether Doom 1 game code can start any of the 41 was not audited here (call
-   sites are another part's subject); `sfx_chgun` is never started.
+   sites are §1.2's subject); `sfx_chgun` is never started.
+
+   Note (2026-11-18): the call-site audit was done afterwards (§1.2). A local check that day found a lump for each of the 43 sounds named at the Episode 1 call sites, so none of the 41 can be started there, and the lump for `sfx_pdiehi` is present in both IWADs (decision T11 in §5).
 
 Files that matter for Phase 2: `~/scratch/m5c/c-ssound/h/harness.c`, `h/pta.c`,
 `h/errno_adapter.c`, `nosrv/` (the build-M copy, `doomdef.h` edited at line 84 only),
@@ -918,11 +920,11 @@ gets (0 refuses every start, still drawing); `snd_SfxVolume` changes audibility 
 draws (except map 8, NULL and listener origins) and every volume; the build (S or M) changes
 handles and so channel lifetime and refusals, never draws.
 
-#### Section 1.1: undefined, implementation-defined or layout-dependent behaviour
+#### 1.1.13 Undefined, implementation-defined or layout-dependent behaviour
 
 1. **Off-by-one range check**: `sfx_id > NUMSFX` (277) lets `sfx_id == 109` index
    `S_sfx[109]`, past the end of the 109-entry array (sounds.c:114-227): undefined. No call
-   site with 109 was found by me (not audited exhaustively).
+   site with 109 was found (not audited exhaustively).
 2. **Signed overflow** in `listener->x - source->x` (767-768) if the two x (or y) differ by
    2^31 or more (32768 map units), `abs(INT_MIN)`, and `adx + ady` (771) when the sum exceeds
    2^31-1 (both offsets around 16384 units or more). Undefined in C; gcc at -O0 wraps (run A's
@@ -940,11 +942,11 @@ handles and so channel lifetime and refusals, never draws.
 5. **Freed mobjs**: by the origin invariant (1.1.10 item 3), `P_RemoveMobj`'s `S_StopSound`
    frees the removed mobj's only channel before the thinker is freed. A start with a removed
    (not yet freed) mobj as origin later in the same tic would leave a channel pointing at
-   memory freed by `P_RunThinkers`; I did not audit call sites for this. Level change is safe
+   memory freed by `P_RunThinkers`; this section did not audit call sites for this. Level change is safe
    (`S_Start` before `Z_FreeTags`, p_setup.c:606-618). The listener pointer is stale between
    `S_Start` and `P_SpawnPlayer` (1.1.8 item 4).
 6. **NULL listener**: a non-NULL-origin start or update while `players[consoleplayer].mo` is
-   NULL dereferences NULL (306, 312, 586). Not reached in single player as far as I found.
+   NULL dereferences NULL (306, 312, 586). Not reached in single player as far as was found.
 7. **Uninitialised channel fields**: `origin` and `handle` are not initialised by `S_Init`
    (179-184) but are only read when `sfxinfo` is non-NULL, and every path that sets `sfxinfo`
    sets `origin` (871-872) and then `handle` (389), except when the lump lookup `I_Error`s in
@@ -962,7 +964,9 @@ handles and so channel lifetime and refusals, never draws.
     iteration (d_main.c:402-405, i_sound.c:665-670, 106), never opened for writing by this
     build.
 
-#### Section 1.1: questions this raises for the owner
+#### 1.1.14 Questions the sound logic's facts raise for the owner
+
+Each question is taken up in [§5](#5-owner-decisions-t1t16-with-recommendations): 1 in T2; 2 in T5; 3 in T5 (the process history and the counters at level start) and T15 (restart); 4 in T11; 5 in T11.
 
 1. **Reference build: shipped build S (doomdef.h:84 `SNDSERV`, sound via the external
    `sndserver`, handle = sfx id) or build M (doomdef.h:84 removed, in-process mixer, handle =
@@ -989,23 +993,23 @@ handles and so channel lifetime and refusals, never draws.
    canonical state intact, per AGENTS.md.
 5. **`sfx_id == 109`**: refuse explicitly (recommended) rather than model the out-of-bounds read.
 
-#### Section 1.1: what I did not do or observe
+#### 1.1.15 What this section did not do or observe
 
-- I did not run the full engine, any real map, or the C reference suite; runs A and B are
+- This section did not run the full engine, any real map, or the C reference suite; runs A and B are
   unit-level harnesses over the genuine s_sound.c, i_sound.c, sounds.c, m_random.c, tables.c,
   m_fixed.c and the extracted `R_PointToAngle(2)`, with the stubs listed in 1.1.9.
-- I did not run `I_InitSound` in either build, open `/dev/dsp`, or start `sndserver`; I did not
+- This section did not run `I_InitSound` in either build, open `/dev/dsp`, or start `sndserver`, and did not
   read `sndserv/` beyond the `singularity` grep.
-- I did not audit the call sites of `S_StartSound` (which sounds Doom 1 can start, starts
+- This section did not audit the call sites of `S_StartSound` (which sounds Doom 1 can start, starts
   during `P_SetupLevel`, starts on removed mobjs); 1.1.8 item 4 and 1.1.13 items 1 and 5 depend
   on that audit.
-- I did not test the 65535 handle wrap or `gametic` > 65535 by running them; they follow from
+- This section did not test the 65535 handle wrap or `gametic` > 65535 by running them; they follow from
   i_sound.c:271, 334-336 and i_sound.c:520.
 - No Rust was built or run. No sanitizer was run. No file inside the repository was written.
 
 ### 1.2 Every call that starts or stops a sound
 
-Author: c-callsites agent, 2026-11-18 (America/Los_Angeles). Source: linuxdoom-1.10 at
+Written 2026-11-18 (America/Los_Angeles). Source: linuxdoom-1.10 at
 `a77dfb96cb91780ca334d0d4cfd86957558007e0`, read in `/home/copgunn/src/DOOM/linuxdoom-1.10`. Every
 file:line below was read for this section. This section lists what each call **passes** (sound
 number, origin, guard, trigger, moment in the tic). What `s_sound.c` does with those arguments
@@ -1591,7 +1595,7 @@ unless stated.
 | Teleporter (line 97) | `sfx_telept` ×2 | `EV_Teleport` (p_telept.c:112, 118) | fog origins; monsters too |
 | Doors, plats, floors, switches | see 1.2.3 | | sector or switch origins |
 
-#### Section 1.2: undefined, implementation-defined or layout-dependent behaviour in the call sites
+#### 1.2.8 Undefined, implementation-defined or layout-dependent behaviour in the call sites
 
 1. **The `degenmobj_t` cast.** `(mobj_t *)&sec->soundorg` (all sector rows, p_switch.c:184) accesses a
    `degenmobj_t` through a `mobj_t*`. The two share a leading `thinker_t, x, y, z` (r_defs.h:88-95,
@@ -1624,7 +1628,9 @@ unless stated.
 7. **The listener after the exit tic** is the old level's player mobj, valid until the next
    `P_SetupLevel` (1.2.5).
 
-#### Section 1.2: questions this raises for the owner
+#### 1.2.9 Questions the call-site facts raise for the owner
+
+Each question is taken up in [§5](#5-owner-decisions-t1t16-with-recommendations): 1 in T12 (the press origin); 2 in T12 (the release origin; the 64-bit reading recommended here is also T12's recommendation, while §3.4 recommends refusing); 3 in T14; 4 in T1 (the nightmare respawn fog sounds are out of scope there).
 
 1. **The switch press origin (`buttonlist->soundorg`).** Either (a) reproduce it exactly: NULL (full
    volume, centre, any distance) while slot 0 is free, otherwise the front sector of slot 0's line;
@@ -1649,29 +1655,29 @@ unless stated.
 4. **Nightmare respawn fog sounds** (p_mobj.c:379, 386) are E1-reachable only with skill 5 or
    `-respawn`. Either (a) include them wherever the build admits those settings, or (b) refuse
    explicitly where it does not. **Recommendation:** follow whatever M5b admits for skill and
-   `-respawn` (not checked here: another agent inventories the Rust side).
+   `-respawn` (not checked here: the Rust side is inventoried in §2).
 
-#### Section 1.2: what I did not do or observe
+#### 1.2.10 What this section did not do or observe
 
-- I did not run the genuine engine or any C scenario, so no call site's timing is *observed*; all
+- This section did not run the genuine engine or any C scenario, so no call site's timing is *observed*; all
   timing facts are read from the source. No sound was played or traced.
-- I did not read or describe the Rust code.
-- I did not re-document `s_sound.c` internals (attenuation, channel choice, priority, pitch); I cite
+- This section did not read or describe the Rust code.
+- This section did not re-document `s_sound.c` internals (attenuation, channel choice, priority, pitch); it cites
   only the lines that decide what a passed origin means (s_sound.c:277-278, 304-324, 349, 471-482).
 - The layout probe (`~/scratch/m5c/c-callsites/layout.c`, binaries `layout`, `layout-m32`) printed
-  offsets only; I did not run a genuine build to observe the release sound's actual position, nor
+  offsets only; this section did not run a genuine build to observe the release sound's actual position, nor
   check the padding bytes' contents at run time.
 - The E1 census facts come from one local run of `tools/iwad_counts.py --things` per slot (output
-  digest above) and the committed M4a census for line and sector specials; I did not re-run
+  digest above) and the committed M4a census for line and sector specials; this section did not re-run
   `--specials-markdown` or `--movers-markdown`.
-- I did not determine which non-E1 Doom 1 maps use the specials marked "not E1"; "no" in the E1
+- This section did not determine which non-E1 Doom 1 maps use the specials marked "not E1"; "no" in the E1
   column means only "absent from Episode 1".
 - Nothing was written inside the repository. `/mnt/c` had 28 GB free at 02:41 PST; the scratch
   directory is about 6 MB.
 
 ### 1.3 The mixer: i_sound.c
 
-Author: c-isound (Phase 1, M5c). Written 2026-11-18 (America/Los_Angeles).
+Written 2026-11-18 (America/Los_Angeles).
 All citations are into `linuxdoom-1.10/` at a77dfb96 (repo head 7f7fd99). Every line cited
 was read for this section. Labels: **[src]** read in the source, **[obs]** observed by running
 something (command and output given in 1.3.10), **[inf]** inference.
@@ -2280,7 +2286,7 @@ code (i_sound.c and its near-copy in sndserv/). Beyond that README, which DMX be
 differed (mixing rate, channel stealing, volume curve, pitch) is not supported by any
 repository file and is not evidence here.
 
-#### Section 1.3: undefined, implementation-defined or layout-dependent behaviour
+#### 1.3.8 Undefined, implementation-defined or layout-dependent behaviour
 
 1. **Read past the allocation for very short lumps.** A lump of 0..8 bytes gets an 8-byte
    allocation and `paddedsize` 0 (item 11). `addsfx` sets `channelsend == channels`, and the
@@ -2319,7 +2325,7 @@ repository file and is not evidence here.
     never compared.
 12. **`id` out of range.** `S_StartSoundAtVolume` accepts `sfx_id == NUMSFX` (s_sound.c:277),
     which would make `addsfx` read `S_sfx[109]` and `lengths[109]` out of bounds
-    (i_sound.c:330-332). Whether any caller can pass 109 is for the s_sound section.
+    (i_sound.c:330-332). Whether any caller can pass 109 is for §1.2 (§1.2.8 item 4 finds that no call site passes it).
 13. **Writing to fd 0 under S** (item 5): `write(0, ...)` on an fd the game never opened.
 14. **`extern int errno`** (i_sound.c:166) conflicts with thread-local `errno` in modern C
     libraries (link error observed, 1.3.10).
@@ -2390,7 +2396,7 @@ emit out as 2048 bytes, little-endian i16, left first
 schedule (how many buffers per tic, where starts land) is not part of the C logic and must be
 declared (item 30).
 
-#### 1.3.10 What I ran (observations)
+#### 1.3.10 What was run (observations)
 
 All in `~/scratch/m5c/c-isound/` (outside the repository). gcc 15.2.0, glibc 2.43, x86-64
 WSL2. No IWAD was read; all lumps are synthetic.
@@ -2428,7 +2434,9 @@ WSL2. No IWAD was read; all lumps are synthetic.
 - Files that matter for Phase 2: `~/scratch/m5c/c-isound/probe/probe.c` (adapter pattern for
   a genuine-C mixer trace generator) and `~/scratch/m5c/c-isound/tables.c` (table digests).
 
-#### Section 1.3: questions this raises for the owner
+#### 1.3.11 Questions the mixer's facts raise for the owner
+
+Each question is taken up in [§5](#5-owner-decisions-t1t16-with-recommendations): Q1 in T2; Q2 in T5 (this section's recommendation, one 512-frame buffer per tic, differs from §5's: the schedule measured in §3.2 supersedes it, see T5); Q3 in T11; Q4 in T13.
 
 - **Q1. Which C mixer is the reference?** (a) The integrated mixer of i_sound.c, compiled
   with doomdef.h:84 removed (configuration I), which the ChangeLog says id/bk switched away
@@ -2438,8 +2446,8 @@ WSL2. No IWAD was read; all lumps are synthetic.
   schedule driven by `select` on the pipe, and `I_StartSound` returning the sfx id to
   s_sound). **Recommendation: (a)** for the samples, because the brief names i_sound.c and
   its state is tic-domain (`gametic`), declaring the configuration explicitly; and record (b)
-  as the shipped behaviour, particularly its effect on s_sound's handles (item 22), so the
-  s_sound section decides which `I_StartSound` return value / `I_SoundIsPlaying` behaviour
+  as the shipped behaviour, particularly its effect on s_sound's handles (item 22), so §1.1
+  decides which `I_StartSound` return value / `I_SoundIsPlaying` behaviour
   the tic-for-tic start sequence follows.
 - **Q2. Which mixing schedule?** (a) One 512-frame buffer per tic, starts applied before
   the tic's buffer (the `-timedemo`/singletics schedule, item 29; audio then runs 512/315 ≈
@@ -2458,17 +2466,17 @@ WSL2. No IWAD was read; all lumps are synthetic.
   both the integrated code and the sndserver (i_sound.c:811, sndserv/soundsrv.c:390), and a
   fix would be a new profile requiring the owner's explicit choice.
 
-#### Section 1.3: what I did not do or observe
+#### 1.3.12 What this section did not do or observe
 
-- I did not run linuxdoom on a real or emulated OSS device, so the device-paced cadence
+- This section did not run linuxdoom on a real or emulated OSS device, so the device-paced cadence
   (≈21.5 iterations per second, 1.63 tics per iteration) is inference, not observation.
-- I did not build or run the sndserver; the contrasts cite its source only. I did not check
-  the s_sound.c call sites that start sounds, the exact `finesine` extremes of `sep`, or
-  whether any caller can pass `sfx_id == NUMSFX`; those belong to the s_sound section.
-- I did not read any IWAD, so I did not check whether any real `ds` lump is 8 bytes or
+- This section did not build or run the sndserver; the contrasts cite its source only. It did not check
+  the s_sound.c call sites that start sounds (that is §1.2), the exact `finesine` extremes of `sep`, or
+  whether any caller can pass `sfx_id == NUMSFX`; those belong to §1.1.
+- This section did not read any IWAD, so it did not check whether any real `ds` lump is 8 bytes or
   shorter, an exact multiple of 512 after the header, or has header fields disagreeing with
   its length.
-- I did not compile the shipped configuration S, so the write to fd 0 (item 5) is read from
+- This section did not compile the shipped configuration S, so the write to fd 0 (item 5) is read from
   the source, not observed.
 - No cargo, no repository tool, no generator was run; nothing was written inside the
   repository. Disk use is a few MB in `~/scratch/m5c/c-isound/`.
@@ -2943,7 +2951,7 @@ All variables are `int` unless named otherwise. `boolean` is `typedef enum {fals
 5. The palette shown during the melt is undefined in vanilla (§1.4.4 item 8). The port would
    declare PLAYPAL 0 through gamma table 0 (S13).
 
-#### Section 1.4: undefined, implementation-defined or layout-dependent behaviour
+#### 1.4.8 Undefined, implementation-defined or layout-dependent behaviour
 
 1. **Type punning.** `byte` buffers are accessed through `short*` (f_wipe.c:153-154, 200-214) and
    then read as bytes. The buffers are `malloc`ed or shared memory with no declared type, and every
@@ -3005,7 +3013,9 @@ All variables are `int` unless named otherwise. `boolean` is `typedef enum {fals
 - File digests (sha256): probe.c `7618047d…dd0e`, stubs.c `dfc2b6c2…3402`, ycheck.c `d1e25305…dd1`.
   These are prototype files for Phase 2 to lift if the genuine wipe goes into the runner.
 
-#### Section 1.4: questions this raises for the owner
+#### 1.4.10 Questions the `M_Random` and wipe facts raise for the owner
+
+Each question is taken up in [§5](#5-owner-decisions-t1t16-with-recommendations): 1 in T6; 2 in T5; 3 in T14.
 
 1. **The wipe: (a) account for its 320 draws only, or (b) implement the level-start melt?**
    - Facts:
@@ -3037,25 +3047,25 @@ All variables are `int` unless named otherwise. `boolean` is `typedef enum {fals
    - Facts: §1.4.2 item 5. Menus are out of M5c's scope.
    - **Recommendation: (a)**, stated in COMPATIBILITY as part of the contract.
 
-#### Section 1.4: what I did not do or observe
+#### 1.4.11 What this section did not do or observe
 
-- I did not run the genuine engine, any X build, any repository tool, `cargo`, or any IWAD.
-- I did not measure k, the melt's real-time cost, or which presented melt states appear on a real
+- This section did not run the genuine engine, any X build, any repository tool, `cargo`, or any IWAD.
+- This section did not measure k, the melt's real-time cost, or which presented melt states appear on a real
   machine.
-- I did not inspect the Rust code.
+- This section did not inspect the Rust code.
 - The sound early-return accounting was read in the source, not traced at runtime. The M5b FH1
-  measurement (§2.5) is the only runtime evidence of sound draws, and I did not repeat it.
+  measurement (§2.5) is the only runtime evidence of sound draws, and this section did not repeat it.
 - The probe exercises f_wipe.c alone with adapters. It is source-equivalent for the melt
   arithmetic and the draws, not the whole D_Display path.
 - The OS zero-fill of a new SysV shared-memory segment is general knowledge, not something read in
   this repository.
-- I wrote nothing inside the repository. Scratch use: 92 KB under ~/scratch/m5c/c-wipe-mrandom/.
+- Nothing was written inside the repository. Scratch use: 92 KB under ~/scratch/m5c/c-wipe-mrandom/.
 
 ## 2. What the simulation gives today
 
-*Author: `sim-sound-inventory` (Phase 1 reading task), 2026-11-18 (America/Los_Angeles). Repository head
+*Written 2026-11-18 (America/Los_Angeles) as a reading task. Repository head
 7f7fd99 (branch `feat/m5c-sound`). Everything below was read in the source; nothing was built or run
-(section 2.9 says what was not done). "C" means linuxdoom-1.10 in the repository; "Rust" means
+(section 2.11 says what was not done). "C" means linuxdoom-1.10 in the repository; "Rust" means
 `crates/doom-sim` as run by the playable build under wire 24 (`PlayerMonstersEpisode1V2`).*
 
 Terms used here:
@@ -3073,7 +3083,7 @@ Terms used here:
 ### 2.0 Summary
 
 1. Every sound start that wire 24 can reach is already recorded as an event, in the order of the C calls
-   as far as I could check by reading, with the sfx number (the `sfxenum_t` value of sounds.h) and the
+   as far as reading could check, with the sfx number (the `sfxenum_t` value of sounds.h) and the
    origin's identity: an actor handle, a sector index, a button slot, or "no origin". A player origin and
    a NULL origin can be told apart. One event reports the wrong sound: `A_PlayerScream` emits `sfx_pdiehi`
    below -50 health in every game mode, but the C does so only in commercial mode, and the wire-24 game is
@@ -3158,7 +3168,7 @@ and angle at the call (2.4); that is not repeated in the table.
   emitted at the same place on every admitted path (2.2, item 7).
 - **s_sound.c:349 `S_StopSound(origin)` inside `S_StartSoundAtVolume`.** This is not a simulation call:
   the sound layer reproduces it from the start event.
-- I found **no other** reachable simulation sound site without an event.
+- **No other** reachable simulation sound site without an event was found.
 
 #### 2.1.3 Not reachable under wire 24
 
@@ -3197,7 +3207,7 @@ witness. The whole tic, including its sound events, is then not published (2.3, 
    - `SoundOrigin::Sector = 1` means `&sector->soundorg`.
    - `SoundOrigin::Button = 2` means "the address of `buttonlist[index].soundorg`" (planes.rs:629-636).
    - Mover sounds whose sector is unknown would be written with `index = u16::MAX`
-     (`mover_sector().unwrap_or(u16::MAX)`, movers.rs:979). I found no admitted mover without a sector.
+     (`mover_sector().unwrap_or(u16::MAX)`, movers.rs:979). No admitted mover without a sector was found.
 3. **Other events with "Sound" in the name are not sound starts.**
    - `PerceptionEvent::LookSound` (perception.rs:128-137) records the sector *sound target* read by
      `A_Look` (`P_NoiseAlert` / `soundtarget`).
@@ -3280,7 +3290,7 @@ witness. The whole tic, including its sound events, is then not published (2.3, 
      events come from the level's map-spawn batch (`checked_map_spawn_batch`, demon_expanded_map.rs:
      658-697), which makes no sound, so they appear ahead of tic 1's `Phase::Players`.
    - **`StagedSound`** stages noise targets, not sounds (2.2, item 3).
-3. **Possible reorderings I looked for and did not find.** For each item below, the Rust order matches the
+3. **Possible reorderings that were looked for and not found.** For each item below, the Rust order matches the
    C order:
    - the shotgun/chaingun sound before the face turn, the pistol sound after the aim;
    - the explosion sound after the state action (`A_Explode` damage) and the draw;
@@ -3288,7 +3298,7 @@ witness. The whole tic, including its sound events, is then not published (2.3, 
    - `sfx_pstop` after `Removed`;
    - the oof landing sound before `Vertical`;
    - the door start sound after the thinker spawn.
-   *Limit*: I read every emitter listed in 2.1, but I did not prove by reading that no damage plan, slide
+   *Limit*: every emitter listed in 2.1 was read, but this section did not prove by reading that no damage plan, slide
    or crossing anywhere can emit two sounds in the opposite order. M3-era C scenarios checked order for
    their cases (2.6).
 4. **Two events come after the sounds they belong with.** Their order is correct as C, but it matters for
@@ -3297,8 +3307,8 @@ witness. The whole tic, including its sound events, is then not published (2.3, 
      is already at the destination when the fogs sound (p_telept.c:102, then 111-118), and its angle is
      set only afterwards (p_telept.c:124).
    - `Event::Player` (P_MovePlayer ran) is pushed after the thrust and turn (player_commands.rs:224-239).
-5. **Can two sounds come out in an order different from the C calls?** Not by any buffering mechanism I
-   found under wire 24. The historical weapon profile (`Profile::PlayerWeapons`) collects its own events
+5. **Can two sounds come out in an order different from the C calls?** Not by any buffering mechanism that
+   was found under wire 24. The historical weapon profile (`Profile::PlayerWeapons`) collects its own events
    in `sim.pending` (weapons.rs:915-926, lib.rs:1376-1378), but it is not wire 24.
 6. **The refuse path.** A refused tic drops the whole plan and its events (`?` returns before
    `commit_demon_plan`, demon_expanded_map.rs:634-657). `events()` then still holds the *previous* tic's
@@ -3331,6 +3341,8 @@ How positions change during a tic (read in the source; this decides what can be 
 
   Damage only adds momentum (`P_ThrustMobj`), and a telefrag does not move its victims (teleport.rs:
   183-189).
+
+  **Correction (2026-11-18):** the list of how an actor's x,y change is incomplete. Damage can switch a monster into its chase state (p_inter.c:911-913), the state change runs its action at once (p_mobj.c:76-77) and `A_Chase` can move the victim (p_enemy.c:764-768), so a monster can move during the attacker's turn; and `A_Look`'s sight sound comes before its own chase step (p_enemy.c:660, 663). See [§4.4.2](#442-option-a-wire-24-events-plus-app-side-reconstruction), items 2 and 3.
 
 The hard cases, in the C order (`P_PlayerThink`, then `P_RunThinkers`, then `P_UpdateSpecials`,
 p_tick.c:146-152):
@@ -3379,7 +3391,7 @@ p_tick.c:146-152):
      - monster pain from the player's hitscan, made before the face turn.
    - `Event::Player` tells whether `P_MovePlayer` ran (player_commands.rs:234-239), but not the angle.
    - The **dead player's** `P_DeathThink` turn comes after any sound of that tic's `P_PlayerThink`.
-6. **Origins spawned and removed within one tic.** I found none under wire 24 that make a sound.
+6. **Origins spawned and removed within one tic.** None under wire 24 was found that makes a sound.
    - Puffs and blood make none.
    - A missile that explodes on spawn stays at least 1 tic in its death state (p_mobj.c:94-97).
    - A missile removed at the sky has its seesound stopped: `RemovalMarked` stands for the C
@@ -3573,10 +3585,10 @@ corrected in the app as a declared adapter.
 
 Choose (c) instead if the owner holds that every simulation output feeding a gameplay-visible outcome must
 be canonical DSIM. The face glance's `M_Random` depends on how many sounds draw pitch. If the owner
-chooses (c), I recommend carrying the THING truncation in the same wire (it is small, 2.7) and nothing
+chooses (c), recommendation: carry the THING truncation in the same wire (it is small, 2.7) and nothing
 else.
 
-### Section 2: undefined, implementation-defined or layout-dependent behaviour
+### 2.9 Undefined, implementation-defined or layout-dependent behaviour
 
 1. **The button-end origin (p_spec.c:1151)** passes `(mobj_t *)&buttonlist[i].soundorg`, the address of
    a *pointer field* read as a `degenmobj_t`. `S_AdjustSoundParams` then reads `->x`, `->y` at
@@ -3594,35 +3606,37 @@ else.
    (undefined) when both bounds pass about ±16,384 map units, and the C89 division of a negative sum
    rounds in an implementation-defined direction (gcc truncates). The app or simulation should
    witness-check both.
-3. **`R_PointToAngle2` and `finesine` in `S_AdjustSoundParams`** are covered by the s_sound agent, not
+3. **`R_PointToAngle2` and `finesine` in `S_AdjustSoundParams`** are covered by §1.1, not
    here.
 
-### Section 2: questions this raises for the owner
+### 2.10 Questions the simulation inventory raises for the owner
+
+Each question is taken up in [§5](#5-owner-decisions-t1t16-with-recommendations): 1 in T3 (this section's recommendation, the non-canonical buffer, differs from §5's: T3 proposes wire 25 with canonical records); 2 in T3 (this section recommends an app adapter now and the correction in wire 25 if one is opened; T3 corrects it in wire 25); 3 in T4; 4 in T12; 5 is not an owner decision: the stale doc comment is fixed in Phase 2 step 3 with the wire.
 
 1. Positions for sound: **(b′) an opt-in non-canonical observation buffer, or (c) a new wire 25** with a
-   canonical sound event? I recommend (b′) (2.8).
+   canonical sound event? Recommendation: (b′) (2.8).
 2. `A_PlayerScream` outside commercial mode: **correct it in the app as a declared adapter (`pdiehi` →
-   `pldeth` when the mode is not commercial), or only in a new wire** with a game-mode input? I recommend
+   `pldeth` when the mode is not commercial), or only in a new wire** with a game-mode input? Recommendation:
    the app adapter now, with a COMPATIBILITY note that wire 24's event says `pdiehi`. Also fix it in
    wire 25 if one is opened.
 3. If a wire 25 is opened anyway: **should it also carry the THING-loading truncation** (2.7), or should
-   it stay sound-only? I recommend carrying it: it is a small change with a ready harness, and it closes
+   it stay sound-only? Recommendation: carry it; it is a small change with a ready harness, and it closes
    a known gap.
 4. Button-end sound position: **LP64 (the default reference build) or ILP32 (`strict32`)** as the
-   reference layout? I recommend LP64, matching the default genuine builds, declared as layout-dependent.
+   reference layout? Recommendation: LP64, matching the default genuine builds, declared as layout-dependent.
 5. The stale doc comment on `ActorStateEvent::Sound` (`None` = "boss-global"): **fix it in the M5c PR**
-   (documentation only, no byte change), or leave it? I recommend fixing it.
+   (documentation only, no byte change), or leave it? Recommendation: fix it.
 
-### Section 2: what I did not do or observe
+### 2.11 What this section did not do or observe
 
-- I built and ran nothing: no cargo, no reference tools, no genuine runner. Every statement above is
+- Nothing was built or run: no cargo, no reference tools, no genuine runner. Every statement above is
   from reading the source. The counts (161 call lines, 109 sfx names, 15 test files, 22 files naming the
   wire) are from `grep`/`awk` over the tree.
-- I did not trace every damage, slide and crossing path to prove that no two sounds can come out of
-  order. I traced each emitter's local order against its C function.
-- I did not check `S_AdjustSoundParams`, the channels, or the timing of `S_UpdateSounds` relative to tics.
-  Those belong to other sections.
-- I did not open any IWAD and recorded no map data. The reachability statements about high-damage player
+- This section did not trace every damage, slide and crossing path to prove that no two sounds can come out of
+  order. Each emitter's local order was traced against its C function.
+- This section did not check `S_AdjustSoundParams`, the channels, or the timing of `S_UpdateSounds` relative to tics.
+  Those belong to §1.1 and §1.3.
+- This section did not open any IWAD and recorded no map data. The reachability statements about high-damage player
   deaths are inference from damage formulas, not observed in any run.
 
 ## 3. Harness design, evidence first
@@ -3631,7 +3645,7 @@ Two scratch prototypes were built and run in Phase 1: the genuine sound logic co
 
 ### 3.1 Harness: the genuine sound logic in the runner
 
-Author: proto-soundlogic (M5c Phase 1). Written 2026-11-18 (America/Los_Angeles). Source authority:
+Written 2026-11-18 (America/Los_Angeles). Source authority:
 linuxdoom-1.10 at a77dfb96 (repository head 7f7fd99); every `file:line` is in `linuxdoom-1.10/` unless it
 names a `tools/` or `tests/` path, and every one was read for this section. Labels: **[src]** read in the
 source, **[obs]** observed by running the prototype (command and counts given), **[inf]** inference.
@@ -3640,7 +3654,7 @@ The prototype lives in `~/scratch/m5c/proto-soundlogic/` (ext4) and is **not com
 repository was edited. It was built from a private export of 7f7fd99 (`src/`). gcc 15.2.0, x86-64 (LP64).
 Address runs used `ASAN_OPTIONS=detect_leaks=0`: leak detection was disabled, so they are not
 LeakSanitizer coverage. No timing was measured as evidence (the durations quoted are rough wall-clock
-notes only, taken while other agents shared the machine).
+notes only, taken while other jobs shared the machine).
 
 #### 3.1.0 Summary
 
@@ -3664,7 +3678,7 @@ notes only, taken while other agents shared the machine).
    Real: 158,472 compared frames at screenblocks 10 (the 494 tracker-flagged frames excluded): the face differs in 68,995, the face-zeroed frame in 0; at screenblocks 11, 0 of 158,414 differ.
 5. **M5b's experiment is reproduced exactly** on its 48 items: 262 sound draws, 5,882 frames whose face differs
    with sounds alone, 7,931 with the melt alone and 8,517 with both (counting M5SHORT's 136 frames in full, as
-   M5b did). Real: 20,697 sound draws (4,670 on E1M8), exactly M5b's; 68,995 face-differing frames of 158,472 compared, against M5b's 69,139 of 158,966 (M5b counted the 494 tracker-flagged frames too; I excluded them and did not re-count them); DEMO1 540 of 1,704 compared (M5b 542 of 1,710).
+   M5b did). Real: 20,697 sound draws (4,670 on E1M8), exactly M5b's; 68,995 face-differing frames of 158,472 compared, against M5b's 69,139 of 158,966 (M5b counted the 494 tracker-flagged frames too; they are excluded here and were not re-counted); DEMO1 540 of 1,704 compared (M5b 542 of 1,710).
 6. **`rndindex`, the face and every frame are the same under both handle conventions and both
    `S_UpdateSounds` schedules** (59 of 59 synthetic items; real 61 of 61), because every `M_Random` draw of
    `S_StartSoundAtVolume` comes before `S_getChannel` (s_sound.c:327-346 before 352). The conventions and the
@@ -3771,7 +3785,7 @@ the call count depends on the frame rate. The runner offers both schedules the P
 - **(A) `--update-schedule tic`** (default): after every tic, after `gametic++`, before the dump and the
   display. This is the singletics loop the frozen runners already mirror (decision S8/FH2 of M5b).
 - **(B) `--update-schedule buffer`**: once per "iteration", where the iterations are the groups of tics
-  ending at each 512-frame mixer buffer under proto-mixer's rule: after tic t (0-based) the update runs iff
+  ending at each 512-frame mixer buffer under the buffer rule of §3.2.4 (3): after tic t (0-based) the update runs iff
   some buffer k not yet mixed has `512*k < 315*(t+1)`; iterations {0}, {1}, {2,3}, {4}, {5,6}, ...
   (observed: 464 updates over BARON1's 753 tics, = ceil(753*315/512)).
 
@@ -4051,20 +4065,20 @@ the new contract (3.4).
   (i_sound.c:875-881). So nine `D_E1Mx` lumps are needed (content not read; zero length is untested).
 - The prototype used `tools/m5c_sfxwad.py`: a synthetic PWAD with 108 `DS` lumps in the original format
   (u16 3, u16 11025, u32 count, unsigned 8-bit samples; our own ramps) and 27 music placeholders. Phase 2
-  should take proto-mixer's generator (the mixer needs real sample content) and add the nine music lumps.
+  should take the generator of §3.3 (the mixer needs real sample content) and add the nine music lumps.
 - **Shared interface** with the mixer harness: the start list, one record per `I_StartSound` call in call
   order: `tic, seq, gametic, sfx, vol, sep, pitch, priority, handle`, plus the s_sound `cnum` (not needed by
   the mixer). That is exactly the `started` subset of the `S` rows. The mixer also needs the update schedule
   (when `S_UpdateSounds` and the mix run relative to tics: schedule A or B, 3.1.3) and the handle convention,
   because under the integrated build `addsfx` reads `gametic` (i_sound.c:276, 348). Since this runner can
   compile `i_sound.c` whole with the integrated data loaded, it could also call the genuine `I_UpdateSound`
-  per mixing step and digest `mixbuffer` itself; I did not try it (proto-mixer's harness).
+  per mixing step and digest `mixbuffer` itself; this section did not try it (the harness of §3.2).
 
 #### 3.1.13 Design for Phase 2 (J)
 
 - Files: `tools/reference/m5c_build.py` (as the prototype, importing `m5b_build`), `m5c_driver.c` (the fork;
   the include folded in), `m5c_stubs.c`, `m5c_reference.py` (the check), `tools/local/m5c_real.py`, a synthetic
-  sound PWAD `tests/reference/m5c_sfx.wad` from proto-mixer's generator plus the music lumps, new rooms in
+  sound PWAD `tests/reference/m5c_sfx.wad` from the generator of §3.3 plus the music lumps, new rooms in
   `tests/reference/m5c_wads/` from `m5c_wad.py`.
 - Contract `tests/reference/m5c_runner_contract.json`, schema `DOOM-M5C-RUNNER-v1`, listing the 49 whole files,
   the two `SOUND_ABI_ADAPTERS`, the declared configuration (sfx volume 8, 3 channels, fresh process,
@@ -4094,7 +4108,7 @@ A **buffer** is what one `I_UpdateSound` call mixes and one `I_SubmitSound` call
 is one `I_StartSound` call. **Integrated configuration** means i_sound.c compiled with `SNDSERV`
 undefined, so the in-process mixer runs; **shipped configuration** means the source exactly as it
 stands, where `SNDSERV` is defined. **[src]** = read in the source, **[obs]** = observed by running
-the prototype, **[inf]** = my inference.
+the prototype, **[inf]** = inference.
 
 #### 3.2.1 Which mixer exists: the shipped build does not run i_sound.c's mixer
 
@@ -4114,7 +4128,7 @@ the prototype, **[inf]** = my inference.
      iteration writes 2048 bytes of the never-mixed, zero `mixbuffer` to `audio_fd`, a zero-initialised
      global (i_sound.c:106), which is file descriptor 0 (standard input) (i_sound.c:669).
    - `I_SetChannels` still builds both tables (i_sound.c:396-424, unconditional).
-3. **[obs]** Compiling i_sound.c as it stands (my first probe, without the adapter) leaves
+3. **[obs]** Compiling i_sound.c as it stands (the first probe, without the adapter) leaves
    `access` and `popen` as undefined references of i_sound.o. Both disappear once doomdef.h:84 is
    commented out. Every finding below is therefore about the **integrated configuration**. That is
    the source's own alternative (one define changed), not what the shipped game played.
@@ -4156,8 +4170,8 @@ the prototype, **[inf]** = my inference.
    free channels (s_sound.c:558-605). That changes `S_getChannel`'s choices, and so the start list
    itself. The configuration therefore decides the start list, not only the samples: handles
    100, 101, ... (integrated, i_sound.c:335-340) against handle = sfx id (shipped). The sound-logic
-   runner and this harness **must use the same configuration**. c-isound.md section 1.3.0 and c-ssound.md section 1.1.0 reach the
-   same conclusion. I found no disagreement with them.
+   runner and this harness **must use the same configuration**. §1.3.0 and §1.1.0 reach the
+   same conclusion. No disagreement with them was found.
 
 #### 3.2.2 The harness (prototype): what is genuine and what is substituted
 
@@ -4193,7 +4207,7 @@ its contracts (m3h9c, m5b input). The symbols:
     (s_sound.c:113, 116; written by i_sound.c:434 and 441, never read by the mixer), and `errno`;
   - functions: `I_Error` (records the message and longjmps), `I_ZoneBase` (i_system.c:76-80).
 - **`errno`.** i_sound.c:166 declares `extern int errno;` without `<errno.h>`. Under glibc `errno` is
-  thread-local, which c-isound.md 1.3.10 observed as a link error. The prototype defines a plain
+  thread-local, which §1.3.10 observed as a link error. The prototype defines a plain
   `int errno;` stub. It is read only if an ioctl fails, which the fake never does.
 - **[obs]** Undefined references of i_sound.o in the integrated build: I_Error S_sfx W_CacheLumpNum
   W_CheckNumForName W_GetNumForName W_LumpLength Z_Free Z_Malloc close errno exit fflush fprintf
@@ -4398,7 +4412,7 @@ edition). No shareware IWAD is available.
 - No lump would be mishandled beyond that.
 - The 40 Doom II names missing from DOOM.WAD are harmless at init. Starting one would fail in
   `I_GetSfxLumpNum` (row 5); whether Doom 1 gameplay can start one belongs to the sound-logic
-  side.
+  side. Note (2026-11-18): none of the 43 sounds named at the Episode 1 call sites of §1.2 is among them (a local check that day).
 
 #### 3.2.9 Design for Phase 2 step 2
 
@@ -4443,7 +4457,7 @@ edition). No shareware IWAD is available.
     integrated handle sequence);
   - stops and parameter updates are not part of it (3.2.3 item 4).
 
-  proto-soundlogic.md did not exist when I finished, so I could not compare its runner's output.
+  The sound-logic runner of §3.1 had not reported when this section was finished, so its output could not be compared.
 - **The edge cases needing a Rust refusal witness:** a start of a non-linked sfx whose padded length
   is 0 (lump of 8 bytes or fewer). Pitch outside 0..255 is unreachable from s_sound and should be
   refused at the mixer API.
@@ -4486,7 +4500,7 @@ edition). No shareware IWAD is available.
    prototype scenarios, plus about 40 KB per minute of any session golden. No raw samples. Nothing
    derived from IWAD audio is committed: the local run in 3.2.8 publishes counts only.
 
-#### Section 3.3: undefined, implementation-defined or layout-dependent behaviour
+#### 3.3.1 Undefined, implementation-defined or layout-dependent behaviour
 
 1. **Lumps of 0 to 8 bytes.** One byte is read past the zone block, then one frame is mixed. The
    value depends on the zone layout and differs between LP64 and ILP32 ([obs] table row 3). ASan
@@ -4507,7 +4521,9 @@ edition). No shareware IWAD is available.
 9. **The sndserver's missing-lump path** realloc's from an uninitialised size (wadread.c:209-249).
    Read only; never run.
 
-#### Section 3.3: questions this raises for the owner
+#### 3.3.2 Questions the mixer harness and sound lump facts raise for the owner
+
+Each question is taken up in [§5](#5-owner-decisions-t1t16-with-recommendations): 1 in T2; 2 in T5; 3 in T11; 4 in T6 (this section's recommendation, keeping the wipe-free contract, differs from §5's: T6 recommends counting the wipe's 320 draws because S15 does not close without them); 5 in T10.
 
 1. **Reference configuration:** integrated (doomdef.h:84 commented out, the only adapter; i_sound.c's
    mixer and handles 100, 101, …) *or* shipped (SNDSERV: the handle is the sfx id, no in-process
@@ -4527,13 +4543,13 @@ edition). No shareware IWAD is available.
 5. **Golden content:** buffer digests plus start echoes (`s` rows) *or* raw samples. **Recommend
    digests plus `s` rows** ([obs]: a start can change only its `s` row).
 
-#### Section 3.3: what I did not do or observe
+#### 3.3.3 What this section did not do or observe
 
-- I did not build or run the sndserver; its comparison (3.2.1 item 5) is from reading only.
+- This section did not build or run the sndserver; its comparison (3.2.1 item 5) is from reading only.
 - No real audio device was opened and no sound was played. The fake aborts on any `/dev/` path
   other than `/dev/dsp`, and `/dev/dsp` never reaches the real `open`.
 - The OSS pacing in 3.2.3 item 3 is inferred, not observed on a device.
-- No proto-soundlogic report existed when I finished: the start-list interface has not been
+- The sound-logic runner of §3.1 had not reported when this section was finished: the start-list interface has not been
   exercised with real s_sound output, only with hand-written start lists.
 - No shareware IWAD was available, so shareware counts are unknown.
 - No fuzzing and no coverage-guided campaign. The sanitizer runs are the 21 scenarios plus the IWAD
@@ -4542,7 +4558,7 @@ edition). No shareware IWAD is available.
 - No cargo or Rust; no timing measurements.
 - The sc315 build (schedule 2) was run only on 5 scenarios, in strict.
 - Nothing was written inside the repository. The prototype lives in ~/scratch/m5c/proto-mixer/
-  (`proto/` holds the files to lift; `src/` is my private export at 7f7fd99 with the same files
+  (`proto/` holds the files to lift; `src/` is a private export at 7f7fd99 with the same files
   under src/tools/reference/; `build/` and `runs/` are disposable).
 
 ### 3.4 Full frames under the new contract
@@ -4614,7 +4630,7 @@ screenblocks 11 off, strict, strict again, integrated. Counts only.
   494 tracker-flagged frames are excluded), every one only inside the face rectangle (face-zeroed digest
   differs in 0 frames, other P fields in 0); sound only 50,505 (49 runs), melt only 66,706 (61 runs). At
   screenblocks 11, 68,976 of 158,414 have a different face index and **0 frames differ**. M5b reported 69,139
-  of 158,966 with all frames counted; my count excludes the flagged frames and I did not re-count them, so
+  of 158,966 with all frames counted; the count here excludes the flagged frames and they were not re-counted, so
   the comparable statements are: 20,697 sound draws (equal), DEMO1 540 of its 1,704 unflagged frames (M5b 542
   of 1,710).
 - Under the integrated convention every frame count above is identical, and `rndindex` is identical at every
@@ -4623,9 +4639,9 @@ screenblocks 11 off, strict, strict again, integrated. Counts only.
 #### 3.4.3 Housekeeping [obs]
 
 `df -h /mnt/c` before the builds and before and after the real runs: 28 GB free each time. The IWAD copy was
-deleted at the end (see "What I did not do or observe").
+deleted at the end (see "What this section did not do or observe").
 
-#### Section 3.4: undefined, implementation-defined or layout-dependent behaviour
+#### 3.4.4 Undefined, implementation-defined or layout-dependent behaviour
 
 1. **The button origin** (3.1.11 item 6): `S_AdjustSoundParams` reads `x`,`y` from inside `buttonlist`
    (LP64 and ILP32 give different bytes; slot 15 reads past the array). It decides audibility, hence an
@@ -4643,7 +4659,9 @@ deleted at the end (see "What I did not do or observe").
    and writes `mixbuffer` to `audio_fd`, which is 0 (never opened, i_sound.c:106, 669): 2,048 zero bytes to
    file descriptor 0 per frame **[src]**. Presentation only.
 
-#### Section 3.4: questions this raises for the owner
+#### 3.4.5 Questions the full-frame facts raise for the owner
+
+Each question is taken up in [§5](#5-owner-decisions-t1t16-with-recommendations): 1 in T2; 2 in T5; 3 in T12 (this section's recommendation, refusing, differs from §5's: T12 recommends the 64-bit reading); 4 in T9 (the volume and the 3 channels) and T15 (a fresh process).
 
 1. **Handle convention.** (a) the shipped server build (`SNDSERV` as compiled: handle = sfx id), or (b) the
    integrated build (`addsfx`'s counter). Recommendation: **(b) for the channel table and the mixer**,
@@ -4663,30 +4681,30 @@ deleted at the end (see "What I did not do or observe").
    loaded at `gametic` 0 (`-playdemo`/`-warp`), as the reference; a session reached through menus is a
    different `gametic` history. Recommendation: yes.
 
-#### Section 3.4: what I did not do or observe
+#### 3.4.6 What this section did not do or observe
 
 - No Rust code, no committed file, contract, golden or room. No new room was built; coverage is of the
   existing 59 items and the 61 real runs.
-- I did not compile `i_sound.c` without `SNDSERV`: the integrated convention calls the genuine `addsfx`
+- This section did not compile `i_sound.c` without `SNDSERV`: the integrated convention calls the genuine `addsfx`
   directly and loads the data with the genuine `getsfx`, but the integrated `I_StartSound` body itself (one
   line, i_sound.c:495) is reproduced by the wrapper, not compiled.
-- I did not run the genuine mixer (`I_UpdateSound`) or digest `mixbuffer`.
-- I did not run the strict32 (`-m32`) variant, so the 32-bit reading of the button origin is inferred from
+- This section did not run the genuine mixer (`I_UpdateSound`) or digest `mixbuffer`.
+- This section did not run the strict32 (`-m32`) variant, so the 32-bit reading of the button origin is inferred from
   the declarations, not observed.
 - The exact clipping and close-distance boundaries were not shown to be reached by any item.
 - The sound streams of the synthetic run were produced by a build whose origin labels called the button
-  origin `unknown`; I verified on M5SWTCH (the only item with unknown origins: 6 rows server, 76 integrated)
+  origin `unknown`; it was verified on M5SWTCH (the only item with unknown origins: 6 rows server, 76 integrated)
   that the relabelled build prints `button,0` for exactly those rows and nothing else changes.
-- I did not re-count the face differences in the real runs' 494 (sb10) / 552 (sb11) tracker-flagged frames,
+- This section did not re-count the face differences in the real runs' 494 (sb10) / 552 (sb11) tracker-flagged frames,
   so the real total is not directly comparable with M5b's 69,139 (the draw count, 20,697, is).
 - The real A/B frame identity in full (flagged frames included) was not checked: flagged frames differ run to
   run by construction (M5a).
 - The IWAD copy (`~/scratch/m5c/proto-soundlogic/iwad/DOOM.WAD`) was deleted after the runs, with the build
   directories and run outputs; no real-map stream was kept (only counts and digests in `results/`).
-- An earlier real-run pass was stopped twice by me (to add the button label, then the schedule option and
+- An earlier real-run pass was stopped twice (to add the button label, then the schedule option and
   the position columns); the numbers above are from the final complete pass only.
-- Rule note: the first synthetic pass ran 5 parallel jobs, one more than the common brief's 4 (the task
-  brief allowed 6); later passes used 4.
+- Rule note: the first synthetic pass ran 5 parallel jobs, one more than the 4 named for the prototype (the
+  task's own limit was 6); later passes used 4.
 
 #### Files for Phase 2 to lift (all in `~/scratch/m5c/proto-soundlogic/`)
 
@@ -4695,22 +4713,21 @@ deleted at the end (see "What I did not do or observe").
 - `tools/m5c_proto_ref.py` (synthetic checks: dumps, fork check, variants, determinism, face/Q comparison,
   conventions, `--ab` schedules, `--selftest`), `tools/m5c_proto_real.py` and `tools/m5c_ab_real_frames.py`
   (local real runs), `tools/m5c_summarize.py` (counts).
-- `tools/m5c_sfxwad.py` (placeholder sound/music PWAD; replace by proto-mixer's generator plus the nine music
+- `tools/m5c_sfxwad.py` (placeholder sound/music PWAD; replace by the generator of §3.3 plus the nine music
   lumps).
 - Results (counts and digests only): `results/summary_items.json`, `results/summary_realitems.json`,
   `results/ab_synth.json`, `results/ab_real_frames.json`, `results/items/*.json`, `results/realitems/*.json`;
   logs in `logs/`. `src/` is the private export of 7f7fd99 the tools import from.
 
-<!-- proto-mixer report, M5c Phase 1, written 2026-11-18 (America/Los_Angeles). Prototype under ~/scratch/m5c/proto-mixer/. -->
+<!-- The prototype of sections 3.2 and 3.3 is under ~/scratch/m5c/proto-mixer/. -->
 
 ## 4. Rust design
 
-*Author: `rust-design` (Phase 1 reading and design task), 2026-11-18 (America/Los_Angeles). Repository
-head 7f7fd99 (branch `feat/m5c-sound`). Nothing was built or run for this section; every Rust fact is
-from reading the code at that head, every C fact is either re-read by me (marked "re-read") or taken from
-the Phase 1 sections named in brackets: [1.1] c-ssound, [1.2] c-callsites, [1.3] c-isound, [1.4]
-c-wipe-mrandom, [2] sim-sound-inventory, [3.2] proto-mixer, [4.x] audio-libs. Proto-soundlogic's report
-did not exist when this section was written (see "What I did not do or observe").*
+*Written 2026-11-18 (America/Los_Angeles). Repository head 7f7fd99 (branch `feat/m5c-sound`). Nothing was built
+or run for this section; every Rust fact is from reading the code at that head, and every C fact is either
+re-read for this section (marked "re-read") or taken from sections 1 to 3 of this note, which are cited by
+number. The report of the sound-logic runner (§3.1 and §3.4) did not exist when this section was written
+(see "What this section did not do or observe").*
 
 Terms used here, in addition to those of sections 1-3:
 
@@ -4718,11 +4735,11 @@ Terms used here, in addition to those of sections 1-3:
   `S_UpdateSounds`, `S_AdjustSoundParams` and the pitch `M_Random` draw).
 - **Mixer**: the port of the deterministic part of i_sound.c (lump loading and padding, `steptable`,
   `vol_lookup`, `addsfx`, `I_UpdateSound`'s loop) under the integrated configuration (doomdef.h:84
-  removed, [1.3] 1.3.0).
+  removed, [§1.3.0](#130-which-code-is-compiled-the-build-configuration-read-this-first)).
 - **Sound record**: one sound start or one removal stop as the simulation reports it to the sound
   logic, in C call order, with the positions `S_AdjustSoundParams` reads at that moment.
 - **Iteration**: one pass of `D_DoomLoop` (d_main.c:369-406): some tics, then `S_UpdateSounds`, then
-  `D_Display`, then one mixed buffer ([1.1] 1.1.7, [1.3] item 28).
+  `D_Display`, then one mixed buffer ([§1.1.7](#117-where-s_updatesounds-is-called), [§1.3](#13-the-mixer-i_soundc), item 28).
 - **Proven artefact**: what is compared with the genuine engine. Today: the per-tic 320x200 frame and
   palette number (COMPATIBILITY "Playable build (M5b)", Presentation). M5c adds the sound record list,
   the start list given to the mixer and the stream of mixed buffers.
@@ -4748,8 +4765,8 @@ or doom-render depends on it. The audio library enters only doom-play, so `cargo
 the fuzz workspace and every headless test never link it. `unsafe_code = "forbid"` stays inherited
 through `[lints] workspace = true` (Cargo.toml:16-18).
 
-The decisions this design assumes, each with its own entry in §4.11: the integrated configuration for
-both handles and samples; the declared iteration schedule of §4.3.3 (proto-mixer's buffer rule, with
+The decisions this design assumes, each with its own entry in §4.12: the integrated configuration for
+both handles and samples; the declared iteration schedule of §4.3.3 (the buffer rule of [§3.2.4](#324-the-mixing-schedule-the-open-question-facts-per-candidate), with
 `S_UpdateSounds` once per iteration); the wipe accounted as 320 draws after the first frame and not
 drawn; the sound logic's `snd_SfxVolume` fixed at 8, the player's volume a gain after the proven stream;
 and a wire 25 that only adds what sound needs.
@@ -4759,19 +4776,19 @@ and a wire 25 that only adds what sound needs.
 #### 4.2.1 What each half needs
 
 1. **The mixer** needs only bytes: the sound lumps (by name, with `W_CheckNumForName`'s backward scan,
-   w_wad.c:376-386 per [1.3] item 8), the 109-entry `S_sfx` table (name, link) and its own tables. It
-   needs no game state at all ([3.2] 3.2.3 item 4: the stream is a pure function of the start list,
+   w_wad.c:376-386 per [§1.3](#13-the-mixer-i_soundc), item 8), the 109-entry `S_sfx` table (name, link) and its own tables. It
+   needs no game state at all ([§3.2.3](#323-facts-the-harness-depends-on-src), item 4: the stream is a pure function of the start list,
    the lumps and the schedule).
 2. **The sound logic** needs, per start: the sfx id, the origin's identity (compared by equality only,
-   [1.1] 1.1.2), the origin's x,y and the listener's x,y,angle at the call (s_sound.c:302-316,
-   767-793 per [1.1] 1.1.5), the map number (map-8 rule, s_sound.c:773-787), the `S_sfx` priorities
+   [§1.1.2](#112-channel_t-the-globals-and-the-values-in-a-fresh-process)), the origin's x,y and the listener's x,y,angle at the call (s_sound.c:302-316,
+   767-793 per [§1.1.5](#115-every-function-line-by-line)), the map number (map-8 rule, s_sound.c:773-787), the `S_sfx` priorities
    (s_sound.c:853-854), `finesine` (s_sound.c:793) and `R_PointToAngle2` (s_sound.c:780-783). Per
    `S_UpdateSounds`: the current x,y of each occupied channel's origin and the current listener.
 3. **Where the trigonometry already lives.** doom-render exposes exactly what is needed, public and
    tested against tables.c: `r_main::finesine(i) -> Option<i32>` (crates/doom-render/src/r_main.rs:47-51),
    `r_main::point_to_angle(x, y, viewx, viewy) -> u32` (r_main.rs:90-130, `R_PointToAngle` relative to
    a view origin, which is `R_PointToAngle2`'s body once `viewx = x1, viewy = y1`, r_main.c:378-388
-   per [1.1] 1.1.5 item 4), `r_main::fixed_mul` (r_main.rs:61-63) and `slope_div` (r_main.rs:81-87).
+   per [§1.1.5](#115-every-function-line-by-line), item 4), `r_main::fixed_mul` (r_main.rs:61-63) and `slope_div` (r_main.rs:81-87).
    doom-sim has its own private copy of `finesine` (`static FINE_SINE`, crates/doom-sim/src/fine_sine.rs:4,
    included at lib.rs:166) and private angle code (level.rs:17-26 for `P_DeathThink`), neither public.
 4. **Lump access.** doom-render's `LumpDirectory` (crates/doom-render/src/r_data.rs:117-200) is the
@@ -4795,14 +4812,14 @@ crate's tests and mutants separate from the app's slow tests and the renderer's 
 does not change any existing crate's character. Its dependency on doom-render is for three public
 pure functions and `LumpDirectory`; if the owner prefers doom-sound not to depend on the renderer,
 the alternative is to move `finesine`, `tantoangle`, `slope_div`, `point_to_angle` and `fixed_mul`
-into doom-types (a refactor of doom-render with its own mutation exposure). I do not recommend that
-refactor in M5c: it touches proven renderer code for no behavioural gain.
+into doom-types (a refactor of doom-render with its own mutation exposure). Not recommended: that
+refactor in M5c touches proven renderer code for no behavioural gain.
 
 #### 4.2.3 doom-sound modules and public API sketch
 
 | Module | C | Contents |
 | --- | --- | --- |
-| `sounds` | sounds.h:177-289, sounds.c:114-227 | `S_SFX: [SfxInfo; 109]` (name, priority, link, link pitch, link volume; singularity kept as data, read by nothing, [1.1] 1.1.3), generated or checked by a committed script against sounds.c, and a test that the names equal doom-sim's `SOURCE_SOUNDS` order ([2] 2.2 item 4) |
+| `sounds` | sounds.h:177-289, sounds.c:114-227 | `S_SFX: [SfxInfo; 109]` (name, priority, link, link pitch, link volume; singularity kept as data, read by nothing, [§1.1.3](#113-soundsh--soundsc-the-s_sfx-table)), generated or checked by a committed script against sounds.c, and a test that the names equal doom-sim's `SOURCE_SOUNDS` order ([§2.2](#22-the-event-types), item 4) |
 | `tables` | i_sound.c:396-424 | `STEPTABLE: [i32; 256]` as a committed constant, `vol_lookup` computed at construction by integer arithmetic (§4.6.2) |
 | `lumps` | i_sound.c:185-251, 451-456, 799-813 | `SoundSet::load(&LumpDirectory) -> Result<SoundSet, SoundLoadError>`: padding, the pistol fallback, the linked chaingun's zero length, the short-lump and missing-lump markers |
 | `mixer` | i_sound.c:264-381, 470-521, 539-654 | `Mixer`: 8 channels, `start`, `mix_buffer`, the handle counter |
@@ -4813,7 +4830,7 @@ refactor in M5c: it touches proven renderer code for no behavioural gain.
 
 ```rust
 pub struct SfxId(u8);                                 // 1..=108 admitted; 0 and 109 refused
-pub enum OriginId { None, Actor(ActorId), Sector(u16), Button(u8) }   // pointer identity classes ([2] 2.2 item 5)
+pub enum OriginId { None, Actor(ActorId), Sector(u16), Button(u8) }   // pointer identity classes (§2.2, item 5)
 pub struct Placed { pub origin: [i32; 2], pub listener: [i32; 2], pub listener_angle: u32 } // 16.16, angle_t
 
 pub enum Record {                                     // from doom-sim wire 25 (§4.4), in C call order
@@ -4864,9 +4881,9 @@ impl Sound {
 pub struct TicSound { pub draws: u16, pub started: Vec<StartEcho>, /* staged state */ }
 ```
 
-`StartEcho` is the genuine runner's `s` row ([3.2] 3.2.9: `s TIC ID VOL SEP PITCH PRIO HANDLE`,
-plus the s_sound channel index), which proto-mixer found necessary because a start can change only its
-echo and not the stream ([3.2] 3.2.7).
+`StartEcho` is the genuine runner's `s` row ([§3.2.9](#329-design-for-phase-2-step-2): `s TIC ID VOL SEP PITCH PRIO HANDLE`,
+plus the s_sound channel index), which §3.2 found necessary because a start can change only its
+echo and not the stream ([§3.2.7](#327-proof-the-comparison-can-fail-and-determinism-obs)).
 
 ### 4.3 The `M_Random` stream and the per-tic sequence
 
@@ -4891,26 +4908,26 @@ so presentation cannot consume `P_Random`.
 | Frozen code touched | `observe` and `StatusBarState::tick` unchanged; one additive method | `StatusBarState::tick`'s signature or a parallel tick; more churn in proven code |
 
 **Recommendation (i).** The values are a pure function of the index and the number of draws
-(m_random.c:63-67 per [1.4] 1.4.1 item 2), so passing a count loses nothing. The wipe's 320 draws are
+(m_random.c:63-67 per [§1.4.1](#141-m_randomc-in-full-and-every-use-of-the-index), item 2), so passing a count loses nothing. The wipe's 320 draws are
 made by `Display::draw` itself on the frame that wipes (the existing `DisplayState::wipe` flag,
 d_display.rs:151-153, is already set by `begin_level`, d_display.rs:285, and cleared after the first
 frame, d_display.rs:418), only under the new contract value.
 
 #### 4.3.3 The per-tic sequence against the C order
 
-C (integrated configuration, [1.1] 1.1.7, [1.3] item 28, [1.4] 1.4.4): per iteration, tics
+C (integrated configuration, [§1.1.7](#117-where-s_updatesounds-is-called), [§1.3](#13-the-mixer-i_soundc), item 28, [§1.4.4](#144-d_displays-wipe-path-and-the-startup-to-the-first-frame)): per iteration, tics
 (`G_Ticker`: `P_Ticker` with every sound start in call order, then `ST_Ticker`'s one draw, then
-`HU_Ticker`; g_game.c:727-733 per [1.2] 1.2.4), then `S_UpdateSounds` (d_main.c:392, no draw), then
+`HU_Ticker`; g_game.c:727-733 per [§1.2.4](#124-the-moment-within-the-tic)), then `S_UpdateSounds` (d_main.c:392, no draw), then
 `D_Display` (the first one wipes: 320 draws, f_wipe.c:159-162), then `I_UpdateSound` and
 `I_SubmitSound` (d_main.c:397-405).
 
-**The declared schedule (recommended, §4.11 T5).** Proto-mixer's rule ([3.2] 3.2.4 (3)): after the
+**The declared schedule (recommended, §4.12 item 2, T5).** The buffer rule ([§3.2.4](#324-the-mixing-schedule-the-open-question-facts-per-candidate) (3)): after the
 starts of tic t (t counted from the session's first tic, 0), mix every buffer k not yet mixed with
 `512*k < 315*(t+1)`. That gives 0 or 1 buffer after each tic; per 512 tics, 315 buffers; buffer 0 after
-tic 0. I add the matching iteration boundary: **an iteration ends after tic t exactly when a buffer is
+tic 0. The matching iteration boundary is added: **an iteration ends after tic t exactly when a buffer is
 mixed after it**, and `S_UpdateSounds` runs once at each iteration end. The iterations are then
-`{0}, {1}, {2,3}, {4}, {5,6}, ...` (pattern 1,1,0,1,1,0,1,0,... of [3.2] 3.2.4), which is a loop
-vanilla can run (`TryRunTics` with counts 1 or 2, d_net.c:736-746 per [1.3] item 28).
+`{0}, {1}, {2,3}, {4}, {5,6}, ...` (pattern 1,1,0,1,1,0,1,0,... of [§3.2.4](#324-the-mixing-schedule-the-open-question-facts-per-candidate)), which is a loop
+vanilla can run (`TryRunTics` with counts 1 or 2, d_net.c:736-746 per [§1.3](#13-the-mixer-i_soundc), item 28).
 
 Per tic t, the app core does:
 
@@ -4918,7 +4935,7 @@ Per tic t, the app core does:
 | --- | --- | --- | --- |
 | 1 | input, `G_BuildTiccmd`, recorder (unchanged, app/mod.rs:728-756) | `G_BuildTiccmd`, demo write and re-read | 0 |
 | 2 | `sim.advance` under wire 25 (app/mod.rs:757); the tic's `Record`s become readable | `P_Ticker`: starts and removal stops in call order | 0 (in the simulation) |
-| 3 | `Sound::tic(t, records, rndindex)`: for each record in order, `S_StartSoundAtVolume` or `S_StopSound`; starts reaching `I_StartSound` go to the mixer with `gametic = t` | the same calls inside `P_Ticker` | one per start that passes the early returns, except ids 32 and 87 ([1.1] 1.1.5 item 6) |
+| 3 | `Sound::tic(t, records, rndindex)`: for each record in order, `S_StartSoundAtVolume` or `S_StopSound`; starts reaching `I_StartSound` go to the mixer with `gametic = t` | the same calls inside `P_Ticker` | one per start that passes the early returns, except ids 32 and 87 ([§1.1.5](#115-every-function-line-by-line), item 6) |
 | 4 | `Display::observe_after(sim, fed, draws)` | `ST_Ticker`, `HU_Ticker` | 1 |
 | 5 | if tic t ends an iteration: `Sound::end_iteration` = `S_UpdateSounds` with `gametic = t + 1` and the current listener, then one buffer of 512 frames to the sink | `S_UpdateSounds`, then (after `D_Display`) `I_UpdateSound` | 0 |
 | 6 | `Display::draw` (every tic, the M5a/M5b frame contract); on the session's first frame under the new contract, +320 after composing | `D_Display` (once per iteration; the first wipes) | 320 once |
@@ -4929,28 +4946,28 @@ after `D_Display`, but nothing in `D_Display` touches sound state, and nothing i
 display, so the order of steps 5 and 6 changes no output.
 
 **Why the frames stay per tic and are still exact.** Sound draws depend only on positions and the sfx
-id, never on channel state ([1.1] 1.1.6 table: "M_Random draws ... no"). `ST_Ticker` draws once per
+id, never on channel state ([§1.1.6](#116-what-playing-means-and-exactly-when-a-channel-is-freed-in-both-builds) table: "M_Random draws ... no"). `ST_Ticker` draws once per
 tic. So the `M_Random` stream, and with it the face, is identical under any grouping of tics into
 iterations, provided the wipe's 320 come after the same tic. With the first iteration `{0}` the wipe
 comes after tic 0 under both the per-tic frame contract and the iteration schedule, which is
-c-wipe-mrandom's k = 1 ([1.4] 1.4.5 item 3, 1.4.7 (a) 1). Only the channel table and the samples depend
+the k = 1 of [§1.4.5](#145-does-a-session-started-directly-on-a-map-make-the-wipes-draws-and-where), item 3 and [§1.4.7](#147-what-a-port-must-keep) (a) 1. Only the channel table and the samples depend
 on the grouping, and those are declared by the schedule.
 
-**A contradiction with the orchestrator's leaning (2).** The rule "a buffer is mixed after tic t exactly
-when `floor(315*(t+1)/512) > floor(315*t/512)`" mixes nothing after tic 0 (floor(315/512) = 0) and the
-first buffer after tic 1. Then the first iteration is `{0, 1}`, the first `D_Display` (and the wipe)
-would come after tic 1 (k = 2), contradicting leaning (3), and the starts of tic 0 would land in the
-same buffer as tic 1's. Proto-mixer's rule (the ceiling form: buffers after tic t are those with
-`ceil(315*t/512) <= k < ceil(315*(t+1)/512)`) has neither problem. Leaning (2) also keeps
+**An earlier form of the buffer rule, and why it is not used.** The rule "a buffer is mixed after tic t
+exactly when `floor(315*(t+1)/512) > floor(315*t/512)`" mixes nothing after tic 0 (floor(315/512) = 0) and
+the first buffer after tic 1. Then the first iteration is `{0, 1}`, the first `D_Display` (and the wipe)
+would come after tic 1 (k = 2) instead of after tic 0 (k = 1, above), and the starts of tic 0 would land in
+the same buffer as tic 1's. The rule adopted (the ceiling form: buffers after tic t are those with
+`ceil(315*t/512) <= k < ceil(315*(t+1)/512)`) has neither problem. The earlier form also kept
 `S_UpdateSounds` after every tic while mixing only after some; that hybrid is a loop no vanilla build
 runs (vanilla mixes once per iteration, and `S_UpdateSounds` runs once per iteration), and it changes
 which channels are free in the second tic of a two-tic iteration, which decides refusals and so the
-start list ([1.1] 1.1.7 item 3). The per-iteration placement keeps the whole sound path equal to one
+start list ([§1.1.7](#117-where-s_updatesounds-is-called), item 3). The per-iteration placement keeps the whole sound path equal to one
 genuine loop. The owner decides (T5).
 
 #### 4.3.4 Keeping the M5b contract reproducible
 
-The M5b frames, goldens, DDSP version 1 states and tests are frozen. I propose a contract value
+The M5b frames, goldens, DDSP version 1 states and tests are frozen. A contract value is proposed
 instead of changing defaults:
 
 ```rust
@@ -4983,7 +5000,7 @@ impl GameData { pub fn load_with_sound(..) -> Result<Self, LoadError>; } // wire
 
 #### 4.4.1 What the simulation gives today, re-checked
 
-1. Every reachable start is an event in C call order with sfx and origin identity ([2] 2.0-2.3), as
+1. Every reachable start is an event in C call order with sfx and origin identity (§2.0-2.3), as
    `ActorStateEvent::Sound` (central helper `sound()` in the lifecycle host,
    crates/doom-sim/src/lifecycle.rs:1528-1530, plus about ten direct pushes: movers.rs:545,
    projectiles.rs:99, weapons.rs:923, player_pistol.rs:301, 665, 718, 724, world_pickups.rs:498,
@@ -4991,7 +5008,7 @@ impl GameData { pub fn load_with_sound(..) -> Result<Self, LoadError>; } // wire
 2. **The wrong scream is confirmed.** C: `sfx_pdiehi` only `if ((gamemode == commercial) && (mo->health
    < -50))` (p_enemy.c:1994-2007, re-read). Rust: `if life.health < -50 { "sfx_pdiehi" } else
    { "sfx_pldeth" }` (lifecycle.rs:1701-1708, re-read). The playable build never runs a commercial game.
-3. No event carries a position; sector `soundorg` is stored nowhere ([2] 2.4).
+3. No event carries a position; sector `soundorg` is stored nowhere ([§2.4](#24-positions-at-the-moment-of-the-call)).
 4. Events are canonical: `events.last.N` and `events.pending.N` are fields of every snapshot
    (crates/doom-sim/src/snapshot.rs:1271-1279) and so of `canonical_bytes` and `digest`
    (snapshot.rs:67-86).
@@ -5009,33 +5026,33 @@ impl GameData { pub fn load_with_sound(..) -> Result<Self, LoadError>; } // wire
 #### 4.4.2 Option (a): wire-24 events plus app-side reconstruction
 
 The app copies every actor's x,y and the player's angle before `advance`, then folds the event list.
-I list every case I found where the result is not exact or not provably exact:
+The cases found where the result is not exact or not provably exact are:
 
 1. **The listener's angle at the teleport fog sounds** when the same tic's `P_PlayerThink` turned the
-   player by `A_Punch` or `A_Saw` (p_pspr.c:489-494, 523-541 per [1.2] 1.2.4) or by `P_DeathThink`
+   player by `A_Punch` or `A_Saw` (p_pspr.c:489-494, 523-541 per [§1.2.4](#124-the-moment-within-the-tic)) or by `P_DeathThink`
    (p_user.c:200-221). The fogs sound with the old angle (p_telept.c:111-118, angle set at 124); that
-   angle is in no event and no snapshot ([2] 2.4 case 4). The plain `P_MovePlayer` turn is exact (the
+   angle is in no event and no snapshot ([§2.4](#24-positions-at-the-moment-of-the-call), case 4). The plain `P_MovePlayer` turn is exact (the
    executed command's `angleturn << 16` when `Event::Player` is present).
-2. **Positions changed outside an actor's own thinker.** [2] 2.4 states that an actor's x,y change only
+2. **Positions changed outside an actor's own thinker.** [§2.4](#24-positions-at-the-moment-of-the-call) states that an actor's x,y change only
    in its own thinker, at spawn and in `P_CheckMissileSpawn`. That is incomplete: `P_DamageMobj` sets the
    see state of a monster in its spawn state (p_inter.c:911-913, re-read), `P_SetMobjState` calls the
    action at once (p_mobj.c:76-77, re-read), and that `A_Chase` can `P_Move` the victim (p_enemy.c:764-768,
-   re-read) in the **damager's** phase ([1.2] 1.2.4 "Moving origins"). The victim's own thinker may move it
+   re-read) in the **damager's** phase ([§1.2.4](#124-the-moment-within-the-tic) "Moving origins"). The victim's own thinker may move it
    again later in the tic. Reconstruction must replay that step at its place in the list.
 3. **`A_Look`'s sight sound precedes its own seestate `A_Chase` step** (sound at p_enemy.c:660,
    `P_SetMobjState` at 663, re-read): the origin is one step behind its end-of-tic position.
 4. **Walk-over specials and teleports inside the listener's split move** (`xmove > MAXMOVE/2`,
-   p_mobj.c:162-174 per [1.2] 1.2.4): the listener is between half steps at the door or plat sound.
+   p_mobj.c:162-174 per [§1.2.4](#124-the-moment-within-the-tic)): the listener is between half steps at the door or plat sound.
 5. **Missile spawn and explode-on-spawn positions** are recoverable (`Projectile::Launch` names the
-   source; `ProjectileEvent::HalfStep` carries the half step, [2] 2.4 case 3).
+   source; `ProjectileEvent::HalfStep` carries the half step, [§2.4](#24-positions-at-the-moment-of-the-call), case 3).
 6. **The button-release origin under ILP32** needs `btexture`, which Rust does not store
    (use_lines.rs:30-42: `Button { line, timer, sector }`); under LP64 it needs the next slot's timer,
    which Rust has (§4.4.5).
 7. **`A_PlayerScream`**: a rewrite `pdiehi -> pldeth` in the app (it is the only emitter of
-   `sfx_pdiehi`, [2] 2.8).
+   `sfx_pdiehi`, [§2.8](#28-gaps-and-options)).
 
 Cases 2-4 are exact **only if** every position commit of every actor emits an event carrying the
-resulting position, in order. I could not establish that from the code in the time available (it needs
+resulting position, in order. That could not be established from the code in the time available (it needs
 an audit of `ActorMovement`, `SectorMovement`, `Slide`, pursuit and teleport events against every
 `P_TryMove`, `P_Move` and `P_TeleportMove` commit). Case 1 is never exact. Cost: about 500-800 lines of
 reconstruction in doom-game or doom-sound that re-implements `P_PlayerThink`'s angle changes and the
@@ -5046,7 +5063,7 @@ claim (cases 2-4). **Not recommended.**
 
 At each sound start and each `P_RemoveMobj` stop, the simulation appends a `Record` (§4.2.3) to a
 buffer that is not in `Snapshot`, committed and dropped with the tic's plan (as `events` is: a refused
-tic publishes nothing, [2] 2.3 item 6).
+tic publishes nothing, [§2.3](#23-order), item 6).
 
 - **Where it is populated.** At the same points as today's sound events, reading the origin's and the
   listener's positions from the staged actor state at that moment. In the lifecycle host the choke point
@@ -5063,7 +5080,7 @@ tic publishes nothing, [2] 2.3 item 6).
   Ungated, the scream needs the app rewrite of case 7 above (a declared adapter outside the simulation).
   Gated to wire 25, (b) is (c) minus canonicality.
 - **Missing sector and button origins.** Sector `soundorg` is a pure function of the map
-  (p_setup.c:536-557, with `M_AddToBox`'s `else if`, m_bbox.c:51-58 per [1.2] 1.2.6.2); the simulation
+  (p_setup.c:536-557, with `M_AddToBox`'s `else if`, m_bbox.c:51-58 per [§1.2.6.2](#1262-the-sector-sound-origin-and-its-arithmetic)); the simulation
   can compute it once at load into its static world, outside the snapshot. The button release is §4.4.5.
 - **Cost.** In doom-sim about 450-700 lines (record type, about 25 emitter touches with their listener
   plumbing, `soundorg`, the button reading, the gate); tests 400-600. No DSIM, encoder or fixture work.
@@ -5082,24 +5099,24 @@ variant or predicate across doom-sim's sources and 16 files).
 1. **Sound records** as a new canonical group, **`events.sounds.N`**, after `events.pending`, in DSIM41
    only: `Start { sfx, origin, at }` and `Stop { actor }` in C call order (§4.2.3). `at` is present
    exactly for positional starts (origin not NULL and not the listener's body, s_sound.c:302 per
-   [1.1] 1.1.5 item 5) and holds the origin's x,y and the listener's x,y,angle **at the call**.
+   [§1.1.5](#115-every-function-line-by-line), item 5) and holds the origin's x,y and the listener's x,y,angle **at the call**.
    - Not interleaved into `events.last`: the existing `Sound`/`SectorSound` events stay byte for byte as
      wire 24 emits them, so `switch_inputs` and `derive_message` (4.4.1 item 6) see the same lists.
    - The path starts with `events.`, so every frozen comparator strips it unchanged
      (level_compare.py:64); the new sound comparator (§4.9) compares it.
    - `Stop` is pushed where `Event::RemovalMarked` is pushed (`mark`, lifecycle.rs:1502-1511, and the
-     pickup, sky-missile and crunch paths of [2] 2.2 item 7; Phase 2 must audit that each goes through
+     pickup, sky-missile and crunch paths of [§2.2](#22-the-event-types), item 7; Phase 2 must audit that each goes through
      one push point).
 2. **The correct `A_PlayerScream`**: under wire 25 `sfx_pldeth` always. Wire 25 declares a non-commercial
    game, which is exact for its domain: its maps are E1M1-E1M9, which a commercial game never loads
    (vanilla's commercial mode names maps `MAPxx`). No constructor input is needed.
 3. **Sector sound origins**: computed once at load (p_setup.c:536-557, `M_AddToBox`'s `else if`,
-   truncating `/2`, [1.2] 1.2.6.2), held in the static world, **not** in the snapshot (the `map.*` group
+   truncating `/2`, [§1.2.6.2](#1262-the-sector-sound-origin-and-its-arithmetic)), held in the static world, **not** in the snapshot (the `map.*` group
    is checked once against the encoder, level_compare_m4b.py:52-56, and adding to it would cost encoder
    work); exposed read-only as `Simulation::sector_sound_origin(sector) -> Option<[Fixed; 2]>`. A sum that
-   overflows `int` (p_setup.c:556-557, [1.2] 1.2.8 item 5) refuses the map at load with a typed error.
+   overflows `int` (p_setup.c:556-557, [§1.2.8](#128-undefined-implementation-defined-or-layout-dependent-behaviour-in-the-call-sites), item 5) refuses the map at load with a typed error.
 4. **The button-release origin** under a declared ABI (§4.4.5).
-5. **(Separate yes/no, T4) the THING-loading truncation** (p_setup.c:317-337 per [2] 2.7): one test at the
+5. **(Separate yes/no, T4) the THING-loading truncation** (p_setup.c:317-337 per [§2.7](#27-thing-loading-truncation-for-the-owners-wire-decision)): one test at the
    top of `spawn_map_things`' loop (crates/doom-sim/src/spawning.rs:443-462), before the start handling,
    gated by a wire-25 predicate. It uses the same "non-commercial" fact as item 2.
 
@@ -5114,7 +5131,7 @@ DSIM40 projection to equal its DSIM39 projection outside `DELTA_FIELDS`
 `level_snapshot_m5c.py` with version 41, policy 25, the new context, `DELTA_FIELDS = ('profile',
 'context.schema')`, and a self-test that every script's DSIM41 projection equals its DSIM40 projection
 outside the delta. The `events.sounds` group is projected from the genuine sound runner's rows by a
-separate encoder (the start rows of proto-soundlogic, mapped to Rust identities), compared by the sound
+separate encoder (the start rows of the sound-logic runner of §3.1, mapped to Rust identities), compared by the sound
 comparator, not by `level_compare`. No existing encoder, fixture or golden changes; new DSIM41 fixtures
 are added beside the M4b ones if wanted.
 
@@ -5149,21 +5166,21 @@ genuine sound comparison, so that comparison is the gate (§4.9).
 #### 4.4.5 The button-release origin (p_spec.c:1151)
 
 The C passes `(mobj_t *)&buttonlist[i].soundorg`, a field address; `S_AdjustSoundParams` reads x,y at
-`mobj_t`'s offsets past it ([1.2] 1.2.6.3, observed offsets): **LP64** x = `buttonlist[i+1].btimer`, y =
+`mobj_t`'s offsets past it ([§1.2.6.3](#1263-the-switch-sounds-origin-and-the-button-release-origin), observed offsets): **LP64** x = `buttonlist[i+1].btimer`, y =
 the padding after it (zero in practice); **ILP32** x = `buttonlist[i+1].btexture`, y =
 `buttonlist[i+1].btimer`; slot 15 reads past the array. Both readings give (0,0) when slot i+1 is free.
 The read happens in the start (before the `memset` at p_spec.c:1152) and again in every later
-`S_UpdateSounds` while the channel is occupied ([2] "Undefined ..." item 1), with slot i+1's then-current
+`S_UpdateSounds` while the channel is occupied ([§2.9, item 1](#29-undefined-implementation-defined-or-layout-dependent-behaviour)), with slot i+1's then-current
 values.
 
 | | (a) LP64 reading (recommended) | (b) ABI-independent: (0,0), refuse when slot i+1 is busy | (c) ILP32 reading |
 | --- | --- | --- | --- |
 | Data needed | slot i+1's timer (in Rust state: `Button::timer`, use_lines.rs:36-37) | slot i+1 free or busy | `btexture`, not stored |
-| Matches | the default genuine build (the reference builds are LP64 with opt-in `strict32`, [2] item 1) | both ABIs where it does not refuse | the strict32 build |
+| Matches | the default genuine build (the reference builds are LP64 with opt-in `strict32`, [§2.9, item 1](#29-undefined-implementation-defined-or-layout-dependent-behaviour)) | both ABIs where it does not refuse | the strict32 build |
 | Cost | a public read accessor for the button slots (they are `pub(crate)`, use_lines.rs:34-45), about 40 lines with the slot-15 refusal | about 20 lines; a witness that fires whenever two reusable switches overlap | a new stored field: a change to wire-25 state |
 
 Slot 15 is refused in every option (unreachable on Episode 1: at most 10 reusable switch lines per map,
-[1.2] 1.2.6.3). One ordering detail for Phase 2: `P_UpdateSpecials` walks slots 0..15 and decrements as
+[§1.2.6.3](#1263-the-switch-sounds-origin-and-the-button-release-origin)). One ordering detail for Phase 2: `P_UpdateSpecials` walks slots 0..15 and decrements as
 it goes, so at slot i's release slot i+1 has **not yet** been decremented in this tic; the record must
 carry that value.
 
@@ -5181,13 +5198,13 @@ Reasons: it is the owner's own first option; it is the only one that fixes the s
 simulation; positions come straight from the code that moves things, at the moment of the call; the
 existing comparators strip the new group without any change, so the proof of "non-sound digests
 unchanged" is the M4b projection method; and the sound comparator then checks every record against
-the genuine engine, which has never been done for any wire-22-24 sound ([2] 2.6). Choose (b) gated to
+the genuine engine, which has never been done for any wire-22-24 sound ([§2.6](#26-what-has-been-validated-by-evidence)). Choose (b) gated to
 wire 25 if the owner wants to avoid DSIM41: it saves about 300-500 lines of snapshot, decoder and
 encoder work and loses the DSIM digest of the positions.
 
 ### 4.5 `S_UpdateSounds` in Rust
 
-1. **What it does** (s_sound.c:519-613 per [1.1] 1.1.5): for each occupied channel in index order, free
+1. **What it does** (s_sound.c:519-613 per [§1.1.5](#115-every-function-line-by-line)): for each occupied channel in index order, free
    it if `gametic >= handle` (`I_SoundIsPlaying` is `gametic < handle`, i_sound.c:517-521); otherwise,
    for a channel whose origin is not NULL and not the listener, recompute audibility from the **current**
    listener and origin positions and free it if inaudible. The recomputed volume and separation go to
@@ -5199,22 +5216,21 @@ encoder work and loses the DSIM digest of the positions.
    `ActorId`; sector origins from `sector_sound_origin`; button-release origins from the button slots
    (§4.4.5).
 3. **Removed actors.** At most one occupied channel per origin (s_sound.c:349 then 868-872, proved in
-   [1.1] 1.1.10 item 3), and every `P_RemoveMobj` frees its origin's channel (p_mobj.c:566). With a
+   [§1.1.10](#1110-order-sensitivity-within-a-tic), item 3), and every `P_RemoveMobj` frees its origin's channel (p_mobj.c:566). With a
    `Stop` record at every removal, no channel can hold a removed actor at an update. If `actor_xy`
    returns `None` for an occupied channel anyway, the update refuses with `SoundRefusal::OriginGone`
    (a witness of a broken invariant, never a silent free). Marked actors stay readable until retirement
    (lib.rs:970-971), so a channel freed later in the same tic by `Stop` is ordered correctly.
-4. **`gametic` and the handle counter** under "a fresh process started straight on the map" ([1.1]
-   1.1.6 item 5, [1.4] 1.4.4 item 8): `gametic` is 0 while tic 0 runs and t + 1 after tic t, which is
+4. **`gametic` and the handle counter** under "a fresh process started straight on the map" ([§1.1.6](#116-what-playing-means-and-exactly-when-a-channel-is-freed-in-both-builds), item 5, [§1.4.4](#144-d_displays-wipe-path-and-the-startup-to-the-first-frame), item 8): `gametic` is 0 while tic 0 runs and t + 1 after tic t, which is
    `Simulation::tic()` after `advance` (lib.rs:959-961), so it is derived, not stored separately (the
    saved state checks it). The integrated handle counter (`static unsigned short handlenums`, starting
-   0, reset to 100 when 0, i_sound.c:271, 334-340 per [1.3] item 19.5) lives in the `Mixer` and starts at
+   0, reset to 100 when 0, i_sound.c:271, 334-340 per [§1.3](#13-the-mixer-i_soundc), item 19.5) lives in the `Mixer` and starts at
    0 with each session (restart is a new process, decision S11). Under the integrated configuration a
    channel times out only once `gametic` passes 100 + the number of earlier starts, so in practice
-   channels are freed by `S_StopSound`, eviction, inaudibility and level start ([1.1] 1.1.6).
+   channels are freed by `S_StopSound`, eviction, inaudibility and level start ([§1.1.6](#116-what-playing-means-and-exactly-when-a-channel-is-freed-in-both-builds)).
 5. **What a player can hear of this table.** Only which starts reach `I_StartSound`: a start refused for
-   lack of a channel (s_sound.c:850-860) is never mixed ([1.1] 1.1.10 item 5). Freeing a channel never
-   silences anything; the mixer has 8 channels while s_sound tracks 3 ([1.3] item 20). The channel
+   lack of a channel (s_sound.c:850-860) is never mixed ([§1.1.10](#1110-order-sensitivity-within-a-tic), item 5). Freeing a channel never
+   silences anything; the mixer has 8 channels while s_sound tracks 3 ([§1.3](#13-the-mixer-i_soundc), item 20). The channel
    contents (slot, origin, handle) are otherwise compared only against the genuine dump, as diagnostics
    and as the evidence that refusals happen at the same starts.
 
@@ -5222,7 +5238,7 @@ encoder work and loses the DSIM digest of the positions.
 
 #### 4.6.1 Data
 
-Per channel c in 0..8 (i_sound.c:116-151 per [1.3] item 7): `sfx: Option<SfxId>` (the data pointer;
+Per channel c in 0..8 (i_sound.c:116-151 per [§1.3](#13-the-mixer-i_soundc), item 7): `sfx: Option<SfxId>` (the data pointer;
 `None` is NULL), `pos: u32` and `end: u32` (byte offsets into that sfx's padded data), `step: u32`
 (16.16, `steptable[pitch]`), `frac: u32` (0..=65535), `start: i32` (`gametic` at the start), `handle: i32`
 (written, never read, kept for the echo), `id: i32` (single-instance rule), `lvol: u8`, `rvol: u8`
@@ -5232,19 +5248,18 @@ Per channel c in 0..8 (i_sound.c:116-151 per [1.3] item 7): `sfx: Option<SfxId>`
 #### 4.6.2 Tables, with no floating point at run time
 
 - `vol_lookup[v][s] = (v * (s - 128) * 256) / 127` for v 0..=127, s 0..=255 (i_sound.c:421-423). Rust's
-  `/` truncates toward zero as gcc does ([1.3] 1.3.8 item 5), so a `const fn` or a constructor computes it
+  `/` truncates toward zero as gcc does ([§1.3.8](#138-undefined-implementation-defined-or-layout-dependent-behaviour), item 5), so a `const fn` or a constructor computes it
   exactly on every OS; tested against the genuine digest (SHA-256 `f727268a...0043` of the
-  little-endian array, [3.2] 3.2.6; FNV-1a-64 `552057530633d3e9`, [1.3] item 13).
+  little-endian array, [§3.2.6](#326-the-tables-obs); FNV-1a-64 `552057530633d3e9`, [§1.3](#13-the-mixer-i_soundc), item 13).
 - `steptable[p] = (int)(pow(2.0, (p - 128)/64.0) * 65536.0)` (i_sound.c:414-415) = floor(2^((1024 + p -
-  128)/64)) for p 0..=255, because the product is positive and the multiplication by 65536 exact ([3.2]
-  3.2.6). Two exact options:
+  128)/64)) for p 0..=255, because the product is positive and the multiplication by 65536 exact ([§3.2.6](#326-the-tables-obs)). Two exact options:
   - (i) **integer generation**: the integer 64th root of 2^(896+p), computed with a small big-integer
-    routine (proto-mixer's model does this in Python, [3.2] 3.2.6);
+    routine (the independent model of [§3.2.6](#326-the-tables-obs) does this in Python);
   - (ii) **a committed constant table** of 256 `i32`, generated by a committed script, plus a test that
     checks each entry v with exact integer arithmetic (v^64 <= 2^(896+p) < (v+1)^64, a 30-line
     multi-word multiply in the test only) and the genuine digest (SHA-256 `95f2209c...6dde`).
   **Recommendation (ii)**: the run-time code has no root and no float; the test is exact and identical on
-  Linux, Windows and macOS. Margin to the nearest integer is 0.0125 ([1.3] item 13, [3.2] 3.2.6), so
+  Linux, Windows and macOS. Margin to the nearest integer is 0.0125 ([§1.3](#13-the-mixer-i_soundc), item 13, [§3.2.6](#326-the-tables-obs)), so
   the genuine `pow` cannot disagree with the exact value.
 
 #### 4.6.3 Lump loading (`SoundSet::load`)
@@ -5252,26 +5267,26 @@ Per channel c in 0..8 (i_sound.c:116-151 per [1.3] item 7): `sfx: Option<SfxId>`
 For each sfx 1..=108 in order (i_sound.c:799-813):
 
 1. Linked (`chgun` only, sounds.c:204): the pistol's data and **length 0**, the C's `lengths[0]`
-   (i_sound.c:811, `(link - S_sfx)/sizeof(sfxinfo_t)` is 0 on every ABI, [1.3] item 12). Kept exactly:
-   one frame of the pistol's first byte (in bounds). `sfx_chgun` is never started ([1.1] 1.1.3).
+   (i_sound.c:811, `(link - S_sfx)/sizeof(sfxinfo_t)` is 0 on every ABI, [§1.3](#13-the-mixer-i_soundc), item 12). Kept exactly:
+   one frame of the pistol's first byte (in bounds). `sfx_chgun` is never started ([§1.1.3](#113-soundsh--soundsc-the-s_sfx-table)).
 2. Otherwise `"ds" + name` by `LumpDirectory::check_num_for_name`; if absent, a **copy of dspistol**
    (i_sound.c:213-216) and a `missing` flag; if dspistol is absent too, `SoundLoadError::PistolMissing`
    (the C's `I_Error` at start-up, w_wad.c:399-409).
 3. `size` = lump length; `padded = ((size - 8 + 511) / 512) * 512` with C `int` division on a value
-   that is never negative for size >= 0 ([1.3] item 11); data = bytes 8..size then 128 until `padded`
+   that is never negative for size >= 0 ([§1.3](#13-the-mixer-i_soundc), item 11); data = bytes 8..size then 128 until `padded`
    bytes. Lumps of 8 bytes or fewer get `padded = 0` and a `short` flag (their single mixed frame reads
-   one byte past the C allocation, a layout-dependent value, [3.2] 3.2.5 row 3).
+   one byte past the C allocation, a layout-dependent value, [§3.2.5](#325-edge-cases-run-through-the-genuine-code-all-obs), row 3).
 4. Bounds: `SoundCaps { max_lump: usize, max_total: usize }` (§4.8).
 
 #### 4.6.4 Start and mix
 
-`Mixer::start` is `I_StartSound` + `addsfx` in the C order ([1.3] 1.3.9 pseudocode): `steptable[pitch]`
-(pitch outside 0..=255 refused before any change, `MixRefusal::Pitch`; unreachable from s_sound, [3.2]
+`Mixer::start` is `I_StartSound` + `addsfx` in the C order ([§1.3.9](#139-implementation-ready-summary) pseudocode): `steptable[pitch]`
+(pitch outside 0..=255 refused before any change, `MixRefusal::Pitch`; unreachable from s_sound, [§3.2.5](#325-edge-cases-run-through-the-genuine-code-all-obs),
 row 12); the single-instance rule for ids 1, 10-13, 22; first free slot, else the lowest index with the
 smallest `start < gametic`, else 0; handle; step, `frac = 0`, `start = gametic`; separation
 `lv = v - ((v*s*s) >> 16)` with s = sep + 1, then s - 257 for `rv`; the range checks (refused before
 mutation in Rust, where the C writes half a channel and then exits; unreachable from s_sound's domain,
-[1.3] item 19.8).
+[§1.3](#13-the-mixer-i_soundc), item 19.8).
 
 `Mixer::mix_buffer` is i_sound.c:565-635: 512 frames, channels 0..7 in order, read, accumulate, advance,
 free at `pos >= end`, clamp to i16. **The output type is `[[i16; 2]; 512]`** (left, right), the
@@ -5289,7 +5304,7 @@ reproduces the refusal).
 | --- | --- |
 | `sfx_id < 1` or `> NUMSFX` (`I_Error`; 109 passes and reads past `S_sfx`, s_sound.c:277-278) | `SoundRefusal::SfxId` for 0 and for 109..; unreachable from wire 25's ids |
 | first start of an sfx whose `ds` lump is missing, once it obtains a channel (`W_GetNumForName` `I_Error`, s_sound.c:363-365) | `SoundRefusal::LumpMissing { sfx }` at that exact start (after its draw and its channel choice, as in C; the staged state is dropped) |
-| a start of a non-linked sfx with padded length 0 (read past the block) | `MixRefusal::ShortLump { sfx }` at the mixer start ([3.2] Q3) |
+| a start of a non-linked sfx with padded length 0 (read past the block) | `MixRefusal::ShortLump { sfx }` at the mixer start ([§3.3.2, question 3](#332-questions-the-mixer-harness-and-sound-lump-facts-raise-for-the-owner)) |
 | `rightvol`/`leftvol` out of bounds (`I_Error`) | `MixRefusal::Separation`, before mutation |
 | pitch outside 0..=255 (out-of-bounds `steptable` read) | `MixRefusal::Pitch`, before mutation |
 | `S_UpdateSounds` on an origin that cannot be resolved | `SoundRefusal::OriginGone` |
@@ -5315,7 +5330,7 @@ pub struct RecordingSink { pub buffers: Vec<[[i16; 2]; 512]> }  // tests: digest
 - **Gain and mute are applied after the proven stream**: `Gain` (an integer numerator over 256, saturating)
   sits in doom-play's queue reader or in a wrapper sink; the recording sink sees the unscaled buffers.
 - **The volume launch flag**: `--volume 0-100` (percent; default 100; 0 mutes and still runs the sound
-  logic, so the face stays vanilla). The C's `snd_SfxVolume` is **not** changed (§4.11 T9).
+  logic, so the face stays vanilla). The C's `snd_SfxVolume` is **not** changed (§4.12 item 4, T9).
 - Every headless test uses `RecordingSink` and the fake clock (crates/doom-game/tests/app.rs already
   drives `App::update` with scripted microsecond times); no test touches a device or a thread. Required
   test: the same scripted session run twice gives identical buffer digests, starts, channel tables and
@@ -5324,13 +5339,13 @@ pub struct RecordingSink { pub buffers: Vec<[[i16; 2]; 512]> }  // tests: digest
 #### 4.7.2 The device in doom-play
 
 - **Thread and hand-over without `unsafe`.** The library's callback (maudio: `FnMut(CallBackDevice,
-  &mut [i16]) + Send + 'static`, [4.x]) runs on its own thread. A bounded queue
+  &mut [i16]) + Send + 'static`, [§4.14](#414-audio-output-library-a-measured-comparison)) runs on its own thread. A bounded queue
   `Arc<Mutex<VecDeque<[i16; 2]>>>` holds the frames; the loop thread pushes each mixed buffer, the
   callback pops what it needs and writes zeros for the rest. The lock is held only for a copy. A
   lock-free queue would add a crate; not needed at these rates (inference: one push of 512 frames
   every 1-2 tics).
 - **Rate.** Ask the device for 11,025 Hz stereo i16. maudio resamples itself when the device runs at
-  another rate ([4.x], "Resampling" line); the pure-Rust PulseAudio route lets the server resample ([4.x]).
+  another rate ([§4.14](#414-audio-output-library-a-measured-comparison), "Resampling" line); the pure-Rust PulseAudio route lets the server resample ([§4.14](#414-audio-output-library-a-measured-comparison)).
   If neither is available, doom-game provides a pure integer resampler
   (`resample::Linear { from: 11025, to: u32 }`, 16.16 phase, linear interpolation; 44,100 is an exact 4x
   and could be sample-and-hold or linear, 48,000 is not an integer ratio). It is presentation and
@@ -5338,24 +5353,24 @@ pub struct RecordingSink { pub buffers: Vec<[[i16; 2]; 512]> }  // tests: digest
 - **Underrun**: silence (zeros), counted for `--tic-stats`-style diagnostics. **Overrun** (the queue
   above its cap): drop the **oldest** frames, never block the loop, because blocking would change tic
   pacing, which M5b fixed and the owner has not playtested (a vanilla OSS build is paced by its blocking
-  write, [3.2] 3.2.3 item 3; we deliberately do not copy that).
+  write, [§3.2.3](#323-facts-the-harness-depends-on-src), item 3; we deliberately do not copy that).
 - **Latency.** The stream arrives in 512-frame steps, 0 or 1 per tic, so the queue must hold at least one
   buffer before the device starts pulling: a start of 1 buffer (46.4 ms) plus the device period gives
-  roughly 50-100 ms, close to vanilla's two 2,048-byte fragments (about 93 ms, [1.3] item 30.6), plus
-  the schedule's own start latency of 0-511 frames (mean 23.2 ms, [3.2] 3.2.4). Cap: 4 buffers (186 ms).
+  roughly 50-100 ms, close to vanilla's two 2,048-byte fragments (about 93 ms, [§1.3](#13-the-mixer-i_soundc), item 30.6), plus
+  the schedule's own start latency of 0-511 frames (mean 23.2 ms, [§3.2.4](#324-the-mixing-schedule-the-open-question-facts-per-candidate)). Cap: 4 buffers (186 ms).
   Not measured.
 - **Pause** (the app's own pause, S12): no tics, so no buffers; the sink's `pause` clears the queue so the
   last 50-100 ms are not heard after the pause key (mute on pause). Vanilla would keep mixing during its
-  own pause ([1.1] `S_PauseSound` item); the app pause is not vanilla's and this is presentation.
+  own pause ([§1.1.5](#115-every-function-line-by-line), `S_PauseSound`); the app pause is not vanilla's and this is presentation.
 - **Session end and restart.** An end screen stops tics, hence buffers. Restart is a new game (S11):
   fresh `Sound` (s_sound channels empty as after `S_Init`, mixer channels empty, handle counter 0,
   schedule phase 0), and the sink's `session_start` clears the queue. Vanilla's `G_InitNew` would run
-  `S_Start` but leave the 8 mixer channels playing and the handle counter running ([1.1] `S_Start`;
-  [1.3] item 20); that is process history, outside the declared fresh-process reference.
+  `S_Start` but leave the 8 mixer channels playing and the handle counter running ([§1.1.5](#115-every-function-line-by-line), `S_Start`;
+  [§1.3](#13-the-mixer-i_soundc), item 20); that is process history, outside the declared fresh-process reference.
 - **No device.** If the backend cannot open (maudio with an explicit backend list returns
-  `MA_NO_BACKEND`; the PulseAudio client returns an `io::Error`, [4.x]), the game runs with the sound
+  `MA_NO_BACKEND`; the PulseAudio client returns an `io::Error`, [§4.14](#414-audio-output-library-a-measured-comparison)), the game runs with the sound
   logic and mixer still running (the face and the proven stream unchanged) into a sink that discards,
-  and doom-play prints one line to standard error once. Never miniaudio's Null backend ([4.x] Q4).
+  and doom-play prints one line to standard error once. Never miniaudio's Null backend ([§4.14, question 4](#414-audio-output-library-a-measured-comparison)).
 - **Library independence.** doom-play has one module, `audio.rs`, with
   `fn open(volume: Gain) -> Result<DeviceSink, String>`; `DeviceSink: AudioSink` owns the queue's
   producer side. maudio or the per-OS pure-Rust route plugs in behind that function only.
@@ -5391,7 +5406,7 @@ Typed errors, bounded sizes (DSND is fixed-size apart from the free/occupied tag
 bytes, refused beyond), and references checked against the simulation and the sound set:
 `tic == sim.tic()`; k equals the number of buffers the schedule gives for tics 0..tic-1; sfx ids in
 1..=108; each actor origin resolves to a live actor (`Simulation::actor`), each sector index is below the
-sector count, each button slot below 15; at most one channel per origin (the [1.1] 1.1.10 invariant);
+sector count, each button slot below 15; at most one channel per origin (the [§1.1.10](#1110-order-sensitivity-within-a-tic) invariant);
 `handle >= 100` and `handlenums` consistent with the largest live handle modulo the wrap; mixer
 `end == padded length` of its sfx in the loaded set (or 0 for chgun), `pos <= end`, `frac <= 65535`,
 `step` one of the 256 `steptable` entries, `lvol`, `rvol` <= 127, `start <= tic`. Like
@@ -5413,7 +5428,7 @@ refused and leave the target unchanged.
 - **Memory.** 107 padded sounds plus one shared pistol copy per missing name. Bounded by the lumps: the
   padded length is size - 8 rounded up to 512. Caps (an over-refusal at load, declared): 1 MiB per lump
   and 16 MiB in total, `SoundLoadError::TooLarge`. Positions and ends are `u32`; the C's lengths are `int`
-  ([1.3] item 7). The real DOOM.WAD and DOOM2.WAD lumps fit easily (counts only in [3.2] 3.2.8; I did not
+  ([§1.3](#13-the-mixer-i_soundc), item 7). The real DOOM.WAD and DOOM2.WAD lumps fit easily (counts only in [§3.2.8](#328-real-iwads-local-only-counts-only-obs); this section did not
   read sizes).
 - **Work per tic.** Records per tic are bounded by the simulation's own event bounds (each record comes
   from a bounded emitter). Each start is O(3 + 8) work; `S_UpdateSounds` is O(3); a buffer is 512 x 8
@@ -5429,7 +5444,7 @@ refused and leave the target unchanged.
   comparator); the start echo (`s` rows: tic, id, vol, sep, pitch, handle, s_sound channel); the
   s_sound channel table after each `S_UpdateSounds`; `rndindex` per tic (already a P field of the M5b
   runner); the mixer's table digests, `l` rows and buffer digests (`b` rows, `z` stream digest) from
-  proto-mixer's genuine harness and its independent Python model ([3.2] 3.2.9). Committed: digests and
+  the genuine harness of §3.2 and its independent Python model ([§3.2.9](#329-design-for-phase-2-step-2)). Committed: digests and
   rows only, never raw samples.
 - **Operating systems.** Rust goldens (tables, echoes, buffer digests) in `cargo test` on Linux, Windows
   and macOS. The genuine C runners, the independent model and the generators' `--check` on the Linux job
@@ -5489,22 +5504,22 @@ comparison and audio output; the melt is already out of this design):
 
 ### 4.12 Stop-and-ask candidates
 
-Each is a concrete either/or with a recommendation; the orchestrator turns them into T decisions.
+Each is a concrete either/or with a recommendation, except the last, which is a correction. The number at the start of an item is the decision of §5 that carries it.
 
 1. **T2 Reference configuration.** Integrated (doomdef.h:84 removed) for both the sound logic's handles
    and the samples, or the shipped `SNDSERV` build (handle = sfx id, no in-process mixer). Recommend
-   **integrated**, declared everywhere ([1.1] Q1, [1.3] Q1, [3.2] Q1 agree).
-2. **T5 Schedule.** (a) proto-mixer's buffer rule (buffer k after tic t when `512k < 315(t+1)`; first
-   buffer after tic 0) with `S_UpdateSounds` once per iteration; or (b) the orchestrator's floor rule
+   **integrated**, declared everywhere ([§1.1.14, question 1](#1114-questions-the-sound-logics-facts-raise-for-the-owner), [§1.3.11, question 1](#1311-questions-the-mixers-facts-raise-for-the-owner) and [§3.3.2, question 1](#332-questions-the-mixer-harness-and-sound-lump-facts-raise-for-the-owner) agree).
+2. **T5 Schedule.** (a) the buffer rule of [§3.2.4](#324-the-mixing-schedule-the-open-question-facts-per-candidate) (buffer k after tic t when `512k < 315(t+1)`; first
+   buffer after tic 0) with `S_UpdateSounds` once per iteration; or (b) the floor form of that rule
    (first buffer after tic 1, wipe at k = 2) with `S_UpdateSounds` after every tic; or (c) one 512-frame
-   buffer per tic (`-timedemo`; 1.625x real time, not playable). Recommend **(a)**; (b) contradicts
-   leaning (3) and is a loop no vanilla build runs (§4.3.3).
+   buffer per tic (`-timedemo`; 1.625x real time, not playable). Recommend **(a)**; (b) puts the first
+   display after tic 1 instead of tic 0 and is a loop no vanilla build runs (§4.3.3).
 3. **T6 Wipe.** (a) 320 draws after the first frame, melt not drawn and taking no time; or (b) keep M5b's
-   wipe-free contract (proto-mixer's Q4). Recommend **(a)**: without it the glance stays 64 indices off
-   vanilla and S15 does not close ([1.4] 1.4.10 Q1).
+   wipe-free contract ([§3.3.2, question 4](#332-questions-the-mixer-harness-and-sound-lump-facts-raise-for-the-owner)). Recommend **(a)**: without it the glance stays 64 indices off
+   vanilla and S15 does not close ([§1.4.10, question 1](#1410-questions-the-m_random-and-wipe-facts-raise-for-the-owner)).
 4. **T9 Volume.** (a) `snd_SfxVolume` fixed at 8 in the sound logic, the player's volume and mute a gain on
    the finished stream; or (b) a launch flag that sets `snd_SfxVolume` (0-15) as vanilla's menu does,
-   which changes audibility and so the draws and the face ([1.1] 1.1.12 "Configuration flags"). Recommend
+   which changes audibility and so the draws and the face ([§1.1.12](#1112-implementation-ready-summary) "Configuration flags"). Recommend
    **(a)**, with `--volume 0-100`.
 5. **T3 How sound starts leave the simulation.** (c) wire 25 with canonical `events.sounds`; (b) wire 25
    with a non-canonical buffer; (a) app reconstruction; (d) a declared limit. Recommend **(c)** (§4.4.7).
@@ -5513,7 +5528,7 @@ Each is a concrete either/or with a recommendation; the orchestrator turns them 
 7. **T12 Button-release origin.** (a) LP64 reading, (b) (0,0) and refuse when slot i+1 is busy, (c) ILP32.
    Recommend **(a)**, slot 15 refused.
 8. **T11 Short and missing lumps.** Refuse the start (typed witness at the exact start), or refuse the WAD
-   at load. Recommend **refuse the start** for both; the genuine code accepts the WAD ([3.2] Q3, [1.1] Q4).
+   at load. Recommend **refuse the start** for both; the genuine code accepts the WAD ([§3.3.2, question 3](#332-questions-the-mixer-harness-and-sound-lump-facts-raise-for-the-owner); [§1.1.14, question 4](#1114-questions-the-sound-logics-facts-raise-for-the-owner)).
 9. **T15 Restart and session start.** Fresh process (s_sound and mixer channels empty, handle counter 0,
    `gametic` 0), or carry mixer channels and handles across a restart as vanilla's `G_InitNew` would.
    Recommend **fresh process**, consistent with S11.
@@ -5523,9 +5538,9 @@ Each is a concrete either/or with a recommendation; the orchestrator turns them 
 11. **T8 Overrun policy.** Drop the oldest queued frames (never block), or block the loop as vanilla's
     OSS write does. Recommend **drop**, because blocking changes pacing, which the owner has not
     playtested.
-12. **T7 Library.** maudio with an explicit backend list, or the pure-Rust per-OS route ([4.x] Q1-Q4).
+12. **T7 Library.** maudio with an explicit backend list, or the pure-Rust per-OS route ([§4.14, questions 1-4](#414-audio-output-library-a-measured-comparison)).
     Recommend maudio; the seam of §4.7.2 makes the choice local to doom-play.
-13. **the correction of section 2.4 The damage-chase and `A_Look` step positions** (4.4.2 items 2-3) contradict [2] 2.4's statement
+13. **A correction to §2.4, not a decision.** The damage-chase and `A_Look` step positions (4.4.2 items 2-3) contradict [§2.4](#24-positions-at-the-moment-of-the-call)'s statement
     that positions change only in an actor's own thinker. No decision, but the note should record the
     correction, because it is the reason (a) cannot be shown exact cheaply.
 
@@ -5535,51 +5550,20 @@ Each is a concrete either/or with a recommendation; the orchestrator turns them 
    staged plan gives a plausible but wrong audibility, a wrong draw count and a face that differs only
    occasionally. Only the genuine record comparison on the 61 runs and the synthetic items catches it;
    it must run before any face claim.
-2. **The never-validated wire-24 sound events** ([2] 2.6): wire 25 inherits them; the first genuine
+2. **The never-validated wire-24 sound events** ([§2.6](#26-what-has-been-validated-by-evidence)): wire 25 inherits them; the first genuine
    comparison may find order or identity faults in wire 24 itself. Those cannot be fixed in wire 24
    (frozen) and would need a wire-25 predicate each, enlarging "only what sound needs". The owner should
    know that this is possible before ruling T3.
 3. **Schedule disagreement** (T5): a later change of the rule changes every buffer digest and many
    start echoes. Decide before Phase 2 goldens are generated.
 4. **Audio library maturity** (maudio's young binding, unverified MSVC `c99`, no sound heard on this
-   machine, [4.x]); the device path cannot be tested in CI. Keep it thin and behind the seam.
+   machine, [§4.14](#414-audio-output-library-a-measured-comparison)); the device path cannot be tested in CI. Keep it thin and behind the seam.
 5. **Mutation-testing time** grows with doom-sim's wire-25 diff (doom-sim's suite is slow); size shards
    early.
 6. **Size**: the M5b ratio suggests the crates could reach 15,000 lines; the fallback list of §4.11
    starts with items that do not touch the proven stream.
 7. **Presentation feel** (latency, underrun clicks, gain) is unmeasured and unplaytested; nothing in this
    design changes input, pacing or the picture, but the owner will hear the result for the first time.
-
-### Section 4: undefined, implementation-defined or layout-dependent behaviour
-
-1. The button-release origin (p_spec.c:1151): layout-dependent; this design models the LP64 reading and
-   refuses slot 15 (§4.4.5).
-2. Lumps of 8 bytes or fewer: one byte read past the zone block; refused at the start (§4.6.5).
-3. `soundorg`'s `int` sum can overflow and its `/2` of a negative odd sum is implementation-defined (gcc
-   truncates); Rust computes in `i64` with truncating division and refuses an overflow at load.
-4. `vol_lookup`'s negative division and `S_AdjustSoundParams`' right shift of a negative product are
-   implementation-defined in C89; Rust's `/` truncates and `>>` on `i32` is arithmetic, matching gcc.
-5. `steptable` uses `pow`; the committed table is exact and the margin makes libm irrelevant.
-
-### Section 4: questions this raises for the owner
-
-The thirteen items of §4.12, in that order; the ones that block Phase 2 goldens are T2, T5, T6 and T3.
-
-### Section 4: what I did not do or observe
-
-- I built and ran nothing: no cargo, no reference tool, no C. Every Rust fact is from reading the code at
-  7f7fd99; line counts are `wc -l` and include comments and in-file tests.
-- **proto-soundlogic.md did not exist** when I wrote and when I last checked
-  (`ls -la ~/scratch/m5c/reports/` at the end, see the summary), so this section does not use its
-  measured counts, its handle-convention comparison or its runner design; the tools estimate in §4.11 is
-  therefore a guess for that part. c-callsites.md and proto-mixer.md arrived during the work and are
-  used.
-- I did not audit every Rust emitter's staged-state context (§4.4.4 risk 1) or prove that every actor
-  position commit emits an event with its result (§4.4.2), and I did not check that every removal path
-  goes through one push point.
-- I did not measure latency, underrun behaviour or resampling quality, and opened no audio device.
-- I did not read the M5a design section in full; the design follows M5B §3, whose structure M5a's
-  section shares.
 
 ### 4.14 Audio output library: a measured comparison
 
@@ -5800,13 +5784,15 @@ Source: `/home/copgunn/scratch/m5c/audio-libs/cubeb/`.
 
 cpal is recorded but not recommended: it is the most mature option, but its `Apache-2.0`-only licence needs the same owner decision as winit in S2, and on Linux it needs `libasound2-dev` in CI and libasound at run time.
 
-#### Section 4.14: undefined, implementation-defined or layout-dependent behaviour
+#### Undefined, implementation-defined or layout-dependent behaviour of the audio libraries
 
 - miniaudio's default backend choice depends on which shared libraries happen to be installed (dlopen order: PulseAudio, ALSA, JACK, then Null on Linux). The same binary therefore picks different backends, buffer sizes and resampling paths on different machines. Device period sizes are hints ("may be adjusted by the backend").
 - Server-side or library-side resampling (PulseAudio here, miniaudio's converter, WASAPI AUTOCONVERTPCM) is outside the declared mixing schedule. Sample-for-sample claims can only cover our 11,025 Hz output stream, never what the device plays.
 - The PulseAudio server rewrote the requested buffer (asked 5,040 bytes, granted 3,780), so latency is negotiated and machine-dependent.
 
-#### Section 4.14: questions this raises for the owner
+#### Questions the audio library facts raise for the owner
+
+Each question is taken up in [§5](#5-owner-decisions-t1t16-with-recommendations): 1 in T7; 2 in T7 (the C dependency); 3 in T7 (`libpulse0`); 4 in T7 (the Null device); 5 in T7 (`apt-get` in CI).
 
 1. **Which library?** Either (i) maudio (C miniaudio compiled in our build, MIT/Unlicense, 3 new crates, no system packages, ran here only on the Null device), or (ii) the pure-Rust per-OS route (51 crates, our own three backends, reached WSLg's server), or (iii) cpal (accepting `Apache-2.0` alone, plus `libasound2-dev` in the Linux CI job). **Recommendation: (i), fallback (ii).**
 2. **Is a second dependency that is C acceptable**, given that S2 chose miniquad partly because it is pure Rust? Either accept vendored C compiled by `cc` on all three CI runners, or require pure Rust and take route (ii). **Recommendation: accept it**; the C is public domain/MIT-0, is compiled from the crate, and needs no system package.
@@ -5814,7 +5800,7 @@ cpal is recorded but not recommended: it is the most mature option, but its `Apa
 4. **Null device policy:** either never use miniaudio's Null backend (open fails cleanly; the app runs silent and says so), or allow it as a silent fallback. **Recommendation: never** (explicit backend list). Tests use our own recording sink and never open a device.
 5. If the owner prefers a C library he installs himself, as S2's fallback wording allowed for SDL2: is one `apt-get install libasound2-dev` line in the Linux CI job acceptable (for cpal or tinyaudio)? **Recommendation: not needed if (i) is chosen.**
 
-#### Section 4.14: what I did not do or observe
+#### What the library comparison did not do or observe
 
 - **No sound was heard or could be heard.** Every sample written was zero. maudio ran only on the Null device. The PulseAudio trial reached WSLg's `RDPSink`, but nobody listened, and the Windows side of WSLg's audio path was not observed.
 - No real audio device was opened by maudio, cpal, tinyaudio, SDL2 or cubeb on any OS.
@@ -5822,9 +5808,9 @@ cpal is recorded but not recommended: it is the most mature option, but its `Apa
 - `libpulse0`, `libasound2`, `libasound2-dev`, SDL2 and cmake were not installed. So: maudio's PulseAudio and ALSA paths, cpal's link, tinyaudio, SDL2 audio and cubeb were never run.
 - Latency, underrun behaviour, pause/resume and resampling quality were not measured; the 0.99 s drain of the PulseAudio trial is the only timing seen.
 - The per-OS route's Windows and macOS code does not exist. Its size and the safety of the `wasapi`/`coreaudio-rs` calls we would need are from a short source read only.
-- Licences come from SPDX fields plus first-line or header checks of the cpal, miniaudio, maudio-sys, stb_vorbis, libcubeb, speex and pulseaudio files. I did not read every crate's LICENSE text. cubeb's nested cargo trees were not enumerated. This is not legal advice.
+- Licences come from SPDX fields plus first-line or header checks of the cpal, miniaudio, maudio-sys, stb_vorbis, libcubeb, speex and pulseaudio files. This section did not read every crate's LICENSE text. cubeb's nested cargo trees were not enumerated. This is not legal advice.
 - Build scripts were read for maudio-sys, alsa-sys, quad-alsa-sys, cubeb-sys (partly) and coreaudio-sys (bindgen lines only), and not for the others. maudio's 1,070 `unsafe` sites were not audited.
-- Build times are single, warm-download figures on a machine where other agents were building.
+- Build times are single, warm-download figures on a machine where other jobs were building.
 - Two network reads went beyond cargo: the crates.io API pages for release dates. Nothing else was downloaded or installed. Scratch is 0.7 MB after deleting the target directories.
 
 Files that matter for Phase 2:
@@ -5834,6 +5820,39 @@ Files that matter for Phase 2:
 - `/home/copgunn/scratch/m5c/audio-libs/pulseaudio-old/src/main.rs`
 - `/home/copgunn/scratch/m5c/audio-libs/tools/analyze.py`
 - `/home/copgunn/scratch/m5c/audio-libs/logs/` (`census.txt`, `run-*.txt`, `build/*.log`)
+
+### 4.15 Undefined, implementation-defined or layout-dependent behaviour
+
+1. The button-release origin (p_spec.c:1151): layout-dependent; this design models the LP64 reading and
+   refuses slot 15 (§4.4.5).
+2. Lumps of 8 bytes or fewer: one byte read past the zone block; refused at the start (§4.6.5).
+3. `soundorg`'s `int` sum can overflow and its `/2` of a negative odd sum is implementation-defined (gcc
+   truncates); Rust computes in `i64` with truncating division and refuses an overflow at load.
+4. `vol_lookup`'s negative division and `S_AdjustSoundParams`' right shift of a negative product are
+   implementation-defined in C89; Rust's `/` truncates and `>>` on `i32` is arithmetic, matching gcc.
+5. `steptable` uses `pow`; the committed table is exact and the margin makes libm irrelevant.
+
+### 4.16 Questions the Rust design raises for the owner
+
+Each question is taken up in [§5](#5-owner-decisions-t1t16-with-recommendations): 1 in T2; 2 in T5 (this section's recommendation, `S_UpdateSounds` once per iteration, differs from §5's, which runs it after every tic: see T5); 3 in T6; 4 in T9; 5 in T3; 6 in T4; 7 in T12; 8 in T11; 9 and 10 in T15; 11 in T8; 12 in T7; 13 is a correction to §2.4, not a decision.
+
+The questions are the thirteen items of §4.12, in that order (the last is a correction to §2.4, not a decision); the stop-and-ask candidates were taken up as T1-T16 in §5, and T2, T3, T5 and T6 decide what the Phase 2 goldens contain.
+
+### 4.17 What this section did not do or observe
+
+- Nothing was built or run: no cargo, no reference tool, no C. Every Rust fact is from reading the code at
+  7f7fd99; line counts are `wc -l` and include comments and in-file tests.
+- **The sound-logic runner of §3.1 and §3.4 had not reported** when this section was written and when its sources were last checked
+  (`ls -la ~/scratch/m5c/reports/` at the end), so this section does not use its
+  measured counts, its handle-convention comparison or its runner design; the tools estimate in §4.11 is
+  therefore a guess for that part. The call-site facts of §1.2 and the mixer facts of §3.2 and §3.3 arrived during the work and are
+  used.
+- This section did not audit every Rust emitter's staged-state context (§4.4.4 risk 1) or prove that every actor
+  position commit emits an event with its result (§4.4.2), and this section did not check that every removal path
+  goes through one push point.
+- This section did not measure latency, underrun behaviour or resampling quality, and opened no audio device.
+- This section did not read the M5a design section in full; the design follows M5B §3, whose structure M5a's
+  section shares.
 
 ## 5. Owner decisions (T1–T16) with recommendations
 

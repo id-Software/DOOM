@@ -2988,3 +2988,17 @@ registered engine tic for tic, which a truncation at a type-65 THING would have 
 comparison is affected. A map with a type-65 THING under a registered or shareware engine, for example a
 synthetic one, would diverge. The fix is
 planned as a new wire (see [ROADMAP](ROADMAP.md)).
+
+## Known gap: the player's hard-death scream in wire 24's sound events
+
+In the original, `A_PlayerScream` plays `sfx_pdiehi` for a player death below -50 health only in commercial mode
+(linuxdoom-1.10/p_enemy.c:1994-2007); otherwise it plays `sfx_pldeth`. The Rust simulation's sound event names
+`sfx_pdiehi` in every mode (crates/doom-sim/src/lifecycle.rs:1701-1708). Only that event's sound number is
+affected: the game state, positions, random numbers and every frame are as the original's, and no build plays a
+sound today, so nothing audible or visible is wrong yet.
+
+**Status: unpatched by rule.** The event is part of wire 24's canonical bytes and stays as it is. It was found by
+reading the code on 2026-11-18 and has not been confirmed by a genuine-engine comparison: no whole-engine run has
+ever compared sound events. Decision T3 of the
+[M5c investigation note](M5C_REFERENCE_INVESTIGATION.md#5-owner-decisions-t1t16-with-recommendations) proposes
+the correction in a new wire 25.

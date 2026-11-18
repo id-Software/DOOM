@@ -541,17 +541,22 @@ monster/player behavior. Further stages require separate owner direction.
     Windows artifact rebuilt on it, the pull request marked ready and the owner's review. [Support](COMPATIBILITY.md#playable-build-m5b) is written. Nobody has yet seen the
     picture or played with a real key or mouse; a human has to judge feel, latency and looks. See the
     [investigation note](M5B_REFERENCE_INVESTIGATION.md#4-owner-decisions-s1s23-with-recommendations).
-  - **M5c (proposed; not started, owner-approved items only).** One item so far: close the status bar
-    face's idle glance gap (S15). Model the `M_Random` draws of sound starts and of the level-start wipe so
-    that the idle face's left, ahead or right glance matches a vanilla session with sound; until then, frames
-    are identical to the genuine engine only under the declared sound-free, wipe-free contract.
+  - **M5c (sound effects matched to linuxdoom-1.10, and the closing of the status bar face's idle glance
+    gap, S15).** Phase 1, the investigation, is done (2026-11-18); owner decisions T1–T16 are open. Sound
+    starts and the level-start wipe draw `M_Random`, so modelling both makes the idle face's left, ahead or
+    right glance match a vanilla session with sound; until then, frames are identical to the genuine engine
+    only under the declared sound-free, wipe-free contract. Until the owner rules, only the genuine-engine
+    tools and evidence of Phase 2 steps 1 and 2 are being built; no simulation, dependency or app change has
+    been made. See the [investigation note](M5C_REFERENCE_INVESTIGATION.md) and its
+    [owner decisions](M5C_REFERENCE_INVESTIGATION.md#5-owner-decisions-t1t16-with-recommendations).
 - **Simulation follow-up (proposed, pending the owner): model the THING-loading truncation under a new
   wire.** `P_LoadThings` ends the whole THINGS loop at the first Doom II type (doomednums 64-69, 71, 84,
   88, 89) when `gamemode != commercial` (p_setup.c:317-337); wires 12-24 spawn such a type-65 THING and
   everything after it. A new wire would stop loading at the first such THING in registered and shareware
   mode, with a synthetic map and genuine-engine evidence. Today's gap is recorded in
   [COMPATIBILITY](COMPATIBILITY.md#known-gap-thing-loading-stops-at-the-first-doom-ii-type-outside-commercial-mode);
-  no Episode 1 map is affected.
+  no Episode 1 map is affected. Decision T4 of the [M5c note](M5C_REFERENCE_INVESTIGATION.md#5-owner-decisions-t1t16-with-recommendations) proposes carrying this fix in wire 25
+  if the owner approves that wire.
 - Multiplayer and later experiments, after their source/game-context dependencies
   can be independently validated.
 
