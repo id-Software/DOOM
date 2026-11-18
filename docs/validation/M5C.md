@@ -9,15 +9,21 @@ owns the commands; [COMPATIBILITY](../COMPATIBILITY.md#sound-effects-m5c) owns t
 
 This record was last extended on 2026-11-18 (America/Los_Angeles) with the pieces of the milestone that are complete
 on the branch: Phase 2 steps 1 and 2, the proof of the audio library (decision T7), step 3 (wire 25 and its genuine
-comparisons), step 4 (the crate `doom-sound` with its session, detector and saved state), step 8 part 1 (the CI job
-and the mutation workflow) and step 11 part 1 (the fuzz targets). **Still in progress and not recorded here:** the
-display contract with sound, the game loop, the device and launch flags, the real-map runs of the full sound logic and
-of frames, so **the face's idle glance gap (S15) is not closed**; also mutation testing, timings and the reviews.
+comparisons), step 4 (the crate `doom-sound` with its session, detector and saved state), step 5 (the display contract
+with sound, the sound session in the game loop, the 61 real runs and the scripted app sessions), step 6 (restore and
+continue), step 7 (sound in `doom-play`), step 8 part 1 (the CI job and the mutation workflow) and step 11 part 1 (the
+fuzz targets), and the CI record. **Not done and not recorded here:** mutation testing of `doom-sound` (no result), timings,
+a fuzz target for `DDSP` version 2, the independent review and the final gates. With steps 5 to 7 on the branch **the
+face's idle glance gap (S15) is closed** under the owner's wording
+([COMPATIBILITY](../COMPATIBILITY.md#the-status-bar-faces-idle-glance-is-closed-with-sound-decision-s15-t14)).
 
-**What has and has not been heard or done.** Nobody has heard any sound from this project. No audio device has been
-opened on any system: the one program that can open one, `doom-play --audio-probe`, failed loudly on the development
-machine (it found no backend). Every statement below is about which sounds start, on which channel, with which volume,
-separation and pitch, and the 16-bit samples the original mixer writes for them. None says how anything sounds.
+**What has and has not been heard or done.** **Nobody has heard any sound from this project, and no game audio has
+reached any audio device on any system.** The only real device open was one second of digital silence written by
+`doom-play --audio-probe` to PulseAudio under WSLg, using a scratch copy of the client library
+([step 7](#step-7-sound-in-doom-play)); on the development machine without that library the probe finds no backend and
+fails loudly. Nothing has run on Windows or macOS beyond CI builds and tests. Every statement below is about which sounds
+start, on which channel, with which volume, separation and pitch, and the 16-bit samples the original mixer writes for
+them. None says how anything sounds.
 
 **Wording rule.** The reference is **linuxdoom-1.10 built with its in-process sound code (one define removed)**
 (decision T2: `doomdef.h:84` removed, the integrated handle convention); it is never the binary the source ships
@@ -47,7 +53,12 @@ compiled; seed replay; a coverage-guided campaign; a sanitizer campaign.
 | Step 4 part 2: schedule, session, detector, saved state, end-to-end gate | Recorded ([below](#step-4-part-2-the-session-the-detector-the-saved-state-and-the-end-to-end-gate)) |
 | Step 8 part 1: the CI job and the mutation workflow | Recorded ([below](#step-8-part-1-the-ci-job-and-the-mutation-workflow)) |
 | Step 11 part 1: fuzz targets | Recorded ([below](#step-11-part-1-the-fuzz-targets)) |
-| Display contract, game loop, device and flags, real-map runs of the full logic and frames, mutation testing, timings, reviews, final gates | Not done; not recorded here |
+| Step 5 part 1: the display contract with sound, the sound session in the game loop, the frame gate, step 6 (restore and continue), the headless app tests | Recorded ([below](#step-5-part-1-the-frame-gate-restore-and-continue-and-the-headless-app-tests)) |
+| Step 5 part 2: the 61 real runs through the whole pipeline (local only) | Recorded ([below](#step-5-part-2-the-61-real-runs-through-the-whole-pipeline-local-only)) |
+| Step 5 part 3: scripted app sessions against the genuine M5c runner | Recorded ([below](#step-5-part-3-scripted-app-sessions)) |
+| Step 7: sound in `doom-play` (device sink, flags, mute) and the start-up stall | Recorded ([below](#step-7-sound-in-doom-play)) |
+| The CI record | Recorded ([below](#the-ci-record)) |
+| Mutation testing of `doom-sound`, timings, a fuzz target for `DDSP` version 2, the independent review, the final gates | Not done; not recorded here |
 
 No IWAD was read in step 1 except by `tools/local/m5c_real.py`, in step 2 except by `tools/local/m5c_mixer_real.py`,
 and in step 3 except by `tools/local/m5c_wire25_real.py`. Each read a scratch copy outside the repository; only counts,
@@ -66,7 +77,7 @@ self-test, and `m5c_mixer_reference.py --check --selftest` (23 scenarios and 64 
 session buffers, 5 of 5 planted faults). All exited 0. **Not re-run on the branch:** `tools/local/m5c_real.py`, whose
 totals equal the note's section 3.4.2, the mixer's `--strict32` (its last run was step 2f's, below) and
 `tools/local/m5c_wire25_real.py --check`. The documentation pass that wrote the sections for step 3 onward re-ran no
-command: every figure is the step agent's.
+command: every figure is the step agent's. The second documentation pass (steps 5 to 7 and the CI record) also re-ran no command and took each figure from the step agents' reports or from the committed results files `m5c_real_full_results.json` and `m5c_session_results.json`.
 
 ## Step 1: the synthetic sound lumps, the rooms and the genuine sound-logic runner
 
@@ -523,8 +534,8 @@ gives volume 0), at a start and at an update; it fires on a separation-only chan
 differ only in separation; the same listener does not fire at an update); it does **not** fire on SNDBTN2's busy-slot
 release (the genuine row S,128,6, read (34,0), listener 32643278,7238990, angle 1073741824; all 80 textures of the
 room's WAD tried); and through a session the label is the session tic, the same tic's update read also fires, and the
-session continues. **Over the 64 items the detector fired 0 times, so no item is a layout-dependent session. The 61 real
-runs have not been run through the Rust sound logic, so nothing is known for them.**
+session continues. **Over the 64 items the detector fired 0 times, so no item is a layout-dependent session.** (The 61 real runs
+were run through it later: [step 5 part 2](#step-5-part-2-the-61-real-runs-through-the-whole-pipeline-local-only), 0 firings.)
 
 **Restore and continue.** `tests/state_restore.rs`: on all 64 items the state was saved at a quarter, a half and three
 quarters of the run and at the first two tics with a busy channel: **271 saves** (130 with a busy channel). Each decodes,
@@ -632,6 +643,225 @@ fuzz crate, the whole fuzz workspace build. Sizes: three targets and the tool 94
 `sound_lumps` 210, `sound_mixer` 180, the seed tool 257, `fuzz/Cargo.toml` 22, `fuzz/Cargo.lock` 10), all hand-written; the
 fourth target about 190 lines and the tool's `state` kind about 131 lines more.
 
+## Step 5 part 1: the frame gate, restore and continue, and the headless app tests
+
+**What was built (one agent, `step5a`, observed on its own scratch worktree):** `RandomContract::WithSound` and
+`DDSP` version 2 in `doom-render`; the sound session inside `doom-game`'s loop behind the audio seam (`FrameSource`,
+`AudioSink`, `RecordingSink`, `GameData::load_with_sound`); the frame gate; the restore tests; the headless app tests.
+The M5b contract and everything frozen are unchanged. Per tic the order is the one in
+[COMPATIBILITY](../COMPATIBILITY.md#the-display-contract-with-sound-m5c); the sound session and the display run on
+staged copies and are committed together after the frame is drawn.
+
+**The frame gate (source equivalence).** `cargo test -p doom-game --release --test m5c_frames` (22 s; it also passes in
+debug): the 64 items at screenblocks 10 and 11 through the app's own per-tic pipeline, no draw count taken from a golden.
+**45,540 frames (22,770 per size), all equal:** 45,170 whole-frame digests, 300 frames flagged by the genuine tracker on the
+masked digest (the flagged columns equal), 70 not digest-compared (switch parity unknown, the same 70 as M5b). The face
+index is equal on all 45,540 frames and the Q row's face-zeroed digest on all 45,470 digest-compared frames. Every `P` row
+(palette, palette set, face, `message_on`, `M_Random` index), the Q row's cumulative sound draws, the counters, `fuzzpos`,
+mapped lines and 200 messages are equal. Endings: 6 renderer refusals (M5VPLAN, M5OPEN, M5SSEG at both sizes), BOSS1's
+exit, the demo's end otherwise. 28,082 buffers reached the recording sink (14,041 per size). Detector firings: 0.
+Two planted faults were each caught and removed: sound draws applied after `ST_Ticker`'s (first reported on M5OUCH at
+screenblocks 10, tic 475: the face 26 against the genuine 25, the frame differing inside the face's rectangle only, the
+index equal) and a wipe of 319 draws (M5SKY, tic 0, the index 64 against 65). `crates/doom-render/tests/m5c_display.rs`
+repeats the 45,540 frames with the draws taken from the goldens' Q rows (an explicit fixture projection, display only).
+
+**Restore and continue** (`crates/doom-game/tests/m5c_restore.rs`, 4 tests; Rust against the genuine goldens): 7 items
+(SNDBUSY, SNDMONST, SNDBTN2, TELE1, BINF1, SLIDEB, M5SWTCH) at 2 sizes, saved at a quarter, a half, three quarters and the
+first busy-mixer tic: **56 saves** (16 with a busy mixer channel), each `DDSP` version 2 and `DSND` version 1, re-encoding to
+the same bytes, restored next to a simulation clone and continued: 7,580 tics, every frame, face-zeroed digest, palette,
+face, `message_on`, message, index, sound report, channel table, mixer and final encodings equal to the unbroken run, and
+frames and `P` rows equal to the goldens. Self-test: dropping one busy mixer channel, or adding 1 to the index in `DDSP`,
+each restores and then fails to continue equal. Forgeries refused with nothing built: a version 1 display with sound
+data, no `DSND` with sound data, a `DSND` with M5b data, the magic, truncation, a version 2 contract byte 0, `DSND`
+version 2, a truncated `DSND`, a simulation or display of the next tic. An M5b save is `DDSP` version 1, decodes with
+M5b's decoder, restores as the M5b contract and continues equal. `m5c_contract.rs` (3 tests): the contract's rules, the
+version 2 encoding and its forgeries, a display-only restore.
+
+**Headless app tests** (`crates/doom-game/tests/m5c_app.rs`, 3 tests; Rust-only): the room `amp`, the M5b graphics WAD and
+`m5c_sfx.wad`, M5b's walk script, a fake clock and a recording sink. 88 tics twice give identical reports and buffers
+(4 sound records, 55 buffers, which is ceil(315 x 88 / 512), not silence); the index after tic 0 is the draws plus 1 plus
+320 modulo 256; the recorded demo replays identically. A pause reaches the sink; 20 paused updates run no tic and no
+buffer; a focus-loss pause is delivered at the next update; a restart from pause resumes, starts a fresh session (tic 0, no
+channel, a silent mixer, handle counter 0) and the same script gives the same stream. A sound refusal (a later PWAD's 8-byte
+`DSPISTOL`, decision T11) at tic 18 leaves the session equal to the one after tic 17, the demo replays to the same
+refusal, and **the simulation's tic is not rolled back** (see the next paragraph).
+
+**Deviation from the brief, flagged by the agent and kept.** The brief asked that a sound or display refusal leave the
+whole tic undone. Sound and display are undone (a refused tic leaves the saved `DDSP` and `DSND` bytes unchanged); the
+simulation's committed tic is not, which would need a per-tic simulation clone (AGENTS.md forbids one) or a staged advance
+in `doom-sim`. This follows M5b's owner-approved rule S9; it is one of the open observations for the owner.
+
+**Other checks (observed):** `cargo test -p doom-render -p doom-sound -p doom-game` in release (36 test targets, 0 failed, 1 min
+51 s) and in debug (0 failed, 2 min 42 s); clippy with warnings denied, `cargo fmt --all -- --check` and the fuzz
+workspace's, `cargo +1.85.0 check` of the three crates, warnings-denied rustdoc, `cargo check -p doom-play`. The M5b tools
+were re-run unchanged and passed: `m5b_session.py --check` (4 sessions), `m5b_inject.py --check` (6 scripts) and
+`m5b_readme_visual.py --check` (the animation identical). **Not run:** a fuzz target for `DDSP` version 2 or
+`FrameSource::restore` (none exists), the fuzz workspace build, a workspace-wide build, mutation testing, a sanitizer
+campaign.
+
+## Step 5 part 2: the 61 real runs through the whole pipeline (local only)
+
+`tools/local/m5c_real_full.py` runs, for each of the 61 real Episode 1 runs, the genuine M5c runner (strict, at
+screenblocks 10 and 11, frames and sound), a strict 32-bit build (sound only), the genuine mixer on the start list, and the
+Rust example `m5c_real_rows` (`GameData::load_with_sound` and replay, the app's own per-tic pipeline), and compares row by
+row. It reads an IWAD copy in scratch; only counts and digests are committed
+(`tests/reference/m5c_real_full_results.json`, `DOOM-M5C-REAL-FULL-RESULTS-v1`). **Kinds of evidence:** source equivalence
+for every comparison below; the self-test is a harness check. Two runs with `--write` (12.7 and 13.2 minutes wall, other
+agents running, not timings) gave identical totals.
+
+| What | Count |
+| --- | --- |
+| Runs, tics | 61, 158,966 (equal to the note's section 3.4.2) |
+| Sound starts: attempted, started, inaudible, refused for want of a channel, link volume | 26,077, 21,090, 4,877, 110, 0 |
+| `M_Random` draws by sound | 20,697 |
+| Endings | 27 marker, 12 exit, 22 reborn |
+| Sound rows compared, all equal (0 differ) | S 26,077; T 10,470; K 21,090; C 10,633; L 1,042; R 158,966 |
+| Listener columns not compared (starts with no position) | 5,980 |
+| Frames at screenblocks 10 | 158,966: 158,472 whole-frame digest, 494 masked, 0 not compared; 0 mismatched rows |
+| Frames at screenblocks 11 | 158,966: 158,414 whole, 552 masked, 0 not compared; 0 mismatched rows |
+| Face index equal | 158,966 of 158,966 at each size |
+| Face-zeroed digest equal | 158,472 of 158,472 (size 10), 158,414 of 158,414 (size 11) |
+| Mixer, genuine mixer on the start list | 61 of 61 runs every row equal; 21,090 start echoes, 98,578 buffers |
+| Genuine sound streams equal the committed `m5c_real` digests; equal across both sizes; Rust sound identical across sizes | 61 of 61; 61 of 61; 61 of 61 |
+
+**T12.** The 61 runs hold 4 switch-release starts, 0 with a busy next slot, 0 later `S_UpdateSounds` reads of a release
+origin. **Detector firings: 0; runs labelled layout-dependent: 0.** The genuine 32-bit build's sound streams equal the
+64-bit ones on 61 of 61 runs, 0 differing rows (so none differs in audibility, volume, separation or draws).
+
+**Self-tests:** 61 of 61 passed (a frame digest, the face and a mixer buffer fault planted in every run, a volume fault in
+49 runs and a swapped serial in 48; the idle runs have no sound to plant in). The first full run failed only on an earlier
+form of that rule (at least 4 plants) on the 12 idle runs; every comparison in it was equal as well.
+
+**Synthetic mode** (`--synthetic --selftest`, no IWAD, 15 s): 63 items (M5CHEAT is left out, it needs `replay_adjusted`),
+every row equal: S 785, T 378, K 723, C 4,311, L 176, R 21,870; 381 unplaced listener columns; 63 of 63 mixer goldens (741
+starts, 13,489 buffers); 21,870 frames per size (21,685 whole, 150 masked, 35 switch parity); detector 0; planted faults
+caught on BARON1, SNDMONST and SNDBUSY.
+
+**No frozen-wire sound fault was found, no divergence, nothing contradicting the note.** **Not run:** `--check` of the results file
+(two `--write` runs agreed, but `--check` itself was not run), the `doom-game` test suite for this step, a sanitizer variant on
+the real runs (`m5c_real.py` covers the strict, overflow and address variants of the genuine runs), CI (local only by design).
+Sizes: the example 395 lines, `tests/common/rows.rs` 354 (moved from the gate), the tool 511, and the generated results file
+4,652 lines.
+
+## Step 5 part 3: scripted app sessions
+
+`tools/reference/m5c_session.py` plays each script of `tests/reference/m5c_sessions` (five new: `death`, `fight`, `pause`,
+`restart`, `switch`, hand-written to make sound matter) and the four M5b scripts (unchanged) through the headless app under
+the new contract (`crates/doom-game/examples/m5c_session.rs`) and, per part (a restart is a new part, a fresh process by
+decision T15), through the genuine input driver (its demo must equal the app's) and the genuine M5c runner in the strict,
+overflow and address variants, with sound on. It compares on every tic the executed command, the frame digest under M5b's
+rules, the status-bar rows, the face and the index, and every sound row, then runs the genuine start list through the
+genuine mixer and compares every buffer the app handed its sink. Committed results:
+`tests/reference/m5c_session_results.json` (`DOOM-M5C-SESSION-RESULTS-v1`, genuine-side counts and digests).
+**Source equivalence**, plus a harness self-test.
+
+| What | Count |
+| --- | --- |
+| Sessions, parts, tics | 9, 10, 2,213 (all commands equal) |
+| Frames compared on the whole digest | 2,213 (0 masked, 0 not comparable); face and index rows equal 2,213; face-zeroed digests equal 2,213 |
+| Sound rows (genuine counts, all equal) | S 142, T 55, K 128, C 1,122, L 56, R 2,213 |
+| Start attempts, started, no channel, inaudible | 142, 133, 8, 1 |
+| Listener columns not compared | 43 |
+| Buffers the app handed its sink, equal by digest to the genuine mixer's | 1,367 (mixer rows equal on all 10 parts) |
+| Variants | 10 of 10 parts: strict = overflow = address (frames, sound streams, endings); mixer variants identical |
+| Pause | 5 sessions each with one pause: no tic and no buffer between pause and resume; the restart session shows 2 session starts with a resume before the second |
+| T12 detector | 0 firings; no layout-dependent session (no release had a busy next slot, so the detector was not exercised) |
+
+The play of `pause` without its pause line gives identical streams and the genuine input driver records the same demo; only
+the pause's release event (decision S6, one empty mouse event at the first tic after the resume) differs in the app's `E`
+rows. With integrated handles every start after about tic 100 is finished at its first update, so the `switch` session has no
+`C` rows, and the genuine engine agrees.
+
+**Self-test** (on the `fight` session): the no-fault baseline is clean, and seven planted faults are each caught at their
+place: a changed command byte, a changed frame row, a changed start volume, a dropped buffer, a dropped tic, a dropped driver
+event and a tic logged during a pause. `--check` also failed on a results file with one count changed. In the job's form from a
+fresh work directory: exit 0, 88 s wall including the C builds (other agents were running; not a timing). Address runs use
+`ASAN_OPTIONS=detect_leaks=0`: leak detection was disabled, so this is not LeakSanitizer coverage. **Not run:** a state
+comparison through the independent DSIM encoder (only the commands are read from the dumps); a strict 32-bit run; real maps;
+a session with a busy next button slot, a focus-loss pause or a sound refusal (the refusal is a Rust-only test above).
+CI itself had not run this step when it was written; see [the CI record](#the-ci-record).
+
+## Step 7: sound in `doom-play`
+
+**What was built** (`crates/doom-play` only; Rust-only tests, no genuine comparison): `DeviceSink` (a queue the device
+callback pulls from and the loop pushes one buffer to; a lock, never a wait in the loop), `Discard` (counts and drops
+buffers: no device, or `--no-sound`), `--volume N`, `--no-sound`, the mute key **End** (the original's `xlatekey` leaves it
+as a keysym the game never sees, i_video.c:152-157, g_game.c:566-571; it is not a menu hot key or an app key), mute on
+pause, one stderr line when no device opens, and a launch that loads wire 25 with sound. Numbers (presentation, not
+claims): 512-frame buffers, a start threshold of one buffer, a cap of 2,048 frames; latency by arithmetic, not measured.
+Underrun fills the rest of a pull with zeros, counts it and re-arms the threshold; overrun drops the oldest frames and counts
+them. `cargo test -p doom-play`: 20 passed, 9 of them new (the numbers, underrun and overrun, pause and session start, the
+integer saturating gain, the sink and the no-device line; the options; the mute key not forwarded; and
+`session_tests.rs`, which runs the app on eight variants of the sound options: all 88 tics equal in command, frame, index,
+sound report, channel table, layout label and demo, the unscaled stream and every sink call equal, and the demo replaying the
+same; on a device sink volume 0 and a muted run give 0 non-zero samples, volume 37 equals volume 100 scaled sample by sample;
+a planted fault that forwards End as the up arrow fails it). `cargo test -p doom-play -p doom-game --release` and in debug all
+pass (118 tests in `doom-game`, 20 in `doom-play`); clippy, fmt (including the fuzz workspace), 1.85.0 and rustdoc clean.
+**Not run:** workspace-wide build, fuzz, sanitizers, mutation testing, CI, Windows and macOS builds.
+
+**On this machine** (WSLg, no audio client library installed): `doom-play --audio-probe` exits 1 and prints that PulseAudio
+and ALSA gave `MA_NO_BACKEND`. A session of 105 tics with the AMP room, `m5b_gfx.wad` and `m5c_sfx.wad` printed exactly one sound
+line (no device opened, the game runs without sound output) and the tic statistics line, exit 0, a 434-byte demo; with
+`--no-sound` the same demo and no sound line.
+
+**The first real device open (digital silence only).** With a scratch copy of the PulseAudio client library and its
+dependencies (downloaded with `apt-get download` into a scratch directory and unpacked, not installed), run through
+`LD_LIBRARY_PATH`, `doom-play --audio-probe` opened PulseAudio's "RDP Sink" and requested 11,776 frames of silence in about
+a second, exit 0. **No game session was run with that library path. Nobody heard anything, and no game audio has reached any
+device.** The scratch directory was deleted.
+
+**The start-up stall (a finding from the M5b code, not from sound).** In the step's runs the window sometimes opened and no
+tic ran, the demo stayed at 14 bytes (header and end marker) and the run hit its timeout: 4 of 24 runs with the new binary and
+1 of 25 with the M5b-contract binary built from `216f976`. A separate diagnosis (agent `stall`, 260 runs of the two
+binaries, each `timeout 20`, `--quit-after-tics 105 --tic-stats`, one at a time, under WSLg) gives:
+
+| Batch | Binary | Runs | Stalled |
+| --- | --- | --- | --- |
+| idle, `--no-sound` | new (`7f34f2c`) | 40 | 0 |
+| idle, with sound (the discarding sink: no device could open) | new | 20 | 0 |
+| idle | M5b contract (`216f976`) | 40 | 1 |
+| idle, `--no-sound`, X events logged by a scratch copy of the window library | new | 40 | 0 |
+| loaded (8 busy shell loops on 12 threads), `--no-sound`, X events logged | new | 40 | 2 |
+| loaded, `--no-sound` | new | 40 | 0 |
+| loaded | M5b contract | 40 | 0 |
+| all of the diagnosis | new / M5b contract | 180 / 80 | 2 / 1 |
+| the step's earlier runs | new / M5b contract | 24 / 25 | 4 / 1 |
+
+Two-sided Fisher exact tests: 0 of 40 against 1 of 40 (same conditions, interleaved) p = 1.0; 2 of 180 against 1 of 80
+p = 1.0; with the earlier runs 6 of 204 against 2 of 105 p = 0.72; the earlier runs alone 4 of 24 against 1 of 25 p = 0.19;
+loaded 2 of 120 against idle 1 of 140 p = 0.60. **No difference between the binaries or with load is distinguishable from
+chance.** The rate in the diagnosis (3 of 260) is lower than in the earlier set (5 of 49); what differed in the earlier
+session (machine load, the pointer's position) is unknown, and the load of other agents during the "idle" batches was not
+recorded per run.
+
+*Observed:* the backend was X11 (both `DISPLAY` and `WAYLAND_DISPLAY` were set and the app chooses X11 when `DISPLAY` is set);
+in every logged stall the window received an X `FocusOut` in its first 132 ms (all three logged stalls: at tic 1), the M5b
+focus-loss rule paused the app, and the `FocusIn` that followed 0 ms later is turned by the window library into a
+"restored" event that `doom-play` does not use (only Esc or Pause resume), so the loop kept running (about 30 updates and
+draws a second) with the clock stopped and `--quit-after-tics` never reached. In the X-level log (80 runs): 78 normal runs
+began with `FocusIn` (mode normal, detail nonlinear) and then an `EnterNotify` caused by the app's own pointer grab; both
+runs that stalled in that log began with the `EnterNotify` from the grab, then a `FocusOut` (mode normal, detail
+`NotifyPointer`), then at once a `FocusIn`; one normal run also had the grab first, so that order is necessary in every stall
+seen but not sufficient. *Inferred, not observed:* that this is a race between the app's immediate pointer grab and
+XWayland's first focus assignment (the detail's meaning is from the X protocol); what the screen shows (from the code, the
+first frame at half brightness with the PAUSED box, the mouse released) and that Esc or Pause resumes. **Nobody saw the screen
+and no key was pressed in a stalled window.** The sound work is not involved (the stalled runs were `--no-sound`, and the M5b
+binary stalls the same way with the same event order). Not run: the Wayland backend, Windows, macOS; which process picks the
+focus order. **Nothing was changed for it**; the owner can decide whether to ignore a focus loss that arrives before the first
+focus gain (a change of M5b's input behaviour, left for the owner's own play of the focus rules).
+
+## The CI record
+
+At `216f976` every required job was green (the macOS job took 42 minutes of its 60-minute limit) and the non-required job
+`M5c genuine sound (not required)` **failed at its T4 check** (`m5c_t4.py --check`: "differs or missing") for two generated files
+that had never been committed: `tests/reference/m5c_t4/truncate.wad` and `TRUNC.lmp`. The cause: `.gitignore` excludes `*.wad`
+and `*.lmp` (the rule that keeps commercial IWADs out), so a plain `git add` skipped them without a message, and the check
+passed only where the files already lay. **Fixed in `a6f3b3b`** by adding both files explicitly (86,537 bytes and 382 bytes,
+our own synthetic data, no IWAD content); a plain run of `m5c_t4.py` then regenerated them and left `TRUNC.txt` and the results
+unchanged, and `--check` passed. The step that runs `m5c_session.py --check --selftest` was added to the same job
+(`dad83eb`) and run only locally in the job's form (exit 0, 88 s). CI results for later heads are on GitHub; the run after
+`a6f3b3b` had not been read when this was written.
+
 ## Findings
 
 - **The 32-bit build.** 63 of 64 sound-logic items are identical; the one row that differs is the
@@ -678,13 +908,16 @@ fourth target about 190 lines and the tool's `state` kind about 131 lines more.
   genuine comparison of the sound events, wire 25 over DSIM41 on the 64 synthetic items and the 61 real runs, found no
   further fault, and no item or run reaches the scream's case. The owner's limit before stopping (about five, or any fault
   that is not about sound) was not approached.
-- **Layout-dependent sessions: none seen, and only the synthetic items were checked.** The T12 detector fired 0 times
-  over the 64 synthetic items. The 61 real runs have not been run through the Rust sound logic and the detector, so
-  the count for them is not known (the owner's expectation is 0). Such sessions are counted separately in every report.
+- **Layout-dependent sessions: 0.** The T12 detector fired 0 times over the 64 synthetic items, the 9 scripted app
+  sessions and the 61 real runs (4 release sounds, none with a busy next slot); the genuine 32-bit build's sound streams equal
+  the 64-bit ones on all 61 ([step 5 part 2](#step-5-part-2-the-61-real-runs-through-the-whole-pipeline-local-only)). Such
+  sessions are counted separately in every report.
 - **381 of 785 start rows lack the listener columns in Rust.** For starts with a NULL origin or the player's own body
   the genuine row writes the listener's position and angle, which the wire-25 record does not carry; those three columns
-  are compared nowhere (neither in step 3b's comparison nor in the end-to-end gate), and the original does not read them
-  there. On the real runs the same holds for 5,980 starts (26,077 less 20,097; by subtraction from the results file).
+  are compared nowhere (neither in step 3b's comparison, nor in the end-to-end gate, nor in the later steps), and the original
+  does not read them there. The same holds for 5,980 starts of the 61 real runs (26,077 less 20,097) and 43 of the 142 starts
+  of the 9 sessions; a request to the simulation to carry them is open.
+- **A simulation tic is not rolled back when sound or display refuses.** See step 5 part 1; an open observation for the owner.
 - **A report and a committed file differ in wording only.** The synthetic results file counts 22,976 as `tics`; each
   item's value equals its snapshots, so it counts captures including the load, which is what step 3a's report and the
   real-run commit message call them (the real file's 159,027 is 158,966 tics plus the 61 loads). No figure disagrees.
@@ -703,17 +936,15 @@ fourth target about 190 lines and the tool's `state` kind about 131 lines more.
 
 ## What a human still has to judge
 
-Nobody has heard any sound from this project: every audio trial in Phase 1 wrote digital silence, the probe wrote
-silence at most and failed to find a backend on the development machine, and no device has been opened on any system.
-The evidence above compares which sounds start, on which channel, with which volume, separation and
+Nobody has heard any sound from this project: every audio trial wrote digital silence, the one real device open (the probe
+under WSLg) wrote silence only, and no game audio has reached any device. Nothing has run on Windows or macOS beyond CI
+builds and tests. The evidence above compares which sounds start, on which channel, with which volume, separation and
 pitch, and the 16-bit samples the original mixer writes for them; it cannot say how any of it sounds, whether the
 synthetic or the real samples are pleasant, or whether a backend will play them without gaps. The owner has also
 not playtested M5b, so input, pacing and presentation are not to change on a guess about feel.
 
 ## Still to come in this record
 
-The display contract with sound (the status bar's `M_Random` index taking the sound draws and the wipe's 320, and the
-display state version 2), the game loop, the device in `doom-play` and the launch flags (volume, mute, no sound), the
-real-map runs of the full sound logic and of the frames under the new contract (which decide whether the face's glance
-limit S15 can be called closed, and how often the T12 detector fires on the 61 runs), the optional melt, mutation testing
-of `doom-sound`, timings, the visuals, the reviews and the final gates. The second documentation pass records them.
+Mutation testing of `doom-sound` and the other M5c code (results and survivors), timings (run alone on an idle machine from
+the Linux filesystem), a fuzz target for `DDSP` version 2, the optional melt (not built), the independent review, the final
+gates and the CI record of the final head. No new animation is added in M5c (sound cannot be shown).

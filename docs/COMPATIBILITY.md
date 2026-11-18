@@ -2731,6 +2731,12 @@ observations in the [evidence record](validation/M5B.md) and the commands in
 [TESTING](TESTING.md#m5b-playable-status-bar-hud-input-and-the-app). The saved display state is
 [`DDSP`](STATE_FORMAT.md#display-state-ddsp-version-1-m5b), not part of DSIM.
 
+**M5c has since added sound to the same app** ([below](#sound-effects-m5c)). This section describes the M5b contract
+(no sound, no level-start wipe, qualified below as the declared sound-free, wipe-free contract): it is what the M5b
+profile and its frozen evidence use, and it is still selectable in the libraries. The app `doom-play` now runs under
+the [contract with sound](#the-display-contract-with-sound-m5c), under which the status bar face's idle glance matches
+the genuine engine ([closed](#the-status-bar-faces-idle-glance-is-closed-with-sound-decision-s15-t14)).
+
 **What is claimed, in one table.**
 
 | Claim | What is and is not shown |
@@ -2741,18 +2747,17 @@ observations in the [evidence record](validation/M5B.md) and the commands in
 | Unrecorded mode | The opt-in `--unrecorded-full-turning` mode writes no demo and cannot be replayed ([below](#unrecorded-full-turning-mode-opt-in)). Its evidence is limited to 4 injected scripts and 2 scripted sessions on synthetic rooms (829 tics): nothing on real maps, and no person has played it. |
 | What a person experiences | **Not shown.** Nobody has yet seen the picture on a screen, pressed a real key, moved a real mouse, checked mouse capture under WSLg, or run the program on Windows or macOS beyond CI builds. Feel, latency and appearance are for a human to judge ([evidence](validation/M5B.md#what-a-human-still-has-to-judge)). |
 
-### The status bar face's idle glance differs from a vanilla session (declared)
+### The status bar face's idle glance under the M5b contract (declared, closed by M5c)
 
-In plain words: **the status bar face's idle left, ahead or right glance differs from a vanilla session with
-sound until sound is modelled, and nothing else on screen is affected** (the level-start screen melt, not
-modelled either, draws from the same random table). The reason: the glance is chosen from
-`M_Random` (st_stuff.c:992, 913-919), the same random stream that every started sound and the level-start
-screen melt also draw from. M5b has neither sound nor the melt, so its `M_Random` index starts at 0 at a new
-game and only the status bar advances it, and the glance sequence differs from a real session's. Phase 1
-measured the face differing in 43% of real-map frames once sound starts and the melt were modelled.
-`M_Random` never feeds game logic, so the game, the 3D view, the numbers and every message are unaffected.
-This is the declared **sound-free, wipe-free contract** (decision S15), and closing it is a ROADMAP item under
-M5c.
+In plain words: under the M5b contract, **the status bar face's idle left, ahead or right glance differs from a
+vanilla session with sound, and nothing else on screen is affected.** The reason: the glance is chosen from
+`M_Random` (st_stuff.c:992, 913-919), the same random stream that every started sound and the level-start screen melt
+also draw from. The M5b contract has neither sound nor the melt, so its `M_Random` index starts at 0 at a new game and
+only the status bar advances it. `M_Random` never feeds game logic, so the game, the 3D view, the numbers and every
+message are unaffected. This is the declared **sound-free, wipe-free contract** (decision S15). It is what every M5b
+frame claim, golden and saved `DDSP` version 1 state means, and it is unchanged. **The limit is closed for the app by
+M5c:** `doom-play` runs under the contract with sound, and
+[the glance matches the genuine engine there](#the-status-bar-faces-idle-glance-is-closed-with-sound-decision-s15-t14).
 
 ### Status bar, HUD and palette choice
 
@@ -2818,7 +2823,8 @@ treats its lumps by the original's rules; the committed tests use our own genera
 ### Declared contracts, witnesses and refusals
 
 - **The sound-free, wipe-free `M_Random` contract** (decision S15, above): `M_Random` is 0 at a new game and
-  only the status bar draws it. Every frame claim in this section carries that qualifier.
+  only the status bar draws it. Every frame claim in this section carries that qualifier; the app under M5c runs
+  under [another contract](#the-display-contract-with-sound-m5c) instead.
 - **The masked game-dump fields (decision S16).** When the genuine status bar and HUD run, two game-dump fields
   change (the `M_Random` index, and the message on the tic it is taken). The M5b runner records and masks them;
   the masked dump equals the frozen digests on every existing item and the frozen M4b runner's on the new rooms,
@@ -2984,30 +2990,30 @@ the next tic is due and keeps the library's default swap interval. The mouse is 
   [TESTING](TESTING.md#windows-build-artifact) says how to download and run it); **no person has run the
   program on Windows or macOS**.
   Mouse capture under WSLg is unchecked.
-- Miniquad is the only windowing dependency (pure Rust, MIT-licensed, GPL-2.0-only compatible). `doom-sim` and
-  `doom-game` have no windowing, audio, thread or wall-clock dependency.
+- Miniquad is the only windowing dependency (pure Rust, MIT-licensed, GPL-2.0-only compatible). Since M5c the
+  audio library `maudio` is a second dependency of `doom-play` only. `doom-sim`, `doom-sound` and `doom-game` have no
+  windowing, audio-device, thread or wall-clock dependency.
 
 ### Not in M5b (out of scope, later milestones)
 
-Sound and music, menus, the automap, save and load, the intermission and level-to-level carry-over, the title
-screen and demo loop, screen wipes, cheats, vanilla's in-game pause, easy and nightmare skill, low detail,
-screenblocks below 10, multiplayer and joystick input. The modern renderer and the idle-glance fix (M5c) are
-listed in [ROADMAP](ROADMAP.md).
+(Sound effects came with [M5c](#sound-effects-m5c); the glance fix and the level-start wipe's draws too.) Music, menus, the automap, save and load, the intermission and level-to-level carry-over, the title
+screen and demo loop, the screen wipe's picture, cheats, vanilla's in-game pause, easy and nightmare skill, low
+detail, screenblocks below 10, multiplayer and joystick input. The modern renderer is listed in
+[ROADMAP](ROADMAP.md).
 
 ## Sound effects (M5c)
 
-Milestone status is in [ROADMAP](ROADMAP.md). **As of 2026-11-18 (America/Los_Angeles) the sound logic and the mixer
-exist as a library and nothing plays.** The crate `doom-sound` ([architecture](ARCHITECTURE.md#sound-effects-m5c))
-decides which sounds start, on which channel, at what volume, stereo position and pitch, and computes the samples
-the original mixer would write; it opens no audio device. Not yet true, and not claimed anywhere on this page:
-
-- no frame, status bar face or `M_Random` index has been compared under the new contract in Rust, and **the status
-  bar face's idle glance gap (S15, [above](#the-status-bar-faces-idle-glance-differs-from-a-vanilla-session-declared))
-  is not closed**;
-- there is no audio output, no volume setting, no mute and no app that plays sound; **no audio device has been opened
-  on any system, and nobody has heard any sound from this project**;
-- the real Episode 1 runs have not yet been run through the full sound logic in Rust (the 61 runs have been compared
-  at the records, [above](#original-episode-1-part-3-canonical-sound-records-wire-25)).
+Milestone status is in [ROADMAP](ROADMAP.md). **As of 2026-11-18 (America/Los_Angeles) the playable build
+`doom-play` plays Doom's sound effects** (no music, no menus) through the first audio backend that opens on the machine,
+and the status bar face's idle glance gap is closed. The crate `doom-sound`
+([architecture](ARCHITECTURE.md#sound-effects-m5c)) decides which sounds start, on which channel, at what volume, stereo
+position and pitch, and computes the samples the original mixer would write; `doom-game` runs it inside the game loop
+and `doom-play` hands its finished stream to the device. **What nobody has observed:** **nobody has heard any sound
+from this project, and no game audio has reached any audio device on any system.** The only real device open so far was
+`doom-play --audio-probe`, which wrote one second of digital silence to PulseAudio under WSLg using a scratch copy of the
+client library ([record](validation/M5C.md#step-7-sound-in-doom-play)). Nothing has run on Windows or macOS beyond CI
+builds and tests. Every claim below is about which sounds start, when, with which values, and the 16-bit samples the
+original mixer writes; none says how anything sounds.
 
 The facts are in the [investigation note](M5C_REFERENCE_INVESTIGATION.md) (decisions T1-T16, owner rulings
 2026-11-18), the observations in the [evidence record](validation/M5C.md) and the commands in
@@ -3040,11 +3046,51 @@ give.
 ### The level-start wipe (decision T6)
 
 Every start straight on a map wipes, and the wipe draws `M_Random` exactly 320 times after the first frame (f_wipe.c).
-Sound's draws and the wipe's draws are what make the status bar face's glance differ from a sound-free session. The
-port is to account for the 320 draws at the declared point, after the frame of tic 0 (the melt itself is not shown and
-takes no time). **That accounting is not written in Rust yet:** it belongs to the display contract, which is still in
-progress. The test that compares the sound session with the genuine engine adds the 320 to its expected index at that
-point. Where the `M_Random` index lives is in [ARCHITECTURE](ARCHITECTURE.md#where-the-m_random-index-lives).
+The port accounts for the 320 draws at the declared point, after the frame of tic 0: no melt picture is shown and the
+wipe takes no time. The accounting is part of the [display contract with sound](#the-display-contract-with-sound-m5c)
+below. Where the `M_Random` index lives is in [ARCHITECTURE](ARCHITECTURE.md#where-the-m_random-index-lives).
+
+### The display contract with sound (M5c)
+
+The M5b contract (the declared sound-free, wipe-free contract) is kept as it was for the M5b profile; the app runs under a
+second, explicit contract, `RandomContract::WithSound` (decisions T6, T15 and T16). Under it the one `M_Random` index
+advances, **within each tic and in this order** (the C's order for the tic the simulation has just committed):
+
+1. the simulation's tic (`P_Ticker`, g_game.c:730) has made its sound records;
+2. the sound session runs every record through the sound logic at `gametic` equal to the tic, in call order, each draw
+   advancing the index as `M_Random` does (m_random.c:63-67); then `S_UpdateSounds` with `gametic` plus one (d_main.c:392),
+   which draws nothing; then the mixer's buffer if one is due (d_main.c:397-400, the [schedule](#the-declared-sound-schedule-decision-t5));
+3. `ST_Ticker` draws once (g_game.c:731, st_stuff.c:992), then `HU_Ticker` runs (g_game.c:733);
+4. the frame is drawn (`D_Display`, d_main.c:395); on the one frame that wipes, the first of the level (`gamestate !=
+   wipegamestate`, d_main.c:223), the index then advances by 320 (`wipe_EndScreen` and the melt loop after the composed frame,
+   d_main.c:327-340; the first `wipe_ScreenWipe` call runs `wipe_initMelt`, which draws for the first column and for
+   each of the other 319, f_wipe.c:159-166, 280-286). No melt picture is produced.
+
+In the C the update and the mix come after the frame's draw; here they run before it. Neither reads the other's
+state ([note section 4.3.3](M5C_REFERENCE_INVESTIGATION.md)), and the frame gate (below) found no output that changes.
+The saved display state under this contract is [`DDSP` version 2](STATE_FORMAT.md#display-state-ddsp-version-2-m5c).
+
+### The status bar face's idle glance is closed with sound (decision S15, T14)
+
+**What is now true, in the owner's words (decision T14):** the status bar face matches the genuine engine replaying the
+session's demo, under the declared schedule ([T5](#the-declared-sound-schedule-decision-t5)) and the declared build
+([T2](#the-reference)). A vanilla player's menu hot keys, `-`, `=`, F1 to F10 and Esc, start menu sounds and so draw
+`M_Random` between tics; they are not part of a recorded demo, the app does not pass them to the game, and they are
+**not modelled**: a vanilla player who pressed one during play would have shifted the stream. Nothing else on screen
+changes: with sound's and the wipe's draws in, the genuine engine's face differs from the M5b pictures in 68,995 of
+158,472 real-map frames and 11,392 of 21,043 synthetic frames (the note's [section 5, T14](M5C_REFERENCE_INVESTIGATION.md),
+measured before the Rust side was built), and in no frame does anything outside the face's rectangle differ.
+
+**Evidence** (details and every count in the [evidence record](validation/M5C.md#step-5-part-1-the-frame-gate-restore-and-continue-and-the-headless-app-tests)):
+on the 64 synthetic items at screenblocks 10 and 11, all 45,540 genuine frames equal and the face index equal on every
+frame (45,170 whole-frame digests, 300 compared on the masked digest, 70 not digest-compared as under M5b); locally, on
+the 61 real Episode 1 runs (158,966 tics) through the whole Rust pipeline, every frame at both sizes, every status-bar
+row and every sound row equal, with the face index equal on 158,966 of 158,966 frames at each size; and 9 scripted app
+sessions (2,213 tics) replayed through the genuine input driver and the genuine engine, every command, frame and face
+equal. These are the cases checked, not a proof for every possible session; the app's own sessions can be checked as
+under M5b. The claim covers what the demo records: the exceptions of the M5b frame claim (masked columns, the 70
+switch-parity frames, the cheat codes the app does not forward) still apply as they did, and the glance is also
+subject to everything listed [below](#the-app-with-sound-and-what-is-presentation).
 
 ### Refusals instead of the original's errors (decision T11)
 
@@ -3088,10 +3134,13 @@ invariants and are labelled Rust-only safety checks in the [evidence record](val
   start), or whether it is audible (at a later read), the session is **labelled layout-dependent from that tic**
   and the firing is counted. The session always continues on the 64-bit reading. **Every report counts
   layout-dependent sessions separately.** The label and the count are part of the saved sound state.
-  So far the detector has fired 0 times over the 64 synthetic items, so none of them is a layout-dependent session; the
-  61 real runs have not been run through it yet, and the expectation (the owner's) is that it never fires there. On the
-  release where the genuine 32-bit and 64-bit builds read different values (the committed script SNDBTN2, where the next
-  slot is busy), the detector does not fire: no texture number of that room's WAD changes anything audible.
+  **Layout-dependent sessions counted so far: 0.** The detector fired 0 times over the 64 synthetic items, the 9 scripted
+  app sessions and the 61 real Episode 1 runs, so none is a layout-dependent session. The 61 real runs hold 4 switch-release
+  starts, none with a busy next slot, and no later `S_UpdateSounds` read of a release origin; the 9 sessions had no release
+  with a busy next slot, so the detector was never exercised there. The genuine 32-bit build's sound streams equal the 64-bit
+  ones on all 61 real runs (0 differing rows). On the one release where the two genuine builds read different values (the
+  committed script SNDBTN2, where the next slot is busy), the detector does not fire: no texture number of that room's WAD
+  changes anything audible. The owner's expectation, that it never fires on the real runs, held.
 
 ### Audible quirks of this source, reproduced as they are (decision T13)
 
@@ -3108,15 +3157,71 @@ original does, and each line is as the original's code behaves.
 | 6 | The chaingun sound is linked to the pistol's and the link gives it length 0, so it would play one frame; no game code starts it | sounds.c:204, i_sound.c:801-811 |
 | 7 | The exit switch never plays its own sound, only the ordinary switch sound: the line's special is cleared at line 211-212, before line 221 tests it | p_switch.c:211-222 |
 | 8 | Only three sounds can be tracked by the sound logic at once (`snd_channels`), though the mixer plays eight, so a fourth sound either replaces a tracked one or, when none may be replaced, is not started (it still draws its random number) | m_misc.c:282, i_sound.c:94 |
+| 9 | **Early in a session a sound can fail to start for want of a channel, and later it cannot.** The sound logic counts a channel as busy while `gametic < handle` (`I_SoundIsPlaying`, "Ouch."), and in this build the handle is a counter that starts at 100 and takes the next value (101, 102, ...) at each start that reaches the mixer. So in the first 100 or so tics of a session, a started sound's channel stays busy until `gametic` reaches its handle, however short the sound, and with only three tracked channels (row 8) starts can be refused (one that finds no channel is not played; it still draws). Once `gametic` is past the handle, a channel is freed at the first `S_UpdateSounds` after its start (here, the end of that tic), even though the mixer goes on playing the sound to its end. A started sound is never cut short by this. 110 of the 26,077 starts of the 61 real runs found no channel | i_sound.c:517-521, 334-340; [note section 1.1.6](M5C_REFERENCE_INVESTIGATION.md) |
 
 ### What the sound logic has and has not been compared with
 
-Against the genuine engine (the reference above, under the declared schedule): the logic's every row on the 64
-synthetic items, end to end from the Rust wire-25 simulation (every start, stop, channel stop, per-update volume,
-separation and pitch, lump lookup and the `M_Random` index after each tic), and the mixer's every buffer on those
-items and on 23 scenarios. On the
-61 real Episode 1 runs the sound logic has **not** been run in Rust yet. Details and exceptions
-(381 start rows of 785 carry no listener position) are in the [evidence record](validation/M5C.md#step-4-part-2-the-session-the-detector-the-saved-state-and-the-end-to-end-gate).
+Against the genuine engine (the reference above, under the declared schedule):
+
+- **The 64 synthetic items**, end to end from the Rust wire-25 simulation: every start, stop, channel stop,
+  per-update volume, separation and pitch, lump lookup and the `M_Random` index after each tic, and the mixer's every
+  buffer on those items and on 23 scenarios ([step 4](validation/M5C.md#step-4-part-2-the-session-the-detector-the-saved-state-and-the-end-to-end-gate)).
+  Through the display and the game loop as well: 45,540 frames, all equal ([step 5](validation/M5C.md#step-5-part-1-the-frame-gate-restore-and-continue-and-the-headless-app-tests)).
+- **The 61 real Episode 1 runs** (local only, counts and digests committed): 158,966 tics through the whole Rust pipeline,
+  every sound row, every frame at screenblocks 10 and 11 and all 98,578 mixer buffers equal
+  ([step 5 part 2](validation/M5C.md#step-5-part-2-the-61-real-runs-through-the-whole-pipeline-local-only)).
+- **The 9 scripted app sessions** (2,213 tics, 133 sounds started, 1,367 buffers handed to the sink), through the app
+  and against the genuine engine ([step 5 part 3](validation/M5C.md#step-5-part-3-scripted-app-sessions)).
+- **Not compared: the listener columns of starts with no position.** For a start with a NULL origin or the listener's
+  own body the genuine row carries the listener's position and angle, and a wire-25 record carries only what the sound
+  logic reads, so those three columns are not compared on 381 of 785 start rows of the 64 items, 5,980 of 26,077 of
+  the 61 real runs and 43 of 142 of the 9 sessions; every other column of those rows is compared, and the sound logic
+  does not read them there (s_sound.c:304-324). A request to the simulation to carry them (so that they could be
+  compared) is open.
+
+### The app with sound, and what is presentation
+
+**Proven (compared with the genuine engine, under the declared schedule and build):** the sound records of wire 25;
+every start with its volume, separation, pitch and channel; every stop; the channel table after `S_UpdateSounds`; the
+`M_Random` index; and the mixer's sample stream, buffer by buffer by digest (decision T8). **Presentation, outside every
+claim:** the hand-over of the finished stream to the device thread, resampling from 11,025 Hz to the device's rate (by
+the audio library), the size of the queue and the latency that results, what happens on underrun (silence) and overrun
+(the oldest queued frames are dropped; the game loop never blocks on audio, because blocking would change pacing), the
+player's volume and mute, and the device itself. Of these the app's code is Rust-only safety tests, not equivalence.
+
+- **Per tic** the app runs the simulation, the sound session, the status bar's draw and the frame, in that order
+  ([architecture](ARCHITECTURE.md#sound-effects-m5c)); the session's zero or one buffer of 512 stereo 16-bit frames goes
+  to the audio sink before the tic's host step.
+- **Options (decision T9).** `--volume N` (0 to 100, default 100) is a gain applied to the finished stream at the
+  device; the sound logic always runs with a fresh process's defaults (the original's volume setting 8, 3 channels), so
+  the game, the face and the demo do not depend on it. `--no-sound` opens no device and prints nothing; the sound logic
+  and the mixer still run, so the face and the demo are the same. **End** mutes and unmutes (the player's own key, never
+  seen by the game; it is not one of the original's keys); **pausing silences the sound** (the queue is cleared and
+  frames pushed while paused are ignored), and the game's pause releases it again on resume.
+- **A session and a restart are a fresh process** (decision T15): `gametic` and the handle counter are 0 at the first
+  tic, no channel is busy, the mixer is silent and the queue is cleared. `doom-play` runs wire 25 with sound; wire 24 and the
+  M5b contract remain selectable in the libraries, are not offered as a launch flag, and `--no-sound` gives silence with
+  the same face. Demos recorded by M5b builds stay valid; replayed here they give the same game and the genuine
+  glance of this contract.
+- **The device.** The first audio backend that opens plays the stream (Linux: PulseAudio, then ALSA, which need the
+  system's `libpulse.so.0` or `libasound.so.2`; Windows: WASAPI, DirectSound, then WinMM; macOS: Core Audio); nothing
+  falls back to a silent device. If none opens, **one line on standard error** says so and names every backend tried, and
+  the game runs exactly the same without sound output. The queue (512-frame buffers, playing starts when one buffer is
+  queued, at most 2,048 frames queued, 185.8 ms) and the latency (roughly 50 to 100 ms by arithmetic) are **not
+  measured** and are not part of any claim. `doom-play --audio-probe` writes about one second of silence to check the
+  device.
+- **No music, no menus.** The menu hot keys are not modelled (see the glance above).
+- **When the sound session refuses a tic** (a typed refusal: for example a PWAD's sound lump of 8 bytes or fewer, decision
+  T11), the app stops on its refusal screen, which names the witness and the tic. **Sound and display are exactly as
+  they were before the tic, and the simulation's tic is not rolled back**, as under M5b's rule for frame refusals
+  (decision S9): the committed tic stays, its command stays in the demo, and replaying the demo ends at the same refusal.
+  A display refusal after the simulation committed is the same. Rolling the simulation back too would need a staged
+  advance in `doom-sim` that does not exist, and a full-simulation clone per tic is not allowed.
+- **Under WSLg the game occasionally opens already paused.** The window can report a focus loss in its first moments,
+  and the M5b focus-loss rule pauses the game (the same cause and effect as M5b's pause, [above](#platform-limits)). The
+  PAUSED box shows, the mouse is released, and **Esc or Pause resumes**. It was seen in 3 of 260 runs in the
+  diagnosis and in 5 of 49 in an earlier set, with the M5b build too (the sound work is not involved:
+  [record](validation/M5C.md#step-7-sound-in-doom-play)). Nobody has pressed a key in such a window.
 
 ## Known gap: THING loading stops at the first Doom II type outside commercial mode
 
@@ -3171,8 +3276,9 @@ that truncates; for wires 12-24 the gap above stands unchanged.
 In the original, `A_PlayerScream` plays `sfx_pdiehi` for a player death below -50 health only in commercial mode
 (linuxdoom-1.10/p_enemy.c:1994-2007); otherwise it plays `sfx_pldeth`. The Rust simulation's sound event, in wires
 22-24, names `sfx_pdiehi` in every mode (`PlayerScream` arm of `crates/doom-sim/src/lifecycle.rs`). Only that event's
-sound number is affected: the game state, positions, random numbers and every frame are as the original's, and no build
-plays a sound today, so nothing audible or visible is wrong.
+sound number is affected: the game state, positions, random numbers and every frame are as the original's. The app
+plays sound only from wire 25, which corrects it, so no build plays the wrong scream (wires 22-24 produce events but no
+app turns them into sound).
 
 **Status: a known gap, unpatched by rule.** The event is part of the canonical bytes of wires 22-24 and stays as it is,
 because historical profiles keep their behaviour. It was found by reading the code on 2026-11-18. **Wire 25 corrects

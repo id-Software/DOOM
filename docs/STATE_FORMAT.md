@@ -8,7 +8,8 @@ No Rust layout, padding, pointers, addresses, timestamps, paths, or GPU state is
 encoded. Shared immutable map storage uses Arc internally; reference counts and
 addresses are excluded. The M5a renderer's own, separate `DRST` format is at the
 [end of this page](#render-state-drst-version-2-m5a); it is not a DSIM version and no DSIM
-reader decodes it. The same holds for the display state `DDSP` and for the sound session's
+reader decodes it. The same holds for the display state `DDSP` ([version 1](#display-state-ddsp-version-1-m5b),
+[version 2](#display-state-ddsp-version-2-m5c)) and for the sound session's
 saved state `DSND` ([DSND version 1](#sound-session-state-dsnd-version-1-m5c)).
 
 M3f8's execution-scope brands and derived target availability are API observations,
@@ -2529,7 +2530,7 @@ of starts.
 The Rust encoding was checked against an independent writer (the seed tool, [TESTING](TESTING.md#m5c-fuzz-targets-of-doom-sound)),
 and the state's behaviour by restoring and continuing on the 64 synthetic items
 ([evidence](validation/M5C.md#step-4-part-2-the-session-the-detector-the-saved-state-and-the-end-to-end-gate)).
-The display state `DDSP` version 2, which carries the contract, is not written yet and is not described here.
+The display state `DDSP` version 2, which carries the random contract, is [described below](#display-state-ddsp-version-2-m5c).
 
 ## Render state (`DRST` version 2, M5a)
 
@@ -2588,7 +2589,7 @@ integers are little endian; i8 values are stored as their byte.
 | DRST length n, DRST | u32, n bytes | a complete `DRST` version 2 encoding, decoded by its own decoder |
 | screenblocks | u8, 10 or 11 | decision S14 |
 | display flags | u8: bit 0 `fullscreen`, bit 1 wipe due | `D_Display`'s `fullscreen` (d_main.c:198, 247) and `gamestate != wipegamestate` (d_main.c:223) |
-| rndindex | u8 | `M_Random`'s index (decision S15: 0 at a new game, advanced only by `ST_Ticker`) |
+| rndindex | u8 | `M_Random`'s index under the M5b contract (decision S15: 0 at a new game, advanced only by `ST_Ticker`); [version 2](#display-state-ddsp-version-2-m5c) carries the index of the contract with sound |
 | oldweaponsowned | u16, bits 0..8 | `oldweaponsowned[9]` (st_stuff.c:381) |
 | oldhealth, facecount, faceindex, priority, lastattackdown, palette | 6 x i32 | `st_oldhealth` (>= -1), `st_facecount` (0..=70), `st_faceindex` (0..=41), face `priority` (0, 4..=9), `lastattackdown` (-1..=70), `st_palette` (-1..=13) |
 | keyboxes, arms old, face old, keys old | 3 + 6 + 1 + 3 x i8 | `keyboxes[i]` (-1, i or i+3), `w_arms[i].oldinum` (-1..=1), `w_faces.oldinum` (-1..=41), `w_keyboxes[i].oldinum` (-1..=5) |
@@ -2604,3 +2605,33 @@ undefined flag bits and every value outside the ranges above (`StateDecodeError:
 the field). `Display::restore` then requires the state's tic to be the simulation's, checks the
 same ranges, restores the embedded `DRST` through `Renderer::restore`, redraws the background from
 STBAR when it had been drawn, and reads the status bar inputs from the simulation.
+
+## Display state (`DDSP` version 2, M5c)
+
+Written only by a `Display` under the contract `RandomContract::WithSound` (M5c decision T16; the app plays under it).
+**The M5b contract still writes version 1, byte for byte**, so every M5b state, golden and test is unchanged.
+Version 2 is version 1's layout with **one byte added after the version**, the contract byte, and nothing else
+moved. In the table of [version 1](#display-state-ddsp-version-1-m5b) the version is 2 and a row follows it:
+
+| Field | Encoding | Meaning |
+| --- | --- | --- |
+| magic | 4 bytes `DDSP` | as version 1 |
+| version | u32 = 2 | |
+| contract | u8 = 1 | `WithSound`; the only value written |
+| everything after | exactly version 1's rows, from the embedded `DRST` length to the stored message line | as version 1 |
+
+What differs in meaning is `rndindex`: under this contract it is the index after **all** the draws the C makes
+in a tic, which are the sound session's draws, `ST_Ticker`'s one draw and, once, the level-start wipe's 320 draws after
+the frame of tic 0 (the order is in [COMPATIBILITY](COMPATIBILITY.md#the-display-contract-with-sound-m5c); the byte
+itself is any value 0..=255). The sound session's own state is separate ([`DSND`](#sound-session-state-dsnd-version-1-m5c));
+the app saves nothing, and tests save the two next to each other.
+
+**What the decoders accept.** `DisplayState::decode` reads version 1 only, so a version-2 state is refused by it as
+`Version(2)` (the frozen M5b test requires this). `DisplayState::decode_any` reads version 1 (the M5b contract) and
+version 2 (`WithSound`), with the same field rules and range checks for both. It refuses a wrong magic (`Magic`),
+truncation, a version that is neither 1 nor 2 (`Version`), and a version-2 contract byte other than 1
+(`Invalid("contract")`: only the canonical encoding is read, and an M5b state is never written as version 2). Encoding a
+decoded state gives back the same bytes. `Display::restore` is as for version 1 and the restored display keeps the
+decoded contract. These rules are tested in `crates/doom-render/tests/m5c_contract.rs` (round trip, forgeries,
+restore and continue) and, with the sound session and the simulation, in `crates/doom-game/tests/m5c_restore.rs`
+([evidence](validation/M5C.md#step-5-part-1-the-frame-gate-restore-and-continue-and-the-headless-app-tests)).
