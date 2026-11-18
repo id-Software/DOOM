@@ -17,3 +17,10 @@
 # Standard zstd source traces are binary and must survive checkout exactly.
 /tests/reference/*.zst -text
 /crates/doom-render/src/tables.rs text eol=lf
+
+# id Software's original sources are kept as they were released: count them as vendored, not as
+# this project's languages.
+/linuxdoom-1.10/** linguist-vendored
+/sndserv/** linguist-vendored
+/ipx/** linguist-vendored
+/sersrc/** linguist-vendored

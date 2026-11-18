@@ -45,6 +45,41 @@ collection contract. Use an ordinary loop over advance when snapshots are unwant
 See [architecture](ARCHITECTURE.md#stepping-and-observation),
 [source/cost audit](M3G1_REFERENCE.md) and [measurements](validation/M3G1.md).
 
+## Policies
+
+New gameplay is switched on through optional policies, each selected explicitly and adding one slice of Doom to the
+one before. Older policies never change, so earlier results stay reproducible, much like compatibility levels. The
+number in brackets is the policy's identifier in saved test snapshots; the earlier Demon profiles are under
+[versioned profiles](#versioned-gameplay-profiles). This table is the one list of policies; the README links here.
+
+| Policy (wire ID) | Adds | Contract |
+| --- | --- | --- |
+| `DemonNormalV1` (1) | The bounded Demon closure with original actor types and states stored directly | [Original-ID Demon](#original-id-demon-profile) |
+| `PlayerBodyLifecycleV1` (2) | One genuine original player body: direct damage, pain, death and a retained corpse | [Player body](#original-player-body-lifecycle) |
+| `PlayerBodyKnockbackV1` (3) | Physical knockback and grounded wall collision for that player | [Knockback](#original-player-grounded-knockback) |
+| `PlayerCommandMovementV1` (4) | Player commands (turning, thrust) and the source reaction-time delay | [Command movement](#original-player-command-movement) |
+| `PlayerDemonAcquisitionV1` (5) | One Demon that sees and pursues the active player, without melee | [Acquisition](#active-original-player-and-demon-acquisition) |
+| `PlayerDemonMeleeV1` (6) | Source-timed Demon melee against the player, with damage, pain and death | [Demon melee](#autonomous-original-demon-player-melee) |
+| `PlayerDemonPistolV1` (7) | The genuine pistol: psprites, ammunition, refire spread, hitscan and noise alerts | [Pistol](#genuine-player-pistol-combat) |
+| `PlayerDemonWeaponsV1` (8) | Fists, shotgun, chaingun, weapon fallback and manual switching | [Weapons](#original-player-weapon-expansion) |
+| `PlayerDemonPickupsV1` (9) | World ammunition, stimpacks, medikits and shotgun/chaingun pickups | [Pickups](#original-world-pickups) |
+| `PlayerDemonArmorV1` (10) | Green and blue armor with source absorption and depletion | [Armor](#original-armor-and-damage-absorption) |
+| `PlayerDemonBonusesV1` (11) | Health and armor bonuses (+1 up to 200) and counted-item statistics | [Bonuses](#original-health-and-armor-bonuses) |
+| `PlayerMonstersV1` (12) | Former humans beside the Demon, up to eight monsters, infighting and item drops | [Former humans](#original-former-humans-and-multi-monster-encounters) |
+| `PlayerMonstersImpV1` (13) | The Imp and its dodgeable fireball | [Imps](#original-imps-and-fireballs) |
+| `PlayerMonstersMapScaleV1` (14) | Travel bounded by the loaded walls in walled rooms up to 2,048 units | [Map scale](#original-monsters-at-real-map-scale) |
+| `PlayerMonstersHeightsV1` (15) | Static floor/ceiling heights joined by two-sided lines: steps, ledges, windows, falls | [Static heights](#original-monsters-with-static-heights) |
+| `PlayerMonstersDiagonalV1` (16) | Linedefs of any direction inside a closed boundary; one corner jump refused | [Diagonal walls](#original-monsters-among-diagonal-walls) |
+| `PlayerMonstersRealMapV1` (17) | WAD-format geometry limits (E1M1-sized) under a per-map arithmetic certificate | [Classic-map scale](#original-monsters-at-classic-map-scale) |
+| `PlayerMonstersSpecialsV1` (18) | Sky ceilings, light thinkers, damage floors, secrets and one-sided scrolling walls | [Sky and specials](#original-monsters-with-sky-and-static-specials) |
+| `PlayerMonstersMoversV1` (19) | E1M1's seven door, lift, floor, switch and exit line types; the tic after the exit is refused | [Movers](#original-monsters-with-doors-lifts-floors-switches-and-the-exit) |
+| `PlayerMonstersE1M1V1` (20) | Two-sided scrolling walls and E1M1's seven static decoration types (lamps, pillars, candelabras, corpses and gore) | [E1M1 decorations](#original-monsters-with-two-sided-scrolling-walls-and-static-decorations) |
+| `PlayerMonstersBarrelsV1` (21) | Exploding barrels with the original's radius attack and chain reactions, 64 pickups, every map-thing angle and the relaxed spawn rule | [Barrels](#original-monsters-with-exploding-barrels-pickup-scale-and-every-thing-angle) |
+| `PlayerMonstersLevelV1` (22) | The player start at its place in the map's thing list, with its angle; the full player think, including damage-flash decay and the dead player's turn toward its attacker: the real E1M1 run | [Level runs](#original-level-runs-the-player-start-in-lump-order-and-the-full-player-think-wire-22) |
+| `PlayerMonstersEpisode1V1` (23) | Episode 1, part 1: every door, floor, lift, stair, donut, light and exit special, keys, powerups, chainsaw, rocket launcher and Spectre: the real E1M2-E1M4, E1M6 and E1M7 runs | [Episode 1, part 1](#original-episode-1-part-1-every-door-floor-plat-stair-donut-light-and-exit-special-keys-items-powers-chainsaw-rocket-launcher-and-spectre-wire-23) |
+| `PlayerMonstersEpisode1V2` (24) | Episode 1, part 2: teleporters, the Baron of Hell and the E1M8 boss floor, hard skill: the real E1M5, E1M8, E1M9 and `DEMO1` runs | [Episode 1, part 2](#original-episode-1-part-2-teleporters-the-baron-of-hell-a_bossdeath-and-hard-skill-wire-24) |
+| `PlayerMonstersEpisode1V3` (25) | Episode 1, part 3: wire 24 plus canonical sound records, the sound origins, the corrected hard-death scream and the original's THING-loading stop; it makes no sound itself, and `doom-play` runs on it | [Wire 25](#original-episode-1-part-3-canonical-sound-records-wire-25) |
+
 ## Versioned gameplay profiles
 
 Historical profile behavior and DSIM bytes remain frozen. New behavior is opt-in.

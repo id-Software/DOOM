@@ -83,11 +83,14 @@
   link; never maintain duplicate status tables, hashes, test totals or logs.
   Before editing, identify the authoritative home and check existing information
   there rather than creating another copy because a milestone changed.
-- README describes current state only, in plain language for newcomers. A milestone
-  edits the "Where it stands" list and adds or edits one row of the policy table, and
-  never appends prose history (history lives in [COMPATIBILITY.md](docs/COMPATIBILITY.md)
-  and [ROADMAP.md](docs/ROADMAP.md)). "Where it's (maybe) going" changes only with the
-  owner's approval.
+- README describes current state only, in plain language for newcomers, in under 150
+  lines. A milestone edits the "Where it stands" list and adds or edits one row of the
+  [policy table](docs/COMPATIBILITY.md#policies) (it lives in COMPATIBILITY; the README
+  links to it once), and never appends prose history (history lives in
+  [COMPATIBILITY.md](docs/COMPATIBILITY.md) and [ROADMAP.md](docs/ROADMAP.md)). Caveat
+  counts are links to the evidence, never repeated figures, and no claim may get
+  stronger by being shortened. "Where it's (maybe) going" changes only with the owner's
+  approval.
 - Keep the prominent machine-maintained/human-directed disclosure accurate. Do not
   imply universal manual review, absent human oversight or guaranteed correctness.
 - Visuals. When a milestone adds anything that can be shown visually (rendering, the
@@ -104,6 +107,8 @@
 - Commit identity comes from the repo-local git config set by the owner (a GitHub
   noreply address, no personal name or email). Never add `Co-Authored-By` trailers,
   "Generated with" lines or any AI attribution to commits, PR titles or PR bodies.
+- Commit subject lines are at most 72 characters; the details go in the body after a
+  blank line. This applies from 2026-11-18 on: existing history is never rewritten.
 - Never commit to or push `master`. Never force-push, rebase or squash shared history,
   delete branches or enable auto-merge. Never merge a PR; merging is the owner's call.
 - Open one focused PR per milestone, draft until every gate passes; mark it ready only
