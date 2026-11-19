@@ -2386,7 +2386,7 @@ Artifacts section. It is a zip of `doom-play.exe` (statically linked C runtime),
 `README.txt` that names the commit; it contains no game data. Unzip it and, from a command prompt, run it with the
 path to your own `DOOM.WAD` as an argument, for example `doom-play.exe --iwad C:\path\to\DOOM.WAD --map 1 --skill hmp`
 (`doom-play.exe --help` lists every option; an OpenGL 2.1 or OpenGL ES 2 driver is required). The job ran
-successfully on the M5b pull request on 2026-11-17. **Nobody has downloaded the artifact or run it on Windows.**
+successfully on the M5b pull request on 2026-11-17. The owner ran a native build on Windows 11 on 2026-11-18 ([what he observed](validation/M5C.md#the-owners-playtest-2026-11-18)).
 
 ### M5b timings
 
@@ -2663,8 +2663,8 @@ Exit 0 if a device opened (it prints the backend and device), 1 if none did (it 
 one's error), 2 if mixed with any other argument. It is the only code that can open a device, and CI never runs it (no
 runner has an audio device). On the development machine without the system's PulseAudio client library (`libpulse0`) it
 exits 1; that is the expected and loud outcome there. With the library (`sudo apt install libpulse0` under WSLg) it opened
-PulseAudio's "RDP Sink" and wrote about one second of silence; nobody has heard game sound. Windows: `doom-play.exe
---audio-probe` (not run by anyone yet). The unit tests in `crates/doom-play/src/audio.rs` (the backend list names only
+PulseAudio's "RDP Sink" and wrote about one second of silence; the owner reported game sound under WSLg and on Windows on 2026-11-18 ([record](validation/M5C.md#the-owners-playtest-2026-11-18)). Windows: `doom-play.exe
+--audio-probe` (the probe itself was not reported as run). The unit tests in `crates/doom-play/src/audio.rs` (the backend list names only
 real backends; an error names every backend tried) run in `cargo test -p doom-play` without opening a device.
 
 ### M5c fuzz targets of doom-sound

@@ -2789,7 +2789,7 @@ the genuine engine ([closed](#the-status-bar-faces-idle-glance-is-closed-with-so
 | The commands | **Except for cheat codes**, every tic command the app makes is the genuine `G_Responder` / `G_BuildTiccmd` result for the stream of events the app posts, and is admitted by wire 24; in a recorded session each is also re-read from the demo buffer as vanilla does (the unrecorded mode executes the built command instead). Shown against the genuine input driver on 251 scripts (the 175 in the app's domain tic for tic in Rust). The exception: the app forwards cheat-code keys as ordinary keys and has no cheat matcher, so typing a code does nothing where the genuine engine would act on it, and `idclev` would also make the genuine engine reload the level and clear the held keys, so its later commands would differ (the golden `s5_cheat_idclev12` differs at tic 8, and the test pins that tic). |
 | Sessions | Each session is recorded as a version-110 demo (unless the opt-in unrecorded mode is used, below). What was checked: the 4 committed scripted sessions (75 + 61 + 145 + 155 = 436 tics) in CI; and, locally, a 334-tic scripted E1M1 session and three idle first-play sessions of 350 tics each (E1M1 on X11 and on Wayland; E1M3 on skill 3 at screenblocks 11). In each, the demo replays in the genuine engine with every command, frame, palette, face, message and masked game dump equal under the contract. Those are the sessions checked, not a guarantee about every other: any saved session can be checked with the one command in [TESTING](TESTING.md#m5b-playable-status-bar-hud-input-and-the-app), which prints the first tic that differs. |
 | Unrecorded mode | The opt-in `--unrecorded-full-turning` mode writes no demo and cannot be replayed ([below](#unrecorded-full-turning-mode-opt-in)). Its evidence is limited to 4 injected scripts and 2 scripted sessions on synthetic rooms (829 tics): nothing on real maps, and no person has played it. |
-| What a person experiences | **Not shown.** Nobody has yet seen the picture on a screen, pressed a real key, moved a real mouse, checked mouse capture under WSLg, or run the program on Windows or macOS beyond CI builds. Feel, latency and appearance are for a human to judge ([evidence](validation/M5B.md#what-a-human-still-has-to-judge)). |
+| What a person experiences | **Observed once, by the owner, not shown by any test.** On the evening of 2026-11-18 the owner played release builds of `3c1cc5d` (the M5c branch, with sound); what he reported is under [what the owner observed](#what-the-owner-observed-2026-11-18) (Windows 11: window, 35 frames a second, picture, captured mouse; WSLg: window, but the pointer is not captured). Not judged by anyone: macOS, long sessions, every map, every weapon and monster, vanilla bindings. Feel, latency and appearance remain for a human to judge ([evidence](validation/M5B.md#what-a-human-still-has-to-judge); [the playtest record](validation/M5C.md#the-owners-playtest-2026-11-18)). |
 
 ### The status bar face's idle glance under the M5b contract (declared, closed by M5c)
 
@@ -3031,9 +3031,9 @@ the next tic is due and keeps the library's default swap interval. The mouse is 
   an idle session; Wayland printed compositor and Mesa warnings and probably used a software fallback).
   **Windows and macOS** build in CI (the Stable job covers `doom-play`), and a label-triggered CI job builds a
   `doom-play.exe` artifact (not a required check; it ran successfully on the pull request on 2026-11-17, and
-  [TESTING](TESTING.md#windows-build-artifact) says how to download and run it); **no person has run the
-  program on Windows or macOS**.
-  Mouse capture under WSLg is unchecked.
+  [TESTING](TESTING.md#windows-build-artifact) says how to download and run it); **no person has run it on macOS**. The owner ran release builds of `3c1cc5d` on Windows 11 and under WSLg on 2026-11-18
+  ([what he observed](#what-the-owner-observed-2026-11-18)). **Mouse capture under WSLg does not work: the
+  pointer is not captured there, so WSLg is keyboard-only for now.**
 - Miniquad is the only windowing dependency (pure Rust, MIT-licensed, GPL-2.0-only compatible). Since M5c the
   audio library `maudio` is a second dependency of `doom-play` only. `doom-sim`, `doom-sound` and `doom-game` have no
   windowing, audio-device, thread or wall-clock dependency.
@@ -3052,12 +3052,7 @@ Milestone status is in [ROADMAP](ROADMAP.md). **As of 2026-11-18 (America/Los_An
 and the status bar face's idle glance gap is closed. The crate `doom-sound`
 ([architecture](ARCHITECTURE.md#sound-effects-m5c)) decides which sounds start, on which channel, at what volume, stereo
 position and pitch, and computes the samples the original mixer would write; `doom-game` runs it inside the game loop
-and `doom-play` hands its finished stream to the device. **What nobody has observed:** **nobody has heard any sound
-from this project, and no game audio has reached any audio device on any system.** The only real device open so far was
-`doom-play --audio-probe`, which wrote one second of digital silence to PulseAudio under WSLg using a scratch copy of the
-client library ([record](validation/M5C.md#step-7-sound-in-doom-play)). Nothing has run on Windows or macOS beyond CI
-builds and tests. Every claim below is about which sounds start, when, with which values, and the 16-bit samples the
-original mixer writes; none says how anything sounds.
+and `doom-play` hands its finished stream to the device. **What has been observed, and by whom:** on 2026-11-18 the owner played release builds of `3c1cc5d` on Windows 11 and under WSLg and reported that sound plays on both; the details, and what he did not judge, are [below](#what-the-owner-observed-2026-11-18). It is one person on one evening, on two systems: nothing was recorded of what he heard, and nobody has run it on macOS. Earlier, the only real device open was `doom-play --audio-probe`, which wrote one second of digital silence to PulseAudio under WSLg using a scratch copy of the client library ([record](validation/M5C.md#step-7-sound-in-doom-play)). Every claim below is about which sounds start, when, with which values, and the 16-bit samples the original mixer writes; none says how anything sounds.
 
 The facts are in the [investigation note](M5C_REFERENCE_INVESTIGATION.md) (decisions T1-T16, owner rulings
 2026-11-18), the observations in the [evidence record](validation/M5C.md) and the commands in
@@ -3307,7 +3302,7 @@ player's volume and mute, and the device itself. Of these the app's code is Rust
   arithmetic only; none of it is part of any claim. **Why two buffers:** under the declared schedule buffer k is handed
   over at tic floor(512k/315) while a device at exactly 11,025 Hz needs it (512k/315) tics after it starts, so with one buffer as the
   threshold the margin falls to nothing at every k that is a multiple of 315 (every 14.6 s) and ordinary sleep jitter gives an
-  underrun (a gap); two buffers keep one whole buffer in hand, for 46.4 ms more latency. (An earlier version of this page, and
+  underrun (a gap); two buffers keep a margin in hand, for more latency (the comment in the code says one whole buffer and 46.4 ms; the later arithmetic gives 315 frames, 28.6 ms: see [sound latency](#sound-latency-arithmetic-not-measured)). (An earlier version of this page, and
   the first implementation, started at one buffer; a review of the device code found the margin.) `doom-play --audio-probe` writes about one second of silence to check the
   device. **The owner accepted the two-buffer start on 2026-11-18 as presentation, unmeasured; he will judge lag and
   crackle by ear.**
@@ -3326,8 +3321,77 @@ player's volume and mute, and the device itself. Of these the app's code is Rust
   and the M5b focus-loss rule pauses the game (the same cause and effect as M5b's pause, [above](#platform-limits)). The
   PAUSED box shows, the mouse is released, and **Esc or Pause resumes**. It was seen in 3 of 260 runs in the
   diagnosis and in 5 of 49 in an earlier set, with the M5b build too (the sound work is not involved:
-  [record](validation/M5C.md#step-7-sound-in-doom-play)). Nobody has pressed a key in such a window.
+  [record](validation/M5C.md#step-7-sound-in-doom-play)). Whether the owner met it in his playtest was not reported.
   **The owner agreed on 2026-11-18 that the start-up pause stays as it is; he will judge it when he plays.**
+
+### What the owner observed (2026-11-18)
+
+**The owner observed** the following on the evening of 2026-11-18 with release builds of `3c1cc5d`. These are one
+person's observations on one evening; no test, recording or measurement stands behind them.
+
+- **Windows 11, the native artifact, `--bindings modern`, E1M1 on `hmp` and `uv`.** The window opens, the game plays at
+  35 frames a second, the picture looks right, the mouse is captured and feels good, and sound plays. He noticed a
+  delay on every sound at first and then judged it normal for the original (see [sound latency](#sound-latency-arithmetic-not-measured)).
+- **WSLg, the same commit.** The window opens and sound plays through PulseAudio (device "RDP Sink"). **The pointer is
+  not captured and turning by mouse is unusable there, so WSLg is keyboard-only for now.** What is asked of the window
+  library is a pointer grab confined to the window plus raw mouse motion; whether the grab succeeds under WSLg's
+  Wayland compositor and remote-desktop connection, and whether raw motion arrives there, is not known without
+  measuring (the library's source ignores the grab's result).
+- **Not judged:** macOS, long sessions, every map, every weapon and monster, vanilla bindings. He also recorded
+  sessions on E1M2 and E1M3; what he saw there he did not report.
+- **His 12 session files** replay equal to linuxdoom-1.10 built with its in-process sound code (one define removed):
+  12 of 12 pass the genuine comparison (8 on E1M1 at `hmp`, 1 on E1M1 at `uv`, 2 on E1M2 at `uv`, 1 on E1M3 at `uv`;
+  25,309 tics in all, one file holding none). This shows that the files replay equal to the genuine engine; it does not show what
+  was on his screen or in his ears ([counts](validation/M5C.md#the-owners-playtest-2026-11-18)).
+- **A fault was reported on Windows:** [stuck fire](#known-fault-on-windows-fire-sticks-while-the-mouse-moves-under-investigation).
+
+### A session is safe only when doom-play ends it
+
+**A session is safe only when doom-play ends it.** The demo is written when a session starts, every 30 seconds of play, when the
+session ends, and when you restart or quit (Esc, then R or Q; R, Q or Esc on an end screen) or close the window with its
+close button; pausing does not write it. If the program is ended any other way, the demo keeps only its last write, so up to
+the last 30 seconds of play are lost and a session shorter than that is left as an empty demo of 14 bytes. Under WSLg, when the
+window's display connection is lost, Xlib prints "X connection to :0 broken (explicit kill or server shutdown)." and ends
+the process before any of doom-play's code runs, so no exit line is printed (the window library installs no handler for it, and
+installing one needs unsafe code, which the workspace forbids); the owner saw exactly that terminal output. The same happens if the
+process is interrupted or killed (Ctrl+C in its terminal, closing its console window on Windows, shutting WSL or the
+computer down). **To keep a session, end it with Esc then Q before closing anything.** Nothing changed in the
+behaviour (the owner ruled so); what a fix would take is in the [evidence record](validation/M5C.md#the-lost-display-connection-under-wslg-what-is-saved).
+
+### Sound latency (arithmetic, not measured)
+
+Nothing here was measured. Each figure is arithmetic from our code or from the linuxdoom-1.10 source, or a default read
+from a library's source; what depends on the operating system's audio engine, the drivers, WSLg's remote-desktop audio,
+clocks and timer resolution is not known without measuring on a machine.
+
+| From the call that starts a sound to | linuxdoom-1.10 built with its in-process sound code | doom-play under PulseAudio (WSLg) | doom-play under WASAPI (Windows) |
+|---|---|---|---|
+| the hand-over to the operating system | above 0 to 46.4 ms (about 46.4 ms on a fast machine) | 28.6 to 121.3 ms | 75.0 to 167.7 ms |
+| the end of the device buffer it asks for | above 0 to 92.9 ms (about 92.9 ms) | 75.0 to 167.7 ms | 167.9 to 260.6 ms |
+
+**The plain answer: doom-play does not sit inside the original's range.** Under PulseAudio the low end is inside it and
+the top is above it (by 74.8 ms); under WASAPI the whole range is above it (by 28.6 ms at the low end and 121.3 ms at the
+top, to the hand-over). Sound on Windows is therefore, by arithmetic, later than the original's. **What accounts for it:**
+in the original the mix happens in the same pass of the main loop as the call, and a blocking write paces the loop, so no
+queue lies between game and device. doom-play adds a queue between a loop paced by tics and a callback paced by the device:
+the two-buffer start plus the wait for the next buffer boundary of the declared schedule, and the callback's phase (up to
+one 512-frame callback); on WASAPI, miniaudio pulls a chunk one period before the engine has room for it and the three
+requested periods keep two ahead, which add 46.4 ms and 46.4 ms beyond the original's.
+
+**The owner's judgement stands beside this and is not reconciled with it.** He heard a delay on every sound, judged it
+normal for the original, and ruled that nothing changes (the two-buffer start stays). He judged by ear, on one machine,
+on one evening; the arithmetic says the Windows range lies above the original's. Neither is measured against the other.
+**Latency is presentation and outside every claim** (above). The tables, the sources, the links that could be shortened
+later and the unknowns are in the [evidence record](validation/M5C.md#sound-latency-the-arithmetic-in-full).
+
+### Known fault on Windows: fire sticks while the mouse moves (under investigation)
+
+**The owner's report (2026-11-18, not yet explained):** on Windows, with the native artifact and `--bindings modern`, firing
+with the left mouse button while dragging the mouse leaves fire stuck on; a click with the mouse held still clears it; firing
+with right Ctrl never sticks.
+
+*Cause, fix or logging option, and whether sessions recorded with the fault are valid demos: to be written here when the
+investigation is finished ([evidence record](validation/M5C.md#stuck-fire-on-windows-the-investigation)).*
 
 ## Known gap: THING loading stops at the first Doom II type outside commercial mode
 

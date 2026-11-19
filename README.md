@@ -43,7 +43,6 @@ original engine. Vanilla behavior (the original unmodified game, quirks included
 Doom's whole-number arithmetic (one division aside). Once a behavior is admitted, nothing quietly rounds it differently.
 
 ## Where it stands
-
 The engine runs DOOM's game logic, draws the picture and mixes the sound effects; a limited playable build opens one Episode 1 map
 in a window. It is checked against the genuine engine (the original C code, run alongside the Rust code) on purpose-built test maps
 and, local-only, on your own game files; for sound and the frames that depend on it, that engine is linuxdoom-1.10 built with its
@@ -59,8 +58,9 @@ in-process sound code (one define removed), under [a declared schedule](docs/COM
   in part or not at all ([renderer](docs/COMPATIBILITY.md#software-renderer-m5a), [status
   bar](docs/COMPATIBILITY.md#playable-build-m5b), [with sound](docs/validation/M5C.md)).
 - Doom's sound effects (no music): which sounds start, on which channel, at what volume, stereo position and pitch, and the mixer's
-  16-bit samples, equal the genuine engine's on [the runs checked](docs/validation/M5C.md). **Nobody has heard it yet**, and what
-  the speakers add is [not part of the claim](docs/COMPATIBILITY.md#the-app-with-sound-and-what-is-presentation).
+  16-bit samples, equal the genuine engine's on [the runs checked](docs/validation/M5C.md). The owner heard it play once ([what he observed](docs/COMPATIBILITY.md#what-the-owner-observed-2026-11-18)); by arithmetic, sound on Windows is
+  later than the original's ([latency](docs/COMPATIBILITY.md#sound-latency-arithmetic-not-measured)), and what the speakers add is [not part of
+  the claim](docs/COMPATIBILITY.md#the-app-with-sound-and-what-is-presentation).
 
 It cannot yet draw the automap, play music, offer menus, an intermission or a next level, play back the original's recorded demos
 (only the one local `DEMO1`), run the other episodes or easy or nightmare skill, or claim a tic-for-tic match for any input beyond
@@ -105,13 +105,11 @@ Ideas, not promises, one line each; the [roadmap](docs/ROADMAP.md#ideas-under-co
 - **Map and demo checks.** See exactly which line breaks vanilla limits, and which demos a map change desyncs.
 
 ## How it's verified
-
 The original C source is the ground truth. Each behavior runs in both the original and the Rust code, and the whole game state is
 compared after every tic. Expected results come from a separate program written from the C output alone, so Rust is never checked
 against itself; sanitizers, fuzzing and mutation testing back that up. Anything not proven identical is refused, not guessed.
 
 ## Play it (limited)
-
 The `doom-play` program opens a window for one Episode 1 map (E1M1 to E1M9; skill `hmp` or `uv`) with your own `DOOM.WAD` (read in
 place, never distributed). It is playable only in this limited way: to really play Doom, use an established source port such as
 [Chocolate Doom](https://www.chocolate-doom.org/). From the cloned top folder (`--help` lists every option):
@@ -123,16 +121,18 @@ cargo run --release -p doom-play -- --iwad /path/to/DOOM.WAD --map 1 --skill hmp
 - **Controls.** The original's defaults: arrows move and turn, right Ctrl fires, Space uses, right Shift runs, `1`-`8` pick weapons,
   mouse left fires (`--bindings modern` gives WASD). Esc pauses (R restarts, Q quits), End mutes. No cheat codes.
 - **Sessions.** Each is saved as a demo (tiny mouse turns are rounded), never over an existing file, and can be replayed in the
-  genuine engine with your IWAD ([how](docs/TESTING.md#m5c-sound-effects-the-genuine-sound-logic-and-mixer)).
+  genuine engine with your IWAD ([how](docs/TESTING.md#m5c-sound-effects-the-genuine-sound-logic-and-mixer)). End one with Esc then Q: ended any other way, it keeps only its last save
+  ([limit](docs/COMPATIBILITY.md#a-session-is-safe-only-when-doom-play-ends-it)).
 - **Sound.** Under Linux or WSLg install the PulseAudio client library once (`sudo apt install libpulse0`); Windows needs nothing.
   `doom-play --audio-probe` checks the device with silence ([options](docs/COMPATIBILITY.md#sound-effects-m5c)).
 - **Limits.** No music, menus, automap, saving, intermission, next level, other skills, multiplayer or menu-key sounds. **An OpenGL
   2.1 (or OpenGL ES 2) driver is required.** Pausing and key release on focus loss are checked only under WSLg (press Esc before
   switching away), where the game sometimes opens paused: Esc resumes ([limits](docs/COMPATIBILITY.md#platform-limits)).
-- **Not yet judged.** Nobody has seen, heard or played it with a real key or mouse, or run it on Windows or macOS beyond CI builds.
+- **What was tried.** The owner, one evening, release builds of one commit: sound played on Windows 11 and under WSLg; **WSLg is keyboard-only for now**
+  (the pointer is not captured). Not judged: macOS, long sessions, every map, weapon and monster, vanilla bindings. [A Windows fire
+  fault](docs/COMPATIBILITY.md#known-fault-on-windows-fire-sticks-while-the-mouse-moves-under-investigation) is under investigation.
 
 ## Try it
-
 You need Rust via [rustup](https://rustup.rs/) (stable, or at least 1.85.0) and a C compiler (on Windows, the Visual Studio build
 tools). It builds on Linux, Windows and macOS; none of this needs game files, graphics, audio or a network:
 

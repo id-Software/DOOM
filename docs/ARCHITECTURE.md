@@ -338,8 +338,8 @@ building the window library, and the simulation cannot reach presentation or pla
 Support and limits are in [COMPATIBILITY](COMPATIBILITY.md#sound-effects-m5c); this section is the structure. **As of
 2026-11-18 (America/Los_Angeles) the library is wired into the game loop and the app:** `doom-game` depends on
 `doom-sound` and runs the session each tic, and `doom-play` hands the finished stream to the device
-(`crates/doom-play/src/audio.rs`, the library maudio, opened with an explicit list of real backends). Nobody has heard
-the result ([COMPATIBILITY](COMPATIBILITY.md#sound-effects-m5c)).
+(`crates/doom-play/src/audio.rs`, the library maudio, opened with an explicit list of real backends). The owner heard it
+play on Windows 11 and under WSLg on 2026-11-18 (one person, one evening; [COMPATIBILITY](COMPATIBILITY.md#what-the-owner-observed-2026-11-18); [record](validation/M5C.md#the-owners-playtest-2026-11-18)); its sound latency is arithmetic, not measured.
 
 **Dependency direction.** `doom-sound` depends on `doom-types`, `doom-sim` and `doom-render` (from `doom-render` only
 the original's fixed-point and angle helpers of `r_main` and the lump directory); its tests also use `doom-map`,

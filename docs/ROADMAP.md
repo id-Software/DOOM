@@ -538,8 +538,8 @@ monster/player behavior. Further stages require separate owner direction.
     three is killed by a test or argued equivalent), and frame-time and tic-jitter timings (WSLg only, recorded, not
     gated). The final gates were all run from a clean clone at `d5a4c4a` (2026-11-17/18; every one passed, including the
     fourth mutation run; see [step 15](validation/M5B.md#step-15-final-gates-from-clean)). Remaining: CI on the exact final head, the
-    Windows artifact rebuilt on it, the pull request marked ready and the owner's review. [Support](COMPATIBILITY.md#playable-build-m5b) is written. Nobody has yet seen the
-    picture or played with a real key or mouse; a human has to judge feel, latency and looks. See the
+    Windows artifact rebuilt on it, the pull request marked ready and the owner's review. [Support](COMPATIBILITY.md#playable-build-m5b) is written. The owner played the
+    M5c build (M5b's input and picture included) on 2026-11-18 on Windows 11 and under WSLg (see [the owner's playtest](validation/M5C.md#the-owners-playtest-2026-11-18)); beyond that, a human has to judge feel, latency and looks. See the
     [investigation note](M5B_REFERENCE_INVESTIGATION.md#4-owner-decisions-s1s23-with-recommendations).
   - **M5c (sound effects matched to linuxdoom-1.10, and the closing of the status bar face's idle glance
     gap, S15).** In progress on the branch `feat/m5c-sound` (draft [PR #63](https://github.com/Copgunn/DOOM/pull/63);
@@ -571,11 +571,17 @@ monster/player behavior. Further stages require separate owner direction.
     an existing test and no assertion, on the condition that every frozen wire's goldens pass in CI on that head, which they did
     ([record](validation/M5C.md#the-instruction-count-check)). The README gains a sound visual (waveforms of the genuine and Rust
     mixers for one synthetic session, 0 of 30,720 samples differing; [record](validation/M5C.md#the-sound-visual-and-the-session-checks-label)).
-    CI was green on all nine jobs at `937cf9d` ([record](validation/M5C.md#the-ci-record)). **Not done:** the final gates from a clean
-    clone (running at `937cf9d` when this was written), the pull request's new body, the Windows artifact and CI on the final head;
-    the optional melt is not built. **Unobserved:** nobody has
-    heard any sound, and no game audio has reached any device (the one real device open was a second of digital silence);
-    nothing has run on Windows or macOS beyond CI builds and tests. Nobody has listened to the visual's WAV file, the SVG was not rendered on
+    CI was green on all nine jobs at `937cf9d` ([record](validation/M5C.md#the-ci-record)). **What remains:** the owner's Windows
+    retest, then the final gates from a clean clone on the final head (a first run at `937cf9d` was stopped and is superseded:
+    [record](validation/M5C.md#a-first-run-of-the-final-gates-stopped-superseded)), the pull request's new body, marking it ready, and the
+    owner's review; the optional melt is not built. **Observed by the owner on 2026-11-18** (one person, one evening, release builds of
+    `3c1cc5d`; [the owner's playtest](validation/M5C.md#the-owners-playtest-2026-11-18)): on Windows 11 the window opens, the game
+    plays at 35 frames a second, the mouse is captured and sound plays, with a delay on every sound that he judged normal for the
+    original and left unchanged (the arithmetic puts the Windows range above the original's; both are in the
+    [record](validation/M5C.md#sound-latency-the-arithmetic-in-full)); under WSLg sound plays but the pointer is not captured, so WSLg is
+    keyboard-only for now; his 12 session files replay equal to the genuine in-process build (12 of 12). **Not judged:** macOS, long
+    sessions, every map, every weapon and monster, vanilla bindings. **A fault he reported on Windows,** left mouse fire sticking
+    while the mouse moves, is under investigation (the outcome will be recorded here and in the evidence record). Nobody has listened to the visual's WAV file, the SVG was not rendered on
     the development machine, and no MP4 was written (ffmpeg is not installed, so that code path has never run). **Owner rulings
     of 2026-11-18 (second set):** a game under WSLg that occasionally opens already paused stays as it is, and the owner will judge it
     when he plays; when sound or display refuses a tic the simulation's tic stays committed and its command stays in the demo while

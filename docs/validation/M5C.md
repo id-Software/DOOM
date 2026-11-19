@@ -18,18 +18,13 @@ check and its code-only fix, step 11 parts 1 and 2 (the fuzz targets, including 
 (timings), step 13 (the independent review and the fix made for each finding), and the CI record up to `937cf9d`.
 the owner's second set of rulings of 2026-11-18, the CI record of `a8abf0c`, the instruction-count fix's one changed test line,
 and the README sound visual with the layout label of the session check.
-**Not done and not recorded here:** the final gates from a clean clone (running at `937cf9d` when the sixth pass was written),
-the pull request's new body, the Windows artifact, and CI on the final head. With steps 5 to 7 on the branch **the
+**Added on 2026-11-18 after the owner's playtest** ([below](#the-owners-playtest-2026-11-18)): what he observed on Windows 11 and under WSLg, the check of his 12 session files, the sound-latency arithmetic, the lost-display-connection investigation, a place for the stuck-fire fault, and a first run of the final gates that was stopped and is superseded.
+**Not done and not recorded here:** the final gates from a clean clone (a first run at `937cf9d` was stopped and is superseded: [below](#a-first-run-of-the-final-gates-stopped-superseded)),
+the pull request's new body, the Windows artifact rebuilt on the final head, and CI on the final head. With steps 5 to 7 on the branch **the
 face's idle glance gap (S15) is closed** under the owner's wording
 ([COMPATIBILITY](../COMPATIBILITY.md#the-status-bar-faces-idle-glance-is-closed-with-sound-decision-s15-t14)).
 
-**What has and has not been heard or done.** **Nobody has heard any sound from this project, and no game audio has
-reached any audio device on any system.** The only real device open was one second of digital silence written by
-`doom-play --audio-probe` to PulseAudio under WSLg, using a scratch copy of the client library
-([step 7](#step-7-sound-in-doom-play)); on the development machine without that library the probe finds no backend and
-fails loudly. Nothing has run on Windows or macOS beyond CI builds and tests. Every statement below is about which sounds
-start, on which channel, with which volume, separation and pitch, and the 16-bit samples the original mixer writes for
-them. None says how anything sounds.
+**What has and has not been heard or done.** On 2026-11-18 the owner played release builds of `3c1cc5d` on Windows 11 and under WSLg and reported that sound plays on both, with a delay on every sound that he judged normal for the original, and that WSLg does not capture the pointer ([what he observed](#the-owners-playtest-2026-11-18)). That is one person on one evening and two systems; **not judged: macOS, long sessions, every map, every weapon and monster, vanilla bindings.** The only other real device open was one second of digital silence written by `doom-play --audio-probe` to PulseAudio under WSLg, using a scratch copy of the client library ([step 7](#step-7-sound-in-doom-play)); on the development machine without that library the probe finds no backend and fails loudly. Nothing has run on macOS beyond CI builds and tests. Every statement below about the comparison is about which sounds start, on which channel, with which volume, separation and pitch, and the 16-bit samples the original mixer writes for them. None says how anything sounds.
 
 **Wording rule.** The reference is **linuxdoom-1.10 built with its in-process sound code (one define removed)**
 (decision T2: `doomdef.h:84` removed, the integrated handle convention); it is never the binary the source ships
@@ -70,7 +65,9 @@ compiled; seed replay; a coverage-guided campaign; a sanitizer campaign.
 | Step 12: timings of the sound session, the mixer and the frame step | Recorded ([below](#step-12-timings)) |
 | Step 13: independent review by three reviewers and the fix made for each finding | Recorded ([below](#step-13-independent-review)) |
 | The CI record | Recorded ([below](#the-ci-record)) through `937cf9d`: all nine jobs green at `a8abf0c`, `0dea135` and `937cf9d` |
-| The final gates from a clean clone, the pull request's new body, the Windows artifact, CI on the final head | Not done; not recorded here |
+| The owner's playtest of 2026-11-18, the check of his 12 session files, the latency arithmetic, the lost display connection, the stuck-fire fault | Recorded ([below](#the-owners-playtest-2026-11-18)); the stuck-fire outcome is still to be written |
+| A first run of the final gates (stopped, superseded) | Recorded ([below](#a-first-run-of-the-final-gates-stopped-superseded)); not the final gates |
+| The final gates from a clean clone, the pull request's new body, the Windows artifact on the final head, CI on the final head | Not done; not recorded here (they wait for the owner's Windows retest) |
 
 No IWAD was read in step 1 except by `tools/local/m5c_real.py`, in step 2 except by `tools/local/m5c_mixer_real.py`,
 and in step 3 except by `tools/local/m5c_wire25_real.py`. Each read a scratch copy outside the repository; only counts,
@@ -1100,7 +1097,7 @@ line (no device opened, the game runs without sound output) and the tic statisti
 dependencies (downloaded with `apt-get download` into a scratch directory and unpacked, not installed), run through
 `LD_LIBRARY_PATH`, `doom-play --audio-probe` opened PulseAudio's "RDP Sink" and requested 11,776 frames of silence in about
 a second, exit 0. **No game session was run with that library path. Nobody heard anything, and no game audio has reached any
-device.** The scratch directory was deleted.
+device.** (as of that step; see [the owner's playtest](#the-owners-playtest-2026-11-18)) The scratch directory was deleted.
 
 **The start-up stall (a finding from the M5b code, not from sound).** In the step's runs the window sometimes opened and no
 tic ran, the demo stayed at 14 bytes (header and end marker) and the run hit its timeout: 4 of 24 runs with the new binary and
@@ -1137,7 +1134,7 @@ runs that stalled in that log began with the `EnterNotify` from the grab, then a
 seen but not sufficient. *Inferred, not observed:* that this is a race between the app's immediate pointer grab and
 XWayland's first focus assignment (the detail's meaning is from the X protocol); what the screen shows (from the code, the
 first frame at half brightness with the PAUSED box, the mouse released) and that Esc or Pause resumes. **Nobody saw the screen
-and no key was pressed in a stalled window.** The sound work is not involved (the stalled runs were `--no-sound`, and the M5b
+and no key was pressed in a stalled window.** (as of that step; see [the owner's playtest](#the-owners-playtest-2026-11-18)) The sound work is not involved (the stalled runs were `--no-sound`, and the M5b
 binary stalls the same way with the same event order). Not run: the Wayland backend, Windows, macOS; which process picks the
 focus order. **Nothing was changed for it**; the owner can decide whether to ignore a focus loss that arrives before the first
 focus gain (a change of M5b's input behaviour, left for the owner's own play of the focus rules).
@@ -1506,7 +1503,7 @@ tool's hand-written part is 432 lines and the example's 189 (`git diff --stat` o
 sound (not required)` runs `--check --selftest`. The README links the picture, not the WAV (the owner will listen first and
 give a link).
 
-**What was not done or seen.** **Nobody has listened to the WAV, and nobody has heard any sound.** **The SVG could not be rendered on
+**What was not done or seen.** **Nobody has listened to the WAV, and nobody has heard any sound.** (as of that step: the owner has since heard game sound, but not the WAV; see [the owner's playtest](#the-owners-playtest-2026-11-18)) **The SVG could not be rendered on
 the development machine** (no rasterizer): the author viewed the tool's own raster of the same geometry instead, so how a browser
 draws the SVG is unobserved. **No MP4 was written**, because ffmpeg is not installed and nothing was installed for it (the tool
 printed "ffmpeg not found: no MP4 written" and exited 0), **so the MP4 code path has never run.**
@@ -1655,22 +1652,290 @@ not been read either.
   in `wire25_tests.rs` says the next tic's preflight publishes the records) describes the rule, not something that
   test's frame can reach; it was not edited.
 
+## The owner's playtest (2026-11-18)
+
+This section records what the owner reported after playing, and the checks made from it afterwards. The reports are his
+([note, section 5](../M5C_REFERENCE_INVESTIGATION.md#the-owners-playtest-and-rulings-2026-11-18-third-set)); the
+numbers come from the commands named here. Dated step records further up that say nobody had heard anything were true when
+written and are left as they were.
+
+### What the owner observed
+
+**One person, one evening (2026-11-18), release builds of `3c1cc5d`, two systems.** These are his observations, not
+tests: nothing was recorded of what he saw or heard.
+
+| System | What he reported |
+| --- | --- |
+| Windows 11, the native artifact, `--bindings modern`, E1M1 on `hmp` and `uv` | The window opens, the game plays at 35 frames a second, the picture looks right, the mouse is captured and feels good, and sound plays. He noticed a delay on every sound at first and then judged it normal for the original. Nothing is to be changed for it. A fault with the left mouse button is [recorded below](#stuck-fire-on-windows-the-investigation). |
+| WSLg, the same commit | The window opens and sound plays through PulseAudio (device "RDP Sink"). The pointer is not captured and turning by mouse is unusable there, so WSLg is keyboard-only for now. After the window went away the terminal showed only "X connection to :0 broken (explicit kill or server shutdown)" and none of `doom-play`'s own exit lines ([below](#the-lost-display-connection-under-wslg-what-is-saved)). |
+
+**Not judged by the owner:** macOS, long sessions, every map, every weapon and monster, vanilla bindings. He also recorded
+sessions on E1M2 and E1M3 (the files below show that); what he saw there he did not report.
+
+Why the pointer is not captured under WSLg, as far as it is known (arithmetic and library source, nothing measured).
+What `doom-play` asks for: while playing, `set_cursor_grab(true)` and `show_mouse(false)`, only when the wanted state
+changes (`crates/doom-play/src/window.rs:220-226`; `App::wants_mouse_capture`, `crates/doom-game/src/app/mod.rs:848-850`);
+turning comes from the window library's raw mouse motion only (`window.rs:261-270`). What miniquad 0.4.11 does on X11:
+`XGrabPointer` on the window, confined to it, with no cursor, and it ignores the result and never retries
+(`miniquad-0.4.11/src/native/linux_x11.rs:345-373`); raw motion is XInput 2 `XI_RawMotion` selected on the root window
+(`linux_x11/xi_input.rs:60-111`). Under WSLg the X server is Xwayland inside WSLg's Wayland compositor, shown over a remote
+desktop connection. Not known without measuring: whether the grab succeeded (its status is discarded), whether the
+compositor and the remote desktop client support pointer locking or relative motion at all, and whether Xwayland
+delivers `XI_RawMotion` there.
+
+### The check of the owner's 12 session files
+
+The command, run by the orchestrator at `c8f2fa7` (code of `937cf9d`) with the release example built in scratch,
+`--jobs 1`, finished 22:14 PST on 2026-11-18, once for each of the 12 session files in his sessions directory (all of
+them at that time), with a scratch copy of the IWAD:
+
+```sh
+python3 tools/local/m5c_session_real.py --iwad <scratch copy of DOOM.WAD> --lmp <session file>
+```
+
+**12 of 12 pass.** `skill 2` is `hmp` and `skill 3` is `uv` in `doom-play`'s option names (`crates/doom-play/src/main.rs:35,
+165-167`); the screenblocks setting in every file is 10. Totals re-added from the log (not copied from a summary line):
+
+| Map and skill | Files | Tics | Frames compared (whole + masked) | Starts | Mixer buffers |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| E1M1, skill 2 (`hmp`) | 8 | 10,338 | 10,338 (10,317 + 21) | 364 | 6,393 |
+| E1M1, skill 3 (`uv`) | 1 | 2,289 | 2,289 (2,276 + 13) | 183 | 1,423 |
+| E1M2, skill 3 (`uv`) | 2 | 8,482 | 8,482 (8,406 + 76) | 789 | 5,237 |
+| E1M3, skill 3 (`uv`) | 1 | 4,200 | 4,200 (4,191 + 9) | 516 | 2,592 |
+| **Total** | **12** | **25,309** | **25,309 (25,190 + 119)** | **1,852** | **15,645** |
+
+- Frames not comparable: 0 in every file; the status bar face equal on every frame. One file holds 0 tics (a session that
+  ended, or was lost, before its first save: see [below](#the-lost-display-connection-under-wslg-what-is-saved)); it passes
+  with nothing to compare.
+- The genuine run's ending, as the log labels it: end marker in 8 files, exit in 4. The Rust ending was none in all 12.
+- **T12 lines (every file the same):** layout-dependent 0 (detector firings 0); switch release starts 0 (next slot busy 0),
+  later reads 0 (next slot busy 0); so the `strict32` comparison was not run for any file (no switch release, detector
+  silent).
+- The three genuine variants (strict, overflow, address) are identical in every file. The address variant ran with leak
+  detection disabled: this is not LeakSanitizer coverage.
+- **What the verdict shows:** each file replays equal to linuxdoom-1.10 built with its in-process sound code (one define
+  removed) under the declared schedule: the commands, frames, sound starts and mixer buffers counted above. **What it does
+  not show:** what was on the owner's screen or in his ears, or which system (Windows or WSLg) wrote which file, which is
+  not known. The owner says they were played by hand.
+
+### The lost display connection under WSLg: what is saved
+
+Source for this subsection: read-only reading of the code and of the window library, on 2026-11-18; nothing was run
+and no session file was opened (names and sizes only).
+
+**When the demo is written** (the whole file each time, size = 14 + 4 × tics: `crates/doom-game/src/app/recorder.rs:117-118`,
+`240`, `258`):
+
+| Moment | Write | Source |
+| --- | --- | --- |
+| Session start | file created at once with 0 tics: 14 bytes | `crates/doom-game/src/app/mod.rs:704-733`, `crates/doom-play/src/main.rs:259-263`, `295-320` |
+| Every 1,050 recorded tics (30 s of play; paused time runs no tics) | rewritten whole through a synced temporary file and a rename | `mod.rs:66-68`, `1020-1022`; `main.rs:271-281` |
+| Session end (exit, a refusal, the tic cap) | rewritten | `mod.rs:1042-1046`, `964-1018` |
+| Restart (R on the pause box or an end screen) | rewritten unless already complete | `mod.rs:926-929`, `938-942` |
+| Quit (Q on the pause box; Q or Esc on an end screen) | rewritten unless already complete | `mod.rs:933-936`, `869-887` |
+| **Pause (Esc, Pause, focus loss, minimise)** | **no write** | `mod.rs:917-922`, `908-912` |
+
+**Which ways of ending save and print the exit lines** (printed once by `Stage::report`, `window.rs:188-197`, `300-321`):
+
+| How the process ends | Saves? | Exit lines? |
+| --- | --- | --- |
+| Q on the pause box; Q or Esc on an end screen | yes | yes |
+| The window's close button (X11 `WM_DELETE_WINDOW`; Windows `WM_CLOSE`) | yes | yes |
+| `--quit-after-tics N` | yes | yes |
+| **The X connection breaks** (Xwayland or WSLg goes away) | **no** | **no** |
+| Ctrl+C in the terminal, `kill`, closing the console window on Windows, `wsl --shutdown`, a shutdown | no | no (no signal or console handler exists in `crates/doom-play/src`, by `grep`) |
+| A panic (ours, or the window library's) | no (no `Drop` saves, no panic hook) | only the panic message |
+| The shader is refused at window creation | no beyond the 14-byte file | "doom-play: the OpenGL shader was refused", then exit 1 |
+
+**What Xlib does** (library source and the installed `libX11.so.6`, 2:1.8.13, by `strings`): miniquad installs only an Xlib
+protocol error handler, only around window creation (`libx11_ex.rs:34-52`), and never calls `XSetIOErrorHandler`. When
+the connection is lost Xlib's default I/O error handler prints "X connection to %s broken (explicit kill or server
+shutdown)." and calls `exit` from inside Xlib: the loop never returns, `App::quit` never runs, nothing is written and no
+exit line is printed. That matches the owner's terminal. Why the connection broke is not known (a window closed through its own close button
+would have quit cleanly).
+
+**What was on disk, as far as sizes show** (`ls -l` of his sessions directory during the investigation: 12 files; tics = (size - 14) / 4):
+one file of 14 bytes (0 tics), the only one never rewritten after its creation; it fits a session lost with the X connection
+before 1,050 tics, equally a session quit before its first tic, or a window that failed to open after the file was created, and
+the sizes cannot tell these apart. Ten files have sizes that are not a multiple of 1,050 tics, so they were last written by
+an end, a restart or a quit. One file (the E1M3 one) holds exactly 4,200 tics (4 times 1,050): last written by a periodic save; it
+had not been rewritten for 6.5 minutes when listed at 21:59:36, which fits a session sitting paused or one that ended outside
+the exit paths. Which of these is not known.
+
+**What a fix would take (record only; the owner ruled no behaviour change):** an Xlib I/O error handler writing the latest
+demo bytes before Xlib exits (needs FFI, which the workspace forbids as unsafe, and the handler cannot reach the `App`, so
+the bytes would be kept in a global after every tic); writing the demo incrementally (safe Rust, loses at most one tic,
+changes the "rewritten whole through a synced temporary" contract); saving more often or on every pause; a supervising
+process; a `Drop` or panic hook (covers panics but not the X11 case, where `exit` runs no Rust code).
+
+### Sound latency: the arithmetic in full
+
+**Nothing here was measured.** Labels: **[code]** arithmetic from our code or the linuxdoom-1.10 source with file:line;
+**[lib]** a default read from a library's source (miniaudio 0.11.23 inside maudio-sys 0.1.9, `MA`; miniquad 0.4.11; the
+versions pinned in `Cargo.lock`); **[unknown]** what cannot be known without measuring on the owner's machine (operating
+system audio engines, drivers, the remote-desktop audio transport, clocks, timer resolution). At 11,025 Hz one frame
+is 0.0907 ms, 315 frames (one tic) 28.57 ms, 512 frames 46.44 ms, 1,024 frames 92.88 ms.
+
+**linuxdoom-1.10 built with its in-process sound code (one define removed) [code].** The define removed is `SNDSERV`
+(`doomdef.h:84`); `SNDINTR` stays off (`doomdef.h:85`), so the loop mixes and submits itself (`d_main.c:397-405`). A start
+writes its channel at once (`i_sound.c:330`, `348`, `495`); nothing is mixed there. The pass's `I_UpdateSound` mixes 512
+frames (`i_sound.c:93`, `539-654`) from every channel's current pointer, so the new sound begins at frame 0 of that mix;
+`I_SubmitSound` is a blocking `write` of 2,048 bytes (`i_sound.c:666-670`) to `/dev/dsp` opened without `O_NONBLOCK`
+(`i_sound.c:770`). `i = 11 | (2<<16)` at `i_sound.c:775` (passed at `776`) asks, by the OSS interface's documented encoding,
+for 2 fragments of 2,048 bytes: one fragment is 512 frames, the device holds 1,024 frames (92.9 ms) at most (whether a
+driver grants the request is [unknown]). On a machine fast enough that the pass's work is small the loop waits on the
+device, so:
+
+| Link (C) | min | max |
+| --- | --- | --- |
+| C1 the call to the end of the pass's tics, C2 `S_UpdateSounds`, `D_Display` and the mix | work time [unknown] | work time [unknown] |
+| C3 blocking write until a fragment is free | 0 (pass slower than 46.4 ms) | 512 frames, 46.4 ms |
+| **Sum: call to hand-over** | **above 0** | **512 frames, 46.4 ms** |
+| C4 queued ahead in the device at hand-over | 0 (underrun) | 512 frames, 46.4 ms |
+| **Total: call to the end of the requested device buffer** | **above 0** | **1,024 frames, 92.9 ms** |
+
+On a fast machine the C range collapses to its top: about 46.4 ms to the hand-over and about 92.9 ms to the end of the
+device buffer. Measured from the moment a tic falls due instead of from the call, the hand-over is 46.4 to 92.9 ms.
+
+**doom-play.** The loop sleeps until the next tic is due, runs the due tics (at most 5; `window.rs:207-214`,
+`crates/doom-game/src/app/mod.rs:65`, `947-962`, `593-607`), mixes under the declared schedule
+(`crates/doom-sound/src/schedule.rs:8-14`, `81-84`) and pushes the buffer into a queue (`crates/doom-play/src/audio.rs:428-431`,
+`272-283`) whose device callback takes nothing until **two buffers, 1,024 frames, are queued** (`audio.rs:174-199`, `289-335`).
+A start in tic `T` is first in buffer `ceil(315T/512)`; with `d = (-315T) mod 512` (0 to 511) it is mixed after tic `T` when
+`d < 315`, otherwise after tic `T+1`. The device [lib]: signed 16-bit stereo at 11,025 Hz with a period of 512 frames
+(`audio.rs:37`, `41`, `124-130`); maudio leaves `periods` at 0, which miniaudio turns into 3 (`MA:12201-12204`,
+`43674-43678`), and its fixed-size callback always asks for exactly 512 frames (`MA:43798-43836`, `20220-20290`). Per backend:
+under WASAPI shared mode the stream is opened at 11,025 Hz with Windows' engine doing the resampling and a requested buffer
+of 3 periods, 139.3 ms (`MA:23619-23624`, `23756-23759`, `23794-23808`, `23947-23948`); each chunk is pulled before it is
+written and the write waits for a period of room (`MA:20852-20879`, `24885-24960`). Under PulseAudio the stream is opened at
+11,025 Hz with `tlength` of 512 frames and `PA_STREAM_ADJUST_LATENCY` (`MA:31657-31666`, `32162-32167`), and a chunk is handed
+over in the callback that pulls it (`MA:31746-31845`); whether WSLg's RDP sink honours `tlength` is [unknown]. In the steady
+state the call to the pull is `315 + d + φ` frames, with `d` 0 to 511 and the callback's phase `φ` 0 to 511.
+
+| Link (doom-play) | min | max |
+| --- | --- | --- |
+| D1 schedule and two-buffer start: `315 + d` | 315 frames, 28.6 ms | 826 frames, 74.9 ms |
+| D2 the callback's phase at the queue's start: `φ` | 0 | 511 frames, 46.3 ms |
+| D3 WASAPI: a pulled chunk waits for a period of room | 512 frames, 46.4 ms | 512 frames, 46.4 ms (+ engine event granularity [unknown]) |
+| D3 PulseAudio: handed over at once | 0 | 0 |
+| **Sum to hand-over, PulseAudio (WSLg)** | **315 frames, 28.6 ms** | **1,337 frames, 121.3 ms** |
+| **Sum to hand-over, WASAPI (Windows)** | **827 frames, 75.0 ms** | **1,849 frames, 167.7 ms** |
+| D4 WASAPI: endpoint buffer ahead (2 periods) | 1,024 frames, 92.9 ms | 1,024 frames, 92.9 ms |
+| D4 PulseAudio: `tlength` ahead | 512 frames, 46.4 ms | 512 frames, 46.4 ms |
+| **Total to the end of the requested buffer, PulseAudio** | **827 frames, 75.0 ms** | **1,849 frames, 167.7 ms** |
+| **Total to the end of the requested buffer, WASAPI** | **1,851 frames, 167.9 ms** | **2,873 frames, 260.6 ms** |
+| Beyond: Windows' engine, driver and resampler; PulseAudio's RDP sink, the RDP audio channel, the Windows client's buffer | [unknown] | [unknown] |
+
+**Comparison.**
+
+| Basis | linuxdoom-1.10 (in-process build) | doom-play, PulseAudio (WSLg) | doom-play, WASAPI (Windows) |
+| --- | --- | --- | --- |
+| call to hand-over | above 0 to 46.4 ms (about 46.4) | 28.6 to 121.3 ms | 75.0 to 167.7 ms |
+| call to the end of the requested device buffer | above 0 to 92.9 ms (about 92.9) | 75.0 to 167.7 ms | 167.9 to 260.6 ms |
+| tic due to hand-over (secondary basis) | 46.4 to 92.9 ms | 28.6 to 121.3 ms (+ sleep lateness) | 75.0 to 167.7 ms (+ sleep lateness) |
+
+**doom-play does not sit inside the original's range.** Under PulseAudio the low end is inside it and the top is above it by
+825 frames, 74.8 ms, on both of the first two bases (28.4 ms on the third). Under WASAPI the whole range is above it: by 315
+frames (28.6 ms) at the low end and 1,337 frames (121.3 ms) at the top to the hand-over, and by 827 frames (75.0 ms) and
+1,849 frames (167.7 ms) to the end of the requested buffer. What accounts for it: the original has no queue between game
+and device (its waits are the blocking write and the second fragment, 512 frames each); doom-play adds a queue between a
+loop paced by tics and a callback paced by the device (D1, D2), and on Windows D3 and D4 add a further 46.4 ms and 46.4 ms.
+The largest single links: in the C, the blocking write and the fragment ahead (46.4 ms each); in doom-play on WASAPI, the
+endpoint buffer ahead (92.9 ms), then D1 (up to 74.9 ms); on PulseAudio, D1 and D2 (up to 46.3 ms).
+
+**The exact-model check.** A scratch script with exact fractions (`python3 -I`, not part of the repository; arithmetic, not a
+measurement) applied the same rules: threshold of 2 buffers, call to pull 316 to 1,332 frames (mean 825.2) over `φ` in steps of 7
+frames and 2,500 start tics, with no underrun; the analytic bounds are 315 and 1,337. The margin by which every buffer
+arrives before the callback needs it is at least 315 frames (28.6 ms) over every `φ` from 0 to 511 and 700 tics, and the
+deepest queue after a push is 1,536 frames, below the 2,048-frame cap. With a one-buffer threshold the margin is 0 and call to pull is 0 to 1,016 frames.
+
+**Finding: a comment in the code is off.** The comment at `crates/doom-play/src/audio.rs:193-196` gives the two-buffer start's
+worst-case margin as one whole buffer, 512 frames (46.4 ms), and the price as 46.4 ms more latency than one buffer. The
+arithmetic gives 315 frames (one tic, 28.6 ms) for both; 46.4 ms is the worst case for one session (it costs 0 or one
+512-frame callback, depending on `φ`). The comment's "92.9 ms queued at the start" is right. The comment is corrected in a
+separate commit; behaviour is unaffected.
+
+**Links that could be shortened later, with their costs. None is recommended: the owner ruled no change and the two-buffer
+start stays.** (1) Start threshold from two buffers to one: saves 315 frames on both ends; the margin falls to 0, so gaps are
+likely after every pause and early in every session. (2) A smaller period and callback (for example 128 frames): D2 shrinks
+by up to 34.8 ms, on WASAPI D3 and D4 by 34.8 and 69.7 ms if Windows grants it; four times as many callbacks, glitch risk
+(miniaudio notes it for buffers under about 20 ms through PipeWire, `MA:31885-31888`), and the two-buffer margin would be
+redone. (3) WASAPI with 2 periods instead of 3: saves one period (46.4 ms); less room against engine hiccups. (4) WASAPI at the
+mix rate with miniaudio resampling (permits IAudioClient3's low-latency mode, `MA:23884`): shrinks D3 and D4 to some tens
+of ms; the resampler becomes miniaudio's linear one, which may sound different; untried. (5) Latency control against clock
+drift: bounds growth of up to 46.4 ms, does not shorten the steady range; an audible skip each time it acts. (6) The
+declared schedule itself: part of the claim (T5) and the goldens, so a new schedule and new evidence, an owner decision.
+
+**Not known without measuring:** the WASAPI buffer Windows grants and its engine period; Windows' resampler delay and its
+engine and driver latency; PulseAudio's granted latency for WSLg's RDP sink, the server's resampler, the RDP audio channel and the Windows
+client's playback buffer; the device clock's drift against the monotonic clock (at 100 parts per million the queue moves by
+one buffer in about 7.7 minutes); how late the loop's sleep wakes; what an OSS driver would grant for the C's fragment
+request and how long the C's pass takes.
+
+**The owner's judgement, beside the arithmetic and not reconciled with it:** he noticed a delay on every sound, judged it
+normal for the original, and ruled that nothing changes. He judged by ear on one machine; the arithmetic says the Windows
+range lies above the original's. Latency is presentation, outside every claim.
+
+### Stuck fire on Windows: the investigation
+
+**The owner's report (2026-11-18):** on Windows, with the native artifact and `--bindings modern`, firing with the left mouse
+button while dragging the mouse leaves fire stuck on; once stuck, moving the mouse does not clear it and clicking while
+moving does not clear it; a click with the mouse held still does. Firing with right Ctrl never sticks.
+
+*What was found, what was changed or added, how to use any logging option, and whether sessions recorded with the fault are
+valid demos: to be written here when the investigation is finished.*
+
+### A first run of the final gates (stopped, superseded)
+
+**These are not the final gates.** The final gates are run on the final head after the owner's Windows retest. This is
+an interim record of a first run from a fresh clone at `937cf9d`, started 17:56 on 2026-11-18 and stopped by the
+orchestrator in two stops (at 21:44, then for good at 22:00) when the owner's bug report arrived and the final gates were
+deferred until his Windows retest. Debug information was off in the build profiles (output size only); the clone and logs were
+under the scratch directory on ext4; `/mnt/c` showed 27 GB free at every check.
+
+**What passed** (wall times of this machine): build 76 s; format of both workspaces; Clippy with warnings denied (26 s);
+`cargo test --workspace --locked` **1,866 passed, 0 failed, 4 ignored** (420 s); rustdoc with warnings denied; release
+`doom-sim` and `doom-types` **1,393 passed, 0 failed, 2 ignored** (190 s); release `doom-render`, `doom-sound`, `doom-game`
+and `doom-play` **440 passed, 0 failed** (125 s); Rust 1.85.0 workspace tests **1,866 passed, 0 failed, 4 ignored** with
+the one known dead-code warning (600 s); the reference suite and the original-C and encoder steps of the `Stable` job (67 of 67
+steps exit 0, 2,133 s, with `--jobs 2` after an out-of-memory kill at 6; `check_docs.py`: 146 Markdown files, 3,005 relative links,
+1,152 anchors, 20 exact archives); the M5a job (221 s), M5b job (322 s) and M5c job (564 s: 11 steps; mixer 741 starts and
+14,043 buffers over 64 session lists; wire 25 results match; 9 sessions identical); the M5a and M5b README animations
+identical to the committed ones; the synthetic local tools; the fuzz seed tools; and the real-map runs on a scratch IWAD copy:
+the mixer run (5 s), the 61-run row, frame and mixer check (821 s: 158,966 tics, 26,077 starts, 0 sound rows differ), the 61
+runs with genuine sound and frames (3,444 s) and wire 25 on the 61 runs (3,812 s: 159,027 tics, 26,077 starts, 0 sound
+disagreements). Leak detection was disabled in every address-variant run: not LeakSanitizer coverage.
+
+**What was running when it was stopped:** `m5b_real.py --check --screenblocks 10,11` on the 61 real runs, twice: 59 minutes
+and 18 result lines of 61 (first attempt), then about 15 minutes and 6 lines (second attempt, `--jobs 6`); the lines written were
+clean but neither reached a verdict, so it is not a pass.
+
+**What never started:** the whole fuzz phase (the build of all 60 fuzz targets, the seed replays and the ten bounded
+campaigns); the instruction-count check; `m5b_real.py` to a verdict; `m5b_session_real.py` on saved sessions; the M5c session
+check on a played demo (done afterwards, [above](#the-check-of-the-owners-12-session-files)); timing measurements;
+mutation testing; Windows and macOS; any audio device.
+
+**Slips and re-runs (none a product failure):** the orchestrator's stop at 21:44 on an instruction then withdrawn, and the
+resume at 21:45; the reference tools looking for the target inside the clone (re-run from the start of the phase with
+it there); an out-of-memory kill of one compile at `--jobs 6` (halved to 2 for that step and re-run); a `python` symlink to
+`python3` supplied from the fourth phase on.
+
 ## What a human still has to judge
 
-The owner will judge by ear, when he plays, the lag and crackle of the device queue (its two-buffer start was accepted on 2026-11-18 as
-presentation, unmeasured) and the start-up pause that a game under WSLg occasionally shows (it stays as it is).
+The owner has played the game once ([his observations](#the-owners-playtest-2026-11-18)): on Windows 11 and under WSLg he heard
+sound, noticed a delay on every sound and judged it normal for the original, and the two-buffer start (accepted on 2026-11-18 as
+presentation) stays. The start-up pause that a game under WSLg occasionally shows stays as it is; whether he met it was not reported.
+Still not judged by anyone: macOS, long sessions, every map, every weapon and monster, vanilla bindings, and whatever the stuck-fire fault leaves open on Windows.
 
-Nobody has heard any sound from this project: every audio trial wrote digital silence, the one real device open (the probe
-under WSLg) wrote silence only, and no game audio has reached any device. Nothing has run on Windows or macOS beyond CI
-builds and tests. The evidence above compares which sounds start, on which channel, with which volume, separation and
+Every audio trial before his playtest wrote digital silence, and the one real device open before it (the probe
+under WSLg) wrote silence only. Nothing has run on macOS beyond CI builds and tests. The evidence above compares which sounds start, on which channel, with which volume, separation and
 pitch, and the 16-bit samples the original mixer writes for them; it cannot say how any of it sounds, whether the
-synthetic or the real samples are pleasant, or whether a backend will play them without gaps. The owner has also
-not playtested M5b, so input, pacing and presentation are not to change on a guess about feel.
+synthetic or the real samples are pleasant, or whether a backend will play them without gaps.
 
 ## Still to come in this record
 
 The final
-gates from a clean clone (running at `937cf9d` when this was written; build, format, Clippy, workspace tests, release tests, rustdoc, the original-C generators and
+gates from a clean clone (a first run at `937cf9d` was stopped and is superseded; the final gates run on the final head after the owner's Windows retest; build, format, Clippy, workspace tests, release tests, rustdoc, the original-C generators and
 encoders with `--check`, the fuzz builds, Rust 1.85.0, and a bounded sanitizer campaign) the pull request's new body, the Windows artifact, and the CI record of the final head, which
 also covers `doom-play`'s sound code on Windows and macOS (not observed since `216f976`); a repeat of the fuzz campaigns on the
 changed targets (only seed replays without a sanitizer have been run since the review); the optional melt (not built). The
