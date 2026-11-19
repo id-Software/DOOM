@@ -1982,6 +1982,22 @@ regenerates it and compares it with the committed file (a local check, not part 
 generated test art on a synthetic room, not the game's, and the frames are identical to the genuine engine under
 the declared sound-free, wipe-free contract, not to a vanilla session.
 
+The sound picture (`docs/media/m5c-mixer-waveforms.svg`) and its audio (`docs/media/m5c-mixer-session.wav`) are
+generated the same way:
+
+```sh
+python3 tools/media/m5c_readme_visual.py [--work DIR] [--cargo-target DIR] [--binary FILE] [--check] [--selftest]
+```
+
+It runs the genuine mixer (linuxdoom-1.10 built with its in-process sound code, one define removed; the strict
+build of `m5c_mixer_build.py`) and the release example `m5c_mixer_raw` on the committed start list of the synthetic
+session SNDDIST (our own generated test sounds in `m5c_sfx.wad`, no IWAD) under the declared schedule. It refuses to
+draw unless the genuine rows equal the committed golden, and it stops on the first sample where the two streams
+differ; the differing-sample count in the picture comes from that comparison. `--check` regenerates the SVG and the
+WAV and compares them with the committed files byte for byte, `--selftest` plants four faults that must be caught,
+and the CI job `M5c genuine sound (not required)` runs both. Nothing is played. An MP4 is written only if `ffmpeg` is
+already installed, and it is never checked.
+
 ## M5a synthetic renderer rooms
 
 The M5a [reference investigation](M5A_REFERENCE_INVESTIGATION.md) (decisions R1-R16, §5) compares
