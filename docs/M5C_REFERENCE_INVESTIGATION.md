@@ -5897,6 +5897,19 @@ Later on 2026-11-18, after steps 3 to 13 were on the branch, the owner ruled on 
 
 The owner also ruled, the same day, on housekeeping: the original sources are marked as vendored in `.gitattributes`; commit subject lines are at most 72 characters from now on, with history never rewritten; the policy table lives in COMPATIBILITY behind one link and the README stays under 150 lines, with caveat counts as links to the evidence and no claim made stronger (commit `91b018c`).
 
+### The owner's playtest and rulings (2026-11-18, third set)
+
+On the evening of 2026-11-18 the owner played release builds of `3c1cc5d` and reported what follows. These are his observations, recorded as observed facts, and his rulings; where they differ from an earlier text they govern. (Two earlier wordings of the same message asked first for a fix of the sound delay and then for exit-line statistics; the last wording, recorded here, withdrew both: no code changes.)
+
+1. **Windows 11, the native artifact.** The window opens, E1M1 loads and plays at 35 frames a second on `hmp` and `uv`, the picture looks right, the mouse is captured and feels good with `--bindings modern`, and sound plays. The owner noticed a delay on every sound at first and then judged it normal for the original; nothing is to be changed for it.
+2. **WSLg, the same commit.** The window opens and sound plays through PulseAudio (device "RDP Sink"). The pointer is not captured and turning by mouse is unusable there, so WSLg is documented as keyboard-only. After the window went away the terminal showed only "X connection to :0 broken (explicit kill or server shutdown)" and none of `doom-play`'s own exit lines: whether the session is saved in that case is to be found out and documented as a limit; no behaviour changes.
+3. **Sound latency, measurement only.** The arithmetic is written out end to end for `doom-play` (schedule, queue, device) and for linuxdoom-1.10 from its source (the 512-frame mix and the two 2,048-byte fragments requested at `i_sound.c:775`), each as a range in milliseconds, with a plain statement of whether `doom-play` sits inside the original's range. The two-buffer start stays. No code change.
+4. **The owner's session files** in `/mnt/d/DoomSessions` are checked with `tools/local/m5c_session_real.py` and each verdict is reported.
+5. **What was not judged** is stated: macOS, long sessions, every map, every weapon and monster.
+6. README, COMPATIBILITY and the evidence record say what was observed, on which system, in place of "nobody has seen, heard or played it". Then come the final gates on the final head, the pull request body, and the pull request is marked ready.
+
+Also on 2026-11-18 the owner had the Codex model routing made to mirror Claude's, with efforts on both tools (AGENTS.md, commits `abc0ece` and `5e00229`).
+
 ### Scope and the reference
 
 **T1. Scope.** As the brief. In: the sound logic of `s_sound.c`, every call site a single-player Episode 1 level run reaches (54 of the 96 level-reachable sites, [§1.2](#12-every-call-that-starts-or-stops-a-sound)), the mixer of `i_sound.c`, the `M_Random` accounting of sound and of the level-start wipe, and audio output in `doom-play`. Out: music, menus and their sounds (including the menu hot keys that work during play, T14), the automap, intermission and level-to-level play, save and load, sound options screens, the external `sndserver` process, skills and modes M5b does not admit (so the nightmare respawn fog sounds), and everything S1 left out of M5b. (a)–(d) yes. **Recommendation: as stated.** **Confirmed by owner 2026-11-18.**
