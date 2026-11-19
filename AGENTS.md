@@ -159,9 +159,9 @@ Agent definitions live in `.claude/agents/` (Claude Code) and `.codex/agents/` (
 
 - Effort names do not mean the same across vendors, so the two columns are set per vendor
   guidance, not copied across.
-- Model names are as of 2026-11-18 and are checked with `/model` before a Codex handoff
-  (gpt-6.2-sol exists and may replace gpt-6.1-sol then). The owner confirmed on 2026-11-18
-  that gpt-6.1-sol offers Extra High (xhigh).
+- Model names are as of 2026-11-18 (gpt-6.2-sol and gpt-6.2-astra launched in Codex on
+  2026-11-17) and are checked with `/model` before a Codex handoff. The owner confirmed on
+  2026-11-18 that Sol offers Extra High.
 
 Rules:
 
