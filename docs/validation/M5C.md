@@ -1334,7 +1334,8 @@ baseline against 9,207 measured, **+9.52% against the threshold of 3.0%**. `mall
 `realloc` counts were equal to the baseline. The agent `fix-ir` reproduced it on 2026-11-18 with CI's own command (Rust 1.85.0,
 the release profile, no overrides; `cargo +1.85.0 build -p doom-sim --examples --release --locked`, then `ir --check`): the same
 nine results, `threshold 3.0%: FAILED` on that case only. Commits `d1f7b3f` (the status line) and `91b018c` (housekeeping) changed no
-code, so they carried the same failure; their runs were not read for this record.
+code and carried the same failure: at `d1f7b3f` the run failed on this job alone (the other eight jobs passed), and at `91b018c` this
+job had failed before the next push cancelled the run's three `Stable` jobs.
 
 **Cause.** A bisect on the one case: `6d02210` 8,407; `2d447f3` 8,407; `591c793` 9,207 (the first bad commit, a review fix of step 13);
 `d7104bf` and `3c1cc5d` 9,207; the `world_pickups.rs` hunk of `591c793` alone on `2d447f3` gives 9,207. That hunk (counting
@@ -1418,8 +1419,8 @@ unchanged, and `--check` passed. The step that runs `m5c_session.py --check --se
 At `3c1cc5d` the job **`Simulation instruction counts` failed** (case `M4a_corpse_continuation`, `memcpy_calls` +9.52% against
 3.0%); cause, fix and counts are in [the instruction-count check](#the-instruction-count-check). `d1f7b3f` (the status line) and
 `91b018c` (housekeeping: vendored-source attributes, the commit-subject rule, the README's 237 lines cut to 149 with its policy table
-moved to [COMPATIBILITY](../COMPATIBILITY.md#policies)) changed no code and so carried the same failure; their runs were not read for
-this record. **`a8abf0c` is the head with the fix** (`1b2ecc4` and `a8abf0c`); its run had not finished when this was written, so
+moved to [COMPATIBILITY](../COMPATIBILITY.md#policies)) changed no code and carried the same failure: the run on `d1f7b3f` failed on that job alone, and the run on `91b018c` was cancelled
+by the next push after that job had failed. **`a8abf0c` is the head with the fix** (`1b2ecc4` and `a8abf0c`); its run had not finished when this was written, so
 no result is recorded for it, for that job or any other.
 
 ## Findings

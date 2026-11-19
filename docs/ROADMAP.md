@@ -583,6 +583,9 @@ monster/player behavior. Further stages require separate owner direction.
   gap is recorded in
   [COMPATIBILITY](COMPATIBILITY.md#known-gap-thing-loading-stops-at-the-first-doom-ii-type-outside-commercial-mode);
   no Episode 1 map is affected. Wire 25 is part of the M5c pull request.
+- **CI follow-up (owner ruling, 2026-11-18): split or trim the `Stable / macos-latest` job.** It took 38 to 50 minutes on the
+  M5c heads; its limit was raised from 60 to 90 minutes in M5c as a stopgap. A later milestone splits the job or trims what
+  it repeats, without dropping a validation step or changing a required check's name.
 - Multiplayer and later experiments, after their source/game-context dependencies
   can be independently validated.
 
