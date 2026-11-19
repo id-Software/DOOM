@@ -3192,9 +3192,9 @@ invariants and are labelled Rust-only safety checks in the [evidence record](val
   `; K earlier session(s) of this run were labelled too` appended when a restart left earlier labelled sessions (a
   current session that is not labelled then reads `this session is not layout-dependent; ...`). A run with no labelled
   session prints no such line. **Nothing is drawn on the screen and the end screen is unchanged**, and the saved demo
-  holds no label (a replay recomputes it). Putting the label only in the exit line is the orchestrator's decision, taken
-  when a review found that the label reached no `doom-play` output at all; **the owner may change it** (for example to
-  an on-screen mark like the one for an unrecorded session). No committed input makes the detector fire inside a played
+  holds no label (a replay recomputes it). The exit line alone is enough: **the owner confirmed on 2026-11-18** that nothing is
+  drawn on the screen. The headless session check (`tools/reference/m5c_session.py`) and `tools/local/m5c_session_real.py`
+  print the same label beside each part's verdict. No committed input makes the detector fire inside a played
   session, so a real window session has never produced this line; the exact text is tested by feeding a session whose
   detector fires at tic 1.
   **Layout-dependent sessions counted so far: 0.** The detector fired 0 times over the 64 synthetic items, the 9 scripted
@@ -3309,26 +3309,25 @@ player's volume and mute, and the device itself. Of these the app's code is Rust
   threshold the margin falls to nothing at every k that is a multiple of 315 (every 14.6 s) and ordinary sleep jitter gives an
   underrun (a gap); two buffers keep one whole buffer in hand, for 46.4 ms more latency. (An earlier version of this page, and
   the first implementation, started at one buffer; a review of the device code found the margin.) `doom-play --audio-probe` writes about one second of silence to check the
-  device.
+  device. **The owner accepted the two-buffer start on 2026-11-18 as presentation, unmeasured; he will judge lag and
+  crackle by ear.**
 - **No music, no menus.** The menu hot keys are not modelled (see the glance above).
 - **When the sound session refuses a tic** (a typed refusal: for example a PWAD's sound lump of 8 bytes or fewer, decision
-  T11), the app stops on its refusal screen, which names the witness and the tic. **Sound and display are exactly as
-  they were before the tic, and the simulation's tic is not rolled back**, as under M5b's rule for frame refusals
-  (decision S9): the committed tic stays, its command stays in the demo, and replaying the demo ends at the same refusal.
-  A display refusal after the simulation committed is the same. Rolling the simulation back too would need a staged
+  T11), the app stops on its refusal screen, which names the witness and the tic. **When the sound session or the display
+  refuses a tic, the simulation's tic stays committed and its command stays in the demo, sound and display stay at the last
+  good tic, and the demo replays to the same refusal (as under M5b's rule S9 for frame refusals; confirmed by the owner,
+  2026-11-18).** A future save must never combine a simulation at tic N with sound or display at tic N-1. Rolling the simulation back too would need a staged
   advance in `doom-sim` that does not exist, and a full-simulation clone per tic is not allowed. The refusal screen
   shows the witness as a plain sentence (for example `sound: tic 18, sound call 0: mixer: refused: sfx 1 has no sample
-  byte at its start (i_sound.c:230-247, 591)`), not as debug text. **For the owner to confirm:** this applies M5b's rule
-  S9 ("saved up to the last good tic") to sound refusals by reading "the last good tic" as the last tic the simulation
-  committed. What a person sees is that the refused tic stays in the demo, the replay refuses at the same tic, and the
-  genuine engine would have played that tic (for a short lump it reads past the block, for a missing lump it calls
-  `I_Error`). This is the same reading M5b applied to frame refusals, so it is consistent with shipped M5b code, but sound
-  adds a new class of refusal and the owner has not been asked about it.
+  byte at its start (i_sound.c:230-247, 591)`), not as debug text. What a person sees is that the refused tic stays in the
+  demo and the replay refuses at the same tic; the genuine engine would have played that tic (for a short lump it reads past
+  the block, for a missing lump it calls `I_Error`).
 - **Under WSLg the game occasionally opens already paused.** The window can report a focus loss in its first moments,
   and the M5b focus-loss rule pauses the game (the same cause and effect as M5b's pause, [above](#platform-limits)). The
   PAUSED box shows, the mouse is released, and **Esc or Pause resumes**. It was seen in 3 of 260 runs in the
   diagnosis and in 5 of 49 in an earlier set, with the M5b build too (the sound work is not involved:
   [record](validation/M5C.md#step-7-sound-in-doom-play)). Nobody has pressed a key in such a window.
+  **The owner agreed on 2026-11-18 that the start-up pause stays as it is; he will judge it when he plays.**
 
 ## Known gap: THING loading stops at the first Doom II type outside commercial mode
 

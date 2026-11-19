@@ -411,8 +411,8 @@ buffer if one is due); (3) the **status bar and HUD tickers** (`Display::observe
 then `ST_Ticker`'s one); (4) the **frame** (`Display::draw`), and, on the level's first frame, the **wipe's 320 draws**;
 (5) the session and the display are committed together; the buffer, if any, goes to the audio sink; then the host's step.
 A sound or display refusal leaves both exactly as before the tic. The simulation's committed tic is **not** rolled back (no
-per-tic clone; M5b's rule S9 for frame refusals), so the demo keeps the tic and replays to the same refusal; whether that
-reading of S9 is right for sound refusals is for the owner to confirm. Besides the sound logic's own refusals, two checks sit in
+per-tic clone; M5b's rule S9 for frame refusals), so the demo keeps the tic and replays to the same refusal (the owner confirmed
+this reading on 2026-11-18; [COMPATIBILITY](COMPATIBILITY.md#the-app-with-sound-and-what-is-presentation) has the rule). Besides the sound logic's own refusals, two checks sit in
 this sequence: the session refuses a start with the wrong placement (`SoundRefusal::Placement`) and a tic whose draw count leaves
 16 bits (`SessionRefusal::DrawCount`) before it commits, and the frame source refuses a tic in which the display's advanced
 `M_Random` index and the session's returned one differ (`FrameRefusal::SoundIndex`) ([list](COMPATIBILITY.md#what-the-sound-code-refuses)).

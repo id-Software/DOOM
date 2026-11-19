@@ -2655,7 +2655,7 @@ What differs in meaning is `rndindex`: under this contract it is the index after
 in a tic, which are the sound session's draws, `ST_Ticker`'s one draw and, once, the level-start wipe's 320 draws after
 the frame of tic 0 (the order is in [COMPATIBILITY](COMPATIBILITY.md#the-display-contract-with-sound-m5c); the byte
 itself is any value 0..=255). The sound session's own state is separate ([`DSND`](#sound-session-state-dsnd-version-1-m5c));
-the app saves nothing, and tests save the two next to each other.
+the app saves nothing, and tests save the two next to each other. A future save must hold the simulation, the sound state and the display state of the same tic, never a simulation at tic N with sound or display at tic N-1 ([COMPATIBILITY](COMPATIBILITY.md#the-app-with-sound-and-what-is-presentation)).
 
 **The wipe flag's rule (version 2 only).** The flag the state already carries (bit 1 of the display flags byte) moves the index by 320 draws at the next frame under this contract, so a state must hold a value the original
 could hold at its tic. The wipe is due once, before the first `D_Display` (`wipegamestate` starts as `GS_DEMOSCREEN`,

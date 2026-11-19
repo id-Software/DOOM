@@ -564,16 +564,22 @@ monster/player behavior. Further stages require separate owner direction.
     2 unreachable) and an independent check agreed ([step 10](validation/M5C.md#step-10-mutation-testing)); a local verifier for
     `doom-play` sessions with sound exists (not in CI). One check failed on the branch: `Simulation instruction counts` at
     `3c1cc5d`, a code-generation effect of a review fix on one case; a code-only fix is on the branch (instruction counts end up
-    0.01 to 0.34 percentage points higher in all nine cases, inside the threshold; the baseline is unchanged, and updating it
-    instead is the owner's choice, [record](validation/M5C.md#the-instruction-count-check)). **Not done:** the mutation run on the
-    final head (started, not finished), the final gates from a clean tree and CI on the final head (including whether the fix
-    turns the instruction-count job green); the optional melt is not built. **Unobserved:** nobody has
+    0.01 to 0.34 percentage points higher in all nine cases, inside the threshold; the baseline is unchanged). **The job is green
+    at `a8abf0c`, with all nine jobs of that run**, and the owner accepted the fix on 2026-11-18, which changed one call-site line of
+    an existing test and no assertion, on the condition that every frozen wire's goldens pass in CI on that head, which they did
+    ([record](validation/M5C.md#the-instruction-count-check)). The README gains a sound visual (waveforms of the genuine and Rust
+    mixers for one synthetic session, 0 of 30,720 samples differing; [record](validation/M5C.md#the-sound-visual-and-the-session-checks-label)).
+    **Not done:** the final mutation run (one on `a8abf0c` had not finished when this was written), the final gates from a clean
+    tree and CI on the final head; the optional melt is not built. **Unobserved:** nobody has
     heard any sound, and no game audio has reached any device (the one real device open was a second of digital silence);
-    nothing has run on Windows or macOS beyond CI builds and tests. Open for the owner: a game under WSLg occasionally
-    opens already paused (a start-up focus event, an M5b behaviour, not sound), the simulation's tic is not rolled back
-    when sound or display refuses (and whether M5b's rule S9 reads that way for sound refusals), the layout-dependent label
-    appearing only in `doom-play`'s exit line, the uncompared listener columns of starts with no position, and the macOS job's
-    time against its limit. Support is in [COMPATIBILITY](COMPATIBILITY.md#sound-effects-m5c). See the
+    nothing has run on Windows or macOS beyond CI builds and tests. Nobody has listened to the visual's WAV file, the SVG was not rendered on
+    the development machine, and no MP4 was written (ffmpeg is not installed, so that code path has never run). **Owner rulings
+    of 2026-11-18 (second set):** a game under WSLg that occasionally opens already paused stays as it is, and the owner will judge it
+    when he plays; when sound or display refuses a tic the simulation's tic stays committed and its command stays in the demo while
+    sound and display stay at the last good tic (a future save must never combine a simulation at tic N with sound or display at
+    tic N-1); the layout-dependent label in `doom-play`'s exit line is enough, with nothing drawn on screen; the device queue's two-buffer
+    start is accepted as presentation, unmeasured, and the owner will judge lag and crackle by ear; the macOS job's limit is 90
+    minutes (the follow-up is below). Support is in [COMPATIBILITY](COMPATIBILITY.md#sound-effects-m5c). See the
     [investigation note](M5C_REFERENCE_INVESTIGATION.md) and its
     [owner decisions](M5C_REFERENCE_INVESTIGATION.md#5-owner-decisions-t1t16-with-recommendations).
 - **Simulation follow-up (decided: the THING-loading truncation is closed under wire 25 only).** `P_LoadThings` ends the
