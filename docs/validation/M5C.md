@@ -19,8 +19,7 @@ check and its code-only fix, step 11 parts 1 and 2 (the fuzz targets, including 
 the owner's second set of rulings of 2026-11-18, the CI record of `a8abf0c`, the instruction-count fix's one changed test line,
 and the README sound visual with the layout label of the session check.
 **Added on 2026-11-18 after the owner's playtest** ([below](#the-owners-playtest-2026-11-18)): what he observed on Windows 11 and under WSLg, the check of his 12 session files, the sound-latency arithmetic, the lost-display-connection investigation, a place for the stuck-fire fault, and a first run of the final gates that was stopped and is superseded.
-**Not done and not recorded here:** the final gates from a clean clone (a first run at `937cf9d` was stopped and is superseded: [below](#a-first-run-of-the-final-gates-stopped-superseded)),
-the pull request's new body, the Windows artifact rebuilt on the final head, and CI on the final head. With steps 5 to 7 on the branch **the
+**Added on 2026-11-19:** the owner's Windows retest with the input log and the cause of the stuck-fire fault ([below](#the-owners-windows-retest-with-the-input-log-2026-11-19)), and **the final gates from a clean clone** ([Step 14](#step-14-final-gates-from-clean): all seven phases at `a15e0dc`, every gate passed; the first run at `937cf9d` was stopped and is superseded). **Not recorded here:** the pull request's new body, the Windows artifact rebuilt on the final head and CI on the final head, which are GitHub's record. With steps 5 to 7 on the branch **the
 face's idle glance gap (S15) is closed** under the owner's wording
 ([COMPATIBILITY](../COMPATIBILITY.md#the-status-bar-faces-idle-glance-is-closed-with-sound-decision-s15-t14)).
 
@@ -69,7 +68,8 @@ compiled; seed replay; a coverage-guided campaign; a sanitizer campaign.
 | The owner's playtest of 2026-11-18, the check of his 12 session files, the latency arithmetic, the lost display connection, the stuck-fire fault | Recorded ([below](#the-owners-playtest-2026-11-18)) |
 | The owner's Windows retest with the input log (2026-11-19): the cause of the stuck fire, the proposed fix | Recorded ([below](#the-owners-windows-retest-with-the-input-log-2026-11-19)): three releases never reached doom-play (Left 18/15); not fixed in M5c, by the owner's ruling |
 | A first run of the final gates (stopped, superseded) | Recorded ([below](#a-first-run-of-the-final-gates-stopped-superseded)); not the final gates |
-| The final gates from a clean clone, the pull request's new body, the Windows artifact on the final head, CI on the final head | Not done; not recorded here (the retest is done; they run on the final head) |
+| Step 14: the final gates from a clean clone | Recorded ([below](#step-14-final-gates-from-clean)): all seven phases ran at `a15e0dc` on 2026-11-19 and every gate passed |
+| The pull request's new body, the Windows artifact on the final head, CI on the final head | Not recorded here: they are GitHub's record (the pull request and its runs) |
 
 No IWAD was read in step 1 except by `tools/local/m5c_real.py`, in step 2 except by `tools/local/m5c_mixer_real.py`,
 and in step 3 except by `tools/local/m5c_wire25_real.py`. Each read a scratch copy outside the repository; only counts,
@@ -2111,6 +2111,8 @@ points (M1 to M3, above).
 
 ### A first run of the final gates (stopped, superseded)
 
+*The final gates are recorded in [Step 14](#step-14-final-gates-from-clean); this subsection is the first run, which was stopped and is superseded.*
+
 **These are not the final gates.** The final gates are run on the final head after the owner's Windows retest. This is
 an interim record of a first run from a fresh clone at `937cf9d`, started 17:56 on 2026-11-18 and stopped by the
 orchestrator in two stops (at 21:44, then for good at 22:00) when the owner's bug report arrived and the final gates were
@@ -2144,6 +2146,307 @@ resume at 21:45; the reference tools looking for the target inside the clone (re
 it there); an out-of-memory kill of one compile at `--jobs 6` (halved to 2 for that step and re-run); a `python` symlink to
 `python3` supplied from the fourth phase on.
 
+## Step 14: final gates from clean
+
+All seven phases ran to their end at `a15e0dcdd3d051b3ee0eb5857117259c7ecb647c`, and **every gate passed**. Everything below was
+observed; nothing is claimed beyond it.
+
+### Conditions
+
+- **When and where.** 2026-11-19, 09:05 to 14:50 PST (America/Los_Angeles; `date` checked), one agent. A fresh `git clone` of the
+  repository at `~/scratch/m5c/gates2/DOOM` (ext4, never `/mnt/*`), checked out with
+  `git checkout --detach a15e0dcdd3d051b3ee0eb5857117259c7ecb647c`. `git rev-parse HEAD` was equal and `git status --short` empty at
+  every check: after phases 1, 2, 3, 4b, 4a/5/extras, the fuzz build, phase 6, and once more after phase 7, before the cleanup.
+- **Tools.** `rustc 1.100.0 (0ef1bc386 2026-11-09)`, `cargo 1.100.0 (3acc79c0c 2026-11-05)`; `cargo 1.85.0 (d73d2caf9 2024-12-31)` for
+  `cargo +1.85.0`; `cargo 1.101.0-nightly (31d3246e0 2026-10-27)` with cargo-fuzz 0.13.2 for the fuzz builds; `gcc (Ubuntu
+  15.2.0-16ubuntu1) 15.2.0`; Python 3.14.4 with PyYAML 6.0.3; valgrind 3.26.0.
+- **Host.** 12 threads, 7.8 GB memory, WSL2, Linux 6.18.58.1. The 2 GB swap was full throughout; available memory stayed between
+  about 5.0 and 5.5 GB. Wall times are of this machine, not of a CI runner.
+- **Build profiles.**
+  - Phases 1 to 5 and 7 built with debug information off (`CARGO_PROFILE_DEV_DEBUG=0 CARGO_PROFILE_TEST_DEBUG=0
+    CARGO_PROFILE_RELEASE_DEBUG=0`). This changes no test's behaviour, only the size of the output; CI builds with the default profiles.
+  - Phase 4b ran with those three variables unset, as CI runs it. The workspace has no `[profile.release]`, so the release profile was
+    the default either way.
+  - The fuzz builds report `optimized + debuginfo`: cargo-fuzz's own setting, not overridden.
+  - `TMPDIR` was on ext4 (`gates2/tmp`). From phase 4 on, a `python` symlink to `python3` was on `PATH`: the host has no `python`, and
+    the workflow's `check_*.py` and docs steps call it.
+- **In-use limit.** The owner had not said the machine was idle, so the run kept to at most 2 C reference jobs at any moment, cargo
+  builds of at most 4 jobs (`CARGO_BUILD_JOBS=4`), and one fuzz process at a time. In practice:
+  - every `--jobs 4` in the workflow steps became `--jobs 2`;
+  - the three M5b steps that give no `--jobs` in CI (`m5b_input_reference.py`, default 4; `m5b_session.py`, default 3;
+    `m5b_inject.py`, default 3) were given `--jobs 2`;
+  - the extras and the phase-7 tools ran with `--jobs 2`;
+  - `m5c_mixer_real.py` has a fixed pool of 6 workers and no `--jobs` option, so it ran under `taskset -c 0,1` (two CPUs; 8 s);
+  - the instruction-count check ran with `--jobs 2` (CI uses 4; Callgrind counts do not depend on it).
+
+  The exact text each workflow step ran is the first lines of its log.
+- **Overlap.** Phases 1, 2, 3, 4b and 4a/5/extras ran one after another, each alone, and the fuzz build ran alone. Phase 6's replays and
+  campaigns (10:42 to 11:33) then ran beside phase 7 (10:42 to 14:46), as the brief allows. No process was killed for memory: the
+  kernel log's only out-of-memory line is from the first run on 2026-11-18.
+- **Load.** `doom-play` was not running at any check (09:08, 09:17, 09:23, 09:33, 09:35, 10:39, 10:42). One-minute load average at the
+  phase starts: 0.16 (phase 1), 1.09 (2), 2.12 (3), 0.82 (4b), 2.22 (4a), 1.13 (fuzz build). The orchestrator ran nothing else heavy.
+- **Real data.** Phase 7 used scratch copies of DOOM.WAD and DOOM2.WAD (SHA-256 equal to the read-only sources in `/mnt/d/DoomIWADs`)
+  and scratch copies of the owner's 13 session demos (SHA-256 equal to the originals in `/mnt/d/DoomSessions`, which was only read).
+  Nothing derived from them is recorded beyond counts, verdicts and digests; the copies are deleted.
+- **Leak detection.** Every address-sanitized genuine run (phases 4a, 5 and 7) used `ASAN_OPTIONS=detect_leaks=0`. Leak detection is
+  disabled there, so those runs are **not LeakSanitizer coverage**. The fuzz replays and AddressSanitizer campaigns of phase 6 ran with
+  leak detection on.
+
+### Disk (`df -h /mnt/c`; floor 20 GB, stop under 22 GB)
+
+| Point | `/mnt/c` free | Build output |
+| --- | ---: | --- |
+| Start (09:08) | 27 GB | none |
+| After phase 1 | 28 GB | target 3.7 GB, deleted |
+| After phase 2 | 27 GB | target 843 MB, deleted |
+| After phase 3 | 27 GB | target 3.1 GB, deleted |
+| After phase 4b | 27 GB | `target-ir` 283 MB, deleted |
+| After 4a, 5 and extras | 27 GB | shared target 1.7 GB, kept for phase 7; `tmp` 4.4 GB, deleted |
+| After the fuzz build | 27 GB | `fuzz-asan` 2.8 GB and `fuzz-none` 424 MB, beside the 1.7 GB target |
+| After phase 6 (12:29) | 27 GB | `fuzz-asan` and `fuzz-none` deleted; `du -sh gates2` 2.5 GB |
+| End (14:50) | 27 GB | IWAD copies (26 MB), the clone's target (1.7 GB), `tmp` (8.5 MB) and the session copies deleted; `du -sh gates2` 730 MB (clone sources 645 MB, logs 3.2 MB, `fuzzwork` 82 MB, scripts) |
+
+### Gates, phases 1 to 5 and extras (all passed)
+
+| # | Gate | Command (from the clone root) | Result | Wall time |
+| --- | --- | --- | --- | ---: |
+| 1a | Build | `cargo build --workspace --all-targets --locked` | passed, 0 warnings | 94 s |
+| 1b | Format | `cargo fmt --all -- --check` and `cargo fmt --manifest-path fuzz/Cargo.toml --all -- --check` | both passed | 4 s, 4 s |
+| 1c | Clippy | `cargo clippy --workspace --all-targets --locked -- -D warnings` | passed, 0 warnings | 26 s |
+| 1d | Tests | `cargo test --workspace --locked` | **1,876 passed, 0 failed, 4 ignored** (135 result lines) | 415 s |
+| 1e | Rustdoc | `RUSTDOCFLAGS="-D warnings" cargo doc --workspace --no-deps --locked` | passed, 0 warnings (warm after the build) | 7 s |
+| 2a | Release simulation and types | `cargo test -p doom-sim -p doom-types --release --locked` | **1,393 passed, 0 failed, 2 ignored** (83 result lines) | 206 s |
+| 2b | Release renderer, sound, game, app | `cargo test -p doom-render -p doom-sound -p doom-game -p doom-play --release --locked` | **450 passed, 0 failed, 0 ignored** (40 result lines) | 129 s |
+| 3 | Rust 1.85.0 | `cargo +1.85.0 test --workspace --locked` | **1,876 passed, 0 failed, 4 ignored**; one warning, the known dead-code `MAX_LINKED_THINGS` in `doom-sim` (lib and lib test) | 594 s |
+| 4b | Instruction counts (job `Simulation instruction counts`) | `cargo +1.85.0 build -p doom-sim --examples --release --locked` into its own target `gates2/target-ir`, no profile overrides; then `python3 -I tools/bench_advance.py ir --check --jobs 2 --json-out ...` | **`threshold 3.0%: ok`** on 9 workloads; largest increase BVB1_wire24 Ir +0.92%; `malloc` and `realloc` counts equal to the baseline on all 9; `M4a_corpse_continuation` `memcpy` 8,407, equal to the baseline. Nothing else of this run was running | 68 s + 21 s |
+| 4a | Stable job: reference suite, original-C and encoder steps | the Linux, non-Rust-gate steps of job `stable` in `.github/workflows/rust.yml`, from "Reproduce isolated reference vectors" to "Documentation links and archive integrity", extracted in order by `runsteps.py` and run each under `bash -eo pipefail`; the three steps gated `runner.os != 'Linux'` were skipped, as on CI's Linux leg | **64 of 64 steps exit 0**. Suite: "Passed 65 unchanged historical source/encoder commands with 2 worker(s)". `evidence_storage.py verify-git` passed (19 trace identities, 6,342 protected paths). The debug/release equality step (22 `check_*.py` commands) passed. The seven measurement smokes passed. `check_docs.py`: 146 Markdown files, 3,065 relative links, 1,209 anchors, 20 exact archives | 2,064 s |
+| 5a | Job `M5a genuine renderer` | `m5a_gfx.py --check`, `m5a_check_gfx.py`, `m5a_wad.py --check`, `m5a_build.py --check`, `m5a_tables.py --check`; then `ASAN_OPTIONS=detect_leaks=0 m5a_reference.py --check --pngs --selftest --jobs 2` (**leak detection disabled** in the address variant) | all passed. 26 rooms; 48 items, 192 golden files and `m5a_results.json` match; 35 PNGs; frames per configuration 13,391 / 13,391 / 13,403; the planted pixel found at its tic and place | 207 s |
+| 5b | Job `M5b genuine status bar, HUD and input` | 6 generators with `--check`; `m5b_reference.py --check --pngs --selftest --jobs 2`; `m5b_input_reference.py`, `m5b_session.py` and `m5b_inject.py`, each `--check --selftest --jobs 2`; all with `ASAN_OPTIONS=detect_leaks=0` (**disabled**) | all passed. 59 items, 118 golden files, 21,176 frames per size at screenblocks 10 and 11. 251 input scripts, overflow and address identical to strict on 251 of 251, 251 goldens (36,453 tics). 4 sessions identical. 6 injected scripts and goldens identical. Every self-test fault found | 464 s |
+| 5c | Job `M5c genuine sound (not required)` | all 11 steps: the three `cargo +stable build` steps; `m5c_reference.py`, `m5c_mixer_reference.py` and `m5c_session.py` with `--check --selftest --jobs 2` and `ASAN_OPTIONS=detect_leaks=0` (**disabled**); `m5c_rust_check.py`; `m5c_wire25_check.py --check --selftest --jobs 2`; `m5c_t4.py --check`; `m5c_readme_visual.py --check --selftest` | all passed. Sound PWADs, their verifier and its self-test; sounds table `--check`, self-test 8 of 8; every start list matches its stream. 64 items, 192 golden files, `m5c_results.json` and `m5c_coverage.json` match. Mixer: 64 session lists and goldens (741 starts, 14,043 buffers) and the results match. Wire-24 room check: 5 scripts, 1,599 tics, all match. Wire 25: 64 of 64 items matching, 22,976 tics, 785 starts (404 placed), 378 stops, 75 self-test checks, results match. T4: wire 25 matches on 93 tics with 0 sound disagreements; wire 24 diverges at tic 0 (`rng.gameplay`) as recorded; 3 files and the results match. 9 sessions identical, self-test faults found. README sound visual: SVG 76,450 bytes and WAV 184,364 bytes identical to the committed files, 0 of 30,720 samples differ, a changed genuine byte refused (the MP4 is not checked) | 945 s |
+| 5x | Docs | `python3 tools/check_docs.py` | passed (same figures as in 4a) | 4 s |
+| x1 | M5a and M5b README animations | `m5a_readme_visual.py --check` and `m5b_readme_visual.py --check` (`--work` under `gates2/tmp`, `--cargo-target` the clone's target) | both identical to the regenerated animation: 64 frames at 968x298, every frame pair byte-identical; 155 frames, 0 differing pixels, 0 palette mismatches | 10 s, 27 s |
+| x2 | Synthetic local tools | `cargo build -p doom-game --release --locked --example m5c_real_rows` (already built, 0 s); `m5c_real_full.py --synthetic --selftest --jobs 2`; `m5c_session_real.py --synthetic --jobs 2` | real_full: 63 items, every compared row equal, mixer 63 of 63 equal (741 starts, 13,489 buffers), detector firings 0, planted faults caught. session_real: `SELF-CHECK: PASS`, 2 synthetic demos passed, 3 of 3 planted faults failed at their place | 24 s, 26 s |
+| x3 | Fuzz seed tools | `seed_sound_fuzz.py --check` and `--self-test`; `seed_display_state_v2_fuzz.py --check` and `--self-test` | lumps 22, mixer 180, logic 144, state 152 seeds; 379 v2 seeds, 0 problems; 3 of 3 faults detected by each self-test | about 1 s |
+
+### Runner processes that end on a signal
+
+**What the kernel logged during phase 5.** `dmesg` holds 61 lines of the form `crunner: potentially unexpected fatal signal` dated
+10:10:48 to 10:23:16 on 2026-11-19 (boot-relative stamps converted with `/proc/uptime`; the lines from the first run on 2026-11-18 are
+left out). By window:
+- 17 while `m5a_reference.py` ran: all signal 6, abort;
+- 14 while `m5b_reference.py` ran: 13 of signal 6 and 1 of signal 11;
+- 30 while `m5c_reference.py` ran: 29 of signal 6 and 1 of signal 11.
+
+All three tools reported every check passed.
+
+**Established by reading.**
+- **I_Error is an abort in every runner.** The runners' I_Error stub writes the message to the frame stream (E row) through
+  `stub_error_hook` and then calls `abort()` (`tools/reference/m5a_stubs.c:63-76`; `m5c_stubs.c:82-94`; the M5b stubs share the M5a
+  text). The item meant to end this way is M5VPLAN, with "R_FindPlane: no more visplanes", in every variant.
+- **Two items end with a limit witness (decision R3).** For M5OPEN (OpeningOverflow) and M5SSEG (SolidSegOverflow) the driver writes an
+  O row as soon as the genuine code writes past a renderer array (`m5a_driver.c:304-316`) and stops after that frame
+  (`m5a_driver.c:1071`). The frame "may still end in I_Error" (`m5a_driver.c:306`), and what follows the overwrite "depends on the
+  overwritten memory" (`m5a_reference.py:157-160`; `m5c_reference.py:468`).
+- **The tools read every ending from the streams, never from the exit status.** The order is the O row, then the sanitizer report, then
+  the E row, then the summary line, else `abnormal:<code>` (`m5a_reference.py:157-164`, `m5b_reference.py:184`,
+  `m5c_reference.py:366-373`). The committed results name no signal ending.
+- **When an unexpected signal fails the check, and when it does not.** On a marker, exit or reborn run, a signal would remove the
+  `summary:` line, change the ending and fail `--check`. After an O row or an E row, how the process ends is not compared.
+
+**Expected from the tools' loops: 17, 14 and 30 runs that reach M5VPLAN's I_Error or M5OPEN's witness.**
+- **M5a, 17:** M5VPLAN 3 screen sizes × 3 variants; M5OPEN 3 sizes × strict and overflow; and one `--pngs` run of each.
+- **M5b, 14:** M5VPLAN 2 sizes × (3 variants and `again`); M5OPEN 2 sizes × (strict, overflow and `again`).
+- **M5c, 30:** M5VPLAN 2 sizes × 8 runs (`fork`, 3 variants, `again`, 3 alternates); M5OPEN the same less the address variant.
+
+The address-variant witness runs end through AddressSanitizer's report and exit. The tools set only `ASAN_OPTIONS=detect_leaks=0`.
+
+**Confirmation run after phase 7** (one C job at a time; scratch builds of the strict M5a runner and the strict and overflow M5b runners,
+built with `m5a_build.py`/`m5b_build.py --variant ... --out` under `gates2/tmp` and deleted with it; logs `gates2/logs/confirm_*`):
+
+| Runner and item | Runs | Ending row | Process end |
+| --- | ---: | --- | --- |
+| M5a strict, M5VPLAN, screenblocks 10 and 11 | 2 | E row "R_FindPlane: no more visplanes", no summary | 2 × status 134 (SIGABRT) |
+| M5a strict, M5OPEN, screenblocks 10 and 11 | 2, then 20 per size | O row at tic 40, then an E row "R_DrawPlanes: opening overflow (N)" with N varying | 42 of 42 SIGABRT |
+| M5a strict, M5SSEG, screenblocks 10 and 11 | 2 | O row at tic 15, `summary: ... end=refused` | 2 × exit 0 |
+| M5b strict, M5OPEN, screenblocks 10 and 11 | 10 per size | O row in every run; E row in the aborting runs only | 15 SIGABRT, 5 SIGSEGV (status 139, no E row) |
+| M5b overflow, M5OPEN, screenblocks 10 and 11 | 10 per size | as above; no UBSan report in any run | 18 SIGABRT, 2 SIGSEGV |
+| M5b strict and overflow, M5SSEG, screenblocks 10 and 11 | 4 | O row, `end=refused` | 4 × exit 0 |
+
+The tools would read every one of these runs as M5VPLAN `error:R_FindPlane: no more visplanes`, M5OPEN `refused:OpeningOverflow` and
+M5SSEG `refused:SolidSegOverflow`, the committed endings.
+
+**Now shown.**
+- M5VPLAN's runs end by abort after their E row.
+- M5SSEG's runs exit 0.
+- M5OPEN's runs end after the witness either by the I_Error abort or by a fault (signal 11), varying from run to run: 0 of 42 faults
+  with the M5a runner, 7 of 40 with the M5b runner. So the two signal-11 lines of phase 5 fit M5OPEN runs, and no other item is needed
+  to explain them.
+
+**Not shown.**
+- **The kernel's count is a lower bound.** It is rate-limited (`/proc/sys/kernel/printk_ratelimit` 5 s, burst 10): the confirmation's 84
+  signal endings produced only 7 new kernel lines. So "61 of 61" is a lower bound that agrees with the expected count, not a proof that
+  exactly 61 runs ended on a signal.
+- The M5c runner was not re-run for this. Its M5OPEN runs are inferred to behave like the M5b runner's (the M5c runner is a fork of it).
+- The fault after the overwrite was not traced to a line: it is the genuine code running on with memory the C does not own.
+
+### Phase 6: fuzz
+
+**Targets counted.** `ls fuzz/fuzz_targets/*.rs | wc -l` gives 60 and `grep -c '^\[\[bin\]\]' fuzz/Cargo.toml` gives 60. The
+address build produced 60 executables (`find .../release -maxdepth 1 -type f -executable | wc -l`).
+
+**Builds** (from the clone root, `CARGO_BUILD_JOBS=4`, target directories outside the clone; run alone, before phase 7):
+
+| Build | Command | Result | Wall |
+| --- | --- | --- | ---: |
+| All targets, AddressSanitizer | `cargo +nightly fuzz build --sanitizer address --target-dir ~/scratch/m5c/gates2/fuzz-asan` | **60 of 60 built**, 0 warnings | 132 s |
+| M5c targets, no sanitizer | `cargo +nightly fuzz build --sanitizer none --target-dir ~/scratch/m5c/gates2/fuzz-none T` for T = `sound_lumps`, `sound_mixer`, `sound_logic`, `sound_state`, `render_display_state_v2` | 5 of 5 built, 0 warnings | 50 s, then about 1 s each |
+
+**Seeds.** The M5b targets used their committed corpora, copied out of the clone: `fuzz/corpus/game_input_events` (5 files) and
+`fuzz/corpus/render_display_state` (7 files). The M5c seeds were written fresh by the committed seed tools into `gates2/fuzzwork/seeds`:
+`seed_sound_fuzz.py lumps|mixer|logic|state DIR` gave 22, 180, 144 and 152 files, and `seed_display_state_v2_fuzz.py DIR` gave 379.
+Every replay and campaign ran on its own fresh copy, so neither the seeds nor the clone changed.
+
+**Seed replays** (a *seed replay*, not a campaign). They used the address build, `ASAN_OPTIONS=detect_leaks=1` and the options
+`-runs=0 -max_len=L -timeout=T -rss_limit_mb=2048 -artifact_prefix=gates2/fuzzwork/art/replay_<target>-`.
+
+| Target | Seeds | Runs | max_len / timeout | Exit | cov / ft | Wall |
+| --- | ---: | ---: | --- | --- | --- | ---: |
+| `game_input_events` | 5 | 6 | 1017 / 20 s | 0 | 421 / 570 | 0 s |
+| `render_display_state` | 7 | 13 | 70000 / 60 s | 0 | 10,579 / 24,839 | 4 s |
+| `sound_lumps` | 22 | 23 | 4096 / 20 s | 0 | 546 / 1,027 | 1 s |
+| `sound_mixer` | 180 | 182 | 2050 / 20 s | 0 | 650 / 1,770 | 1 s |
+| `sound_logic` | 144 | 146 | 1060 / 20 s | 0 | 1,002 / 3,324 | 0 s |
+| `sound_state` | 152 | 154 | 2048 / 20 s | 0 | 1,564 / 6,952 | 1 s |
+| `render_display_state_v2` | 379 | 386 | 70000 / 60 s | 0 | 13,130 / 30,750 | 6 s |
+
+None of the seven replays had a crash, a sanitizer report, a leak report or an artifact file.
+
+**Campaigns on the final code.** One process each, no `-fork` and no `-jobs`, run one after another (10:43 to 11:33) beside phase 7.
+The command, with `BIN` the built binary and `DIR` a fresh copy of the target's seeds:
+
+```sh
+BIN DIR -max_total_time=300 -max_len=L -seed=1 -timeout=T -rss_limit_mb=2048 -artifact_prefix=~/scratch/m5c/gates2/fuzzwork/art/<mode>_<target>-
+```
+
+L and T are the TESTING values:
+
+| Target | L (max_len) | T (timeout) |
+| --- | ---: | ---: |
+| `sound_lumps` | 4096 | 20 s |
+| `sound_mixer` | 2050 | 20 s |
+| `sound_logic` | 1060 | 20 s |
+| `sound_state` | 2048 | 20 s |
+| `render_display_state_v2` | 70000 | 60 s |
+
+- The coverage-guided campaigns used the `--sanitizer none` binaries with no `ASAN_OPTIONS` set.
+- The AddressSanitizer campaigns used the address binaries, with `ASAN_OPTIONS=detect_leaks=1` in the command's environment and
+  libFuzzer's `-detect_leaks` at its default of 1.
+- Executions, `cov`, `ft` and the corpus come from libFuzzer's final `DONE` line ("Done N runs in 301 second(s)").
+- "Corpus files" is the number of files in the campaign's directory afterwards, the seeds included.
+- `rss` is the last value libFuzzer printed, the closest the log comes to a peak.
+
+*Coverage-guided campaigns, no sanitizer* (300 s each):
+
+| Target | Wall | Executions | cov | ft | Corpus (libFuzzer) | Corpus files | rss | Findings |
+| --- | ---: | ---: | ---: | ---: | --- | ---: | ---: | --- |
+| `sound_lumps` | 301 s | 18,189 | 269 | 1,081 | 143 / 42 KB | 235 | 76 MB | none |
+| `sound_mixer` | 302 s | 150,835 | 235 | 777 | 173 / 87 KB | 446 | 29 MB | none |
+| `sound_logic` | 301 s | 1,358,888 | 482 | 2,627 | 606 / 191 KB | 917 | 30 MB | none |
+| `sound_state` | 301 s | 923,259 | 758 | 3,976 | 685 / 236 KB | 939 | 30 MB | none |
+| `render_display_state_v2` | 301 s | 77,721 | 6,356 | 14,532 | 262 / 7,298 KB | 636 | 64 MB | none |
+
+*AddressSanitizer campaigns, `ASAN_OPTIONS=detect_leaks=1`* (300 s each):
+
+| Target | Wall | Executions | cov | ft | Corpus (libFuzzer) | Corpus files | rss | Findings |
+| --- | ---: | ---: | ---: | ---: | --- | ---: | ---: | --- |
+| `sound_lumps` | 301 s | 8,100 | 561 | 1,941 | 156 / 51 KB | 214 | 632 MB | none |
+| `sound_mixer` | 301 s | 36,462 | 661 | 2,121 | 173 / 95 KB | 334 | 124 MB | none |
+| `sound_logic` | 301 s | 231,781 | 1,163 | 5,873 | 551 / 233 KB | 714 | 461 MB | none |
+| `sound_state` | 302 s | 185,720 | 1,716 | 9,075 | 628 / 259 KB | 762 | 426 MB | none |
+| `render_display_state_v2` | 301 s | 23,520 | 13,290 | 31,405 | 233 / 7,990 KB | 540 | 432 MB | none |
+
+**Findings: none.** All ten campaigns exited 0. The artifact directory `gates2/fuzzwork/art` holds 0 files: no `crash-`, `leak-`, `oom-`,
+`timeout-` or `slow-unit-` file. The ten logs contain no `ERROR` line, no "Slowest unit" line and no line mentioning a leak.
+
+**Leak detection: how much is known.**
+- **Requested:** `ASAN_OPTIONS=detect_leaks=1` was in force for the seven replays and the five AddressSanitizer campaigns.
+- **Active inside the fuzz binaries:**
+  - every address binary exports the LeakSanitizer entry points (`nm`: `__lsan_do_recoverable_leak_check`, `__lsan_enable`);
+  - after phase 6, each of the seven address binaries was run once more on its seeds with
+    `ASAN_OPTIONS=detect_leaks=1:verbosity=1 ... -runs=0`, and each printed `LeakSanitizer: checking for leaks` with no leak report
+    (logs in `gates2/fuzzwork/probe`);
+  - on this host LeakSanitizer reports a planted leak in a small C program built with `-fsanitize=address` (1 report).
+- **Not shown in the campaign logs themselves:** they run at verbosity 0 and print no LeakSanitizer line. The evidence that it ran is the
+  separate verbosity run, made with the same binaries and the same `detect_leaks=1`. libFuzzer's leak check during a campaign runs only
+  on inputs that allocate more than they free, and no leak was reported.
+
+### Phase 7: real maps (local only)
+
+Every tool reads the scratch IWAD copies and records counts, verdicts and digests only. Every address variant ran with
+`ASAN_OPTIONS=detect_leaks=0`: leak detection was disabled there, so they are not LeakSanitizer coverage. All tools exited 0.
+
+| # | Gate | Command | Result | Wall time |
+| --- | --- | --- | --- | ---: |
+| 7a | Real-map mixer | `cargo build --release --locked -p doom-render --example m5b_real` (already built, 1 s); then `taskset -c 0,1 python3 tools/local/m5c_mixer_real.py --iwad <copy>/DOOM.WAD --iwad <copy>/DOOM2.WAD --work DIR --check` | `tests/reference/m5c_mixer_real_results.json` matches. DOOM.WAD: 67 of 107 sounds present, 40 fall back, 1 rate other than 11025; 1,329 buffers on the `ticbuffers` schedule, 2,152 on `pertic`. DOOM2.WAD: 107 of 107 present, 4 rates other than 11025; 1,334 and 2,149 buffers. Variants strict, overflow, address and strict32 identical; the independent model identical | 8 s |
+| 7b | The 61 real runs through the whole pipeline | `python3 tools/local/m5c_real_full.py --rust target/release/examples/m5c_real_rows --iwad <copy>/DOOM.WAD --work DIR --jobs 2 --selftest --check` | `tests/reference/m5c_real_full_results.json` matches (61 runs). Genuine: 158,966 tics; 26,077 starts (21,090 started, 4,877 inaudible, 110 no channel); 20,697 draws. Sound rows compared: S 26,077, T 10,470, K 21,090, C 10,633, L 1,042, R 158,966; **0 differ** (5,980 listener rows unchecked, as declared). Frames at sb10: 158,966, of which 158,472 compared whole and 494 masked; at sb11: 158,414 whole and 552 masked; 0 not comparable, 0 mismatched rows, face equal on every frame. Mixer: 61 of 61 runs equal (98,578 buffers, 21,090 starts). T12: detector firings 0, **layout-dependent runs 0**, 4 release starts (next slot busy 0), 0 later reads. strict32: 61 identical, 0 differing rows. Endings: 27 marker, 12 exit, 22 reborn. The self-test plants a fault in every run; a miss would be listed and fail the run (`m5c_real_full.py:363-366`), and none was | 1,348 s |
+| 7c | The 61 real runs, genuine sound and frames, all variants | `python3 tools/local/m5c_real.py --iwad <copy>/DOOM.WAD --work DIR --jobs 2 --check` | `tests/reference/m5c_real_results.json` matches (61 runs; every run's dumps, fork, variants and determinism true). 158,966 tics; 26,077 starts, 21,090 started, 4,877 inaudible, 110 refused; 20,697 draws; 20,097 checked against the model; frames compared 158,472 (sb10) and 158,414 (sb11); endings 27 marker, 12 exit, 22 reborn | 5,151 s |
+| 7d | Wire 25 on the 61 real runs | `python3 tools/local/m5c_wire25_real.py --binary target/release/examples/sound_records_run --iwad <copy>/DOOM.WAD --work DIR --jobs 2 --check` | `tests/reference/m5c_wire25_real_results.json` matches. **61 of 61 matching**; 159,027 tics; 26,077 starts (20,097 placed); 10,470 stops; **0 sound disagreements**; genuine endings 27 marker, 12 exit, 22 reborn | 4,178 s |
+| 7e | M5b real-map frames | `python3 tools/local/m5b_real.py --work DIR --rust target/release/examples/m5b_real --jobs 2 --iwad <copy>/DOOM.WAD --screenblocks 10,11 --check` | "61 records equal the committed tests/reference/m5b_real_results.json". **sb10:** 158,966 tics and frames; 158,472 compared whole, 494 masked; 0 not comparable; **0 mismatched**; 794,830 fields; 698 messages taken and 698 in Rust. **sb11:** the same, except 158,414 compared whole and 552 masked; 0 mismatched | 3,260 s |
+| 7f | Session check, committed synthetic demos | `python3 tools/local/m5c_session_real.py --rust target/release/examples/m5c_real_rows --synthetic --jobs 2` (gate x2) | `SELF-CHECK: PASS`: 2 demos passed, 3 of 3 planted faults failed at their place | 26 s |
+| 7g | Session check, the owner's 13 session demos | `python3 tools/local/m5c_session_real.py --rust target/release/examples/m5c_real_rows --iwad <copy>/DOOM.WAD --lmp <demo> --work DIR --jobs 2`, once per file | **13 of 13 `VERDICT: PASS`** (table below) | 684 s in all (15 to 151 s each) |
+
+The owner's 13 session demos (screenblocks 10 in every file; totals added from the per-file verdict lines):
+
+| Map and skill | Files | Tics | Frames compared (whole + masked) | Not comparable | Starts | Mixer buffers | Detector firings |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| E1M1, skill 2 (`hmp`) | 8 | 10,338 | 10,338 (10,317 + 21) | 0 | 364 | 6,393 | 0 |
+| E1M1, skill 3 (`uv`) | 2 | 4,126 | 4,126 (4,106 + 20) | 0 | 270 | 2,554 | 0 |
+| E1M2, skill 3 (`uv`) | 2 | 8,482 | 8,482 (8,406 + 76) | 0 | 789 | 5,237 | 0 |
+| E1M3, skill 3 (`uv`) | 1 | 4,200 | 4,200 (4,191 + 9) | 0 | 516 | 2,592 | 0 |
+| **Total** | **13** | **27,146** | **27,146 (27,020 + 126)** | **0** | **1,939** | **16,776** | **0** |
+
+- The status-bar face was equal on every frame.
+- One E1M1 skill 2 file holds 0 tics and passes with nothing to compare.
+- The genuine run ended at the end marker in 9 files and by exit in 4; the Rust ending was none in all 13.
+- The three genuine variants (strict, overflow and address) were identical in every file. The address variant ran with leak detection
+  disabled.
+- **T12, the same in every file:** not layout-dependent (detector firings 0); release starts 0 (next slot busy 0); later reads 0 (next
+  slot busy 0). So the `strict32` comparison was not run for any file: no switch release, and the detector stayed silent.
+
+Compared with the check of the owner's first 12 files on 2026-11-18, there is one more file, an E1M1 skill 3 session from the Windows
+retest. The other twelve give the same totals as then.
+
+### Slips and re-runs (none a product failure, no gate re-run)
+
+1. **PID of the first phase.** Phase 1 was started with `setsid nohup ... &`. `setsid` forked, so the PID recorded was the parent's,
+   and the first wait loop ended at once. The real PID was read from `ps` and the wait was repeated on it. Later phases record their own
+   PID from inside the script. No gate was affected or re-run.
+2. **Handback during the run.** At 10:44 the agent handed back on a demand from the harness, while phases 6 and 7 ran detached. It
+   left them running and did not kill them. The orchestrator resumed the agent three times: to write phase 6, to trace the runner
+   signals, and to finish phase 7 and the cleanup. No gate was re-run because of this. Phases 6 and 7 ran to their ends unattended.
+
+### What the gates did not include
+
+- **Windows and macOS.** The `Stable` job's Windows and macOS legs, the Windows artifact on the final head and the exact-head CI are
+  GitHub's record, not this one's. The three Stable steps gated `runner.os != 'Linux'` (the `--example-only` comparisons) were not run
+  here; the first run executed them on 2026-11-18.
+- Any audio device, any played sound or any window.
+- Any timing or benchmark: 4b counts instructions and measures no time.
+- Mutation testing, which the confirming run at `937cf9d` owns.
+- `m5b_session_real.py` on saved M5b sessions.
+- `--strict32` of any tool, except where a tool runs it itself (7a, 7b).
+- The release `doom-play` binary was not built by itself, apart from the test builds.
+- **Fuzzing.** No fuzz target exists for `doom-play` or its `--input-log`, and none was invented. Campaigns ran only on the five M5c
+  targets; the other 55 were built only. Not done: replays of M5a's `render_frames` and `render_data` (the M5a evidence owns them),
+  sanitizers other than AddressSanitizer, longer or `-fork` campaigns, and a 1.85.0 build of the fuzz crate. These are bounded
+  campaigns, not exhaustive coverage.
+- **LeakSanitizer.** No LeakSanitizer coverage of the genuine C runs: their address variants ran with leak detection disabled.
+
+**Logs and cleanup.** Logs are kept: `~/scratch/m5c/gates2/logs` (3.2 MB) and `gates2/fuzzwork` (82 MB, with the probe
+logs). The scripts and the clone's sources are kept too. Deleted by absolute path with `set -u`: the IWAD copies, the session copies,
+every build output (the phase targets, `target-ir`, `fuzz-asan`, `fuzz-none`, the clone's target) and `tmp`. After the cleanup:
+`df -h /mnt/c` showed 27 GB free; `du -sh gates2` gave 730 MB; `ps` showed no process of the run.
+
 ## What a human still has to judge
 
 The owner has played the game once ([his observations](#the-owners-playtest-2026-11-18)): on Windows 11 and under WSLg he heard
@@ -2158,9 +2461,9 @@ synthetic or the real samples are pleasant, or whether a backend will play them 
 
 ## Still to come in this record
 
-The final
-gates from a clean clone (a first run at `937cf9d` was stopped and is superseded; the owner's Windows retest is done ([below](#the-owners-windows-retest-with-the-input-log-2026-11-19)) and the final gates run on the final head; build, format, Clippy, workspace tests, release tests, rustdoc, the original-C generators and
-encoders with `--check`, the fuzz builds, Rust 1.85.0, and a bounded sanitizer campaign) the pull request's new body, the Windows artifact, and the CI record of the final head, which
-also covers `doom-play`'s sound code on Windows and macOS (not observed since `216f976`); a repeat of the fuzz campaigns on the
-changed targets (only seed replays without a sanitizer have been run since the review); the optional melt (not built). The
-optional MP4 of the sound visual is not written (ffmpeg is not installed).
+Nothing of the milestone's plan: the final gates are recorded in [Step 14](#step-14-final-gates-from-clean), fuzz campaigns on the final code included.
+**Not in this record by design:** the pull request's body, the Windows artifact on the final head and the CI runs of the final head, which are GitHub's record.
+**Not built or made:** the optional melt; the optional MP4 of the sound visual (ffmpeg is not installed).
+**Carried to the next milestone by the owner's ruling of 2026-11-19** ([ROADMAP](../ROADMAP.md#later)): the stuck-fire fix, measuring the real sound latency on
+Windows and trying the cheapest way to shorten it, a session demo that Ctrl+C or a closed console cannot lose, moving the mouse forwarding out of
+`input_log.rs`, and the review's three minor points (M1 to M3).

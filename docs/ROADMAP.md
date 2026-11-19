@@ -571,10 +571,11 @@ monster/player behavior. Further stages require separate owner direction.
     an existing test and no assertion, on the condition that every frozen wire's goldens pass in CI on that head, which they did
     ([record](validation/M5C.md#the-instruction-count-check)). The README gains a sound visual (waveforms of the genuine and Rust
     mixers for one synthetic session, 0 of 30,720 samples differing; [record](validation/M5C.md#the-sound-visual-and-the-session-checks-label)).
-    CI was green on all nine jobs at `937cf9d` ([record](validation/M5C.md#the-ci-record)). **What remains:** the final gates from a clean
-    clone on the final head (a first run at `937cf9d` was stopped and is superseded:
-    [record](validation/M5C.md#a-first-run-of-the-final-gates-stopped-superseded)), the pull request's new body, the Windows artifact rebuilt on the final head, CI, marking it ready, and the
-    owner's review; the optional melt is not built. **Observed by the owner on 2026-11-18** (one person, one evening, release builds of
+    CI was green on all nine jobs at `937cf9d` ([record](validation/M5C.md#the-ci-record)). **The final gates** were all run from a clean clone at `a15e0dc` on 2026-11-19 and every one passed (1,876 workspace tests; the Linux steps of the Stable job;
+    the M5a, M5b and M5c genuine-engine jobs; all 60 fuzz targets built, 7 seed replays and 10 bounded campaigns on the five M5c targets with no finding; the 61 real runs
+    through every local tool; the owner's 13 session demos, all passing) ([record](validation/M5C.md#step-14-final-gates-from-clean); a first run at `937cf9d` was
+    stopped and is superseded). **What remains:** the pull request marked ready with its rewritten body, the Windows artifact and CI on the final head (GitHub's
+    record), and the owner's review; the optional melt is not built. **Observed by the owner on 2026-11-18** (one person, one evening, release builds of
     `3c1cc5d`; [the owner's playtest](validation/M5C.md#the-owners-playtest-2026-11-18)): on Windows 11 the window opens, the game
     plays at 35 frames a second, the mouse is captured and sound plays, with a delay on every sound that he judged normal for the
     original and left unchanged (the arithmetic puts the Windows range above the original's; both are in the
