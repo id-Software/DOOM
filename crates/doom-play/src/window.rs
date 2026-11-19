@@ -5,6 +5,7 @@
 //! falls due, runs it and presents the result.
 
 use crate::FsHost;
+use crate::input_log::{Forward, InputLog, LoggedHost};
 use crate::keys::key_event;
 use crate::tic_stats::TicStats;
 use doom_game::app::{App, Mode, PICTURE_BYTES, SaveStatus, TICRATE, UNRECORDED_LABEL};
@@ -75,8 +76,9 @@ pub fn linux_backend(display: bool) -> LinuxBackend {
     }
 }
 
-/// Opens the window and runs the app until it quits. Returns when the window is closed.
-pub fn play(app: App, host: FsHost, title: String, p: Presentation) {
+/// Opens the window and runs the app until it quits, writing `log` (`--input-log`, or off).
+/// Returns when the window is closed.
+pub(crate) fn play(app: App, host: FsHost, log: InputLog, title: String, p: Presentation) {
     let height = if p.square { 600 } else { 720 };
     let conf = Conf {
         window_title: title,
@@ -90,6 +92,7 @@ pub fn play(app: App, host: FsHost, title: String, p: Presentation) {
         },
         ..Conf::default()
     };
+    let host = LoggedHost { host, log };
     miniquad::start(conf, move || Box::new(Stage::new(app, host, p)));
 }
 
@@ -99,17 +102,16 @@ struct Stage {
     bindings: Bindings,
     rgba: Vec<u8>,
     app: App,
-    host: FsHost,
+    host: LoggedHost,
     p: Presentation,
     start: Instant,
-    captured: bool,
-    motion: (f32, f32),
+    fwd: Forward,
     reported: bool,
     stats: Option<TicStats>,
 }
 
 impl Stage {
-    fn new(app: App, host: FsHost, p: Presentation) -> Self {
+    fn new(app: App, host: LoggedHost, p: Presentation) -> Self {
         let mut ctx = window::new_rendering_backend();
         let quad = [
             ([-1.0, -1.0], [0.0, 1.0]),
@@ -174,8 +176,7 @@ impl Stage {
             host,
             p,
             start: Instant::now(),
-            captured: false,
-            motion: (0.0, 0.0),
+            fwd: Forward::default(),
             reported: false,
             stats: p.tic_stats.then(TicStats::default),
         }
@@ -191,7 +192,8 @@ impl Stage {
             return;
         }
         self.reported = true;
-        for line in exit_lines(&self.app, &self.host, self.stats.as_ref()) {
+        self.host.log.summary(self.app.tic());
+        for line in exit_lines(&self.app, &self.host.host, self.stats.as_ref()) {
             eprintln!("doom-play: {line}");
         }
     }
@@ -217,10 +219,8 @@ impl EventHandler for Stage {
         if let Some(s) = &mut self.stats {
             s.record(now, u.ran, u.dropped);
         }
-        let capture = self.app.wants_mouse_capture();
-        if capture != self.captured {
-            self.captured = capture;
-            self.motion = (0.0, 0.0);
+        let log = &mut self.host.log;
+        if let Some(capture) = self.fwd.sync_capture(&self.app, log, window::screen_size) {
             window::set_cursor_grab(capture);
             window::show_mouse(!capture);
         }
@@ -233,6 +233,10 @@ impl EventHandler for Stage {
             self.report();
             window::order_quit();
         }
+        let captured = self.fwd.captured();
+        self.host
+            .log
+            .pump_end(&self.app, u.ran, u.dropped, captured);
     }
 
     fn draw(&mut self) {
@@ -251,41 +255,72 @@ impl EventHandler for Stage {
     }
 
     fn key_down_event(&mut self, key: KeyCode, _mods: KeyMods, repeat: bool) {
+        self.host.log.line(
+            "raw",
+            self.app.tic(),
+            format_args!("key-down {key:?} repeat={repeat}"),
+        );
         key_event(&mut self.app, &mut self.host, key, true, repeat);
     }
 
     fn key_up_event(&mut self, key: KeyCode, _mods: KeyMods) {
+        self.host
+            .log
+            .line("raw", self.app.tic(), format_args!("key-up {key:?}"));
         key_event(&mut self.app, &mut self.host, key, false, false);
     }
 
+    /// Whole units go to the app; the fraction waits for the next motion ([`Forward`]).
     fn raw_mouse_motion(&mut self, dx: f32, dy: f32) {
-        if !self.captured {
-            return;
-        }
-        // whole pixels go to the app; the fraction waits for the next motion
-        self.motion = (self.motion.0 + dx, self.motion.1 + dy);
-        let (ix, iy) = (self.motion.0.trunc(), self.motion.1.trunc());
-        self.motion = (self.motion.0 - ix, self.motion.1 - iy);
-        self.app.mouse_motion(ix as i32, iy as i32);
+        self.fwd
+            .raw_motion(&mut self.app, &mut self.host.log, dx, dy);
     }
 
-    fn mouse_button_down_event(&mut self, button: miniquad::MouseButton, _x: f32, _y: f32) {
-        if let Some(b) = button_of(button) {
-            self.app.mouse_button(b, true);
-        }
+    /// Logged only (`--input-log`), never forwarded.
+    fn mouse_motion_event(&mut self, x: f32, y: f32) {
+        self.host.log.line(
+            "raw",
+            self.app.tic(),
+            format_args!("cursor x={x:.1} y={y:.1}"),
+        );
     }
 
-    fn mouse_button_up_event(&mut self, button: miniquad::MouseButton, _x: f32, _y: f32) {
-        if let Some(b) = button_of(button) {
-            self.app.mouse_button(b, false);
-        }
+    fn mouse_button_down_event(&mut self, button: miniquad::MouseButton, x: f32, y: f32) {
+        let b = button_of(button);
+        self.fwd
+            .button(&mut self.app, &mut self.host.log, b, true, (x, y));
+    }
+
+    fn mouse_button_up_event(&mut self, button: miniquad::MouseButton, x: f32, y: f32) {
+        let b = button_of(button);
+        self.fwd
+            .button(&mut self.app, &mut self.host.log, b, false, (x, y));
     }
 
     /// miniquad 0.4.11 sends this on minimising and, by its source, on focus loss too (X11
     /// FocusOut, Wayland keyboard leave, Windows `WM_ACTIVATE` inactive, macOS resign-key and
     /// window move): the app pauses and releases every held key.
     fn window_minimized_event(&mut self) {
+        self.host
+            .log
+            .line("raw", self.app.tic(), format_args!("focus-lost"));
         self.app.focus_lost();
+    }
+
+    /// Logged only (`--input-log`): the app resumes on Esc or Pause, never by itself.
+    fn window_restored_event(&mut self) {
+        self.host
+            .log
+            .line("raw", self.app.tic(), format_args!("restored"));
+    }
+
+    /// Logged only (`--input-log`): the picture is fitted at every draw.
+    fn resize_event(&mut self, width: f32, height: f32) {
+        self.host.log.line(
+            "raw",
+            self.app.tic(),
+            format_args!("resize {width}x{height}"),
+        );
     }
 
     fn quit_requested_event(&mut self) {

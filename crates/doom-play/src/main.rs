@@ -7,6 +7,7 @@
 //! the workspace lints).
 
 mod audio;
+mod input_log;
 mod keys;
 #[cfg(test)]
 mod session_tests;
@@ -45,6 +46,11 @@ usage: doom-play --iwad PATH [options]
   --quit-after-tics N  measurement aid: save and quit after N tics (or at a session end)
   --tic-stats          measurement aid: print, on exit, the intervals between executed tics
                        (taken from the loop's monotonic clock) to stderr; no other effect
+  --input-log FILE     diagnostic: write to FILE (replaced if it exists) one line for every
+                       raw input the window library delivers (mouse buttons, motion and
+                       cursor position, keys, focus) and for every event sent to the game,
+                       each with the loop's pump number and the tic, flushed every pump;
+                       no effect on the game, the demo or the picture
   --unrecorded-full-turning
                        opt-in, never implied by another option: mouse and keyboard turns
                        are executed at full resolution instead of being rounded to demo
@@ -112,6 +118,7 @@ struct Options {
     unrecorded: bool,
     volume: Volume,
     no_sound: bool,
+    input_log: Option<PathBuf>,
 }
 
 fn number<T: std::str::FromStr>(
@@ -145,6 +152,7 @@ fn parse(args: impl IntoIterator<Item = String>) -> Result<Option<Options>, Stri
         unrecorded: false,
         volume: Volume::FULL,
         no_sound: false,
+        input_log: None,
     };
     let mut it = args.into_iter();
     while let Some(flag) = it.next() {
@@ -186,6 +194,7 @@ fn parse(args: impl IntoIterator<Item = String>) -> Result<Option<Options>, Stri
             }
             "--fullscreen" => o.fullscreen = true,
             "--tic-stats" => o.tic_stats = true,
+            "--input-log" => o.input_log = Some(PathBuf::from(value()?)),
             "--unrecorded-full-turning" => o.unrecorded = true,
             "--no-sound" => o.no_sound = true,
             "--volume" => {
@@ -367,6 +376,10 @@ fn run(o: Options) -> Result<(), String> {
     if !display_available() {
         return Err("no display: neither DISPLAY nor WAYLAND_DISPLAY is set".into());
     }
+    let log = match &o.input_log {
+        Some(path) => input_log::InputLog::create(path)?,
+        None => input_log::InputLog::off(),
+    };
     let cfg = SessionConfig {
         screenblocks: o.screenblocks,
         preset: o.preset,
@@ -387,6 +400,7 @@ fn run(o: Options) -> Result<(), String> {
     window::play(
         app,
         host,
+        log,
         title(!o.unrecorded),
         window::Presentation {
             gamma: o.gamma,
