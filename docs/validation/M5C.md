@@ -66,9 +66,10 @@ compiled; seed replay; a coverage-guided campaign; a sanitizer campaign.
 | Step 13: independent review by three reviewers and the fix made for each finding | Recorded ([below](#step-13-independent-review)) |
 | The CI record | Recorded ([below](#the-ci-record)) through `937cf9d`: all nine jobs green at `a8abf0c`, `0dea135` and `937cf9d`; and at `b141767` ([below](#the-input-diagnostics-at-b141767-independent-review-ci-and-the-windows-artifact)) |
 | The input diagnostics at `b141767`: independent review, CI and the Windows artifact for the owner's retest | Recorded ([below](#the-input-diagnostics-at-b141767-independent-review-ci-and-the-windows-artifact)): no blocker or major finding; three minor findings open |
-| The owner's playtest of 2026-11-18, the check of his 12 session files, the latency arithmetic, the lost display connection, the stuck-fire fault | Recorded ([below](#the-owners-playtest-2026-11-18)); the stuck-fire outcome is still to be written |
+| The owner's playtest of 2026-11-18, the check of his 12 session files, the latency arithmetic, the lost display connection, the stuck-fire fault | Recorded ([below](#the-owners-playtest-2026-11-18)) |
+| The owner's Windows retest with the input log (2026-11-19): the cause of the stuck fire, the proposed fix | Recorded ([below](#the-owners-windows-retest-with-the-input-log-2026-11-19)): three releases never reached doom-play (Left 18/15); not fixed in M5c, by the owner's ruling |
 | A first run of the final gates (stopped, superseded) | Recorded ([below](#a-first-run-of-the-final-gates-stopped-superseded)); not the final gates |
-| The final gates from a clean clone, the pull request's new body, the Windows artifact on the final head, CI on the final head | Not done; not recorded here (they wait for the owner's Windows retest) |
+| The final gates from a clean clone, the pull request's new body, the Windows artifact on the final head, CI on the final head | Not done; not recorded here (the retest is done; they run on the final head) |
 
 No IWAD was read in step 1 except by `tools/local/m5c_real.py`, in step 2 except by `tools/local/m5c_mixer_real.py`,
 and in step 3 except by `tools/local/m5c_wire25_real.py`. Each read a scratch copy outside the repository; only counts,
@@ -2035,10 +2036,78 @@ C reference tool, window, audio device or IWAD). **No blocker and no major findi
 
 **CI at `b141767`** ([run 44472329853](https://github.com/Copgunn/DOOM/actions/runs/44472329853)): all nine jobs green, the Linux, Windows and native macOS jobs, Rust 1.85.0, the instruction counts and the three genuine-engine jobs among them. This is the first full CI run since `937cf9d`: the run at `abc0ece` was cancelled by the next push and `5e00229` took the documentation fast path.
 
-**The Windows artifact** was rebuilt on `b141767` for the owner's retest:
+**The Windows artifact** was rebuilt on `b141767` for the owner's retest (he ran it on 2026-11-19: [below](#the-owners-windows-retest-with-the-input-log-2026-11-19)):
 [run 44472347059](https://github.com/Copgunn/DOOM/actions/runs/44472347059), success, artifact `doom-play-windows-x86_64`
-(1,459,303 bytes). Nobody has run it yet. When reading a log from it: do not restart with R during the logged session and do not
+(1,459,303 bytes). When reading a log from it: do not restart with R during the logged session and do not
 use `--unrecorded-full-turning` (M1), and keep the session's demo with the log.
+
+### The owner's Windows retest with the input log (2026-11-19)
+
+**The owner's conditions, as he stated them:** a retest on Windows 11 with the `b141767` artifact; the input log is the file he
+named in his sessions directory and the session is the newest `.lmp` beside it; his display scaling is 125% (the window was
+about 1200 by 900 for a 960 by 720 request). Two fields of his message came unfilled: whether ClickLock is on (not known), and
+whether fire stuck (the log and the demo show that it did, three times). His rulings: read the log and report the cause; **do not
+fix it in M5c**, record the finding and the proposed fix as the first item of the next milestone, together with measuring the real
+sound latency on Windows and writing the session demo so that Ctrl+C or a closed console loses nothing; in that next code change
+move the mouse-forwarding logic out of `input_log.rs` and close the review's three minor points; then the final gates on the final
+head, the pull request body rewritten, the Windows artifact rebuilt and the pull request marked ready.
+
+**What the log holds** (counts and positions only; it holds key names, mouse positions and event numbers, nothing from the IWAD):
+43,801 lines (raw 21,295, app 19,503, game 1,092, pump 1,909, summary 1, header 1); 2,129 pumps, 1,837 tics, no pump dropped a
+tic. The app reported the window as 960x720 (the size the process sees; he says about 1200 by 900 on screen). **The summary line:
+`raw downs/ups: Left 18/15 Middle 0/0 Right 0/0`.** Eighteen left-button downs and fifteen ups reached doom-play: **three releases
+never did.** Every down and every up that did arrive was passed to the app (33 `app mouse-button Left` lines), and after each
+delivered release the game was told (`game ... mouse buttons=0`). So this is case (a) of the review: the release never reached
+doom-play. Thirty raw motion packets carried (0, 0): Windows sends one with every button-only packet, as the review said.
+
+| Loss | Press (pump, tic) | What the log shows | Fire stuck | Cleared by |
+| --- | --- | --- | --- | --- |
+| 1 | 234, 232 | cursor reports reach x = 959 (the last column) four pumps later; then 16 pumps of rightward raw motion (419 packets, 637 units) with no cursor report | tics 232 to 377 (146) | a press and release with the mouse still, pumps 376 and 380, cursor inside the window |
+| 2 | 1303, 1305 | cursor reports reach x = 959 three pumps later; then 46 pumps of rightward motion (1,046 packets, 1,778 units) with no cursor report; at pumps 1448 and 1449 the library reported two resizes, to 959x720 and to 958x720 | tics 1305 to 1460 (156) | the owner's own Esc at pump 1459: the pause released the buttons (focus was lost at pump 1479 and restored at 1650) |
+| 3 | 1763, 1516 (after the resume; the window now 958 wide) | reports run from x = 549 to 944 in six pumps and stop for 115 pumps (1769 to 1883) while 1,764 raw packets summing +3,824 units of rightward motion (dy -180) arrive; the next report is x = 956 | tics 1516 to 1764 (249) | a press and release with the mouse still, pumps 2009 and 2012 |
+
+No `focus-lost` line lies between any of the three presses and the moment fire was cleared, except the pause the owner made himself
+in the second. Releases that were delivered include one with the cursor reported at x = 959 and one at x = 0: at the last reported
+column the cursor is still inside the client area. All three losses followed a rightward drag to the right edge. No switch-chatter
+pattern (a release followed at once by a press) was seen.
+
+**Shown by the log:** three left-button releases never reached doom-play (18 downs, 15 ups); doom-play's own layer passed on everything
+it received; each loss came after a rightward drag during which the window library stopped reporting cursor positions while raw motion
+continued; in one case the next press resized the window.
+
+**Inferred, and consistent with every line, but not shown:** at 125% display scaling the process is not DPI-aware (miniquad's
+`Conf::high_dpi` is false by default, `conf.rs:282`, and doom-play has no manifest), and the clip rectangle the library sets from the
+client rectangle (`ClipCursor`, `src/native/windows.rs:124-133`, `327-353`) does not hold the hidden cursor inside the client area: during
+a rightward drag it comes to rest on the window's right border. The library never captures the mouse (no `SetCapture`), so a button-up
+that happens while the cursor is on the border goes to the window's frame as a non-client message, which the library does not handle
+(`WM_LBUTTONUP` only, `windows.rs:478-483`), and doom-play never hears of it. A click with the cursor inside the client area is delivered
+whole and clears the fire; right Ctrl is a keyboard message and is not affected. The log cannot show the cursor's position outside the
+client area or the physical release itself; that the cursor was on the border is inferred from the missing position reports and from
+the resize. Seen at 125% only; other scalings were not tried.
+
+**Not the cause:** doom-play's event layer (nothing it received was lost). ClickLock is not known, but the losses are tied to the right
+edge, which ClickLock would not explain.
+
+**The session's verdict.** The demo of the session (1,837 tics, E1M1, skill 3 = `uv`) shows the fire bit set for 15 runs; the three long
+ones are tics 232 to 377, 1305 to 1460 and 1516 to 1764, the stuck stretches above. It passes the genuine comparison:
+`tools/local/m5c_session_real.py`, run by the orchestrator at `eb8d264` with `--jobs 1` and the Rust example built from the code of `937cf9d`
+(unchanged since for what the tool uses): PASS, 1,837 tics, 1,837 frames (1,830 whole, 7 masked), 87 starts, 1,131 mixer buffers, detector
+firings 0, the three genuine variants identical (the address variant with leak detection disabled: not LeakSanitizer coverage). So a session
+recorded with the fault is a valid demo, stuck fire included, as expected.
+
+**The proposed fix (not made in M5c, by the owner's ruling; untested).** Ask the window library for DPI awareness (`Conf { high_dpi: true, .. }`
+in `crates/doom-play/src/window.rs`), so that the client rectangle, the clip rectangle and the cursor are all in the same physical pixels and
+the clip holds the cursor inside the client area; the window's requested size and the picture's fit are then in physical pixels and must be
+checked (the picture is fitted at every draw). **Acceptance test:** on Windows at 100%, 125% and 150% scaling, a session of drag-firing
+against every edge with `--input-log` ends with left downs equal to ups and no resize line. If a release can still be lost (for example because
+Windows clears the clip), a real mouse capture is needed, which miniquad 0.4.11 does not offer: that would take a library change or upgrade, or a
+reviewed exception to the no-unsafe rule, and is the owner's decision. No test on Linux can reproduce the fault (it lies outside doom-play's
+code), so the evidence for the fix is the owner's log on Windows.
+
+**What goes to the next milestone with it** (the owner's rulings; [ROADMAP](../ROADMAP.md)): the fix above; measuring the real sound latency
+on Windows and trying the cheapest way to shorten it; writing the session demo so that Ctrl+C or a closed console loses nothing; and, in that
+code change, moving the mouse-forwarding logic out of `input_log.rs` into a file named for what it does and closing the review's three minor
+points (M1 to M3, above).
 
 ### A first run of the final gates (stopped, superseded)
 
@@ -2090,7 +2159,7 @@ synthetic or the real samples are pleasant, or whether a backend will play them 
 ## Still to come in this record
 
 The final
-gates from a clean clone (a first run at `937cf9d` was stopped and is superseded; the final gates run on the final head after the owner's Windows retest; build, format, Clippy, workspace tests, release tests, rustdoc, the original-C generators and
+gates from a clean clone (a first run at `937cf9d` was stopped and is superseded; the owner's Windows retest is done ([below](#the-owners-windows-retest-with-the-input-log-2026-11-19)) and the final gates run on the final head; build, format, Clippy, workspace tests, release tests, rustdoc, the original-C generators and
 encoders with `--check`, the fuzz builds, Rust 1.85.0, and a bounded sanitizer campaign) the pull request's new body, the Windows artifact, and the CI record of the final head, which
 also covers `doom-play`'s sound code on Windows and macOS (not observed since `216f976`); a repeat of the fuzz campaigns on the
 changed targets (only seed replays without a sanitizer have been run since the review); the optional melt (not built). The

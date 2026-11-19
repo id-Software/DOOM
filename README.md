@@ -130,7 +130,7 @@ cargo run --release -p doom-play -- --iwad /path/to/DOOM.WAD --map 1 --skill hmp
   switching away), where the game sometimes opens paused: Esc resumes ([limits](docs/COMPATIBILITY.md#platform-limits)).
 - **What was tried.** The owner, one evening, release builds of one commit. Windows 11: 35 frames a second, the picture right, the mouse captured, sound
   playing. WSLg: sound plays, the pointer is not captured: **keyboard-only for now**. Not judged: macOS, long sessions, every map, weapon and monster,
-  vanilla bindings. [A Windows fire fault](docs/COMPATIBILITY.md#known-fault-on-windows-fire-sticks-while-the-mouse-moves-under-investigation) is not yet explained; a logging option was added.
+  vanilla bindings. [A Windows fire fault](docs/COMPATIBILITY.md#known-fault-on-windows-fire-sticks-when-a-release-is-lost-at-the-windows-edge) has a likely cause (inferred from his log, seen at 125% display scaling: the hidden cursor slips off the window's edge during a drag and the release is lost) and is not fixed yet.
 
 ## Try it
 You need Rust via [rustup](https://rustup.rs/) (stable, or at least 1.85.0) and a C compiler (on Windows, the Visual Studio build

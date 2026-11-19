@@ -2322,7 +2322,7 @@ and requires the same frame digests and demo bytes. The option itself is a diagn
 doom-play.exe --iwad <path to your IWAD> --bindings modern --input-log input-log.txt   # PowerShell, on Windows; one line per raw input and per game event
 ```
 
-Each line is `KIND PUMP TIC TEXT` (`raw`, `app`, `game`, `pump`, `summary`); the steps for reading it are in the record. The file is replaced if it
+Each line is `KIND PUMP TIC TEXT` (`raw`, `app`, `game`, `pump`, `summary`); the steps for reading it are in the record. The owner's log was read by the summary line's downs and ups (Left 18/15) and by cursor reports that stop while raw motion continues ([record](validation/M5C.md#the-owners-windows-retest-with-the-input-log-2026-11-19)). The file is replaced if it
 exists. The tests carry no totals here: the counts are in the record.
 
 `--skill 2` or `hmp` is Hurt Me Plenty and `--skill 3` or `uv` is Ultra-Violence (the demo-header values; vanilla's

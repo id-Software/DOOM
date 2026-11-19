@@ -571,9 +571,9 @@ monster/player behavior. Further stages require separate owner direction.
     an existing test and no assertion, on the condition that every frozen wire's goldens pass in CI on that head, which they did
     ([record](validation/M5C.md#the-instruction-count-check)). The README gains a sound visual (waveforms of the genuine and Rust
     mixers for one synthetic session, 0 of 30,720 samples differing; [record](validation/M5C.md#the-sound-visual-and-the-session-checks-label)).
-    CI was green on all nine jobs at `937cf9d` ([record](validation/M5C.md#the-ci-record)). **What remains:** the owner's Windows
-    retest, then the final gates from a clean clone on the final head (a first run at `937cf9d` was stopped and is superseded:
-    [record](validation/M5C.md#a-first-run-of-the-final-gates-stopped-superseded)), the pull request's new body, marking it ready, and the
+    CI was green on all nine jobs at `937cf9d` ([record](validation/M5C.md#the-ci-record)). **What remains:** the final gates from a clean
+    clone on the final head (a first run at `937cf9d` was stopped and is superseded:
+    [record](validation/M5C.md#a-first-run-of-the-final-gates-stopped-superseded)), the pull request's new body, the Windows artifact rebuilt on the final head, CI, marking it ready, and the
     owner's review; the optional melt is not built. **Observed by the owner on 2026-11-18** (one person, one evening, release builds of
     `3c1cc5d`; [the owner's playtest](validation/M5C.md#the-owners-playtest-2026-11-18)): on Windows 11 the window opens, the game
     plays at 35 frames a second, the mouse is captured and sound plays, with a delay on every sound that he judged normal for the
@@ -581,8 +581,10 @@ monster/player behavior. Further stages require separate owner direction.
     [record](validation/M5C.md#sound-latency-the-arithmetic-in-full)); under WSLg sound plays but the pointer is not captured, so WSLg is
     keyboard-only for now; his 12 session files replay equal to the genuine in-process build (12 of 12). **Not judged:** macOS, long
     sessions, every map, every weapon and monster, vanilla bindings. **A fault he reported on Windows,** left mouse fire sticking
-    while the mouse moves, did not reproduce in the app's event layer on Linux and has no fix; a logging option, `doom-play --input-log FILE`, was
-    added to find where the release is lost, and the Windows artifact is rebuilt on `b141767` for his retest ([record](validation/M5C.md#stuck-fire-on-windows-the-investigation)). Nobody has listened to the visual's WAV file, the SVG was not rendered on
+    while the mouse moves, did not reproduce in the app's event layer on Linux. He retested on Windows 11 on 2026-11-19 with the logging
+    option `doom-play --input-log FILE`: the log shows three left-button releases that never reached doom-play (summary line Left 18/15) and
+    points, as an inference, to the hidden cursor resting on the window's border at 125% display scaling. **By his ruling it is not fixed in M5c;**
+    the fix is the first item of the next milestone, below ([record](validation/M5C.md#the-owners-windows-retest-with-the-input-log-2026-11-19)). Nobody has listened to the visual's WAV file, the SVG was not rendered on
     the development machine, and no MP4 was written (ffmpeg is not installed, so that code path has never run). **Owner rulings
     of 2026-11-18 (second set):** a game under WSLg that occasionally opens already paused stays as it is, and the owner will judge it
     when he plays; when sound or display refuses a tic the simulation's tic stays committed and its command stays in the demo while
@@ -592,6 +594,21 @@ monster/player behavior. Further stages require separate owner direction.
     minutes (the follow-up is below). Support is in [COMPATIBILITY](COMPATIBILITY.md#sound-effects-m5c). See the
     [investigation note](M5C_REFERENCE_INVESTIGATION.md) and its
     [owner decisions](M5C_REFERENCE_INVESTIGATION.md#5-owner-decisions-t1t16-with-recommendations).
+  - **The next milestone (not yet named; owner ruling of 2026-11-19): its first item.** In this order: (a) **the stuck-fire fix** (proposed, untested):
+    ask the window library for DPI awareness (`Conf { high_dpi: true, .. }` in `crates/doom-play/src/window.rs`) so that the client rectangle, the clip
+    rectangle and the cursor share physical pixels and the clip holds the cursor inside the window; the requested size and the picture's fit are then in
+    physical pixels and must be checked. Acceptance: on Windows at 100%, 125% and 150% scaling, a session of drag-firing against every edge with
+    `--input-log` ends with left downs equal to ups and no resize line. If a release can still be lost, a real mouse capture is needed, which miniquad
+    0.4.11 does not offer: a library change or upgrade, or a reviewed exception to the no-unsafe rule, which is the owner's decision
+    ([record](validation/M5C.md#the-owners-windows-retest-with-the-input-log-2026-11-19)). (b) **Measuring the real sound latency on Windows and trying the cheapest way to shorten it**
+    (the candidates and their costs are in the [evidence record](validation/M5C.md#sound-latency-the-arithmetic-in-full): the start threshold, a smaller callback
+    or period, WASAPI with two periods, WASAPI at the mix rate with the library's resampler, drift control); which is cheapest is decided after measuring, and
+    the declared schedule itself is part of the claim, not a presentation knob. (c) **Writing the session demo so that Ctrl+C or a closed console loses
+    nothing** (options in the [lost-connection record](validation/M5C.md#the-lost-display-connection-under-wslg-what-is-saved): writing the demo incrementally,
+    one tic at a time, is the safe-Rust candidate; the X connection loss under WSLg is the same class of exit). (d) **In that code change, by the owner's
+    ruling:** the mouse-forwarding logic moves out of `crates/doom-play/src/input_log.rs` into a file named for what it does, and the review's three minor
+    points are closed (M1: the log gains a line for each committed tic's command or fire bit and names the session; M2: the stale test comment at
+    `crates/doom-play/src/audio.rs:601`; M3: the log's module comment states the exceptions to its pump rule and what position a button line carries on Windows).
 - **Simulation follow-up (decided: the THING-loading truncation is closed under wire 25 only).** `P_LoadThings` ends the
   whole THINGS loop at the first Doom II type (doomednums 64-69, 71, 84, 88, 89) when `gamemode != commercial`
   (p_setup.c:317-337). Wire 25 (decision T4, confirmed 2026-11-18) stops loading there, with a synthetic map and
