@@ -7,19 +7,19 @@ confirmed on 2026-11-18) and the plan; [testing](../TESTING.md#m5c-sound-effects
 owns the commands; [COMPATIBILITY](../COMPATIBILITY.md#sound-effects-m5c) owns the support statement and
 [ROADMAP](../ROADMAP.md) the milestone status. Exact review state and CI belong to GitHub.
 
-This record was last extended on 2026-11-18 (America/Los_Angeles, fifth documentation pass) with the pieces of the milestone that are complete
+This record was last extended on 2026-11-18 (America/Los_Angeles, sixth documentation pass) with the pieces of the milestone that are complete
 on the branch: Phase 2 steps 1 and 2, the proof of the audio library (decision T7), step 3 (wire 25 and its genuine
 comparisons), step 4 (the crate `doom-sound` with its session, detector and saved state), step 5 (the display contract
 with sound, the sound session in the game loop, the 61 real runs and the scripted app sessions), step 6 (restore and
-continue), step 7 (sound in `doom-play`), step 8 part 1 (the CI job and the mutation workflow), step 10 as far as it has
-gone (the first mutation run's totals, the change of sharding, the 74 survivors with a disposition each and the independent
-check of those dispositions), the local verifier of `doom-play` sessions (step 5 part 3), the failure of the instruction-count
+continue), step 7 (sound in `doom-play`), step 8 part 1 (the CI job and the mutation workflow), step 10 (the first mutation run's totals, the change of sharding, the 74 survivors with a disposition each and the independent
+check of those dispositions, the final run at `a8abf0c`, the second round for its 14 new survivors and the confirming run at
+`937cf9d`), the local verifier of `doom-play` sessions (step 5 part 3), the failure of the instruction-count
 check and its code-only fix, step 11 parts 1 and 2 (the fuzz targets, including the one for `DDSP` version 2), step 12
-(timings), step 13 (the independent review and the fix made for each finding), and the CI record up to the fix's head.
+(timings), step 13 (the independent review and the fix made for each finding), and the CI record up to `937cf9d`.
 the owner's second set of rulings of 2026-11-18, the CI record of `a8abf0c`, the instruction-count fix's one changed test line,
 and the README sound visual with the layout label of the session check.
-**Not done and not recorded here:** the mutation run on the final head (one was started on `a8abf0c` and had not finished when
-the fifth pass was written), the final gates from a clean tree, and CI on the final head. With steps 5 to 7 on the branch **the
+**Not done and not recorded here:** the final gates from a clean clone (running at `937cf9d` when the sixth pass was written),
+the pull request's new body, the Windows artifact, and CI on the final head. With steps 5 to 7 on the branch **the
 face's idle glance gap (S15) is closed** under the owner's wording
 ([COMPATIBILITY](../COMPATIBILITY.md#the-status-bar-faces-idle-glance-is-closed-with-sound-decision-s15-t14)).
 
@@ -63,14 +63,14 @@ compiled; seed replay; a coverage-guided campaign; a sanitizer campaign.
 | Step 5 part 2: the 61 real runs through the whole pipeline (local only) | Recorded ([below](#step-5-part-2-the-61-real-runs-through-the-whole-pipeline-local-only)) |
 | Step 5 part 3: scripted app sessions against the genuine M5c runner, and the local verifier for `doom-play` sessions | Recorded ([below](#step-5-part-3-scripted-app-sessions)) |
 | Step 7: sound in `doom-play` (device sink, flags, mute) and the start-up stall | Recorded ([below](#step-7-sound-in-doom-play)) |
-| Step 10: mutation testing | **Partly recorded:** the first run's totals (899 outcomes, 723 caught, 74 missed, 3 timeouts, 99 unviable; two shards cut off), the change to 24 round-robin shards, the 74 survivors' dispositions (60 killed by new tests, 12 equivalent, 2 unreachable) and their independent check ([below](#step-10-mutation-testing)); **the run on the final head is not done** |
+| Step 10: mutation testing | Recorded ([below](#step-10-mutation-testing)): the final run at `a8abf0c` (999 mutants: 865 caught, 28 missed, 3 timeouts, 103 unviable), the second survivor round (all 14 new survivors killed) and the confirming run at `937cf9d` (879 caught, 14 missed, 3 timeouts, 103 unviable; the 14 are the equivalent and unreachable mutants of the first round) |
 | The instruction-count check (`Simulation instruction counts`) at `3c1cc5d`: failure, cause and code-only fix, and the owner's ruling on the one changed test line | Recorded ([below](#the-instruction-count-check)); green at `a8abf0c` |
 | The README sound visual and the layout label of the session check | Recorded ([below](#the-sound-visual-and-the-session-checks-label)) |
 | Step 11 part 2: the fuzz target `render_display_state_v2` and the targets changed by the review | Recorded ([below](#step-11-part-2-the-fuzz-targets-after-the-review)) |
 | Step 12: timings of the sound session, the mixer and the frame step | Recorded ([below](#step-12-timings)) |
 | Step 13: independent review by three reviewers and the fix made for each finding | Recorded ([below](#step-13-independent-review)) |
-| The CI record | Recorded ([below](#the-ci-record)) through `a8abf0c`: all nine jobs green |
-| The mutation run on the final head, the final gates from a clean tree, CI on the final head | Not done; not recorded here |
+| The CI record | Recorded ([below](#the-ci-record)) through `937cf9d`: all nine jobs green at `a8abf0c`, `0dea135` and `937cf9d` |
+| The final gates from a clean clone, the pull request's new body, the Windows artifact, CI on the final head | Not done; not recorded here |
 
 No IWAD was read in step 1 except by `tools/local/m5c_real.py`, in step 2 except by `tools/local/m5c_mixer_real.py`,
 and in step 3 except by `tools/local/m5c_wire25_real.py`. Each read a scratch copy outside the repository; only counts,
@@ -89,7 +89,7 @@ self-test, and `m5c_mixer_reference.py --check --selftest` (23 scenarios and 64 
 session buffers, 5 of 5 planted faults). All exited 0. **Not re-run on the branch:** `tools/local/m5c_real.py`, whose
 totals equal the note's section 3.4.2, the mixer's `--strict32` (its last run was step 2f's, below) and
 `tools/local/m5c_wire25_real.py --check`. The documentation pass that wrote the sections for step 3 onward re-ran no
-command: every figure is the step agent's. The second documentation pass (steps 5 to 7 and the CI record) also re-ran no command and took each figure from the step agents' reports or from the committed results files `m5c_real_full_results.json` and `m5c_session_results.json`. **The third pass (steps 10, 11 part 2, 12 and 13) re-ran no command either:** each figure is from a reviewer's or fixing agent's report, a commit message or a committed file. Step 12's section was written by its own agent and only read, not rewritten, in this pass. **The fourth pass (the survivors of step 10, the instruction-count check, the session verifier and the CI record) re-ran no command either:** each figure is from `step10`, `review-mut`, `sessreal` and `fix-ir`'s reports, a commit message or a committed file; the commit hashes and the layout of the committed files were read from the repository.
+command: every figure is the step agent's. The second documentation pass (steps 5 to 7 and the CI record) also re-ran no command and took each figure from the step agents' reports or from the committed results files `m5c_real_full_results.json` and `m5c_session_results.json`. **The third pass (steps 10, 11 part 2, 12 and 13) re-ran no command either:** each figure is from a reviewer's or fixing agent's report, a commit message or a committed file. Step 12's section was written by its own agent and only read, not rewritten, in this pass. **The sixth pass (the final mutation figures, the second survivor round and the CI record to `937cf9d`) re-ran no command either and built nothing:** each figure is from the lists and reports it names in [step 10](#step-10-mutation-testing), counted from the files, or from the orchestrator's observation of CI. **The fourth pass (the survivors of step 10, the instruction-count check, the session verifier and the CI record) re-ran no command either:** each figure is from `step10`, `review-mut`, `sessreal` and `fix-ir`'s reports, a commit message or a committed file; the commit hashes and the layout of the committed files were read from the repository.
 
 ## Step 1: the synthetic sound lumps, the rooms and the genuine sound-logic runner
 
@@ -616,12 +616,13 @@ kills. The first run, and the change to 24 shards dealt round-robin, are in [ste
 
 ## Step 10: mutation testing
 
-**Partly done. The workflow, its first run, the tests for the 74 survivors and the independent check of their dispositions
-are recorded below; the run on the final head is not done (one was started on `a8abf0c` and had not finished when this was
-written), so nothing here says how many mutants the code of the final head lets through.** The totals of the first run come
-from the commit messages of the workflow's two changes (`git log -2 -- .github/workflows/mutants.yml`); the run's artifacts
-were not opened for this record. The survivors' figures are from the report of the `tester` agent (`step10`) and of the
-independent reviewer (`review-mut`).
+**Done. The workflow, its first run, the tests for the 74 survivors of that run, the independent check of their dispositions, the
+final run at `a8abf0c`, the tests for its 14 new survivors and the confirming run at `937cf9d` are recorded below.** The totals of
+the first run come from the commit messages of the workflow's two changes (`git log -2 -- .github/workflows/mutants.yml`) and its
+artifacts were not opened for this record. The totals of the final and the confirming runs, and the lists of missed mutants and
+timeouts, are from the lists the orchestrator saved from the runs' shard artifacts (`missed-all.txt` and `timeout-all.txt` of each
+run, `known-dispositioned.txt` and `new-survivors.txt` of the final run), which this pass opened and counted. The survivors' figures
+are from the reports of the `tester` agents (`step10`, `step10b`, `followup`) and of the independent reviewer (`review-mut`).
 
 What the [Mutants workflow](../TESTING.md#the-ci-job-and-the-mutation-workflow) is: `cargo mutants` over the branch's diff
 against `master`, for `doom-sim`, `doom-render`, `doom-sound` (added in step 8, [part 1](#step-8-part-1-the-ci-job-and-the-mutation-workflow))
@@ -746,10 +747,78 @@ doom-sim -p doom-game` in debug and in release: exit 0, 1,563 passed, 0 failed, 
 doom-sim -p doom-game --all-targets -- -D warnings` and `cargo fmt --all -- --check`: clean. Not run: `cargo +1.85.0 check` (no new
 non-test source), the fuzz workspace, rustdoc, the other crates' tests, Windows, macOS.
 
-**Still to come.** A full run of the Mutants workflow on the final head, whose totals replace the first run's: it was started on
-`a8abf0c` and had not finished when this was written, so no total is given. The review fixes of step 13 changed 41 files under
-`crates/` after the first run's head `216f976`, so those lines have had no mutation run until then. The equivalent and unreachable
-mutants above are expected to survive again and to be listed as accepted.
+### The final run at `a8abf0c`
+
+The Mutants workflow ran on `a8abf0c` (the head after the review fixes and the instruction-count fix): cargo-mutants 27.1.0 with
+nextest, 24 shards dealt round-robin, every shard 21 to 40 minutes (none cut off, so the list of outcomes is the whole list).
+**Totals: 999 mutants, 865 caught, 28 missed, 3 timeouts, 103 unviable.** (865 + 28 + 3 + 103 = 999.) The 28 missed mutants
+(`missed-all.txt`, 28 lines) split into two lists: **14 known** (`known-dispositioned.txt`) and **14 new** (`new-survivors.txt`).
+The 14 known are the first round's 12 equivalent and 2 unreachable mutants, found again at their lines in `a8abf0c` (the table above
+gives the lines at `216f976`; the same mutants at `a8abf0c` are `diagnostic.rs:689`, `sound.rs:309` and `:314`, `logic.rs:204`,
+`:207`, `:553`, `:558` (3), `:653` (2) and `:708`, `mixer.rs:288` and `:454`). The 14 new are: `diagnostic.rs` 9 (the DSIM41 reader's cross-check of pending sound events with the
+sound records), `logic.rs:120` and `session.rs:107` (the `Display` text of two refusal types) and three in `doom-game`
+(`app/mod.rs:712` twice, `:768`).
+
+### The second round: the 14 new survivors
+
+All 14 are killed; none was judged equivalent or unreachable in this round. Lines are those of `a8abf0c`.
+
+| Mutant | Disposition | Test |
+| --- | --- | --- |
+| `diagnostic.rs:788:18` `>` to `==` and to `>=` (2) | Killed | `dsim41_reader_bounds_the_pending_event_count_by_the_field_count` (a count one above the field count must be the `Limit` refusal; a count equal to it must not) |
+| `diagnostic.rs:796:68` guard to `false` and to `true`, `:796:81` `==` to `!=` (3) | Killed | `dsim41_reader_matches_a_pending_sound_event_with_its_record` (17-byte actor and NULL events are calls; an 18-byte sound event with a NULL record is the `Identity` refusal) |
+| `diagnostic.rs:798:33` `==` to `!=` | Killed | the same test (an actor event against an actor record, and the NULL mix-ups) |
+| `diagnostic.rs:805:17` and `:806:17` delete the arms for sector and button events (2) | Killed | `dsim41_reader_matches_sector_and_button_sound_events_with_their_records` |
+| `diagnostic.rs:807:37` guard to `true` | Killed | `dsim41_reader_does_not_count_a_malformed_stop_event_as_a_call` (a 14-byte stop event with no record must not be `Identity`) |
+| `logic.rs:120:9` `SoundRefusal` `fmt` to `Ok(Default::default())` | Killed | `every_sound_refusal_has_a_message_that_names_its_facts` (all 7 variants, exact text) |
+| `session.rs:107:9` `SessionRefusal` `fmt` to `Ok(Default::default())` | Killed | `every_session_refusal_has_a_message_that_names_its_facts` (6 forms, exact text) |
+| `app/mod.rs:712:29` `+=` to `*=` and to `-=`, `:768:9` `layout_dependent_line` to `None` (3) | Killed | `app::tests::the_app_counts_layout_dependent_sessions_across_restarts` (a unit test inside `doom-game`) |
+
+**Eleven are killed by six new tests** (commits `0b5ced7` and `cf6e733` on the branch; 362 insertions in two
+test files, `crates/doom-sim/src/wire25_tests.rs` 262 and `crates/doom-sound/tests/survivors.rs` 100, all hand-written test code,
+no source file changed): four in `doom-sim` (nine mutants), two in `doom-sound` (two mutants). The forged frames start from the
+genuine DSIM41 frame of a room, one rule per case; the expectations are the reader's own documented rule (the comment before its
+cross-check and the DSIM41 section of [STATE_FORMAT](../STATE_FORMAT.md)) and `s_sound.c:304` (which origins are placed), not captured
+output. The two `Display` tests are **Rust-only** pins of the current wording.
+
+**The three `doom-game` mutants** first had no test: all three need an `App` whose session the layout detector has labelled, and
+the app offers no way to install one, so `step10b` marked them SOURCE (a source change would be needed) and proposed a test seam.
+The follow-up agent found that none was needed, and **no production line changed**: the new unit test (commit `b5bfcde` on the branch,
+109 hand-written insertions in `crates/doom-game/src/app/mod.rs`, test module only) builds a real `App` from the committed synthetic
+WADs, replaces the private fresh session that `App::begin` clones with one whose detector fired (the switch-release start of
+`p_spec.c:1151`, sound 23, button origin, the 64-bit reading (34, 0), 34 raw units inside the clipping distance; the same
+construction as `a_layout_dependent_session_gives_one_plain_line` in `tests/m5c_app.rs`, decision T12), calls `restart`, and
+checks the documented text of `layout_dependent_line` for an unlabelled session (None, also after a restart), a labelled one, a
+restart into an unlabelled one ("this session is not layout-dependent; 1 earlier session..."), a labelled one after that, and "2
+earlier sessions...". It kills all three: `+=` to `*=` leaves the count at 0, so the "1 earlier session" line is missing; `+=` to `-=`
+panics on overflow in a debug build and prints 18446744073709551615 earlier sessions in a release build; the `None` body fails
+at once.
+
+**How kills were confirmed.** As in the first round: one mutant at a time, applied by hand (a script replaces one exact text on one
+line, runs the crate's tests, restores the file), in debug and, for the `doom-game` test, in release too. **No cargo-mutants run was made
+locally.** The proof that the mutants are dead in the real run is the confirming run below.
+Checks of the tests (the agents, `CARGO_BUILD_JOBS` 2, debug info off): `cargo test -p doom-sim -p doom-sound` in debug and in release,
+exit 0, 1,446 passed, 0 failed, 2 ignored each; `cargo test -p doom-game` in debug and in release, exit 0, 124 passed, 0 failed,
+0 ignored each; Clippy with warnings denied and `cargo fmt --all -- --check`, clean. Not run by them: the rest of the workspace,
+Rust 1.85.0 (no non-test source changed), rustdoc, the fuzz workspace, sanitizers, Windows, macOS.
+
+### The confirming run at `937cf9d`
+
+The same workflow on `937cf9d`, the head that carries the second round's tests (shards 24 to 41 minutes): **999 mutants, 879 caught,
+14 missed, 3 timeouts, 103 unviable.** (879 + 14 + 3 + 103 = 999.) The caught count is the final run's 865 plus the 14 new
+survivors. **The 14 missed mutants (`mutants3/missed-all.txt`) equal the 14 known ones (`mutants2/known-dispositioned.txt`) line for
+line**: the two files, sorted, were compared with `diff` and are identical (and the 14 known are the 14 lines of the final run's
+missed list that are not in `new-survivors.txt`). They are the 12 equivalent and 2 unreachable mutants of the first round, each argued
+in the table above and agreed by the independent reviewer. **The 3 timeouts are the same three endless loops** (the lists of the two
+runs are identical): `doom-sim` `sound.rs:156`, `doom-sound` `logic.rs:658` and `mixer.rs:429` (the lines of `a8abf0c` and `937cf9d`;
+the same loops, `get_channel` and `Mixer::start`, were at `logic.rs:619` and `mixer.rs:412` in the [first run](#the-three-timeouts)).
+
+**State of mutation testing.** Every mutant of the final run is caught, timed out as an endless loop, unviable, or one of 14 judged
+equivalent or unreachable and independently agreed.
+
+**Not covered by this evidence.** The runs say nothing about `doom-play` (out of scope), about a mutant cargo-mutants does not
+generate, or about code changed after `937cf9d` (documents and the agent definition files only, as far as this pass knows). The
+equivalent mutants stand on arguments and on the reviewer's attempts to break them, not on a test.
 
 ## Step 11 part 1: the fuzz targets
 
@@ -1469,9 +1538,12 @@ was **green on all nine jobs**: `Detect changes`; `Stable` on ubuntu-latest, win
 39 minutes); `Minimum Rust / 1.85.0`; `M5a genuine renderer`; `M5b genuine status bar, HUD and input`; `Simulation instruction counts`;
 and `M5c genuine sound (not required)`. Because the `Stable` jobs run every frozen wire's goldens, the owner's condition on the
 test-line change is met at that head. **The macOS job's limit is now 90 minutes** (`4989fcc`, from 60; the job took 38 to 50
-minutes on the M5c heads, and ROADMAP records the follow-up to split or trim it). **The run of the Mutants workflow on `a8abf0c`
-had not finished when this was written; no result is recorded for it.** CI on the later heads of the branch (the sound visual's
-commits and this pass) had not been read.
+minutes on the M5c heads, and ROADMAP records the follow-up to split or trim it). **The Mutants workflow's runs on `a8abf0c` and `937cf9d`
+are in [step 10](#step-10-mutation-testing).** The orchestrator observed on 2026-11-18 that CI was **green on all nine jobs at
+`0dea135` and at `937cf9d`**, `937cf9d` being the head that carries the final code and tests (the macOS job took 37 minutes there).
+`c976db4` (documents only) and `abc0ece` (`AGENTS.md` and the agent definition files: the Codex model routing now mirrors Claude's,
+with efforts on both; no code) follow it; **their runs were not read for this record.** CI on the heads after that (this pass) has
+not been read either.
 
 ## Findings
 
@@ -1567,6 +1639,22 @@ commits and this pass) had not been read.
 - **A documentation slip found on the way.** The M5b section of TESTING listed a `--strict32` option for
   `m5b_reference.py` that the tool does not have; it was corrected on 2026-11-18.
 
+- **Clarified non-finding: the DSIM reader refuses the frame of a barrel forced into its explosion state.** While writing the
+  second round's tests the `step10b` agent saw the reader refuse (`Identity`) the genuine frame of a barrel put into state 809 by the
+  crate-private `enter_demon_state`, and suspected a reader and writer gap. The follow-up agent traced it (a temporary experiment,
+  restored afterwards): the refusal comes from `Diagnostic::validate_barrels` (`diagnostic.rs:1846`, the field witness ending at
+  `:1946`; one failing condition is `(health > 0) != alive` at `:1921`). The explicit entry leaves a live barrel's body (health 20,
+  the live flags, full height 42) in a dying state, while in the C a barrel reaches the death chain only through `P_DamageMobj`
+  and `P_KillMobj` (`p_inter.c:887-890`, `:675`, `:680-681`, `:725`), which change health, flags and height first; the witness
+  documents exactly that (STATE_FORMAT, DSIM v37). It is a **rule of the frozen readers since DSIM37** (commit `ac886d4`, 2026-11-04,
+  M3h9b, merged by PR #55; the simulation's mirror `barrels::validate_barrel` dates from `42e9c79`, wire 21): the same frame is refused
+  under wire 24 too, DSIM41 being read internally as version 40. It is **reachable only through a crate-private test call**, not in a
+  demo run, and **has nothing to do with sound**: the simulation's own next tic refuses the same frame (`PlayerBody(Invariant)`, state
+  unchanged). **Nothing was changed**, and no frozen wire was touched. Whether `enter_demon_state` should refuse a barrel's death-chain
+  entry up front is an owner's decision, not asked for. One doc-comment sentence (the test `an_explicit_operations_sound_is_kept_as_a_pending_record`
+  in `wire25_tests.rs` says the next tic's preflight publishes the records) describes the rule, not something that
+  test's frame can reach; it was not edited.
+
 ## What a human still has to judge
 
 The owner will judge by ear, when he plays, the lag and crackle of the device queue (its two-buffer start was accepted on 2026-11-18 as
@@ -1581,10 +1669,9 @@ not playtested M5b, so input, pacing and presentation are not to change on a gue
 
 ## Still to come in this record
 
-A full mutation run on the final head with its totals (one was started on `a8abf0c` and had not finished; the first run's
-survivors and their check are recorded in [step 10](#step-10-mutation-testing)); the final
-gates from a clean tree (build, format, Clippy, workspace tests, release tests, rustdoc, the original-C generators and
-encoders with `--check`, the fuzz builds, Rust 1.85.0, and a bounded sanitizer campaign) and the CI record of the final head, which
+The final
+gates from a clean clone (running at `937cf9d` when this was written; build, format, Clippy, workspace tests, release tests, rustdoc, the original-C generators and
+encoders with `--check`, the fuzz builds, Rust 1.85.0, and a bounded sanitizer campaign) the pull request's new body, the Windows artifact, and the CI record of the final head, which
 also covers `doom-play`'s sound code on Windows and macOS (not observed since `216f976`); a repeat of the fuzz campaigns on the
 changed targets (only seed replays without a sanitizer have been run since the review); the optional melt (not built). The
 optional MP4 of the sound visual is not written (ffmpeg is not installed).
