@@ -560,8 +560,10 @@ monster/player behavior. Further stages require separate owner direction.
     review (step 13): three reviewers, no blocker, one major finding (the DSIM41 reader refused every capture of a map the
     THING truncation cuts short), 11 minor and 19 notes, each fixed or documented, with a test that failed before the change wherever a behaviour was fixed** ([record](validation/M5C.md#step-13-independent-review)). **The status bar face's idle glance gap (S15) is closed** in the
     owner's T14 wording ([COMPATIBILITY](COMPATIBILITY.md#the-status-bar-faces-idle-glance-is-closed-with-sound-decision-s15-t14)).
-    Mutation testing is mostly done: the first run's 74 survivors each have a disposition (60 killed by new tests, 12 equivalent,
-    2 unreachable) and an independent check agreed ([step 10](validation/M5C.md#step-10-mutation-testing)); a local verifier for
+    **Mutation testing is done**: the first run's 74 survivors each have a disposition (60 killed by new tests, 12 equivalent,
+    2 unreachable) and an independent check agreed; the final run at `a8abf0c` (999 mutants: 865 caught, 28 missed, 3 timeouts, 103
+    unviable) had 14 new survivors, all killed by new tests; the confirming run at `937cf9d` (879 caught, 14 missed, 3 timeouts, 103
+    unviable) missed only the 14 equivalent or unreachable mutants ([step 10](validation/M5C.md#step-10-mutation-testing)); a local verifier for
     `doom-play` sessions with sound exists (not in CI). One check failed on the branch: `Simulation instruction counts` at
     `3c1cc5d`, a code-generation effect of a review fix on one case; a code-only fix is on the branch (instruction counts end up
     0.01 to 0.34 percentage points higher in all nine cases, inside the threshold; the baseline is unchanged). **The job is green
@@ -569,8 +571,9 @@ monster/player behavior. Further stages require separate owner direction.
     an existing test and no assertion, on the condition that every frozen wire's goldens pass in CI on that head, which they did
     ([record](validation/M5C.md#the-instruction-count-check)). The README gains a sound visual (waveforms of the genuine and Rust
     mixers for one synthetic session, 0 of 30,720 samples differing; [record](validation/M5C.md#the-sound-visual-and-the-session-checks-label)).
-    **Not done:** the final mutation run (one on `a8abf0c` had not finished when this was written), the final gates from a clean
-    tree and CI on the final head; the optional melt is not built. **Unobserved:** nobody has
+    CI was green on all nine jobs at `937cf9d` ([record](validation/M5C.md#the-ci-record)). **Not done:** the final gates from a clean
+    clone (running at `937cf9d` when this was written), the pull request's new body, the Windows artifact and CI on the final head;
+    the optional melt is not built. **Unobserved:** nobody has
     heard any sound, and no game audio has reached any device (the one real device open was a second of digital silence);
     nothing has run on Windows or macOS beyond CI builds and tests. Nobody has listened to the visual's WAV file, the SVG was not rendered on
     the development machine, and no MP4 was written (ffmpeg is not installed, so that code path has never run). **Owner rulings
