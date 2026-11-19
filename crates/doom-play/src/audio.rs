@@ -191,11 +191,15 @@ pub const CAP_FRAMES: usize = 4 * BUFFER_FRAMES;
 /// 14.6 s). With one buffer as the threshold the margin after the start is therefore that
 /// fraction plus the callback's phase, at worst about one frame, and any sleep jitter of the
 /// loop or drift of the device's clock gives an underrun (a gap) early in every session and
-/// after every pause. Two buffers keep one whole buffer, 512 frames (46.4 ms), in hand at the
-/// worst point; the price is 46.4 ms more latency than one buffer (92.9 ms queued at the start,
-/// before the device's own buffering). The cap of four buffers is unchanged. This is
-/// presentation (decision T8): nothing here reaches the game, and none of it has been measured
-/// on a device.
+/// after every pause. With two buffers the queue starts one tic later (buffer 1 arrives after
+/// tic 1), so every later buffer arrives at least one tic, 315 frames (28.6 ms), before the
+/// device needs it; the price is that the whole latency range moves up by those 315 frames (in
+/// any one session by nothing or by one 512-frame callback, 46.4 ms, depending on the
+/// callback's phase), with 92.9 ms queued at the start, before the device's own buffering. The
+/// cap of four buffers is unchanged. This is presentation (decision T8): nothing here reaches
+/// the game, and none of it has been measured on a device. (An earlier version of this comment
+/// gave the margin and the price as one whole buffer, 46.4 ms; the latency arithmetic of
+/// 2026-11-18 in docs/validation/M5C.md corrected both figures. The code did not change.)
 pub const START_FRAMES: usize = 2 * BUFFER_FRAMES;
 
 /// The player's volume, a percentage 0–100 applied to the finished stream at the device
