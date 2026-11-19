@@ -946,3 +946,265 @@ fn dsim41_reader_bounds_the_record_count_by_the_field_count() {
         );
     }
 }
+
+// ---------------------------------------------------------------------------------------------
+// Tests for the mutants the final M5c mutation run (a8abf0c) missed in the DSIM41 reader's
+// cross-check of `events.sounds.pending` with `events.pending` (`validate_sound_records`). The
+// rule they pin is the reader's own, written in its comment: the pending records are exactly
+// the sound calls of `events.pending`, in order, where a call is a sound event of exactly the
+// writer's length (tag 12 sub-tag 3: 17 bytes; tag 26 sub-tag 12: 7 bytes) or a `RemovalMarked`
+// (tag 2: 13 bytes, p_mobj.c:565-566); any other event is not a call. The tests are in doom-sim
+// because a doom-sim mutant is judged by doom-sim's own tests only.
+// ---------------------------------------------------------------------------------------------
+
+/// `fields` with the lists `events.pending.*` and `events.sounds.pending.*` replaced: each list's
+/// count, then its items, in the place the old ones held.
+fn with_pending(
+    fields: &[(String, Vec<u8>)],
+    events: &[Vec<u8>],
+    records: &[Vec<u8>],
+) -> Vec<(String, Vec<u8>)> {
+    let mut out = Vec::new();
+    for (p, v) in fields {
+        let (prefix, items) = if p.starts_with("events.pending.") {
+            ("events.pending", events)
+        } else if p.starts_with("events.sounds.pending.") {
+            ("events.sounds.pending", records)
+        } else {
+            out.push((p.clone(), v.clone()));
+            continue;
+        };
+        if *p == format!("{prefix}.count") {
+            out.push((p.clone(), (items.len() as u64).to_le_bytes().to_vec()));
+            for (i, item) in items.iter().enumerate() {
+                out.push((format!("{prefix}.{i}"), item.clone()));
+            }
+        }
+    }
+    out
+}
+
+/// The bytes of a start record (the writer's encoding, `sound::record_bytes`) at a sector or
+/// button slot, placed with the given listener.
+fn placed_start(sfx: u16, origin: SoundOrigin, origin_xy: [i32; 2]) -> Vec<u8> {
+    crate::sound::record_bytes(&SoundRecord::Start {
+        sfx,
+        origin,
+        at: Some(sound::SoundPlacement {
+            origin: origin_xy,
+            listener: [5 << 16, 6 << 16],
+            listener_angle: 7,
+        }),
+    })
+}
+
+/// A sound event of a start with an actor origin or a NULL origin is the call "start sound `s`
+/// at that origin" (tag 12, sub-tag 3: present flag, 12-byte handle, u16 sound: 17 bytes, the
+/// writer's form, `state_event_bytes`), matched with the pending record of origin kind 1 (a
+/// handle, placed because the actor is not the listener, s_sound.c:304) or kind 0. The frames are
+/// the genuine frame of a room plus one forged event and its record (the writer's own
+/// `sound::record_bytes`): the pair is read; the record alone, the same event one byte longer
+/// (not the writer's form, so no call) and an event of another actor have no matching call.
+/// Kills diagnostic.rs `validate_sound_records` (the `[12, 3, ..]` arm): `handle.len() == 12` ->
+/// `false`, `true` and `==` -> `!=`, and `*present == 1` -> `!=`.
+#[test]
+fn dsim41_reader_matches_a_pending_sound_event_with_its_record() {
+    let limits = DiagnosticLimits::default();
+    let read = |f: &[(String, Vec<u8>)]| Diagnostic::decode_episode1_v3(&encode41(f), limits).err();
+    let s = setup(&base(), V3);
+    let me = body(&s);
+    let barrel = s.actor_order().find(|id| *id != me).expect("a barrel");
+    let frame = owned_fields(&s);
+    assert_eq!(read(&frame), None, "the genuine frame");
+    let handle = |id: ActorId| {
+        let mut h = id.slot().to_le_bytes().to_vec();
+        h.extend(id.generation().to_le_bytes());
+        h
+    };
+    let sfx = 82_u16;
+    let event_of = |present: u8, id: ActorId| {
+        let mut e = vec![12, 3, present];
+        e.extend(if present == 1 {
+            handle(id)
+        } else {
+            vec![0; 12]
+        });
+        e.extend(sfx.to_le_bytes());
+        e
+    };
+    let actor_event = event_of(1, barrel);
+    assert_eq!(actor_event.len(), 17);
+    let actor_record = placed_start(sfx, SoundOrigin::Actor(barrel), [5 << 16, 5 << 16]);
+    let null_event = event_of(0, barrel);
+    let null_record = crate::sound::record_bytes(&SoundRecord::Start {
+        sfx,
+        origin: SoundOrigin::None,
+        at: None,
+    });
+    let one = |e: &Vec<u8>, r: &Vec<u8>| {
+        with_pending(&frame, std::slice::from_ref(e), std::slice::from_ref(r))
+    };
+    assert_eq!(read(&one(&actor_event, &actor_record)), None, "actor start");
+    assert_eq!(
+        read(&one(&null_event, &null_record)),
+        None,
+        "NULL-origin start"
+    );
+    // The record with no event has no call.
+    assert_eq!(
+        read(&with_pending(
+            &frame,
+            &[],
+            std::slice::from_ref(&actor_record)
+        )),
+        Some(DiagnosticError::Identity),
+        "record without event"
+    );
+    // A NULL event (present 0) does not match the actor's record, nor the actor event the NULL
+    // record.
+    assert_eq!(
+        read(&one(&null_event, &actor_record)),
+        Some(DiagnosticError::Identity),
+        "NULL event, actor record"
+    );
+    assert_eq!(
+        read(&one(&actor_event, &null_record)),
+        Some(DiagnosticError::Identity),
+        "actor event, NULL record"
+    );
+    // The same event with another actor than the record's.
+    assert_eq!(
+        read(&one(&event_of(1, me), &actor_record)),
+        Some(DiagnosticError::Identity),
+        "another actor"
+    );
+    // One byte longer than the writer's 17 (a 13-byte "handle"): not a call, so the record has
+    // none.
+    let mut long = null_event.clone();
+    long.insert(3, 0);
+    assert_eq!(long.len(), 18);
+    assert_eq!(
+        read(&one(&long, &null_record)),
+        Some(DiagnosticError::Identity),
+        "an 18-byte sound event"
+    );
+}
+
+/// A sector sound (tag 26 sub-tag 12, origin 1 sector) and a button sound (origin 2 button, high
+/// byte of the slot 0) are the calls "start at sector `i`" and "start at button slot `i`", matched
+/// with records of origin kind 2 (a u16 sector) and 3 (a u8 slot) that are placed (both origins
+/// are positional, s_sound.c:304); a record of the other kind or the other index has no call. The
+/// forged frames add one event and its record to a genuine frame that has none.
+/// Kills diagnostic.rs `validate_sound_records` deleting the `[26, 12, 1, ..]` arm or the
+/// `[26, 12, 2, ..]` arm.
+#[test]
+fn dsim41_reader_matches_sector_and_button_sound_events_with_their_records() {
+    let limits = DiagnosticLimits::default();
+    let read = |f: &[(String, Vec<u8>)]| Diagnostic::decode_episode1_v3(&encode41(f), limits).err();
+    let frame = owned_fields(&setup(&base(), V3));
+    assert_eq!(read(&frame), None);
+    let sfx = 23_u16.to_le_bytes();
+    // Sector 0.
+    let sector_event = vec![26, 12, 1, 0, 0, sfx[0], sfx[1]];
+    let sector_record = placed_start(23, SoundOrigin::Sector(0), [64 << 16, 64 << 16]);
+    assert_eq!(
+        read(&with_pending(
+            &frame,
+            std::slice::from_ref(&sector_event),
+            std::slice::from_ref(&sector_record)
+        )),
+        None,
+        "sector start"
+    );
+    // A button event (another origin kind) is not the call of the sector record.
+    let button_event = vec![26, 12, 2, 0, 0, sfx[0], sfx[1]];
+    assert_eq!(
+        read(&with_pending(
+            &frame,
+            std::slice::from_ref(&button_event),
+            std::slice::from_ref(&sector_record)
+        )),
+        Some(DiagnosticError::Identity),
+        "button event, sector record"
+    );
+    // Button slot 3, placed at (x, 0) with x in 0..=35 (the declared reading of a release).
+    let button_event = vec![26, 12, 2, 3, 0, sfx[0], sfx[1]];
+    let button_record = placed_start(23, SoundOrigin::Button(3), [20, 0]);
+    assert_eq!(
+        read(&with_pending(
+            &frame,
+            std::slice::from_ref(&button_event),
+            std::slice::from_ref(&button_record)
+        )),
+        None,
+        "button start"
+    );
+    assert_eq!(
+        read(&with_pending(
+            &frame,
+            std::slice::from_ref(&sector_event),
+            std::slice::from_ref(&button_record)
+        )),
+        Some(DiagnosticError::Identity),
+        "sector event, button record"
+    );
+    let other_slot = vec![26, 12, 2, 4, 0, sfx[0], sfx[1]];
+    assert_eq!(
+        read(&with_pending(
+            &frame,
+            &[other_slot],
+            std::slice::from_ref(&button_record)
+        )),
+        Some(DiagnosticError::Identity),
+        "button slot 4 event, slot 3 record"
+    );
+}
+
+/// An event that is not a call of the writer's exact form is not a call: a stop event (tag 2)
+/// of 14 bytes, with no record, leaves the calls and the records equal (none), so the cross-check
+/// does not refuse the frame as `Identity` (what else refuses a malformed event is another
+/// rule's business, so the test asserts only that this one does not).
+/// Kills diagnostic.rs `validate_sound_records` (the `[2, ..]` arm): `handle.len() == 12` ->
+/// `true`.
+#[test]
+fn dsim41_reader_does_not_count_a_malformed_stop_event_as_a_call() {
+    let limits = DiagnosticLimits::default();
+    let read = |f: &[(String, Vec<u8>)]| Diagnostic::decode_episode1_v3(&encode41(f), limits).err();
+    let frame = owned_fields(&setup(&base(), V3));
+    let mut event = vec![2];
+    event.extend([1, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 9]);
+    assert_eq!(event.len(), 14);
+    assert_ne!(
+        read(&with_pending(&frame, &[event], &[])),
+        Some(DiagnosticError::Identity)
+    );
+}
+
+/// The count of `events.pending` is bounded by the number of fields in the frame, as the two
+/// counts of the sound records are (see `dsim41_reader_bounds_the_record_count_by_the_field_count`):
+/// a count above that number is `Limit`, a count equal to it is not (the events it names are then
+/// missing: another refusal).
+/// Kills diagnostic.rs `validate_sound_records` `count > self.fields.len()` (the one for
+/// `events.pending.count`) -> `==` and `>=`.
+#[test]
+fn dsim41_reader_bounds_the_pending_event_count_by_the_field_count() {
+    let limits = DiagnosticLimits::default();
+    let read = |f: &[(String, Vec<u8>)]| Diagnostic::decode_episode1_v3(&encode41(f), limits).err();
+    let frame = owned_fields(&setup(&base(), V3));
+    assert_eq!(read(&frame), None);
+    let n = frame.len() as u64;
+    let mut f = frame.clone();
+    set(
+        &mut f,
+        "events.pending.count",
+        n.saturating_add(1).to_le_bytes().to_vec(),
+    );
+    assert_eq!(read(&f), Some(DiagnosticError::Limit), "above");
+    let mut f = frame.clone();
+    set(&mut f, "events.pending.count", n.to_le_bytes().to_vec());
+    let e = read(&f);
+    assert!(
+        e.is_some() && e != Some(DiagnosticError::Limit),
+        "equal: {e:?}"
+    );
+}
