@@ -469,6 +469,13 @@ def selftest(tools, path, work):
     return out
 
 
+def layout_label(detector):
+    """The label of decision T12 for one part, from the app's own report of the detector (first tic, firings), worded
+    as tools/local/m5c_session_real.py prints it."""
+    first, firings = detector
+    return f'layout-dependent from tic {first}' if firings else 'not layout-dependent'
+
+
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument('--work', type=Path, default=Path.home() / 'scratch/doom-m5c-session')
@@ -484,9 +491,12 @@ def main():
         recs = dict(zip(paths, pool.map(lambda kv: verify(tools, kv[0], kv[1], work / 'runs' / kv[0]), paths.items())))
     failures = []
     for name, r in recs.items():
+        det = r.get('app_detector') or []
         parts = '; '.join(f"part {k}: {p['tics']} tics, frames {p['counts']['frames']}, sound rows {p['sound_rows']}, "
                           f"buffers {p['counts'].get('buffers')}, genuine end {p['genuine_end']}, variants identical "
-                          f"{p['variants_identical']}/{p['mixer_variants_identical']}" for k, p in enumerate(r.get('parts', [])))
+                          f"{p['variants_identical']}/{p['mixer_variants_identical']}, "
+                          f"{layout_label(det[k]) if k < len(det) else 'layout label unknown'}"
+                          for k, p in enumerate(r.get('parts', [])))
         print(f"{name}: {parts}; app {r.get('app_ending')}; T12 detector (first tic, firings) {r.get('app_detector')}; "
               f"pause {r.get('pause')}; {'pass' if r['ok'] else 'FAIL'}", flush=True)
         failures += [f'{name}: tic {t} {k}: {x}' for t, k, x in r['failures'][:5]]
