@@ -2897,7 +2897,10 @@ and keeps the genuine path from there on (decision S4).
   build with the motion accumulated since the last build, each axis clamped to +-319 raw device units (the window
   library's raw motion, which is not in pixels; how the clamp feels is unmeasured) and scaled `<< 2` as linuxdoom does, and
   only when there is motion or a button change; at most 63 events per build and at most 1,024 pending raw
-  inputs (past that everything is released). Every stream it makes is one the genuine `G_Responder` could have
+  inputs (past that everything is released). A press is passed at most once per build (decision S6): **clicks faster than one per
+  build (35 a second) are played out one per build, with fire staying on meanwhile; nothing is lost, the queue empties by itself, with
+  or without motion** (the confirmed rule's behaviour, pinned by the test `clicks_faster_than_one_per_build_drain_at_one_per_build`;
+  it is not the Windows [stuck-fire report](#known-fault-on-windows-fire-sticks-while-the-mouse-moves-under-investigation)). Every stream it makes is one the genuine `G_Responder` could have
   received. Sensitivity arithmetic, turning, strafing, forward movement, double-click use and the clamps are the
   genuine code ported.
 - **Never forwarded** (decision S5): Esc and Pause (the app's own pause), Enter, Tab, `-`, `=`, `q` and F1-F12.
@@ -3302,7 +3305,7 @@ player's volume and mute, and the device itself. Of these the app's code is Rust
   arithmetic only; none of it is part of any claim. **Why two buffers:** under the declared schedule buffer k is handed
   over at tic floor(512k/315) while a device at exactly 11,025 Hz needs it (512k/315) tics after it starts, so with one buffer as the
   threshold the margin falls to nothing at every k that is a multiple of 315 (every 14.6 s) and ordinary sleep jitter gives an
-  underrun (a gap); two buffers keep a margin in hand, for more latency (the comment in the code says one whole buffer and 46.4 ms; the later arithmetic gives 315 frames, 28.6 ms: see [sound latency](#sound-latency-arithmetic-not-measured)). (An earlier version of this page, and
+  underrun (a gap); two buffers keep a margin in hand, for more latency (the margin is 315 frames, 28.6 ms, by the arithmetic in [sound latency](#sound-latency-arithmetic-not-measured); the code comment, which said one whole buffer and 46.4 ms, now says the same). (An earlier version of this page, and
   the first implementation, started at one buffer; a review of the device code found the margin.) `doom-play --audio-probe` writes about one second of silence to check the
   device. **The owner accepted the two-buffer start on 2026-11-18 as presentation, unmeasured; he will judge lag and
   crackle by ear.**
@@ -3386,12 +3389,38 @@ later and the unknowns are in the [evidence record](validation/M5C.md#sound-late
 
 ### Known fault on Windows: fire sticks while the mouse moves (under investigation)
 
-**The owner's report (2026-11-18, not yet explained):** on Windows, with the native artifact and `--bindings modern`, firing
+**The owner's report (2026-11-18):** on Windows, with the native artifact and `--bindings modern`, firing
 with the left mouse button while dragging the mouse leaves fire stuck on; a click with the mouse held still clears it; firing
 with right Ctrl never sticks.
 
-*Cause, fix or logging option, and whether sessions recorded with the fault are valid demos: to be written here when the
-investigation is finished ([evidence record](validation/M5C.md#stuck-fire-on-windows-the-investigation)).*
+**The outcome: it does not reproduce on Linux, in the app's event layer or its pump, and no fix was made.** Every order of
+press, motion and release that was tried (one pump and adjacent pumps, every order, rapid clicks during continuous motion,
+an exhaustive run of 2 x 50,625 four-pump sequences, and the same through the app) delivered every release to the game as a
+mouse event with the left bit clear, and the next command built had no fire. The layer cannot lose a release to motion by its
+code: motion only adds to an accumulator and never enters the queue of button changes
+(`crates/doom-game/src/input/layer.rs:187-192`, `259-336`), and a mouse event is posted whenever the buttons changed, with or
+without motion (`layer.rs:248-256`). So **the cause was not found in doom-play's own layer.** The counts are in the
+[evidence record](validation/M5C.md#stuck-fire-on-windows-the-investigation).
+
+**The likely place is the window library's Windows backend (miniquad 0.4.11) or Windows itself: an unverified hypothesis, since no
+Windows machine was used.** It rests on three facts read in the library's source: it does not capture the mouse (no
+`SetCapture` in its Windows backend); it confines the cursor only by `ClipCursor` to the client rectangle, set at grab, resize and
+move but not on activation; and it takes button changes from the ordinary button messages, with raw input used for motion only.
+If the hidden cursor leaves the client area during a drag, Windows sends the button-up elsewhere and the library never sees it.
+That would fit all four observations (a release during motion lost, a still click clearing it, a click while moving not
+clearing it, right Ctrl never sticking), but it has not been shown. **Nothing was changed to work around it, by the owner's
+instruction not to guess at a fix.**
+
+**What was added instead: `doom-play --input-log FILE`.** It is off by default and listed in `--help`. It writes one line for
+every raw input the window library delivers (mouse buttons, motion and cursor position, keys, focus), for what doom-play passes
+on, and for every event sent to the game, each with the loop's pump number and the tic, and a summary of raw button downs
+and ups on quit. A test runs a session with the log off and on and gets the same frame digests and the same demo bytes, so it
+changes neither the game, the demo nor the frames. The steps for using it are in the evidence record.
+
+**Status: a known Windows limit until the owner's log shows where the release is lost.** Until then, a click with the mouse
+held still clears the stuck fire, and right Ctrl fires without the fault. **Sessions recorded with the fault are still valid
+demos:** the demo records the commands the game executed, and the game was told the button was still down, so a replay shows
+the stuck fire as it was played (it is a valid record of what happened in the game, not of what the hand did).
 
 ## Known gap: THING loading stops at the first Doom II type outside commercial mode
 

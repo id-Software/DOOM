@@ -1852,8 +1852,8 @@ deepest queue after a push is 1,536 frames, below the 2,048-frame cap. With a on
 **Finding: a comment in the code is off.** The comment at `crates/doom-play/src/audio.rs:193-196` gives the two-buffer start's
 worst-case margin as one whole buffer, 512 frames (46.4 ms), and the price as 46.4 ms more latency than one buffer. The
 arithmetic gives 315 frames (one tic, 28.6 ms) for both; 46.4 ms is the worst case for one session (it costs 0 or one
-512-frame callback, depending on `φ`). The comment's "92.9 ms queued at the start" is right. The comment is corrected in a
-separate commit; behaviour is unaffected.
+512-frame callback, depending on `φ`). The comment's "92.9 ms queued at the start" is right. The comment is corrected in commit
+`b141767` (the comment only; behaviour is unaffected).
 
 **Links that could be shortened later, with their costs. None is recommended: the owner ruled no change and the two-buffer
 start stays.** (1) Start threshold from two buffers to one: saves 315 frames on both ends; the margin falls to 0, so gaps are
@@ -1878,12 +1878,114 @@ range lies above the original's. Latency is presentation, outside every claim.
 
 ### Stuck fire on Windows: the investigation
 
-**The owner's report (2026-11-18):** on Windows, with the native artifact and `--bindings modern`, firing with the left mouse
-button while dragging the mouse leaves fire stuck on; once stuck, moving the mouse does not clear it and clicking while
-moving does not clear it; a click with the mouse held still does. Firing with right Ctrl never sticks.
+Source: the `stuckfire` agent's report of 2026-11-18 (22:22 PST), commits `3bac601` (tests) and `a53508a` (the option). Everything below was run on Linux; **no Windows machine was used and nothing about the
+Windows library was run.**
 
-*What was found, what was changed or added, how to use any logging option, and whether sessions recorded with the fault are
-valid demos: to be written here when the investigation is finished.*
+**The owner's report (2026-11-18):** on Windows, with the native artifact and `--bindings modern`, firing with the left mouse
+button while dragging the mouse left or right leaves fire stuck on, repeating. Once stuck, moving the mouse does not clear it
+and clicking while moving does not clear it; only a click with the mouse held still does. Firing with right Ctrl while
+dragging never sticks. So a left-button release that arrives together with motion is lost while a release without motion is
+delivered: the fault decision S4 of M5b was meant to exclude.
+
+**Verdict: it does not reproduce in the app's event layer or pump on Linux; no fix was made; a logging option was added.**
+Every release reached the game as a mouse event with the left bit clear, and the next built command had no `BT_ATTACK`.
+
+**The expectation's source in the C.** `G_Responder` sets `mousebuttons[0] = ev->data1 & 1` from every mouse event, whatever its
+motion (`g_game.c:575-581`); `G_BuildTiccmd` sets `BT_ATTACK` (`d_event.h:75`) from `mousebuttons[mousebfire]`
+(`g_game.c:330-332`), `mouseb_fire` defaulting to 0 (`m_misc.c:269`), kept by the modern preset. Linuxdoom's X layer posts one
+mouse event per X button or motion event (`i_video.c:215-264`); the app posts one per build (S4) and holds back a same-pump
+release (S6). The two existing genuine goldens of the input driver show a mouse event with data1 0 clearing fire, with motion
+(`x_fire_mouse`, tic 6, data2 680) and without (`ev_mouse_button_then_motion`, tic 2); the test reads those goldens. No new
+genuine-driver script was added (the script set is frozen).
+
+**Orders tried** (`crates/doom-game/tests/stuckfire.rs`, 7 tests; each run under both presets unless noted; each checks the mouse
+event of every build, `mousebuttons[0]`, the executed fire bit and the end state):
+
+| Case | Runs | Reproduces? |
+| --- | ---: | --- |
+| One pump, all 6 orders of {press, motion, release} (3 are a stray release then a press), followed by still or by moving pumps | 24 | no |
+| The owner's case spelled out: press and drag, drag, release while dragging, drag (modern); exact events `(1,24,0) (1,24,0) (0,48,0) (0,24,0)`, fire on, on, off, off | 1 | no |
+| Press and release in different pumps (gap of 0 to 2 moving pumps), motion before or after each | 96 | no |
+| Exhaustive: every run of 4 pumps of 0 to 3 inputs (button change or motion), then 3 moving pumps | 2 x 50,625 | no |
+| Rapid repeated clicks during continuous motion, 6 patterns repeated 8 times | 12 | no |
+| Through `App::mouse_button`, `mouse_motion` and `update` on the M5a AMP room: drag release, one-pump click, rapid clicks | 6 | no |
+
+**Self-test:** the layer was made to drop a release while motion was pending; 6 of the 7 tests then failed. The change was
+reverted and never committed.
+
+**Why the layer cannot do it:** `EventLayer::mouse_motion` only adds to `self.motion` (`crates/doom-game/src/input/layer.rs:187-192`);
+the button queue (`drain_pending`, `layer.rs:259-336`) never reads motion; `drain` posts the mouse event whenever the buttons
+changed, with or without motion (`layer.rs:248-256`).
+
+**A separate finding, not the owner's symptom (decision S6).** S6 passes at most one press of a button per build, so clicks
+faster than one per build (35 a second) queue up and play out at one per build, with fire staying on meanwhile; nothing is
+lost, the queue empties by itself, with or without motion. Pinned by `clicks_faster_than_one_per_build_drain_at_one_per_build`;
+changing it would be a new decision.
+
+**The window library, read not run** (miniquad 0.4.11, `src/native/windows.rs` in the cargo registry; line numbers of that file):
+`WM_LBUTTONDOWN` and `WM_LBUTTONUP` go straight to the button events (461-465, 478-483), with the last `WM_MOUSEMOVE` position
+(497-520); raw input is registered with `dwFlags` 0 (1224-1238), so the legacy button messages keep coming, and `WM_INPUT`
+(526-556) is used for motion only, its button flags ignored; there is no `SetCapture` in the file (0 matches by `grep`); the cursor
+is confined by `ClipCursor` to the client rectangle only, set in `set_cursor_grab` (124-133) and `update_clip_rect` (327-353),
+again only on `WM_SIZE` (439-442) and `WM_MOVE` (522-524), not on `WM_ACTIVATE` (763-769); the cursor is hidden by `ShowCursor`
+(134-139); `dpi_aware` defaults to false (1093-1094); the loop dispatches every queued message and then updates and draws
+(1246-1290), and nothing in it drops or reorders a button-up that Windows has queued for the window. doom-play asks only for
+`set_cursor_grab(true)` and `show_mouse(false)`, when play starts or resumes.
+
+**Hypothesis, UNVERIFIED (no Windows machine was used):** Win32 sends a button-up to the window under the cursor unless a window
+has captured the mouse. If the hidden cursor leaves the client area during a drag (the clip was cleared, or an edge or DPI rounding
+puts it on the border), the release goes to another window or arrives as a non-client message, which the library's
+`WM_LBUTTONUP` handler never sees. That fits all four observations (a release during motion lost; a still click clears it; a click
+while moving does not; right Ctrl never sticks, because keyboard messages go to the focused window wherever the cursor is). It
+is a reading of source, not an observation.
+
+**The option `--input-log FILE`** (commit `a53508a`; off by default; listed in `--help`; the file is replaced if it exists, flushed at
+every pump end, and a write error stops only the log). One line per item, `KIND PUMP TIC TEXT`, where `PUMP` is the window loop's
+update number (a raw line shares its pump with the game lines of the tics that drained it). Kinds:
+
+- `raw`: everything the library delivers: `button-down` and `button-up` with x,y; `motion` (marked `ignored` when not captured);
+  `cursor` (the window cursor position, logged only); `key-down`, `key-up`; `focus-lost`; `restored`; `resize`.
+- `app`: what doom-play passed on: `mouse-motion`, `mouse-button`, and `capture on|off window WxH`.
+- `game`: every event posted before each committed tic's command: `keydown 0xNN`, `keyup 0xNN`, `mouse buttons=B dx=X dy=Y`.
+- `pump`: one per loop update that did anything, with tics run and dropped, mode and capture.
+- `summary`: on quit, raw downs and ups per button.
+
+The mouse forwarding moved unchanged from `window.rs` into `input_log::Forward`, so the window and the test share the same code; the
+window's host is `LoggedHost`, which delegates every `Host` method to the file host and adds the log to `Host::tic`. Test: one session
+of 25 pumps with the log off and on gives the same 25 frame digests and the same demo bytes. Self-test: making `Forward` drop releases
+while logging fails that test (reverted). The log holds key names, mouse positions and event numbers, nothing from the IWAD.
+
+**How the owner uses it on Windows:**
+
+1. In PowerShell, from the folder holding the artifact: `.\doom-play.exe --iwad <path to your IWAD> --bindings modern --input-log input-log.txt`.
+2. Keep the session short (a minute or so; the file gets one line per raw mouse motion, a few MB a minute). Hold the left button,
+   drag left or right and release while still dragging; repeat until fire sticks. Once it sticks, keep hands off the mouse for about
+   2 seconds, then click once with the mouse held still to clear it, then quit with Esc and then Q.
+3. Open `input-log.txt` and look for:
+   - the last line, `summary ... raw downs/ups: Left D/U`: if D is larger than U, Windows or miniquad never delivered a button-up to
+     doom-play, and the cause is outside our code;
+   - at the moment it stuck, a `raw P T button-down Left ...` line with no `raw ... button-up Left` after it until the still click:
+     the library never delivered the release. If the `raw button-up Left` and `app ... mouse-button Left up` lines are there but no later
+     `game ... mouse buttons=0` line follows, the fault is ours, and those lines should be sent;
+   - the `raw ... cursor x=.. y=..` lines: if they stop while `raw ... motion` lines continue, or x sits at 0 or at the window width
+     in the `app ... capture on window WxH` line, the hidden cursor left the window, which would fit the hypothesis;
+   - any `raw ... focus-lost` lines near the moment it stuck.
+
+**Are sessions recorded with the fault valid demos? Yes.** The demo records, tic by tic, the command the game executed: the one
+`G_BuildTiccmd` built from the events the game was given, written and read back as `G_WriteDemoTiccmd` and `G_ReadDemoTiccmd` do
+(`g_game.c:1491-1523`; decision S3). Wherever the release was lost, the game was told the button was still down, built `BT_ATTACK`
+commands and executed exactly those, so the genuine engine's replay shows the stuck fire as played. The demo does not record the
+physical mouse. (`m5c_session.py --check` shows the genuine engine replaying the app's demos tic for tic: 9 sessions.)
+
+**Checks** (`CARGO_BUILD_JOBS=2`, debug information off): `cargo test -p doom-game -p doom-play` in debug and in release: doom-game 131
+passed (9 library and 122 integration tests, including the 7 of `stuckfire`), doom-play 24 passed, 0 failed (the commit message of
+`a53508a` says 23, taken before the last test was added; the commit was not rewritten). `cargo clippy -p doom-game -p doom-play
+--all-targets -- -D warnings` clean in debug and release; `cargo fmt --all -- --check` clean; `cargo +1.85.0 check -p doom-game -p doom-play
+--all-targets` ok (one existing warning in `doom-sim`, `MAX_LINKED_THINGS` unused); `cargo doc --no-deps` for both crates with warnings
+denied, with and without private items, clean. With leak detection disabled (not LeakSanitizer coverage), each `--check --jobs 1`, exit 0:
+`m5b_input_reference.py` 251 goldens (36,453 tics), `m5b_session.py` 4 sessions, `m5b_inject.py` 6 goldens, `m5c_session.py` 9 sessions.
+**Not run:** the `--selftest` of those tools, the whole workspace, the fuzz builds, sanitizer campaigns, the windowed game, and
+anything on Windows or macOS. **No existing test, script or golden changed, and none encodes the faulty behaviour.**
 
 ### A first run of the final gates (stopped, superseded)
 

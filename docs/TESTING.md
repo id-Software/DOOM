@@ -2269,7 +2269,8 @@ The Rust side (all in `cargo test --workspace`, so on every OS and in the Minimu
 ```sh
 cargo test -p doom-render --test m5b_display --test m5b_restore   # the Display against every golden frame, field and message; DDSP restore and refusal
 cargo test -p doom-game                                            # input goldens (175 app-domain scripts), admission, layer, recorder, the app's headless scenarios
-cargo test -p doom-play                                            # key table, argument parsing, UTC dates, letterbox fit, backend choice (no window opened)
+cargo test -p doom-play                                            # key table, argument parsing, UTC dates, letterbox fit, backend choice, the input log (no window opened)
+cargo test -p doom-game --test stuckfire                           # 7 tests: orders of press, motion and release (below)
 cargo run -p doom-game --release --example m5b_session -- --wad ROOM.wad --wad tests/reference/m5b_gfx.wad --script SCRIPT.txt --out DIR   # one headless session (also --demo FILE.lmp, --map, --skill, --screenblocks, --captures)
 ```
 
@@ -2306,6 +2307,23 @@ IWAD is read from a scratch copy, and nothing it contains is committed.
 cargo run --release -p doom-play -- --iwad /path/to/DOOM.WAD --map 1 --skill hmp --sessions /path/for/sessions
 cargo run --release -p doom-play -- --help          # every flag and the stated limits
 ```
+
+**The stuck-fire tests and the input log (M5c; Rust-only, no genuine run).** `crates/doom-game/tests/stuckfire.rs` has 7 tests of
+the app's event layer and pump for the owner's Windows report (left-button fire sticking while the mouse moves): every order of
+press, motion and release in one pump and in adjacent pumps (24 and 96 runs), the owner's case spelled out, an exhaustive run of
+every 4-pump sequence of 0 to 3 inputs (2 x 50,625 runs), rapid clicks during continuous motion (12 runs), the same through
+`App::mouse_button`, `mouse_motion` and `update` (6 runs), and the S6 burst rule (`clicks_faster_than_one_per_build_drain_at_one_per_build`).
+The expectation is read from the C and from two existing genuine goldens. None reproduces the fault; a planted fault (a dropped
+release) failed 6 of the 7. Results and the investigation: [record](validation/M5C.md#stuck-fire-on-windows-the-investigation). The input
+log's tests are in `crates/doom-play/src/input_log.rs` (`cargo test -p doom-play`), among them one that runs 25 pumps with the log off and on
+and requires the same frame digests and demo bytes. The option itself is a diagnostic, not a test:
+
+```sh
+doom-play.exe --iwad <path to your IWAD> --bindings modern --input-log input-log.txt   # PowerShell, on Windows; one line per raw input and per game event
+```
+
+Each line is `KIND PUMP TIC TEXT` (`raw`, `app`, `game`, `pump`, `summary`); the steps for reading it are in the record. The file is replaced if it
+exists. The tests carry no totals here: the counts are in the record.
 
 `--skill 2` or `hmp` is Hurt Me Plenty and `--skill 3` or `uv` is Ultra-Violence (the demo-header values; vanilla's
 own `-skill` counts from 1). The opt-in `--unrecorded-full-turning` writes no demo and cannot be replayed (see

@@ -58,7 +58,7 @@ in-process sound code (one define removed), under [a declared schedule](docs/COM
   in part or not at all ([renderer](docs/COMPATIBILITY.md#software-renderer-m5a), [status
   bar](docs/COMPATIBILITY.md#playable-build-m5b), [with sound](docs/validation/M5C.md)).
 - Doom's sound effects (no music): which sounds start, on which channel, at what volume, stereo position and pitch, and the mixer's
-  16-bit samples, equal the genuine engine's on [the runs checked](docs/validation/M5C.md). The owner heard it play once ([what he observed](docs/COMPATIBILITY.md#what-the-owner-observed-2026-11-18)); by arithmetic, sound on Windows is
+  16-bit samples, equal the genuine engine's on [the runs checked](docs/validation/M5C.md). The owner has heard it play ([what he observed](docs/COMPATIBILITY.md#what-the-owner-observed-2026-11-18)); by arithmetic, sound on Windows is
   later than the original's ([latency](docs/COMPATIBILITY.md#sound-latency-arithmetic-not-measured)), and what the speakers add is [not part of
   the claim](docs/COMPATIBILITY.md#the-app-with-sound-and-what-is-presentation).
 
@@ -128,9 +128,9 @@ cargo run --release -p doom-play -- --iwad /path/to/DOOM.WAD --map 1 --skill hmp
 - **Limits.** No music, menus, automap, saving, intermission, next level, other skills, multiplayer or menu-key sounds. **An OpenGL
   2.1 (or OpenGL ES 2) driver is required.** Pausing and key release on focus loss are checked only under WSLg (press Esc before
   switching away), where the game sometimes opens paused: Esc resumes ([limits](docs/COMPATIBILITY.md#platform-limits)).
-- **What was tried.** The owner, one evening, release builds of one commit: sound played on Windows 11 and under WSLg; **WSLg is keyboard-only for now**
-  (the pointer is not captured). Not judged: macOS, long sessions, every map, weapon and monster, vanilla bindings. [A Windows fire
-  fault](docs/COMPATIBILITY.md#known-fault-on-windows-fire-sticks-while-the-mouse-moves-under-investigation) is under investigation.
+- **What was tried.** The owner, one evening, release builds of one commit. Windows 11: 35 frames a second, the picture right, the mouse captured, sound
+  playing. WSLg: sound plays, the pointer is not captured: **keyboard-only for now**. Not judged: macOS, long sessions, every map, weapon and monster,
+  vanilla bindings. [A Windows fire fault](docs/COMPATIBILITY.md#known-fault-on-windows-fire-sticks-while-the-mouse-moves-under-investigation) is not yet explained; a logging option was added.
 
 ## Try it
 You need Rust via [rustup](https://rustup.rs/) (stable, or at least 1.85.0) and a C compiler (on Windows, the Visual Studio build

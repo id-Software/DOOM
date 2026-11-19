@@ -581,7 +581,8 @@ monster/player behavior. Further stages require separate owner direction.
     [record](validation/M5C.md#sound-latency-the-arithmetic-in-full)); under WSLg sound plays but the pointer is not captured, so WSLg is
     keyboard-only for now; his 12 session files replay equal to the genuine in-process build (12 of 12). **Not judged:** macOS, long
     sessions, every map, every weapon and monster, vanilla bindings. **A fault he reported on Windows,** left mouse fire sticking
-    while the mouse moves, is under investigation (the outcome will be recorded here and in the evidence record). Nobody has listened to the visual's WAV file, the SVG was not rendered on
+    while the mouse moves, did not reproduce in the app's event layer on Linux and has no fix; a logging option, `doom-play --input-log FILE`, was
+    added to find where the release is lost, and the Windows artifact is rebuilt on `b141767` for his retest ([record](validation/M5C.md#stuck-fire-on-windows-the-investigation)). Nobody has listened to the visual's WAV file, the SVG was not rendered on
     the development machine, and no MP4 was written (ffmpeg is not installed, so that code path has never run). **Owner rulings
     of 2026-11-18 (second set):** a game under WSLg that occasionally opens already paused stays as it is, and the owner will judge it
     when he plays; when sound or display refuses a tic the simulation's tic stays committed and its command stays in the demo while
