@@ -876,9 +876,11 @@ fn sound_origin_xy_reads_the_actor_position() {
 /// An explicit operation that plays a sound (here the entry of a barrel into its explosion
 /// state, whose action `A_Scream` starts the barrel's death sound `sfx_barexp`: info.c:945,
 /// 1903; p_enemy.c:1535-1560; `P_SetMobjState` runs the action at once) leaves its record,
-/// with the placement read at the call, in the pending list, beside the event that made it;
-/// the next tic's preflight requires the two to agree (`sound::same_calls`) and publishes the
-/// record first.
+/// with the placement read at the call, in the pending list, beside the event that made it.
+/// (A next tic's preflight would require the two to agree, `sound::same_calls`, and publish
+/// the record first; this test's own state never reaches a next tic, because a barrel forced
+/// into its explosion state while still alive is refused by the next `advance`, and the DSIM
+/// reader refuses its frame: a rule of the frozen readers since DSIM37, not of wire 25.)
 /// Kills demon_expanded_map.rs `Simulation::take_operation_sounds` -> `Ok(vec![])`.
 #[test]
 fn an_explicit_operations_sound_is_kept_as_a_pending_record() {
