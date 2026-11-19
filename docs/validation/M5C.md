@@ -7,16 +7,17 @@ confirmed on 2026-11-18) and the plan; [testing](../TESTING.md#m5c-sound-effects
 owns the commands; [COMPATIBILITY](../COMPATIBILITY.md#sound-effects-m5c) owns the support statement and
 [ROADMAP](../ROADMAP.md) the milestone status. Exact review state and CI belong to GitHub.
 
-This record was last extended on 2026-11-18 (America/Los_Angeles) with the pieces of the milestone that are complete
+This record was last extended on 2026-11-18 (America/Los_Angeles, fourth documentation pass) with the pieces of the milestone that are complete
 on the branch: Phase 2 steps 1 and 2, the proof of the audio library (decision T7), step 3 (wire 25 and its genuine
 comparisons), step 4 (the crate `doom-sound` with its session, detector and saved state), step 5 (the display contract
 with sound, the sound session in the game loop, the 61 real runs and the scripted app sessions), step 6 (restore and
 continue), step 7 (sound in `doom-play`), step 8 part 1 (the CI job and the mutation workflow), step 10 as far as it has
-gone (the first mutation run's totals and the change of sharding), step 11 parts 1 and 2 (the fuzz targets, including the one
-for `DDSP` version 2), step 12 (timings), step 13 (the independent review and the fix made for each finding), and the CI
-record. **Not done and not recorded here:** the survivors of the first mutation run and their dispositions (the tests are
-being written), the independent check of those, the mutation run on the final head, the final gates from a clean tree, and
-CI on the final head. With steps 5 to 7 on the branch **the
+gone (the first mutation run's totals, the change of sharding, the 74 survivors with a disposition each and the independent
+check of those dispositions), the local verifier of `doom-play` sessions (step 5 part 3), the failure of the instruction-count
+check and its code-only fix, step 11 parts 1 and 2 (the fuzz targets, including the one for `DDSP` version 2), step 12
+(timings), step 13 (the independent review and the fix made for each finding), and the CI record up to the fix's head.
+**Not done and not recorded here:** the mutation run on the final head (one was started on `a8abf0c` and has not finished),
+the final gates from a clean tree, and CI on the final head. With steps 5 to 7 on the branch **the
 face's idle glance gap (S15) is closed** under the owner's wording
 ([COMPATIBILITY](../COMPATIBILITY.md#the-status-bar-faces-idle-glance-is-closed-with-sound-decision-s15-t14)).
 
@@ -58,14 +59,15 @@ compiled; seed replay; a coverage-guided campaign; a sanitizer campaign.
 | Step 11 part 1: fuzz targets | Recorded ([below](#step-11-part-1-the-fuzz-targets)) |
 | Step 5 part 1: the display contract with sound, the sound session in the game loop, the frame gate, step 6 (restore and continue), the headless app tests | Recorded ([below](#step-5-part-1-the-frame-gate-restore-and-continue-and-the-headless-app-tests)) |
 | Step 5 part 2: the 61 real runs through the whole pipeline (local only) | Recorded ([below](#step-5-part-2-the-61-real-runs-through-the-whole-pipeline-local-only)) |
-| Step 5 part 3: scripted app sessions against the genuine M5c runner | Recorded ([below](#step-5-part-3-scripted-app-sessions)) |
+| Step 5 part 3: scripted app sessions against the genuine M5c runner, and the local verifier for `doom-play` sessions | Recorded ([below](#step-5-part-3-scripted-app-sessions)) |
 | Step 7: sound in `doom-play` (device sink, flags, mute) and the start-up stall | Recorded ([below](#step-7-sound-in-doom-play)) |
-| Step 10: mutation testing | **Partly recorded:** the first run's totals (899 outcomes, 723 caught, 74 missed, 3 timeouts, 99 unviable; two shards cut off) and the change to 24 round-robin shards ([below](#step-10-mutation-testing)); survivors' dispositions, their independent check and the run on the final head not done |
+| Step 10: mutation testing | **Partly recorded:** the first run's totals (899 outcomes, 723 caught, 74 missed, 3 timeouts, 99 unviable; two shards cut off), the change to 24 round-robin shards, the 74 survivors' dispositions (60 killed by new tests, 12 equivalent, 2 unreachable) and their independent check ([below](#step-10-mutation-testing)); **the run on the final head is not done** |
+| The instruction-count check (`Simulation instruction counts`) at `3c1cc5d`: failure, cause and code-only fix | Recorded ([below](#the-instruction-count-check)); CI on the fix's head not read |
 | Step 11 part 2: the fuzz target `render_display_state_v2` and the targets changed by the review | Recorded ([below](#step-11-part-2-the-fuzz-targets-after-the-review)) |
 | Step 12: timings of the sound session, the mixer and the frame step | Recorded ([below](#step-12-timings)) |
 | Step 13: independent review by three reviewers and the fix made for each finding | Recorded ([below](#step-13-independent-review)) |
-| The CI record | Recorded ([below](#the-ci-record)); nothing recorded for any head after `216f976` |
-| The survivors' dispositions and their independent check, the mutation run on the final head, the final gates from a clean tree, CI on the final head | Not done; not recorded here |
+| The CI record | Recorded ([below](#the-ci-record)) up to `3c1cc5d`, with the fix's head `a8abf0c` named and its run not finished when this was written |
+| The mutation run on the final head, the final gates from a clean tree, CI on the final head | Not done; not recorded here |
 
 No IWAD was read in step 1 except by `tools/local/m5c_real.py`, in step 2 except by `tools/local/m5c_mixer_real.py`,
 and in step 3 except by `tools/local/m5c_wire25_real.py`. Each read a scratch copy outside the repository; only counts,
@@ -84,7 +86,7 @@ self-test, and `m5c_mixer_reference.py --check --selftest` (23 scenarios and 64 
 session buffers, 5 of 5 planted faults). All exited 0. **Not re-run on the branch:** `tools/local/m5c_real.py`, whose
 totals equal the note's section 3.4.2, the mixer's `--strict32` (its last run was step 2f's, below) and
 `tools/local/m5c_wire25_real.py --check`. The documentation pass that wrote the sections for step 3 onward re-ran no
-command: every figure is the step agent's. The second documentation pass (steps 5 to 7 and the CI record) also re-ran no command and took each figure from the step agents' reports or from the committed results files `m5c_real_full_results.json` and `m5c_session_results.json`. **The third pass (steps 10, 11 part 2, 12 and 13) re-ran no command either:** each figure is from a reviewer's or fixing agent's report, a commit message or a committed file. Step 12's section was written by its own agent and only read, not rewritten, in this pass.
+command: every figure is the step agent's. The second documentation pass (steps 5 to 7 and the CI record) also re-ran no command and took each figure from the step agents' reports or from the committed results files `m5c_real_full_results.json` and `m5c_session_results.json`. **The third pass (steps 10, 11 part 2, 12 and 13) re-ran no command either:** each figure is from a reviewer's or fixing agent's report, a commit message or a committed file. Step 12's section was written by its own agent and only read, not rewritten, in this pass. **The fourth pass (the survivors of step 10, the instruction-count check, the session verifier and the CI record) re-ran no command either:** each figure is from `step10`, `review-mut`, `sessreal` and `fix-ir`'s reports, a commit message or a committed file; the commit hashes and the layout of the committed files were read from the repository.
 
 ## Step 1: the synthetic sound lumps, the rooms and the genuine sound-logic runner
 
@@ -611,14 +613,18 @@ kills. The first run, and the change to 24 shards dealt round-robin, are in [ste
 
 ## Step 10: mutation testing
 
-**Not finished. What exists is the workflow, its first run's totals and the change made because of that run; the survivors'
-dispositions, their independent check and the run on the final head are still to come, and nothing below says how many
-mutants the tests of `doom-sound` kill.** The figures in this section come from the commit messages of the workflow's two
-changes (`git log -2 -- .github/workflows/mutants.yml`); the run's artifacts were not opened for this record.
+**Partly done. The workflow, its first run, the tests for the 74 survivors and the independent check of their dispositions
+are recorded below; the run on the final head is not done (one was started on `a8abf0c` and had not finished when this was
+written), so nothing here says how many mutants the code of the final head lets through.** The totals of the first run come
+from the commit messages of the workflow's two changes (`git log -2 -- .github/workflows/mutants.yml`); the run's artifacts
+were not opened for this record. The survivors' figures are from the report of the `tester` agent (`step10`) and of the
+independent reviewer (`review-mut`).
 
 What the [Mutants workflow](../TESTING.md#the-ci-job-and-the-mutation-workflow) is: `cargo mutants` over the branch's diff
 against `master`, for `doom-sim`, `doom-render`, `doom-sound` (added in step 8, [part 1](#step-8-part-1-the-ci-job-and-the-mutation-workflow))
 and `doom-game`, informational, started by the label `run-mutants`; `doom-play` is out of scope.
+
+### The first run and the change of sharding
 
 **The first run** (label `run-mutants`, head `216f976`): cargo-mutants' default, consecutive slices of the mutant list over 16
 shards. The slow `doom-sim` mutants come first in the list, so shards 1 to 5 ran 48, over 120, 97, over 120 and 105 minutes
@@ -631,10 +637,116 @@ count being set in the one place the workflow sets it, with a comment that says 
 caps, timeouts and job names. Checked: the file parses as YAML; cargo-mutants 27.1.0 lists `--sharding round-robin` in its help.
 **The new sharding has not been run**: no run of the workflow after the change is recorded here.
 
-**Still to come:** the 74 survivors (and the 3 timeouts) are being given tests by the `tester` agent as this is written, each
-with a disposition (killed by a new test, shown equivalent, or left with a reason); an independent check of those
-dispositions; and a full run on the final head, whose totals replace the first run's. No survivor of the first run is
-described here as killed, equivalent or accepted.
+### The 74 survivors: tests and dispositions
+
+Three commits on the branch hold the tests (`de34a59` doom-sound, `ce94184` doom-sim, `e2207ff` doom-game); only test code
+was added and no source file changed (`git diff --stat 3c1cc5d HEAD` of the step: 4 files, 1,069 insertions, all
+hand-written: `crates/doom-sound/tests/survivors.rs` 595, `crates/doom-sim/src/wire25_tests.rs` 191,
+`crates/doom-sim/tests/wire25_genuine_placements.rs` 206, `crates/doom-game/tests/survivors.rs` 77). There are 24 new tests:
+14 in `doom-sound`, 5 unit and 2 integration tests in `doom-sim`, 3 in `doom-game`. No golden, results file or existing
+expectation changed. The agent worked with the mutants' lines at `216f976`; each mutant was found again by function and
+mutation in the current source.
+
+| Disposition | `doom-sound` | `doom-sim` | `doom-game` | Total |
+| --- | --- | --- | --- | --- |
+| Killed by a new test | 45 | 12 | 3 | 60 |
+| Equivalent (argued) | 9 | 3 | 0 | 12 |
+| Unreachable (argued) | 2 | 0 | 0 | 2 |
+| Total | 56 | 15 | 3 | 74 |
+
+By file in `doom-sound`: `logic` 19 (10 killed, 7 equivalent, 2 unreachable), `state` 15 (all killed), `mixer` 10 (8 killed,
+2 equivalent), `detector` 5, `lumps` 3, `session` 2 and `schedule` 2 (all killed). In `doom-sim`: `sound.rs` 10 (8 killed,
+2 equivalent), `diagnostic.rs` 3 (2 killed, 1 equivalent), `teleport.rs` 1 and `demon_expanded_map.rs` 1 (both killed). The
+three timeouts are separate from the 74 ([below](#the-three-timeouts)). **Source equivalence** for the tests that compare
+with the genuine engine's rows (`wire25_genuine_placements.rs`: every placed start of the 64 items, 404 starts over 22,770
+tics, and every sector origin, 414 sectors, against `P_GroupLines` recomputed from the map as the C's loop nest does); the other
+tests are **Rust-only** pins of rules, bounds and messages whose expectations rest on cited C lines or documented rules (the
+test files say which). Three tests take their expectation from Rust itself, a point the independent check raised
+([below](#the-independent-check)).
+
+**How each kill was confirmed.** One mutant at a time, applied by hand: a script replaced one exact text in the worktree file,
+ran only the new tests, recorded KILLED (a named test fails), SURVIVED (all pass) or UNVIABLE (does not compile), and restored the
+file with `git checkout`. **No cargo-mutants run was made locally** (it would cost disk and hours): the hand check applies the
+same textual mutation cargo-mutants applies, but not cargo-mutants' own set, so a mutant of the same line that the list does not
+name is not covered. Two things follow for the next run. cargo-mutants was run per package, so a `doom-sim` mutant is judged by
+`doom-sim`'s own tests only (the `doom-sound` gate, which runs the same simulation end to end, does not count against it); the
+new `doom-sim` tests are therefore in `doom-sim`. And the equivalent and unreachable mutants will survive the next run by design:
+they are to be listed there as accepted, not chased.
+
+**The 12 equivalent and 2 unreachable mutants** (lines at `216f976`; each argument was agreed by the independent check):
+
+| Mutant | Disposition | Why no test can tell it apart |
+| --- | --- | --- |
+| `logic.rs:173` `<` to `<=` (`approx_dist < S_CLOSE_DIST`) | Equivalent | At exactly `S_CLOSE_DIST` the other branches give `snd * 1040 / 1040` or `15 + ((snd - 15) * 1040) / 1040`, both exact, so the volume is `snd` as well (`s_sound.c:805-814`; `S_ATTENUATOR` is 1040, `s_sound.c:64`); the separation is computed earlier |
+| `logic.rs:176` `>` to `>=` (map 8 clamp) | Equivalent | At equality the body assigns the value `approx_dist` already holds (`s_sound.c:802-803`) |
+| `logic.rs:514` `+=` to `-=` (`volume += link_volume`) | Equivalent | The only linked sound is `sfx_chgun`, whose link volume is 0 (`sounds.c:204`), so `snd + 0` equals `snd - 0` |
+| `logic.rs:519` `>` to `<`, `==`, `>=` (3 mutants) | Equivalent | After adding 0, `volume == snd`, so the clamp's body assigns what is already there under `>`, `>=` and `==`, and `<` is false |
+| `logic.rs:669` `+` to `-` (in `update`) | Equivalent | The link volume is 0 |
+| `mixer.rs:276` `\|` to `^` (the mask fold) | Equivalent | The fold visits each index once, in increasing order, so bit i is still 0 when `1 << i` is combined; for disjoint bits `\|` and `^` agree |
+| `mixer.rs:437` `<<` to `>>` (`& !(1u8 << slot)` in `Mixer::start`'s `freed`) | Equivalent | `after` is read once the channel is busy, so bit `slot` of `before & !after` is already 0 and the extra mask clears nothing, for `<<` and `>>` alike (the text is a copy of the genuine mixer driver's own) |
+| `sound.rs:309` and `sound.rs:314` `>` to `>=` (`add_to_box` else-if, 2 mutants) | Equivalent | At equality the body assigns the edge its current value (`m_bbox.c:53-58`) |
+| `diagnostic.rs:669` `&&` to `\|\|` (`mo.len() == 13 && mo[0] == 1`) | Equivalent | DSIM41 frames are read with `version` 40, so the field loop before `validate_sound_records` already requires 13 bytes and, for tag 0, an all-zero body; the mutant then reads twelve zero bytes as the listener, a handle that `validate_handle` refuses in any record (generation 0), so `positional` is the same |
+| `logic.rs:614` `get_channel` guard to `false`, and `!=` to `==` (2 mutants) | Unreachable | `get_channel` is private and called only by `start`, right after `stop_first` freed the first channel with that origin (`s_sound.c:349`, then 352); the table never holds two channels of one origin (`new` is empty, `from_parts` and `DSND` decode refuse duplicates, `start` frees before it installs, the other paths only free), so the same-origin branch (unreachable from `s_sound.c:352` in the C as well) never runs |
+
+Three pieces of code are redundant, not defective, and stay: the second mask in `Mixer::start`'s `freed`, the length test
+`mo.len() == 13` (defence in depth if the field loop's "optional" set ever changes) and the dead link-volume arithmetic for
+the one linked sound (the C's own text, `s_sound.c:287-293`, from a generated and checked table). The reviewer agreed with
+keeping all three; the cost is the permanent equivalent mutants above.
+
+### The three timeouts
+
+All three change a loop's step so that its counter no longer advances, an endless loop, and a timeout is the expected way to
+catch it: `doom-sound` `logic.rs:619` (`cnum += 1` to `*= 1` in `get_channel`, stuck once channel 0 is held by another origin),
+`doom-sound` `mixer.rs:412` (`i += 1` to `*= 1` in `Mixer::start`, stuck once channel 0 is busy; `i_sound.c:309-325` is the
+same loop) and `doom-sim` `sound.rs:156` (`i += 1` to `*= 1` in `split`). The tester observed two of them by hand (`timeout 90
+cargo test` ended with exit status 124, which includes the rebuild and so shows only that nothing finished). The independent
+check ran each again from a prebuilt binary under `timeout` with a control test from the same binary: exit 124 at 30 s for the two
+`doom-sound` mutants (their controls exit 0) and at 60 s for both tests of `wire25_genuine_placements` for the `doom-sim` one
+(without the mutation both pass in 2.6 s). One correction from that check: the tester said a list that starts with a positional
+start ends through the second `i += 1`; it cannot (`events.get(0)` is the start itself, never a record), so such a list ends only
+through the `Unplaced` refusal in strict mode, and in non-strict mode, or for lists that begin with a removal mark or a start without
+a position, the loop pushes records forever (unbounded allocation rather than a spin). The disposition is unaffected.
+
+### The independent check
+
+The `reviewer` agent `review-mut` (head `e2207ff`; it read neither the other agents' reports nor this record, only the tester's
+report and the code and C; it changed nothing in the repository and worked in a scratch copy, deleted afterwards; `/mnt/c` had
+26 GB free before, during and after) checked the dispositions on 2026-11-18.
+
+- **All 14 equivalent and unreachable arguments were agreed** after attempts to break them, with no distinguishing input and no
+  path found. It ran scratch tests as well: 14,336 calls of the distance rule exactly at `S_CLOSE_DIST` (maps 1, 2, 8 and 9,
+  volumes 0 to 127, 7 angles, 4 source and listener pairs) all return the volume `snd`, and map 8 at exactly `S_CLIPPING_DIST`
+  returns 15; over 4,013 random starts the xor fold of the busy channels equals `mask()`, and bit `slot` of `before & !after`
+  was always 0 (9 starts with a non-zero `freed`, 194 into a busy slot); and `m5c_sounds_table.py --check` matched ("109 entries,
+  1 link").
+- **All 24 new tests were read, and 15 kills were re-run** (the source patched in the scratch copy, the named test run, the file
+  restored and compared): all 15 killed. The others it judged by reading only, where it lists them (for example the seven further `MAX_BYTES`
+  mutants would give 76,834, 372, 292, 2,719, 1,727, 1,057 and 1,281 bytes against the 1,505 the test asserts). No test that cannot
+  fail was found. The C citations of the tests it read were checked against the source.
+- **No blocker and no major finding; two minor and four notes**, all about what a comment or the evidence claims, none about a
+  test's ability to fail. MINOR-1: a test's comment said it finds its tic by the genuine row, while tic 128 and the position
+  (34, 0) are transcribed from that row and its agreement half compares Rust with Rust. MINOR-2: the header of the `doom-sound`
+  test file said no expectation comes from Rust output, while three tests take theirs from the loaded set's own sizes, from the
+  simulation's own reading, or from the `DSND` layout. N1: a `doom-sim` comment claimed more than its loop checks and cited
+  `p_mobj.c:675` for the player's position, which is set at `p_mobj.c:662-663`. N2: a `doom-game` test cited `i_sound.c:665-670`
+  for the left-first order, which is the interleave at `i_sound.c:565-567`. N3 (evidence): with the `sound.rs:369` mutation on, the
+  placed-start comparison still passed; only the sector-origin test failed, so no genuine placement among the 64 items depends on
+  a sector's back-side lines and only the independent recomputation guards that rule (the file's header already says so). N4: the
+  timeout point above.
+- **Corrected in commit `a777a55`** (comments only, no test's code changed; checked with `cargo fmt`): the four comments
+  of MINOR-1, MINOR-2, N1 and N2.
+- **Not run by the reviewer:** `doom-game` (not built), a cargo-mutants run, the `doom-sound` session gate and other full suites,
+  release builds, Clippy, rustfmt, the fuzz workspace, rustdoc, Rust 1.85.0, Windows or macOS, any IWAD.
+
+**Checks of the tests** (the agent, in its worktree at `b2d7806`, whose `crates/` equal `e2207ff`'s on the branch, as `review-mut` found; `CARGO_BUILD_JOBS=4`, debug info off): `cargo test -p doom-sound -p
+doom-sim -p doom-game` in debug and in release: exit 0, 1,563 passed, 0 failed, 2 ignored each; `cargo clippy -p doom-sound -p
+doom-sim -p doom-game --all-targets -- -D warnings` and `cargo fmt --all -- --check`: clean. Not run: `cargo +1.85.0 check` (no new
+non-test source), the fuzz workspace, rustdoc, the other crates' tests, Windows, macOS.
+
+**Still to come.** A full run of the Mutants workflow on the final head, whose totals replace the first run's: it was started on
+`a8abf0c` and had not finished when this was written, so no total is given. The review fixes of step 13 changed 41 files under
+`crates/` after the first run's head `216f976`, so those lines have had no mutation run until then. The equivalent and unreachable
+mutants above are expected to survive again and to be listed as accepted.
 
 ## Step 11 part 1: the fuzz targets
 
@@ -860,6 +972,34 @@ fresh work directory: exit 0, 88 s wall including the C builds (other agents wer
 comparison through the independent DSIM encoder (only the commands are read from the dumps); a strict 32-bit run; real maps;
 a session with a busy next button slot, a focus-loss pause or a sound refusal (the refusal is a Rust-only test above).
 CI itself had not run this step when it was written; see [the CI record](#the-ci-record).
+
+**The local verifier for `doom-play` sessions** (`tools/local/m5c_session_real.py`, 328 hand-written lines, commit `27cc8e8`; its
+two commands are in [TESTING](../TESTING.md#m5c-sound-effects-the-genuine-sound-logic-and-mixer), commit `0cd43ae`; not in CI). It is
+the M5c counterpart of the M5b session check: given the IWAD and demos that `doom-play` recorded with sound, it replays each through
+the Rust pipeline and through linuxdoom-1.10 built with its in-process sound code (one define removed) under the confirmed
+switches (strict, overflow and address variants required identical; **address with leak detection disabled**), runs the genuine mixer
+on the genuine start list, and compares every frame at the session's screen size, every sound-logic row, every mixer row and
+buffer digest, the tic count and the T12 label, importing the comparison code of `m5c_real_full.py`. It prints one `VERDICT: PASS` or
+`VERDICT: FAIL` line per demo, with the first differing tic and kind on a failure. **Source equivalence** per demo it is given.
+- **Self-check without an IWAD** (`--synthetic`, about 44 seconds including the C builds, run twice with the same output): the
+  committed synthetic demos SNDBTN2 (248 tics; frames 248 whole; sound rows C 11, K 11, L 3, R 248, S 11; starts 11; buffers 153;
+  not layout-dependent, 2 release starts with the next slot busy in 1; the 32-bit run had 1 differing row, 0 in behaviour) and
+  SNDMONST (452 tics; frames 452 whole; C 318, K 115, L 28, R 452, S 116, T 48; starts 115; buffers 279) both PASS. Three **planted
+  faults** on SNDMONST are each caught at their place: a turn byte of tic 226 changed in the Rust side's demo only (first
+  difference at tic 226, a frame), the volume of the start at tic 21 changed in the Rust sound rows (tic 21, sound), and one
+  buffer digest after tic 3 changed in the Rust mixer rows (tic 3, mixer): 3 of 3. These demos are the committed item demos, not
+  demos recorded by the headless app.
+- **Two real-map demos** (a scratch copy of the IWAD, deleted afterwards; the committed demos `M6DIE.lmp` and `M8FIGHT3.lmp`):
+  M6DIE at screenblocks 10 PASS (350 tics; frames 349 whole and 1 masked, face equal on 350; sound rows C 177, K 30, L 9, R 350,
+  S 32, T 32 with 5 listeners unchecked; starts 30; buffers 221; no release; the genuine ending reborn) and at screenblocks 11 PASS
+  (348 whole, 2 masked, the rest as above); M8FIGHT3 at screenblocks 10 PASS (3,822 tics; frames 3,793 whole and 29 masked, face
+  equal on 3,822; C 327, K 651, L 23, R 3,822, S 656, T 401 with 173 unchecked; starts 651; buffers 2,354; 1 release start with
+  the next slot not busy; detector 0 firings; the 32-bit run identical). Every figure equals the demo's record in
+  `tests/reference/m5c_real_full_results.json`, checked by printing the committed records.
+- **Not run:** a session of the owner's (none exists to read); a demo with a busy-next-slot release on a real map (none of the 61
+  has one; SNDBTN2 covers the 32-bit path); a restarted (multi-part) `doom-play` session; Windows or macOS; the planted-fault check
+  covers the synthetic path only. One observation, not a fault: `m5c_real_rows` prints the replay's ending as `None` when the demo
+  runs out where the genuine side says reborn or marker; the tool prints both and does not compare them.
 
 ## Step 7: sound in `doom-play`
 
@@ -1186,6 +1326,83 @@ disabled) and the fuzz seed replays of [step 11 part 2](#step-11-part-2-the-fuzz
 all hand-written. Not run by either: a workspace-wide test, a sanitizer or fuzz campaign, mutation testing, the 61 real runs,
 Windows or macOS builds, any audio device.
 
+## The instruction-count check
+
+**What failed.** At `3c1cc5d` the job `Simulation instruction counts` (`simulation-ir`, `python3 -I tools/bench_advance.py ir
+--check`, [TESTING](../TESTING.md#advance-benchmarks-m4p)) failed: case `M4a_corpse_continuation`, `memcpy_calls` 8,407 in the
+baseline against 9,207 measured, **+9.52% against the threshold of 3.0%**. `malloc` and
+`realloc` counts were equal to the baseline. The agent `fix-ir` reproduced it on 2026-11-18 with CI's own command (Rust 1.85.0,
+the release profile, no overrides; `cargo +1.85.0 build -p doom-sim --examples --release --locked`, then `ir --check`): the same
+nine results, `threshold 3.0%: FAILED` on that case only. Commits `d1f7b3f` (the status line) and `91b018c` (housekeeping) changed no
+code, so they carried the same failure; their runs were not read for this record.
+
+**Cause.** A bisect on the one case: `6d02210` 8,407; `2d447f3` 8,407; `591c793` 9,207 (the first bad commit, a review fix of step 13);
+`d7104bf` and `3c1cc5d` 9,207; the `world_pickups.rs` hunk of `591c793` alone on `2d447f3` gives 9,207. That hunk (counting
+the map's THINGS through a helper) is **not executed by this case** (the preflight returns early for the older Demon profile),
+but it changes how rustc 1.85.0 splits `doom-sim` into its 16 release code-generation units (no link-time optimisation): about 20
+functions differ in the binary's symbol list. The effect lands on one vector append that runs once per tic (400 tics): in
+`demon_expanded_map.rs`, the `None` arm after `commit_demon_plan` appended the closing `Specials` and `Respawn` phases with
+`self.events.extend([..; 2])`, which calls an out-of-line `Vec::spec_extend` for `array::IntoIter<Event, 2>`. At `6d02210` that
+body copied both 152-byte events with one fused `memcpy`; at `3c1cc5d` the same instance first copies the whole 320-byte iterator
+to the stack and then each event: three `memcpy` calls per tic, 1,200 instead of 400, and the 800 extra are the whole
+difference. It is a code-generation effect of the pinned toolchain: behaviour is unchanged. `fix-ir` tried seven source shapes
+that left the count at 8,807 (two plain pushes, helpers with and without `#[inline(never)]`) or 9,207 (moving or annotating the
+unexecuted helper). With 1.85.0 every by-value write of a 152-byte `Event` is one `memcpy` call, and no safe form found makes
+the fused copy certain.
+
+**The fix** (code only, two commits, `git log --oneline -2 --grep='Instruction-count fix'`; 28 insertions and 15 deletions in
+`crates/doom-sim/src/demon_expanded_map.rs` and `crates/doom-sim/src/transaction_cost_tests.rs`, hand-written):
+
+1. `1b2ecc4`: two `self.events.push(Event::Phase(..))` instead of `extend` over the array, with a comment giving the cause. The
+   corpse case alone then reads 8,807 (+4.76%, still over the threshold); the other eight cases equal `3c1cc5d` on every counter.
+2. `a8abf0c`: `commit_demon_plan` takes the tic's plan by mutable borrow instead of by value, so the 792-byte `DemonPlan` is no
+   longer copied into an argument temporary before each commit (one `memcpy` per tic in `advance_expanded_demons`, plus one per
+   explicit checked operation). Each field is taken out of the borrowed plan and assigned exactly as before (the actor stores
+   swapped and the replaced store's sector slots kept as spare slots; spatial, specials, writes and events taken, their defaults
+   being empty vectors that do not allocate; the sound targets replaced and matched as before; the `Copy` fields copied). Same
+   values, same order of every operation, events, RNG draws and allocations. The one difference is when the replaced actor store
+   is freed: when the caller's plan goes out of scope, a few statements later (`doom-sim` has no `Drop` implementation, found by
+   searching for `impl.*Drop for`, and nothing reads the store).
+
+**Every case before and after** (`ir --check`, 1.85.0, the repository's release profile; `memcpy` calls, then instructions inside
+`advance` outside libc as a change against the baseline; baseline, then `3c1cc5d`, then `a8abf0c`; `malloc` and `realloc` equal
+the baseline in every case at both heads; `threshold 3.0%: ok` at `a8abf0c`; measured at the commit of the second fix, whose
+`crates/` are `a8abf0c`'s):
+
+| Case | `memcpy`: baseline | `3c1cc5d` | `a8abf0c` | Ir: `3c1cc5d` | `a8abf0c` |
+| --- | --- | --- | --- | --- | --- |
+| `SYNCHAOS_wire22` | 1,763,633 | 1,763,628 | 1,758,628 | -0.20% | -0.17% |
+| `SCALE2_episode1v2` | 392,111 | 392,092 | 391,492 | -0.17% | -0.16% |
+| `MTELE1_wire24` | 9,113 | 9,113 | 8,953 | +0.31% | +0.56% |
+| `TFRAG1_wire24` | 14,947 | 14,944 | 14,662 | +0.25% | +0.50% |
+| `BVB1_wire24` | 34,377 | 34,369 | 33,634 | +0.61% | +0.92% |
+| `M4a_dense64_lift` | 1,363,680 | 1,363,680 | 1,361,280 | -0.12% | -0.11% |
+| `M4a_dense64_fight` | 1,415,616 | 1,415,538 | 1,411,938 | -0.23% | -0.20% |
+| `M4a_gallery_patrol` | 258,136 | 258,130 | 254,530 | +0.18% | +0.34% |
+| `M4a_corpse_continuation` | 8,407 | **9,207** | 8,407 | -0.11% | +0.23% |
+
+**What was not changed.** The baseline `tests/reference/m4p_ir_baseline.json`, the threshold (3.0%), the nine cases and the tool
+`tools/bench_advance.py`. **What is still true after the fix:** `memcpy` is lower than at `3c1cc5d` in every case, but the
+instruction counts are **0.01 to 0.34 percentage points of the baseline higher than at `3c1cc5d` in all nine cases** (the
+largest rise, the corpse case, is +11,200 instructions over 400 tics, about 28 per tic), all inside the threshold. The likely
+sources are the empty defaults that `mem::take` writes back into the borrowed plan, the swap of the actor store and code-generation
+shifts; counts move this much between unrelated builds (the build of `591c793` alone was +1.2% on the corpse case). Meeting "no
+counter worse" for instructions as well would mean searching more source shapes, which is again code-generation dependent.
+
+**An alternative the owner may prefer, not taken.** The failure came from an unexecuted change shifting code generation, not from a
+behaviour change; **rewriting the baseline from a pinned build instead of changing code was an option, and it is the owner's
+decision whether the code change stays or the baseline is updated.** It was not taken: the brief forbade changing the baseline,
+threshold, cases or tool, and the owner has not ruled on it.
+
+**Checks of the fix** (`fix-ir`, at the second commit, `CARGO_BUILD_JOBS=2`): `cargo test -p doom-sim` in debug and in release:
+1,376 passed, 0 failed, 2 ignored each; `tests/wire25_projection`: 3 passed; the Rust steps of the `Stable` job as CI runs them:
+the six M3h9c scripts and `check_player_level.py` (all checks passed), the M4a episode-1 check (all passed) and the M4a and M4b
+wire-24 check (52 of 52 scripts matched over 20,205 tics, 0 pending); `cargo clippy -p doom-sim --all-targets -- -D warnings`,
+`cargo fmt --all -- --check` (workspace and fuzz), `cargo +1.85.0 check -p doom-sim`, `RUSTDOCFLAGS=-D warnings cargo doc -p
+doom-sim --no-deps` and `cargo test -p doom-sound --test session_gate` (1 passed): all clean. **Not run:** the genuine-engine C
+steps of the `Stable` job (they do not build or run Rust), the whole-workspace tests and Clippy, the fuzz builds, sanitizers,
+Windows and macOS. **CI on `a8abf0c` had not finished when this was written**; whether the job now passes is not recorded here.
+
 ## The CI record
 
 At `216f976` every required job was green (the macOS job took 42 minutes of its 60-minute limit) and the non-required job
@@ -1197,6 +1414,13 @@ our own synthetic data, no IWAD content); a plain run of `m5c_t4.py` then regene
 unchanged, and `--check` passed. The step that runs `m5c_session.py --check --selftest` was added to the same job
 (`dad83eb`) and run only locally in the job's form (exit 0, 88 s). CI results for later heads are on GitHub; the run after
 `a6f3b3b` had not been read when this was written.
+
+At `3c1cc5d` the job **`Simulation instruction counts` failed** (case `M4a_corpse_continuation`, `memcpy_calls` +9.52% against
+3.0%); cause, fix and counts are in [the instruction-count check](#the-instruction-count-check). `d1f7b3f` (the status line) and
+`91b018c` (housekeeping: vendored-source attributes, the commit-subject rule, the README's 237 lines cut to 149 with its policy table
+moved to [COMPATIBILITY](../COMPATIBILITY.md#policies)) changed no code and so carried the same failure; their runs were not read for
+this record. **`a8abf0c` is the head with the fix** (`1b2ecc4` and `a8abf0c`); its run had not finished when this was written, so
+no result is recorded for it, for that job or any other.
 
 ## Findings
 
@@ -1273,6 +1497,22 @@ unchanged, and `--check` passed. The step that runs `m5c_session.py --check --se
   Test 4 ("chgun 1 draw") was run with the lump functions stubbed so that every lump is found; on `m5c_sfx.wad`, which has
   no `dschgun`, a chaingun start that obtains a channel is a `LumpMissing` refusal, and on `m5c_sfx_edge.wad` it draws 1
   as the note says (both tested).
+- **A slip of the orchestrator, recorded.** The tester's worktree (`~/scratch/m5c/wt-step10`) was removed before the tester
+  had handed back, while its first full debug test run was going; that run failed (25 failed lines in `doom-sim`'s teleport
+  tests) and was discarded, and the agent recreated the worktree at its last commit and ran every check again from scratch. Its
+  three commits and its results were not affected (the commits reached the branch by cherry-pick, so the hashes in the agent's
+  report, `9ca0cf2`, `5a62716` and `b2d7806`, differ from the branch's `de34a59`, `ce94184` and `e2207ff`).
+- **The survivors' dispositions: no source change was needed and the equivalent mutants stay.** 60 of the 74 survivors were
+  killed by 24 new tests, 12 shown equivalent and 2 unreachable; the independent check agreed with every argument and re-ran 15
+  kills. The lesson for the next run: cargo-mutants judges a `doom-sim` mutant by `doom-sim`'s own tests only
+  ([step 10](#step-10-mutation-testing)).
+- **A review fix changed instruction counts in code it never runs.** `591c793` made one case of the instruction-count check fail
+  by +9.52% through code generation alone; the code-only fix leaves instruction counts 0.01 to 0.34 percentage points above
+  `3c1cc5d` in all nine cases, inside the threshold, and a baseline update instead is the owner's choice
+  ([the check](#the-instruction-count-check)).
+- **The README no longer holds the policy table.** The housekeeping commit moved it to
+  [COMPATIBILITY](../COMPATIBILITY.md#policies); this record and the other pages that name it link there (the documents were
+  searched for a remaining statement that the table is in the README: none was found).
 - **A documentation slip found on the way.** The M5b section of TESTING listed a `--strict32` option for
   `m5b_reference.py` that the tool does not have; it was corrected on 2026-11-18.
 
@@ -1287,8 +1527,9 @@ not playtested M5b, so input, pacing and presentation are not to change on a gue
 
 ## Still to come in this record
 
-The survivors of the first mutation run (74 missed mutants and 3 timeouts) with a disposition each, the independent check of
-those dispositions, and a full mutation run on the final head with its totals ([step 10](#step-10-mutation-testing)); the final
+A full mutation run on the final head with its totals (one was started on `a8abf0c` and had not finished; the first run's
+survivors and their check are recorded in [step 10](#step-10-mutation-testing)); the owner's choice between the code change and
+a baseline update for the instruction-count check ([the check](#the-instruction-count-check)); the final
 gates from a clean tree (build, format, Clippy, workspace tests, release tests, rustdoc, the original-C generators and
 encoders with `--check`, the fuzz builds, Rust 1.85.0, and a bounded sanitizer campaign) and the CI record of the final head, which
 also covers `doom-play`'s sound code on Windows and macOS (not observed since `216f976`); a repeat of the fuzz campaigns on the
