@@ -1195,4 +1195,113 @@ mod tests {
         assert_eq!(yellow(&eight, false), episode);
         assert_eq!(yellow(&eight, true), episode);
     }
+
+    /// A session whose layout detector (decision T12) has fired: a fresh process over the app's
+    /// own sound data (`SoundConfig::fresh(1, 1)`), one empty tic, then at tic 1 the switch
+    /// release start of p_spec.c:1151 (`S_StartSound(&buttonlist[i].soundorg, sfx_swtchn)`,
+    /// sfx 23, origin button 0) with the declared 64-bit reading (34, 0) placed 34 raw units
+    /// inside the clipping distance from the listener, where the 32-bit reading (0, 34) would be
+    /// out of range: the same construction as tests/m5c_app.rs
+    /// `a_layout_dependent_session_gives_one_plain_line`, which pins the detector's result
+    /// (labelled from tic 1, one firing). This helper asserts that result again before use.
+    fn fired_sound(app: &App) -> Sound {
+        use doom_sound::logic::{Listener, OriginPositions, S_CLIPPING_DIST, SoundOrigin};
+        use doom_sound::logic::{SoundPlacement, SoundRecord};
+        struct Quiet;
+        impl OriginPositions for Quiet {
+            fn actor_xy(&self, _: doom_sim::ActorId) -> Option<[i32; 2]> {
+                None
+            }
+            fn sector_xy(&self, _: u16) -> Option<[i32; 2]> {
+                None
+            }
+            fn button_xy(&self, _: u8) -> Option<[i32; 2]> {
+                Some([0, 0])
+            }
+        }
+        let set = app.data.sound().expect("sound data").set().clone();
+        let edge = S_CLIPPING_DIST - (130 << 16);
+        let listener = Listener {
+            actor: doom_sim::ActorId::from_parts(0, 0),
+            xy: [edge + 34, 0],
+            angle: 0,
+        };
+        let release = SoundRecord::Start {
+            sfx: 23,
+            origin: SoundOrigin::Button(0),
+            at: Some(SoundPlacement {
+                origin: [34, 0],
+                listener: listener.xy,
+                listener_angle: 0,
+            }),
+        };
+        let mut s = Sound::new(set, SoundConfig::fresh(1, 1)).expect("session");
+        s.tic(&[], 0, &listener, &Quiet).expect("tic 0");
+        s.tic(&[release], 0, &listener, &Quiet).expect("tic 1");
+        let d = s.detector();
+        assert_eq!((d.layout_dependent_from(), d.firings()), (Some(1), 1));
+        s
+    }
+
+    /// `App::layout_dependent_line` and the run's count of earlier labelled sessions, through a
+    /// real `App` (decision T12: a layout-dependent session is "counted separately in every
+    /// report"). The app is built on the M5a AMP room with `m5b_gfx.wad` and the synthetic sound
+    /// lumps `m5c_sfx.wad`. The committed scenarios never fire the detector, so the test makes
+    /// the next session labelled by replacing the game data's fresh sound session
+    /// (`SoundAssets::fresh`, which `App::begin` clones through `FrameSource::start`) with the
+    /// fired session of [`fired_sound`], and unlabelled again by putting the original back, each
+    /// followed by `App::restart`. No tic runs. The expected lines are the documented texts of
+    /// the pure [`layout_dependent_line`] (pinned by tests/m5c_app.rs); the expected counts
+    /// follow from the documentation of `App::layout_earlier` and `App::begin`: one more for each
+    /// labelled session a restart ends, no change otherwise.
+    #[test]
+    fn the_app_counts_layout_dependent_sessions_across_restarts() {
+        let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../tests/reference");
+        let files: Vec<Vec<u8>> = ["m5a_wads/amp.wad", "m5b_gfx.wad", "m5c_sfx.wad"]
+            .iter()
+            .map(|w| std::fs::read(root.join(w)).expect("WAD"))
+            .collect();
+        let refs: Vec<&[u8]> = files.iter().map(Vec::as_slice).collect();
+        let data = GameData::load_with_sound(&refs, GameMode::Registered, 1, 2).expect("data");
+        let mut host = NullHost;
+        let mut app = App::new(data, SessionConfig::default(), &mut host);
+        // an unlabelled run prints no line, before and after a restart
+        assert_eq!(app.layout_dependent_line(), None);
+        app.restart(&mut host);
+        assert_eq!(app.layout_dependent_line(), None);
+        let fresh = app.data.sound.as_ref().expect("sound").fresh.clone();
+        let fired = fired_sound(&app);
+        let mut install = |app: &mut App, sound: &Sound| {
+            app.data.sound.as_mut().expect("sound").fresh = sound.clone();
+            app.restart(&mut host);
+        };
+        let labelled = "layout-dependent session from tic 1 (1 detector firing): a 32-bit build \
+                        could have played a switch-release sound differently; this one used the \
+                        64-bit reading";
+        // a labelled current session, no earlier one
+        install(&mut app, &fired);
+        assert_eq!(app.layout_dependent_line().as_deref(), Some(labelled));
+        // the restart ends a labelled session: one earlier, the new session not labelled
+        install(&mut app, &fresh);
+        assert_eq!(
+            app.layout_dependent_line().as_deref(),
+            Some(
+                "this session is not layout-dependent; 1 earlier session of this run was \
+                 labelled too"
+            )
+        );
+        // the restart ends an unlabelled session: the count stays one
+        install(&mut app, &fired);
+        let one = format!("{labelled}; 1 earlier session of this run was labelled too");
+        assert_eq!(app.layout_dependent_line(), Some(one));
+        // the restart ends the second labelled session: two
+        install(&mut app, &fresh);
+        assert_eq!(
+            app.layout_dependent_line().as_deref(),
+            Some(
+                "this session is not layout-dependent; 2 earlier sessions of this run were \
+                 labelled too"
+            )
+        );
+    }
 }
