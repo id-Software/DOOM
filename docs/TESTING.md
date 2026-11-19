@@ -2495,7 +2495,7 @@ independent Python encoder. The Rust side is the example `sound_records_run`, wh
 ```sh
 # Rust only (no C): wire 25 against wire 24 on the 64 synthetic items (stripped captures equal; events equal except the scream), and the item table against the 64 committed streams
 cargo test -p doom-sim --release --test wire25_projection -- --nocapture   # 3 tests: the item table, the projection to wire 24, and that every capture of the T4 map decodes with the DSIM41 reader (93 of 93)
-# Rust only: the eleven unit tests of wire 25 (scream, sector origin arithmetic and overflow, release origin and slot 15, stop records, record order and the Unplaced refusals, THING truncation, the unloaded THING tail not counted, the DSIM41 round trip and its forged records, and the forged frames of the reader: a surplus or unknown field, a stop without its removal, slot 15)
+# Rust only: the twenty unit tests of wire 25 in `wire25_tests.rs` (counted from the source: scream, sector origin arithmetic and overflow, release origin and slot 15, stop records, record order and the Unplaced refusals, THING truncation, the unloaded THING tail not counted, the DSIM41 round trip and its forged records, the forged frames of the reader: a surplus or unknown field, a stop without its removal, slot 15, and the mutation survivors' tests; four of them check the reader's cross-check of pending sound events with the records: `dsim41_reader_bounds_the_pending_event_count_by_the_field_count`, `dsim41_reader_matches_a_pending_sound_event_with_its_record`, `dsim41_reader_matches_sector_and_button_sound_events_with_their_records` and `dsim41_reader_does_not_count_a_malformed_stop_event_as_a_call`)
 cargo test -p doom-sim --lib wire25
 CARGO_TARGET_DIR=$HOME/scratch/m5c-target cargo build -p doom-sim --release --locked --example sound_records_run
 # one run: wire 24 and wire 25 side by side with checks 1 and 2; --out writes the records, --captures DIR or --capture-stream PATH the DSIM41 captures, --alone runs wire 25 without wire 24
@@ -2560,7 +2560,7 @@ device, an IWAD or a C compiler. The comparisons are against committed genuine g
 
 ```sh
 cargo test -p doom-game --release --test m5c_frames --test m5c_restore --test m5c_app   # about 22 s for the frame gate
-# the unit test of the frame source's two views of the M_Random index (the_two_views_of_the_random_index_must_agree) is in `cargo test -p doom-game --lib`
+# the unit tests in `cargo test -p doom-game --lib` include the frame source's two views of the M_Random index (the_two_views_of_the_random_index_must_agree) and `app::tests::the_app_counts_layout_dependent_sessions_across_restarts` (the app's count of layout-dependent sessions across restarts: a real `App` with a session whose detector fired, a restart into unlabelled and labelled sessions; written to kill three mutation survivors, no production line changed)
 cargo test -p doom-render --test m5c_display --test m5c_contract
 cargo test -p doom-play
 # the 61 real runs, local only (reads an IWAD copy in scratch; only counts and digests are committed). First the example:
@@ -2600,7 +2600,7 @@ python3 tools/local/m5c_session_real.py --rust TARGET/release/examples/m5c_real_
 goldens under `tests/reference` and run in `cargo test --workspace` on every operating system in CI:
 
 ```sh
-cargo test -p doom-sound [--release]       # 57 tests (counted from the sources: 55 in the test files, 2 unit tests); the end-to-end gate takes about 7 seconds in a debug build
+cargo test -p doom-sound [--release]       # 59 tests (counted from the sources: 57 in the test files, 2 unit tests); the end-to-end gate takes about 7 seconds in a debug build
 python3 tools/reference/m5c_sounds_table.py --check        # crates/doom-sound/src/sounds_table.rs and steptable.rs against sounds.c, sounds.h and the genuine digest 95f2209c...6dde; writes nothing
 python3 tools/reference/m5c_sounds_table.py --self-test    # 8 cases that run the tool's real comparison (compare() and the digest check) on planted inputs: the committed text matches, a changed byte, a missing file and a changed steptable entry each differ; --check and --self-test may be given together
 python3 tools/reference/m5c_sounds_table.py                # without a flag: writes both generated files
@@ -2608,7 +2608,7 @@ python3 tools/reference/m5c_sounds_table.py                # without a flag: wri
 
 | Test file | What it gates | Kind of evidence |
 | --- | --- | --- |
-| `survivors.rs` (14) | tests written for the mutants the first mutation run missed in this crate (logic, state, mixer, detector, lumps, session, schedule); each names the C line or documented rule it rests on, and three take an expectation from the loaded set, the simulation's reading or the `DSND` layout, so they are Rust-only | Rust-only pins, see [step 10](validation/M5C.md#step-10-mutation-testing) |
+| `survivors.rs` (16) | tests written for the mutants the mutation runs missed in this crate (logic, state, mixer, detector, lumps, session, schedule; the last two, `every_sound_refusal_has_a_message_that_names_its_facts` and `every_session_refusal_has_a_message_that_names_its_facts`, pin the `Display` text of the two refusal types, exact wording, so they are Rust-only); each names the C line or documented rule it rests on, and three take an expectation from the loaded set, the simulation's reading or the `DSND` layout, so they are Rust-only | Rust-only pins, see [step 10](validation/M5C.md#step-10-mutation-testing) |
 | `tables_and_lumps.rs` (6) | the sound names against the simulation's source list; one linked sound and the documented priorities; the step table as the exact integer floor of the genuine expression; both table digests; edge lumps padded as `getsfx` does; the load refusals | digests and goldens of the genuine tables; Rust-only for the refusals |
 | `mixer_goldens.rs` (5) | the rows of the 23 scenario goldens and the 64 session goldens of the genuine mixer except the fake device's `d` and `q` rows; the refused scenarios stop where the genuine code ends in `I_Error`; the short-lump witnesses and the pitch-256 probe are refused | source equivalence against genuine traces |
 | `adjust_streams.rs` (1) | `S_AdjustSoundParams` on all 404 positional start rows of the 64 genuine streams | source equivalence |
@@ -2725,8 +2725,9 @@ Minimum Rust job as part of `--workspace`. The [mutation workflow](#ci-mutation-
 `doom-sound` (`-p doom-sound` beside `doom-sim`, `doom-render` and `doom-game`; `doom-play`, the window and device code,
 is left out), over **24 shards dealt round-robin** (`--sharding round-robin`: mutant i runs on shard i mod 24; the
 consecutive slices of the first M5c run left two shards cut off by the 120-minute job limit while eleven finished in 4 to 23
-minutes). The first M5c run's figures are in the [evidence record](validation/M5C.md#step-10-mutation-testing); the survivors'
-dispositions and their independent check are recorded there; the run on the final head is not done yet. The job failed at the T4 check at `216f976` for two uncommitted
+minutes). The runs' figures, the survivors' dispositions with their independent check, the second round of survivors and the confirming run
+at `937cf9d` (whose only missed mutants are the 14 judged equivalent or unreachable) are in the
+[evidence record](validation/M5C.md#step-10-mutation-testing); the tables are not repeated here. The job failed at the T4 check at `216f976` for two uncommitted
 generated files, fixed in `a6f3b3b` ([record](validation/M5C.md#the-ci-record)).
 
 ### M5c timings
