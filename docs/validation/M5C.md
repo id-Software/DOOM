@@ -64,7 +64,8 @@ compiled; seed replay; a coverage-guided campaign; a sanitizer campaign.
 | Step 11 part 2: the fuzz target `render_display_state_v2` and the targets changed by the review | Recorded ([below](#step-11-part-2-the-fuzz-targets-after-the-review)) |
 | Step 12: timings of the sound session, the mixer and the frame step | Recorded ([below](#step-12-timings)) |
 | Step 13: independent review by three reviewers and the fix made for each finding | Recorded ([below](#step-13-independent-review)) |
-| The CI record | Recorded ([below](#the-ci-record)) through `937cf9d`: all nine jobs green at `a8abf0c`, `0dea135` and `937cf9d` |
+| The CI record | Recorded ([below](#the-ci-record)) through `937cf9d`: all nine jobs green at `a8abf0c`, `0dea135` and `937cf9d`; and at `b141767` ([below](#the-input-diagnostics-at-b141767-independent-review-ci-and-the-windows-artifact)) |
+| The input diagnostics at `b141767`: independent review, CI and the Windows artifact for the owner's retest | Recorded ([below](#the-input-diagnostics-at-b141767-independent-review-ci-and-the-windows-artifact)): no blocker or major finding; three minor findings open |
 | The owner's playtest of 2026-11-18, the check of his 12 session files, the latency arithmetic, the lost display connection, the stuck-fire fault | Recorded ([below](#the-owners-playtest-2026-11-18)); the stuck-fire outcome is still to be written |
 | A first run of the final gates (stopped, superseded) | Recorded ([below](#a-first-run-of-the-final-gates-stopped-superseded)); not the final gates |
 | The final gates from a clean clone, the pull request's new body, the Windows artifact on the final head, CI on the final head | Not done; not recorded here (they wait for the owner's Windows retest) |
@@ -1986,6 +1987,58 @@ denied, with and without private items, clean. With leak detection disabled (not
 `m5b_input_reference.py` 251 goldens (36,453 tics), `m5b_session.py` 4 sessions, `m5b_inject.py` 6 goldens, `m5c_session.py` 9 sessions.
 **Not run:** the `--selftest` of those tools, the whole workspace, the fuzz builds, sanitizer campaigns, the windowed game, and
 anything on Windows or macOS. **No existing test, script or golden changed, and none encodes the faulty behaviour.**
+
+### The input diagnostics at `b141767`: independent review, CI and the Windows artifact
+
+**Review.** The three code commits (`3bac601`, `a53508a`, `b141767`; `git diff c8f2fa7..b141767`) were read by a fresh reviewer who
+did not write them and did not see the authors' reports, read-only, with scratch copies for anything it ran (at most 2 build jobs; no
+C reference tool, window, audio device or IWAD). **No blocker and no major finding.** What it reports:
+
+- **With the option off, `doom-play` behaves as before `a53508a`**, by a line-by-line comparison of the moved mouse forwarding: every
+  `Host` method and the mute are delegated, the three window handlers the window now overrides replace empty default methods of
+  miniquad 0.4.11, and the only two executed differences are harmless (the log's button counters are incremented, and the window's
+  size is read once at each capture change). This rests on reading: the committed equality test compares the logged path with the
+  log off against the same path with the log on, never against the old path, and no test runs the window's own handlers.
+- **The log separates** a release that Windows or the window library never delivered, one that `doom-play` received and did not pass
+  on (which the present code cannot do), and one that the app received without the game being told. **It cannot show by itself** a
+  game that was told and kept firing (minor finding M1: there is no line for a tic's command or fire bit and no session name, so that
+  case needs the session's demo beside the log; under `--unrecorded-full-turning` there is no demo, and after a restart the tic
+  column starts again). It cannot see the button flags of raw input, which the window library drops. Logging one line per raw
+  motion, flushed once per pump, cannot plausibly hide the fault; the volume is estimated, not measured, at 4 to 6 MB a minute for a
+  1,000 Hz mouse.
+- **The new tests can fail:** faults planted in a scratch copy of the event layer failed 6, 6, 5, 4 and 3 of the 7 tests, and the
+  equality test fails on two planted faults in the forwarding (three other planted faults pass all 24 `doom-play` tests: the sound
+  sink not handed on, the motion fraction kept across a capture change, and a harmless one). The cases the committed tests leave out
+  (zero motion, as Windows sends with every button-only packet; several or no tics in one update; dropped tics; duplicate presses and
+  releases; a pause with the button held; clamped motion) the reviewer covered with its own randomized test of 1,500 runs through the
+  app, which found no lost release and fails with three of the planted faults; that test is the reviewer's scratch work and is not
+  committed. The tests' expectations come from the confirmed decisions S4 and S6 as re-implemented in the test; only the fire rule
+  comes from the C, checked against two existing genuine goldens.
+- **In our own code the reviewer sees no way to leave fire on** after a release that was received. Outside it, ranked, with what the
+  owner's log would show: (1) the hidden cursor is not over the game's client area when the button goes up (the window library never
+  captures the mouse, confines the cursor only by a clip rectangle, and the process is not DPI-aware; with the modern bindings
+  vertical motion shows nothing, so the cursor can drift to the top or bottom edge unseen): a missing `raw button-up Left` with no
+  `focus-lost`, the last `cursor` line before it at an edge; (2) Windows holding the button itself (ClickLock, or a mouse vendor's
+  remapping program): the same missing line, at any cursor position, and reproducible with the mouse still; (3) switch chatter: a
+  `raw button-up Left` followed at once by a `raw button-down Left`. Message loss inside the library's loop, double-click handling
+  and the raw-input registration were ruled out by reading. None of this was tried on Windows.
+- **Minor findings, not changed in `b141767`** so that the head the owner tests is the head reviewed; they go into the next code
+  change, after his retest: **M1** above; **M2** a test comment (`crates/doom-play/src/audio.rs:601`) still says two buffers leave one
+  whole buffer, which `b141767` corrected in the constant's own comment; **M3** the module comment of the log says every `raw` or
+  `app` line shares its pump number with the `game` lines that drained it, which is not so for `capture` lines, for a release held
+  back by decision S6 to a later tic (in the test's own log a release logged in pump 13 reaches the game in pump 14), and for inputs
+  before an update that runs no tic; and on Windows the position on a button line is the last cursor-motion position, not the
+  click's. Notes: `a53508a`'s message says 23 `doom-play` tests where there are 24; one test's name claims more than it checks;
+  one unchanged sentence says "about one frame" where the exact figure is 0. **The comment corrected in `b141767` is right** by the
+  reviewer's own exact model: worst-case margin 315 frames, a shift of 0 or 512 frames in any one session, 1,024 frames queued at the
+  start, nothing dropped.
+
+**CI at `b141767`** ([run 44472329853](https://github.com/Copgunn/DOOM/actions/runs/44472329853)): all nine jobs green, the Linux, Windows and native macOS jobs, Rust 1.85.0, the instruction counts and the three genuine-engine jobs among them. This is the first full CI run since `937cf9d`: the run at `abc0ece` was cancelled by the next push and `5e00229` took the documentation fast path.
+
+**The Windows artifact** was rebuilt on `b141767` for the owner's retest:
+[run 44472347059](https://github.com/Copgunn/DOOM/actions/runs/44472347059), success, artifact `doom-play-windows-x86_64`
+(1,459,303 bytes). Nobody has run it yet. When reading a log from it: do not restart with R during the logged session and do not
+use `--unrecorded-full-turning` (M1), and keep the session's demo with the log.
 
 ### A first run of the final gates (stopped, superseded)
 
