@@ -26,6 +26,10 @@ Software's code, down to every single step of game logic. (Rust DOOM is a workin
 
 *The genuine engine and the Rust port play one scripted session on a synthetic room with our own generated test art, not the game's: all 155 tics, with the status bar, message and palette numbers, are identical to the genuine engine under the declared sound-free, wipe-free contract, so the difference panel stays black ([how](docs/TESTING.md#readme-animations)).*
 
+![Waveforms of the genuine sound mixer, the Rust sound mixer and their difference for one synthetic session, in three panels; the difference panel is flat.](docs/media/m5c-mixer-waveforms.svg)
+
+*Our own generated test sounds, not the game's: one synthetic session mixed by linuxdoom-1.10 built with its in-process sound code (one define removed) and by the Rust mixer, under the declared schedule (one 512-frame buffer after tic ⌊512k/315⌋); 0 of 30,720 samples differ ([how](docs/TESTING.md#readme-animations)).*
+
 ## Why this exists
 
 Most source ports (modern rewrites of a game's released source code) aim to be playable first and accurate second. This
@@ -102,10 +106,9 @@ Ideas, not promises, one line each; the [roadmap](docs/ROADMAP.md#ideas-under-co
 
 ## How it's verified
 
-The original C source is the ground truth. Each supported behavior is run in both the original code and the Rust code, and the whole
-game state is compared after every tic. The expected results are recorded by a separate program written from the C output alone, so
-Rust is never checked against its own output. Sanitizers, fuzzing and mutation testing (deliberately breaking the code to see that
-the tests notice) back that up. Anything not proven identical is refused, not guessed.
+The original C source is the ground truth. Each behavior runs in both the original and the Rust code, and the whole game state is
+compared after every tic. Expected results come from a separate program written from the C output alone, so Rust is never checked
+against itself; sanitizers, fuzzing and mutation testing back that up. Anything not proven identical is refused, not guessed.
 
 ## Play it (limited)
 
@@ -126,8 +129,7 @@ cargo run --release -p doom-play -- --iwad /path/to/DOOM.WAD --map 1 --skill hmp
 - **Limits.** No music, menus, automap, saving, intermission, next level, other skills, multiplayer or menu-key sounds. **An OpenGL
   2.1 (or OpenGL ES 2) driver is required.** Pausing and key release on focus loss are checked only under WSLg (press Esc before
   switching away), where the game sometimes opens paused: Esc resumes ([limits](docs/COMPATIBILITY.md#platform-limits)).
-- **Not yet judged.** Nobody has looked at the picture, heard the sound, pressed a real key or moved a real mouse in it, or run it
-  on Windows or macOS beyond CI builds: how it looks, sounds and feels is unknown.
+- **Not yet judged.** Nobody has seen, heard or played it with a real key or mouse, or run it on Windows or macOS beyond CI builds.
 
 ## Try it
 
@@ -135,7 +137,6 @@ You need Rust via [rustup](https://rustup.rs/) (stable, or at least 1.85.0) and 
 tools). It builds on Linux, Windows and macOS; none of this needs game files, graphics, audio or a network:
 
 ```sh
-cargo build --workspace --locked
 cargo test --workspace --locked
 cargo run -p doom-sim --example player_barrels --locked  # exploding barrels, chain reactions, monsters
 ```
@@ -143,7 +144,6 @@ cargo run -p doom-sim --example player_barrels --locked  # exploding barrels, ch
 ## For developers, contributing and license
 
 New gameplay is switched on by optional policies, one slice of Doom each ([policy table](docs/COMPATIBILITY.md#policies)); the
-[documentation index](docs/README.md) leads to the rest. Contributors read [CONTRIBUTING.md](CONTRIBUTING.md): changes need source
-evidence, tests, documentation and owner review; AI agents follow [AGENTS.md](AGENTS.md). The project preserves id Software's
-original source, history and attribution; the Rust workspace is GPL-2.0-only ([license notice](LICENSE.TXT), [original release
-README](README.TXT)), and game data stays external, never distributed here ([asset guide](docs/ASSETS.md)).
+[documentation index](docs/README.md) has the rest. Contributors read [CONTRIBUTING.md](CONTRIBUTING.md); AI agents follow
+[AGENTS.md](AGENTS.md). The project preserves id Software's original source, history and attribution; the Rust workspace is
+GPL-2.0-only ([license](LICENSE.TXT), [original README](README.TXT)); game data is never distributed ([assets](docs/ASSETS.md)).
