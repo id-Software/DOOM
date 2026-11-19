@@ -560,9 +560,14 @@ monster/player behavior. Further stages require separate owner direction.
     review (step 13): three reviewers, no blocker, one major finding (the DSIM41 reader refused every capture of a map the
     THING truncation cuts short), 11 minor and 19 notes, each fixed or documented, with a test that failed before the change wherever a behaviour was fixed** ([record](validation/M5C.md#step-13-independent-review)). **The status bar face's idle glance gap (S15) is closed** in the
     owner's T14 wording ([COMPATIBILITY](COMPATIBILITY.md#the-status-bar-faces-idle-glance-is-closed-with-sound-decision-s15-t14)).
-    **Not done:** mutation testing is half done (the first run's 74 survivors have no disposition yet, their independent
-    check and the run on the final head are to come, [step 10](validation/M5C.md#step-10-mutation-testing)); the final gates
-    from a clean tree and CI on the final head; the optional melt is not built. **Unobserved:** nobody has
+    Mutation testing is mostly done: the first run's 74 survivors each have a disposition (60 killed by new tests, 12 equivalent,
+    2 unreachable) and an independent check agreed ([step 10](validation/M5C.md#step-10-mutation-testing)); a local verifier for
+    `doom-play` sessions with sound exists (not in CI). One check failed on the branch: `Simulation instruction counts` at
+    `3c1cc5d`, a code-generation effect of a review fix on one case; a code-only fix is on the branch (instruction counts end up
+    0.01 to 0.34 percentage points higher in all nine cases, inside the threshold; the baseline is unchanged, and updating it
+    instead is the owner's choice, [record](validation/M5C.md#the-instruction-count-check)). **Not done:** the mutation run on the
+    final head (started, not finished), the final gates from a clean tree and CI on the final head (including whether the fix
+    turns the instruction-count job green); the optional melt is not built. **Unobserved:** nobody has
     heard any sound, and no game audio has reached any device (the one real device open was a second of digital silence);
     nothing has run on Windows or macOS beyond CI builds and tests. Open for the owner: a game under WSLg occasionally
     opens already paused (a start-up focus event, an M5b behaviour, not sound), the simulation's tic is not rolled back

@@ -2584,7 +2584,7 @@ python3 tools/local/m5c_session_real.py --rust TARGET/release/examples/m5c_real_
 goldens under `tests/reference` and run in `cargo test --workspace` on every operating system in CI:
 
 ```sh
-cargo test -p doom-sound [--release]       # 43 tests; the end-to-end gate takes about 7 seconds in a debug build
+cargo test -p doom-sound [--release]       # 57 tests (counted from the sources: 55 in the test files, 2 unit tests); the end-to-end gate takes about 7 seconds in a debug build
 python3 tools/reference/m5c_sounds_table.py --check        # crates/doom-sound/src/sounds_table.rs and steptable.rs against sounds.c, sounds.h and the genuine digest 95f2209c...6dde; writes nothing
 python3 tools/reference/m5c_sounds_table.py --self-test    # 8 cases that run the tool's real comparison (compare() and the digest check) on planted inputs: the committed text matches, a changed byte, a missing file and a changed steptable entry each differ; --check and --self-test may be given together
 python3 tools/reference/m5c_sounds_table.py                # without a flag: writes both generated files
@@ -2592,6 +2592,7 @@ python3 tools/reference/m5c_sounds_table.py                # without a flag: wri
 
 | Test file | What it gates | Kind of evidence |
 | --- | --- | --- |
+| `survivors.rs` (14) | tests written for the mutants the first mutation run missed in this crate (logic, state, mixer, detector, lumps, session, schedule); each names the C line or documented rule it rests on, and three take an expectation from the loaded set, the simulation's reading or the `DSND` layout, so they are Rust-only | Rust-only pins, see [step 10](validation/M5C.md#step-10-mutation-testing) |
 | `tables_and_lumps.rs` (6) | the sound names against the simulation's source list; one linked sound and the documented priorities; the step table as the exact integer floor of the genuine expression; both table digests; edge lumps padded as `getsfx` does; the load refusals | digests and goldens of the genuine tables; Rust-only for the refusals |
 | `mixer_goldens.rs` (5) | the rows of the 23 scenario goldens and the 64 session goldens of the genuine mixer except the fake device's `d` and `q` rows; the refused scenarios stop where the genuine code ends in `I_Error`; the short-lump witnesses and the pitch-256 probe are refused | source equivalence against genuine traces |
 | `adjust_streams.rs` (1) | `S_AdjustSoundParams` on all 404 positional start rows of the 64 genuine streams | source equivalence |
@@ -2709,7 +2710,7 @@ Minimum Rust job as part of `--workspace`. The [mutation workflow](#ci-mutation-
 is left out), over **24 shards dealt round-robin** (`--sharding round-robin`: mutant i runs on shard i mod 24; the
 consecutive slices of the first M5c run left two shards cut off by the 120-minute job limit while eleven finished in 4 to 23
 minutes). The first M5c run's figures are in the [evidence record](validation/M5C.md#step-10-mutation-testing); the survivors'
-dispositions and the run on the final head are not done yet. The job failed at the T4 check at `216f976` for two uncommitted
+dispositions and their independent check are recorded there; the run on the final head is not done yet. The job failed at the T4 check at `216f976` for two uncommitted
 generated files, fixed in `a6f3b3b` ([record](validation/M5C.md#the-ci-record)).
 
 ### M5c timings
@@ -2946,7 +2947,9 @@ CI runs `ir --check` in the Linux job **Simulation instruction counts** (`simula
 runner's `valgrind` package and Rust 1.85.0, builds the release examples with `cargo +1.85.0`, and uploads the
 measured counts as the `simulation-ir` artifact. It is not a required check unless the owner makes it one. After a
 reviewed change that lowers the counts, rewrite the baseline from a pinned build (`ir --update-baseline` refuses a
-build by another rustc) and commit it with the change.
+build by another rustc) and commit it with the change. A failure of this check can also come from code generation alone: a
+change in code the case never runs can shift how rustc splits the crate into code-generation units and add `memcpy` calls
+(M5c, [record](validation/M5C.md#the-instruction-count-check)); bisect the case by commit before changing the baseline.
 
 **`timing`** (local only, needs an IWAD copy in scratch). Times `player_level_advance --policy episode1v2`
 over the 61 real-map cases of `tests/reference/m4b_real_results.json` (DEMO1 is extracted from the IWAD copy
