@@ -598,3 +598,103 @@ fn an_unlabelled_state_with_a_first_tic_is_refused() {
     forged[33] = 1;
     assert_eq!(SoundState::decode(&forged), Err(StateError::Detector));
 }
+
+// ---------------------------------------------------------------------------------------------
+// Tests for the mutants the final M5c mutation run (a8abf0c) missed: the two Display texts.
+// ---------------------------------------------------------------------------------------------
+
+/// The message of every `SoundRefusal` is plain text that names the facts of the refusal (a
+/// Rust-only pin of the wording, which the C does not have, except that the mixer's bounds
+/// messages repeat the C's own `I_Error` texts, i_sound.c:364-368). The expected strings are the
+/// wording the source has now, one per variant; a message with no text, or one that drops the
+/// number, fails.
+/// Kills logic.rs `<impl Display for SoundRefusal>::fmt` -> `Ok(Default::default())`.
+#[test]
+fn every_sound_refusal_has_a_message_that_names_its_facts() {
+    use doom_sound::mixer::MixRefusal;
+    let cases = [
+        (
+            SoundRefusal::SfxId { sfx: 109 },
+            "sound number 109 is not in the sound table",
+        ),
+        (
+            SoundRefusal::LumpMissing { sfx: 7 },
+            "sound 7 has no lump in the WADs",
+        ),
+        (
+            SoundRefusal::Mix(MixRefusal::RightVolume { vol: 1, sep: 2 }),
+            "mixer: rightvol out of bounds",
+        ),
+        (
+            SoundRefusal::ButtonPastArray { slot: 15 },
+            "a switch release in button slot 15 would read past the button list",
+        ),
+        (
+            SoundRefusal::Placement,
+            "a sound start's positions do not fit its origin",
+        ),
+        (
+            SoundRefusal::OriginGone { cnum: 2 },
+            "the origin of the sound on channel 2 has no position to read",
+        ),
+        (
+            SoundRefusal::Config,
+            "the sound volume or channel count is out of range",
+        ),
+    ];
+    for (refusal, text) in cases {
+        assert_eq!(refusal.to_string(), text, "{refusal:?}");
+    }
+}
+
+/// The message of every `SessionRefusal` names the tic, the call or the two tics it concerns (a
+/// Rust-only pin of the wording, as the expected strings are the wording the source has now); a refusal of the logic carries the logic's message after the
+/// place (`tic N, sound call I:` for a record, `tic N, sound update:` for the update).
+/// Kills session.rs `<impl Display for SessionRefusal>::fmt` -> `Ok(Default::default())`.
+#[test]
+fn every_session_refusal_has_a_message_that_names_its_facts() {
+    use doom_sound::session::{RefusedAt, SessionRefusal};
+    let cases = [
+        (
+            SessionRefusal::Sound {
+                tic: 5,
+                at: RefusedAt::Record(3),
+                refusal: SoundRefusal::Placement,
+            },
+            "tic 5, sound call 3: a sound start's positions do not fit its origin",
+        ),
+        (
+            SessionRefusal::Sound {
+                tic: 6,
+                at: RefusedAt::Update,
+                refusal: SoundRefusal::OriginGone { cnum: 1 },
+            },
+            "tic 6, sound update: the origin of the sound on channel 1 has no position to read",
+        ),
+        (
+            SessionRefusal::TicLimit,
+            "the sound session reached its tic limit",
+        ),
+        (
+            SessionRefusal::DrawCount {
+                tic: 8,
+                record: 65_536,
+            },
+            "tic 8, sound call 65536: more than 65535 random draws in one tic",
+        ),
+        (
+            SessionRefusal::NoListener,
+            "the player has no body to hear sounds",
+        ),
+        (
+            SessionRefusal::TicMismatch {
+                session: 4,
+                simulation: 9,
+            },
+            "the sound session is at tic 4 but the simulation at tic 9",
+        ),
+    ];
+    for (refusal, text) in cases {
+        assert_eq!(refusal.to_string(), text, "{refusal:?}");
+    }
+}
