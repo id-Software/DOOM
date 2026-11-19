@@ -148,17 +148,29 @@
 
 Agent definitions live in `.claude/agents/` (Claude Code) and `.codex/agents/` (Codex).
 
-| Role | Claude Code agent (model) | Codex agent (model, effort) |
-| --- | --- | --- |
-| Orchestrator (main session) | main session (whichever model the owner launched) | main session (gpt-6.1-sol, high) |
-| C evidence, simulation code, DSIM encoder; tests needing new C citations | c-evidence (opus) | c-evidence (gpt-6.1-sol, high) |
-| Independent review | reviewer (opus) | none: Claude only |
-| Tests from facts already cited; mutation-survivor tests | tester (sonnet) | tester (gpt-6.1-sol, medium) |
-| Docs, status lines, census/count tools, scripts, CI plumbing | docs-tools (sonnet) | docs-tools (gpt-6-luna, medium) |
-| Watching long runs, log tailing, file inventory | watcher (haiku) | watcher (gpt-6-luna, low) |
+| Role | Agent | Claude Code (model, effort) | Codex (model, effort) |
+| --- | --- | --- | --- |
+| Orchestrator (main session) | main session | whichever model the owner launched | whichever model the owner launched |
+| Independent review | reviewer | opus, xhigh | gpt-6.1-sol, xhigh |
+| C evidence, simulation code, DSIM encoder; tests needing new C citations | c-evidence | opus, high | gpt-6.1-sol, high |
+| Tests from facts already cited; mutation-survivor tests | tester | sonnet, medium | gpt-6.1-sol, medium |
+| Docs, status lines, census/count tools, scripts, CI plumbing | docs-tools | sonnet, medium | gpt-6.1-sol, medium |
+| Watching long runs, log tailing, file inventory | watcher | haiku, low | gpt-6-luna, high |
+
+- Effort names do not mean the same across vendors, so the two columns are set per vendor
+  guidance, not copied across.
+- Model names are as of 2026-11-18 and are checked with `/model` before a Codex handoff
+  (gpt-6.2-sol exists and may replace gpt-6.1-sol then). The owner confirmed on 2026-11-18
+  that gpt-6.1-sol offers Extra High (xhigh).
+
+Rules:
 
 - Name the agent on every spawn; no unnamed subagents for heavy work.
 - A subagent never upgrades its own model.
 - After two failed reviews or gates a piece may move up one tier, with the reason recorded.
+  The one-tier escalation is fable on Claude Code and gpt-6-astra on Codex.
+- A reviewer is always a fresh agent that did not write the code under review.
+- The instruction bodies in `.claude/agents` and `.codex/agents` stay word-for-word
+  identical, and a change to one is made to both in the same commit.
 - Watchers poll at most every 30 minutes and do not re-read docs or code.
 - When stopping an agent, keep long-running jobs its shell owns alive.

@@ -1,6 +1,6 @@
 name = "docs-tools"
 description = "Documentation, status lines, census and count tools, scripts and CI plumbing."
-model = "gpt-6-luna"
+model = "gpt-6.1-sol"
 model_reasoning_effort = "medium"
 developer_instructions = """
 Read `AGENTS.md` in full before anything else; every rule binds you.

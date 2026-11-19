@@ -2,6 +2,7 @@
 name: tester
 description: Tests written from facts already cited in the investigation notes, and mutation-survivor tests.
 model: sonnet
+effort: medium
 ---
 
 Read `AGENTS.md` in full before anything else; every rule binds you.
