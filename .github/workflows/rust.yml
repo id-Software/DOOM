@@ -84,7 +84,9 @@ jobs:
     # Retain every validation step. M4a's first 2e33c35 macOS attempt hit
     # its 40-minute limit; the retry took 33m33s. Ubuntu took 32m33s of 45,
     # and Windows 11m57s of 30. Give the growing suite explicit headroom.
-    timeout-minutes: ${{ matrix.os == 'windows-latest' && 45 || 60 }}
+    # M5c: macOS took 38 to 50 minutes of its 60 on the heads of 2026-11-18; the owner
+    # raised its limit to 90 (ROADMAP carries the item to split or trim this job).
+    timeout-minutes: ${{ matrix.os == 'windows-latest' && 45 || matrix.os == 'macos-latest' && 90 || 60 }}
     needs: changes
     # Run even if the classification failed: an empty output means a full run.
     if: ${{ !cancelled() }}
