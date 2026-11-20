@@ -256,6 +256,12 @@ impl Host for LoggedHost {
     fn save(&mut self, name: &str, bytes: &[u8]) -> Result<(), String> {
         self.host.save(name, bytes)
     }
+    fn appends(&self) -> bool {
+        self.host.appends()
+    }
+    fn append(&mut self, name: &str, at: u64, tail: &[u8; 5]) -> Result<bool, String> {
+        self.host.append(name, at, tail)
+    }
     fn tic(&mut self, report: &TicReport<'_>) {
         self.log.game_events(report);
         self.log.executed(report);

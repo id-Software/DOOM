@@ -10,6 +10,7 @@ mod audio;
 mod input_log;
 mod keys;
 mod mouse_forward;
+mod session_file;
 #[cfg(test)]
 mod session_tests;
 mod tic_stats;
@@ -19,6 +20,7 @@ use audio::{Output, Trial, Volume};
 use doom_game::app::{App, AudioSink, GameData, Host, SessionConfig, Timestamp, UNRECORDED_LABEL};
 use doom_game::input::Preset;
 use doom_render::GameMode;
+use session_file::claim_new;
 use std::io::Write as _;
 use std::path::{Path, PathBuf};
 use std::time::{SystemTime, UNIX_EPOCH};
@@ -305,8 +307,9 @@ impl Host for FsHost {
     fn exists(&mut self, name: &str) -> bool {
         self.dir.join(name).exists()
     }
-    /// Creates the file with `create_new`, so a name another session (or process) took is
-    /// never replaced; see [`claim_new`].
+    /// Creates the file with its content (a flushed temporary file hard-linked to the name), so
+    /// a name another session (or process) took is never replaced and the name never appears
+    /// empty; see [`claim_new`].
     fn claim(&mut self, name: &str, bytes: &[u8]) -> Result<bool, String> {
         claim_new(&self.dir, name, bytes, |f, b| {
             f.write_all(b).and_then(|()| f.sync_all())
@@ -318,55 +321,24 @@ impl Host for FsHost {
     }
     /// Writes a temporary file whose name holds the process id (two processes never share
     /// it), flushes it to the disk and renames it over the session's file; a failed write
-    /// removes the temporary file.
+    /// removes the temporary file ([`session_file::save`]).
     fn save(&mut self, name: &str, bytes: &[u8]) -> Result<(), String> {
-        let path = self.dir.join(name);
-        let tmp = self.dir.join(format!("{name}.{}.tmp", std::process::id()));
-        let written = std::fs::File::create(&tmp)
-            .and_then(|mut f| f.write_all(bytes).and_then(|()| f.sync_all()))
-            .and_then(|()| std::fs::rename(&tmp, &path));
-        if written.is_err() {
-            let _ = std::fs::remove_file(&tmp);
-        }
-        written.map_err(|e| format!("{}: {e}", path.display()))
+        session_file::save(&self.dir, name, bytes)
+    }
+    /// The file is kept current tic by tic (M5d), a valid demo at every instant.
+    fn appends(&self) -> bool {
+        true
+    }
+    /// One write of the tic's bytes and the marker, or a decline at a page boundary
+    /// ([`session_file::append`]).
+    fn append(&mut self, name: &str, at: u64, tail: &[u8; 5]) -> Result<bool, String> {
+        session_file::append(&self.dir, name, at, tail)
     }
 }
 
 impl keys::Mute for FsHost {
     fn toggle_mute(&mut self) {
         self.audio.toggle_mute();
-    }
-}
-
-/// Creates `dir/name` exclusively (`create_new`) and writes `bytes` into it with `write`:
-/// `Ok(false)` when the name is taken (that file is left alone). When the first write fails
-/// after the create (a full disk, say), the file this call created is removed before the error
-/// is returned, so no empty or partial file that looks like a session demo is left behind and
-/// the retry can take the same name.
-fn claim_new(
-    dir: &Path,
-    name: &str,
-    bytes: &[u8],
-    write: impl FnOnce(&mut std::fs::File, &[u8]) -> std::io::Result<()>,
-) -> Result<bool, String> {
-    let path = dir.join(name);
-    let fail = |e: std::io::Error| format!("{}: {e}", path.display());
-    std::fs::create_dir_all(dir).map_err(fail)?;
-    let file = std::fs::OpenOptions::new()
-        .write(true)
-        .create_new(true)
-        .open(&path);
-    match file {
-        Err(e) if e.kind() == std::io::ErrorKind::AlreadyExists => Ok(false),
-        Err(e) => Err(fail(e)),
-        Ok(mut f) => match write(&mut f, bytes) {
-            Ok(()) => Ok(true),
-            Err(e) => {
-                drop(f);
-                let _ = std::fs::remove_file(&path);
-                Err(fail(e))
-            }
-        },
     }
 }
 
