@@ -429,6 +429,40 @@ fn a_failure_the_app_never_heard_of_is_retried_at_quit() {
     }
 }
 
+/// Review 4, R1 (the reviewer's probe A): appends and whole rewrites fail from tic 10 and keep
+/// failing; the window's quit event ends the run, then its Drop quits again with no update
+/// between. The second quit changes nothing: the exit line keeps the real reason, never "the
+/// session writer was closed", and the app's status keeps it too.
+#[test]
+fn a_quit_after_the_runs_end_keeps_the_real_failure() {
+    let dir = scratch("close-quit-twice");
+    let disk = Disk::default();
+    let mut p = play(&dir, &disk, 1_000);
+    steady(&mut p, 1, 9);
+    disk.fail(true, true);
+    steady(&mut p, 10, 20);
+    p.quit(); // the window's quit event
+    p.quit(); // its Drop, no update between
+    let failed = SaveStatus::Failed("planted: disk full".into());
+    assert_eq!(p.app.save_status(), &failed);
+    let lines = p.conclude();
+    let about: Vec<&String> = lines
+        .iter()
+        .filter(|l| l.contains("saved") || l.contains("written"))
+        .collect();
+    assert_eq!(
+        about,
+        [&"the session was not saved: planted: disk full".to_string()],
+        "{lines:#?}"
+    );
+    assert!(
+        !lines.iter().any(|l| l.contains("writer was closed")),
+        "{lines:#?}"
+    );
+    assert!(p.conclude().is_empty(), "once");
+    std::fs::remove_dir_all(&dir).unwrap();
+}
+
 /// A writer the log's thread can own, read back by the test; it waits at `gate` if one is set.
 #[derive(Clone, Default)]
 struct Text {
