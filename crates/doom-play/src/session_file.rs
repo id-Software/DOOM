@@ -392,4 +392,214 @@ mod tests {
         );
         std::fs::remove_dir_all(&dir).unwrap();
     }
+
+    /// A stand-in for the session file that records every `write` call (the offset and the bytes
+    /// it took) and takes at most `limit` bytes per call.
+    struct Calls {
+        pos: u64,
+        writes: Vec<(u64, Vec<u8>)>,
+        limit: usize,
+    }
+
+    impl Write for Calls {
+        fn write(&mut self, buf: &[u8]) -> std::io::Result<usize> {
+            let n = buf.len().min(self.limit);
+            self.writes.push((self.pos, buf[..n].to_vec()));
+            self.pos += n as u64;
+            Ok(n)
+        }
+        fn flush(&mut self) -> std::io::Result<()> {
+            Ok(())
+        }
+    }
+
+    impl Seek for Calls {
+        fn seek(&mut self, to: SeekFrom) -> std::io::Result<u64> {
+            match to {
+                SeekFrom::Start(p) => {
+                    self.pos = p;
+                    Ok(p)
+                }
+                _ => Err(std::io::Error::other(
+                    "the append seeks from the start only",
+                )),
+            }
+        }
+    }
+
+    /// Review MAJ-1 (a): an append is exactly one `write` call, of the five bytes, at the old
+    /// marker's offset; a call the system shortens is reported as it is and never followed by a
+    /// second call (which a kill could separate from the first); a file of the wrong length gets
+    /// no write at all.
+    #[test]
+    fn an_append_is_one_write_call_of_the_five_bytes_at_the_marker() {
+        let tail = [25, 0, 3, 1, 0x80];
+        let mut f = Calls {
+            pos: 0,
+            writes: Vec::new(),
+            limit: usize::MAX,
+        };
+        assert_eq!(write_tail(&mut f, 14, 13, &tail).unwrap(), Some(5));
+        assert_eq!(
+            f.writes,
+            [(13, tail.to_vec())],
+            "one call of five bytes at 13"
+        );
+        let mut short = Calls {
+            pos: 0,
+            writes: Vec::new(),
+            limit: 3,
+        };
+        assert_eq!(write_tail(&mut short, 4090, 4089, &tail).unwrap(), Some(3));
+        assert_eq!(
+            short.writes,
+            [(4089, tail[..3].to_vec())],
+            "a short write is not completed by a second call"
+        );
+        let mut wrong = Calls {
+            pos: 0,
+            writes: Vec::new(),
+            limit: usize::MAX,
+        };
+        assert_eq!(write_tail(&mut wrong, 18, 13, &tail).unwrap(), None);
+        assert!(wrong.writes.is_empty());
+    }
+
+    #[cfg(unix)]
+    fn ino(path: &Path) -> u64 {
+        use std::os::unix::fs::MetadataExt;
+        std::fs::metadata(path).unwrap().ino()
+    }
+
+    /// Review MAJ-1 (b): a whole rewrite replaces the file (a new inode under the name) and never
+    /// writes the old one: a second link to the old file still holds the old bytes afterwards, so
+    /// the name held them until the rename.
+    #[cfg(unix)]
+    #[test]
+    fn a_whole_rewrite_replaces_the_file_and_never_writes_the_old_one() {
+        let dir = scratch("rewrite");
+        let path = dir.join("a.lmp");
+        let sync = |f: &mut std::fs::File, b: &[u8]| f.write_all(b).and_then(|()| f.sync_all());
+        assert_eq!(claim_new(&dir, "a.lmp", b"old demo", sync), Ok(true));
+        let old = ino(&path);
+        std::fs::hard_link(&path, dir.join("old.link")).unwrap();
+        save(&dir, "a.lmp", b"the new, longer demo").unwrap();
+        assert_ne!(ino(&path), old, "the name now holds another file");
+        assert_eq!(std::fs::read(&path).unwrap(), b"the new, longer demo");
+        assert_eq!(ino(&dir.join("old.link")), old);
+        assert_eq!(
+            std::fs::read(dir.join("old.link")).unwrap(),
+            b"old demo",
+            "the old file was never written"
+        );
+        assert_eq!(
+            names(&dir),
+            ["a.lmp", "old.link"],
+            "no temporary file is left"
+        );
+        std::fs::remove_dir_all(&dir).unwrap();
+    }
+
+    /// Review MAJ-1 (c): the claimed name is the temporary file itself (the inode the write saw),
+    /// with one link once the temporary name is gone. When the hard link fails, the fallback is
+    /// taken, and says so ([`Claim::Created`]: a different file, with the content, and no
+    /// temporary left); a link refused because the name exists meanwhile creates nothing.
+    #[cfg(unix)]
+    #[test]
+    fn a_claimed_name_is_the_temporary_file_or_the_fallback_says_so() {
+        use std::os::unix::fs::MetadataExt;
+        let dir = scratch("claim-inode");
+        fn write(
+            seen: &std::cell::Cell<u64>,
+        ) -> impl FnOnce(&mut std::fs::File, &[u8]) -> std::io::Result<()> + '_ {
+            move |f, b| {
+                seen.set(f.metadata()?.ino());
+                f.write_all(b).and_then(|()| f.sync_all())
+            }
+        }
+        let link = |tmp: &Path, path: &Path| std::fs::hard_link(tmp, path);
+        let remove = |tmp: &Path| std::fs::remove_file(tmp);
+        let seen = std::cell::Cell::new(0);
+        let linked = claim_with(&dir, "a.lmp", b"header+marker", write(&seen), link, remove);
+        assert_eq!(linked, Ok(Claim::Linked));
+        assert_eq!(
+            ino(&dir.join("a.lmp")),
+            seen.get(),
+            "the name is the temporary file"
+        );
+        assert_eq!(std::fs::metadata(dir.join("a.lmp")).unwrap().nlink(), 1);
+        assert_eq!(std::fs::read(dir.join("a.lmp")).unwrap(), b"header+marker");
+        // the link fails: the fallback, explicitly
+        let tmp_seen = std::cell::Cell::new(0);
+        let unsupported = |tmp: &Path, _: &Path| {
+            assert!(tmp.exists(), "the temporary file exists at the link");
+            Err(std::io::Error::from(std::io::ErrorKind::Unsupported))
+        };
+        let created = claim_with(
+            &dir,
+            "b.lmp",
+            b"demo",
+            write(&tmp_seen),
+            unsupported,
+            remove,
+        );
+        assert_eq!(created, Ok(Claim::Created));
+        assert_ne!(
+            ino(&dir.join("b.lmp")),
+            tmp_seen.get(),
+            "another file: the fallback"
+        );
+        assert_eq!(std::fs::read(dir.join("b.lmp")).unwrap(), b"demo");
+        // the name is taken between the check and the link: nothing created
+        let taken =
+            |_: &Path, _: &Path| Err(std::io::Error::from(std::io::ErrorKind::AlreadyExists));
+        let r = claim_with(&dir, "c.lmp", b"demo", write(&seen), taken, remove);
+        assert_eq!(r, Ok(Claim::Taken));
+        assert_eq!(names(&dir), ["a.lmp", "b.lmp"], "no temporary file is left");
+        std::fs::remove_dir_all(&dir).unwrap();
+    }
+
+    /// Review MIN-5: when the removal of the claim's temporary name fails, that name stays a
+    /// second link to the session's file; a later whole rewrite must not write through it (it
+    /// uses its own name), and a stale file at the rewrite's own temporary name (here a link to
+    /// the session's file) is replaced, never written.
+    #[cfg(unix)]
+    #[test]
+    fn a_failed_removal_of_the_claims_temporary_never_lets_a_rewrite_write_in_place() {
+        let dir = scratch("claim-removal");
+        assert_ne!(claim_temporary(&dir, "a.lmp"), temporary(&dir, "a.lmp"));
+        let sync = |f: &mut std::fs::File, b: &[u8]| f.write_all(b).and_then(|()| f.sync_all());
+        let link = |tmp: &Path, path: &Path| std::fs::hard_link(tmp, path);
+        let refused = |_: &Path| Err(std::io::Error::other("sharing violation"));
+        let r = claim_with(&dir, "a.lmp", b"header+marker", sync, link, refused);
+        assert_eq!(r, Ok(Claim::Linked));
+        let leftover = claim_temporary(&dir, "a.lmp");
+        assert_eq!(
+            ino(&leftover),
+            ino(&dir.join("a.lmp")),
+            "a second link remains"
+        );
+        save(&dir, "a.lmp", b"first rewrite").unwrap();
+        assert_eq!(std::fs::read(dir.join("a.lmp")).unwrap(), b"first rewrite");
+        assert_eq!(
+            std::fs::read(&leftover).unwrap(),
+            b"header+marker",
+            "the claimed file was never written by the rewrite"
+        );
+        // a stale rewrite temporary that is a link to the session's file
+        std::fs::hard_link(dir.join("a.lmp"), temporary(&dir, "a.lmp")).unwrap();
+        std::fs::hard_link(dir.join("a.lmp"), dir.join("kept.link")).unwrap();
+        save(&dir, "a.lmp", b"second rewrite").unwrap();
+        assert_eq!(std::fs::read(dir.join("a.lmp")).unwrap(), b"second rewrite");
+        assert_eq!(
+            std::fs::read(dir.join("kept.link")).unwrap(),
+            b"first rewrite",
+            "the file at the stale temporary name was never written"
+        );
+        let mut want = vec!["a.lmp".to_string(), "kept.link".to_string()];
+        want.push(leftover.file_name().unwrap().to_string_lossy().into_owned());
+        want.sort();
+        assert_eq!(names(&dir), want);
+        std::fs::remove_dir_all(&dir).unwrap();
+    }
 }
