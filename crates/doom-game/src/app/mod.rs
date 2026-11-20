@@ -876,6 +876,34 @@ impl App {
         &self.save
     }
 
+    /// The host's later word on the session file (M5d): a host that answers [`Host::save`] and
+    /// [`Host::append`] before it has made the write (doom-play hands every write to a writer
+    /// thread) tells the app here, at a moment no tic runs, what became of it. `Ok(())`: the
+    /// file now holds every tic recorded so far ([`SaveStatus::Saved`]). `Err(e)`: its last write
+    /// failed ([`SaveStatus::Failed`]), so the pause overlay and the end screen say so, and
+    /// [`App::restart`] and [`App::quit`] rewrite the file whole, as after any failed save (so
+    /// does the next tic if play resumes, and then at most once every
+    /// [`FAILED_WRITE_RETRY_TICS`] tics while the retries keep failing). An end screen being
+    /// shown is drawn again from the new status. Nothing changes for an unrecorded session or
+    /// one whose file was never created.
+    pub fn settle_save(&mut self, outcome: Result<(), String>) {
+        if !self.recorded() || !self.claimed {
+            return;
+        }
+        self.retry_from = None;
+        self.save = match outcome {
+            Ok(()) => SaveStatus::Saved(self.recorder.len()),
+            Err(e) => SaveStatus::Failed(e),
+        };
+        let screen = match &self.mode {
+            Mode::Ended(ending) => Some(self.end_screen(ending)),
+            _ => None,
+        };
+        if screen.is_some() {
+            self.screen = screen;
+        }
+    }
+
     /// Whether the player asked to quit (the save was attempted; see [`App::save_status`]). No
     /// tic runs after it.
     pub fn quit_requested(&self) -> bool {
