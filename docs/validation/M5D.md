@@ -1,12 +1,10 @@
 # M5d evidence record
 
-**Status (2026-11-20 02:53 PST):** code complete with the review fixes; gates in progress, on branch
-`feat/m5d-play-fixes`. Code done: the DPI request on Windows (A1, untested on Windows), the sound statistics and trial
-options (A2), the session file kept current tic by tic (A3), the mouse forwarding moved into its own file with the input
-log's review points M1 to M3 closed, and the CI job renamed (A4). The independent review found one major and six minor
-points; its fixes are in (A5, "Independent review"), and a fresh reviewer has not yet looked at the fixes. Still to come:
-the mutation runs, the full workspace gates, CI on the exact head (A5) and the owner's Windows session (A6). Nothing in
-this milestone has been run on Windows or macOS.
+**Status (2026-11-20 05:30 PST):** code complete; the gates passed locally (A5). CI and the Windows artifact on the
+final head are pending, then the owner's Windows session (A6). Code done: the DPI request on Windows (A1, untested on
+Windows), the sound statistics and trial options (A2), the session file kept current tic by tic (A3), the mouse forwarding
+moved into its own file with the input log's review points M1 to M3 closed, and the CI job renamed (A4). Two independent
+reviews and three mutation runs are recorded under A5. Nothing in this milestone has been run on Windows or macOS.
 
 Observed results of milestone M5d (play fixes from the owner's playtest of M5c). Only observations and the
 library-source readings behind each change appear here. The facts this milestone starts from are in the
@@ -466,7 +464,7 @@ follow under A5.
   `cargo test --release -p doom-game` (134 passed), format, Clippy and rustdoc on the two crates, and the kill test in
   several configurations (all passed). It ran nothing on Windows or macOS and no MSRV build, full workspace test, fuzz build
   or sanitizer campaign.
-- **The fixes themselves have not been re-reviewed by a fresh reviewer yet.** (The orchestrator adds a line here if one runs.)
+- **The fixes were re-reviewed** by a second fresh reviewer (next subsection).
 
 | Finding | What it said | What was done |
 | --- | --- | --- |
@@ -487,21 +485,134 @@ follow under A5.
 | N8 | Leftover `.tmp` files pile up | Documented here, in COMPATIBILITY and in the module doc; no cleanup code (open question 3 in A3) |
 | N9 | ROADMAP still says "M5c genuine sound (not required)" in the M5c history | Left as history |
 
+### Second independent review (after the fixes)
+
+- **Reviewer:** Claude Opus 5.5 (`claude-opus-5-5`), effort **xhigh**, set by the orchestrator at spawn (the reviewer cannot
+  see the setting from inside). A fresh agent that wrote none of the code. **Reviewed:** `e1d73dd..cdb11cc`, in a scratch
+  worktree. Its report is in scratch (not committed).
+- **Verdict:** one blocker, introduced by the fixes (B-1), and one minor gap (M-1), both fixed since; three notes.
+
+| Item | Status or what was done |
+| --- | --- |
+| MAJ-1, MIN-1, MIN-2, MIN-3, MIN-5 | Resolved (planted faults in the scratch copy were caught; the reviewer lists them). MAJ-1 had the one gap M-1 below |
+| MIN-4 | Resolved in the code's documentation; the optional CI step with aimed kills was not added |
+| N2 | Resolved on Windows CI only, which is all the design allows (a deleted `high_dpi` line cannot fail on Linux or macOS) |
+| **B-1** (blocker) | A claim test compared inode numbers after the temporary had been removed; ext4 reuses the number, so the test failed 19 of 20 runs locally on ext4 and failed the Linux CI jobs `Stable / ubuntu-latest` and `Minimum Rust / 1.85.0` at `14a9cc6`. **Fixed by the orchestrator in `6e61fc8`:** a second handle keeps the inode allocated across the assertion; 25 of 25 runs on ext4 passed |
+| **M-1** | The real hard link in `claim_new` was unpinned: replacing it by an error left every test passing on tmpfs. **Fixed in `6e61fc8`** by a new test, which was caught on ext4 and on tmpfs when the link is replaced by an error |
+| N-A | No test covered `begin`'s reset of the retry counter (the planted fault survived). Covered by the tester (below): `a_restart_resets_the_failed_write_retry_counter` |
+| N-B | The kill test prints harness failures with `{e:?}`, so the child's stderr tail shows `\n` escapes on one line. **Left:** it affects the failure message's readability only |
+| N-C | The kill checker's fourth plant can report NOT CAUGHT if the player is dead at the middle tic. **Left:** it fails in the safe direction (a false alarm, never a hidden fault), and the player is unlikely to be dead there |
+
+The fixes of the second review (`6e61fc8` and after) were not reviewed again by a fresh reviewer; the gates and CI below
+are the evidence for them.
+
 ### Mutation runs
 
-To come.
+Three runs, stated separately. cargo-mutants finds changed lines by diff; none of these is a coverage claim for unchanged code.
+
+1. **CI's mutation workflow** (`mutants.yml`, started by the label `run-mutants`). It mutates `doom-sim`, `doom-render`,
+   `doom-sound` and `doom-game` on the changed lines, not `doom-play`. Result on GitHub: **success** on `e25388d` (run
+   44713873716) and on `cdb11cc` (run 44723050975). Summary counts were not read from the logs.
+2. **Local cargo-mutants 27.1.0 on `doom-play` and `doom-game`**, `--in-diff` against `d637f7d`, `-j 2`, 300 s timeout per
+   mutant, a memory-capped test runner, on this machine (Linux under WSL2). Survivor list: scratch
+   (`mutants/survivors-b.txt`; not committed).
+
+| Run | Head | Mutants | Caught | Missed | Unviable | Timeouts | Time |
+| --- | --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| 1 | `e25388d` | 327 | 194 | 118 | 13 | 2 | 44 min |
+| 2 (kill-test harness excluded) | `cdb11cc` | 206 | 182 | 12 | 12 | 0 | 30 min |
+
+   Of run 1's 118 missed, 95 were in `crates/doom-play/src/kill_tests.rs` (the kill test's own harness, test code, so run 2
+   excludes it) and 23 in product code.
+3. **The 12 survivors of run 2.** A tester agent (Claude Sonnet, effort medium, per the routing table) planted each fault by
+   hand, wrote tests, and reverted. Its commits are `7249065`, `0e985b7` and `dfa1f37` (new test code only; the new file is
+   `crates/doom-game/tests/app_append_survivors.rs`, and new test modules in `mouse_forward.rs`, `input_log.rs` and
+   `audio.rs`). One change by the orchestrator: the tester's test of `probe()` opened a real audio device when one exists,
+   against the milestone's rule that tests open no device (and the test depended on the machine), so it was dropped in `e6b17b2`. The
+   dispositions:
+
+| Survivor | Disposition |
+| --- | --- |
+| `Host::append` replaced by `Ok(true)` | Killed by `the_default_append_declines_so_the_file_is_rewritten_whole` |
+| `App::append`: `&&` to `\|\|` (two places) | Killed by `a_host_that_opts_in_late_gets_a_whole_rewrite_before_its_first_append` |
+| `App::append`: match guard `current` to `true` | Killed by the same test |
+| `LoggedHost::append` replaced by `Ok(false)` | Killed by `the_wrapper_delegates_append_to_the_host` |
+| `Forward::captured` replaced by `false` | Killed by `captured_follows_the_apps_wish` |
+| `Forward::raw_motion`: `+` to `-`, and `-` to `+` | Killed by `whole_units_are_passed_on_and_the_fraction_is_kept` |
+| `App::append`: `n > 0` to `n >= 0` | **Equivalent:** `append` is called only after a committed recorded tic, so `n` is at least 1; with the plant all tests still pass |
+| `probe` returning `Ok(String::new())` or `Ok("xyzzy")` | **Unreachable in tests without a device** (the tester's test, which killed both, was dropped in `e6b17b2`; see above) |
+| `probe`: `/` to `*` | **Unreachable in tests:** it is inside the device callback, which runs only with a real device |
+
+   That makes 8 killed by new tests, 1 equivalent and 3 unreachable in tests. The tester's tests also cover N-A. After
+   `e6b17b2` the tester's mutants were not re-run by cargo-mutants (the plants were by hand), so the three probe mutants
+   stay surviving in a re-run.
 
 ### Full workspace gates
 
-To come.
+From a clean clone (`git clone` of the working repository, then a detached checkout) at
+`6e61fc8af570b899b076ec195d10dcbaf4534cf3`, by a gates agent (Claude Sonnet, effort medium; the docs-tools role in the
+routing table). Every gate passed. Everything below was observed there; the agent's report is in scratch.
+
+**Conditions.** 2026-11-20, 03:17 to 05:19 PST, one machine (Linux under WSL2), all on ext4 under `~/scratch`. The owner said
+the machine was idle, so no job caps (`CARGO_BUILD_JOBS=6`); a cargo-mutants run was still ending at the start and was gone
+before the first build finished. `HEAD` and a clean `git status` were checked at the start and end of every phase. rustc 1.100.0,
+`cargo +1.85.0`, nightly with cargo-fuzz 0.13.2, gcc 15.2.0, Python 3.14.4, valgrind 3.26.0. Debug information off for the
+build profiles (output size only), on for the instruction counts as in CI. A scratch copy of `DOOM.WAD` and of the owner's 13
+session demos; their digests matched the originals; `/mnt/d` was only read; only counts and verdicts are recorded.
+**Disk:** `/mnt/c` showed 27 GB free at every check (floor 20 GB). **Leak detection:** every address-sanitized genuine C run
+used `detect_leaks=0`, so those runs are **not** LeakSanitizer coverage; the fuzz replays and campaigns used
+`detect_leaks=1` (a probe run on each binary printed "checking for leaks" once and exited 0).
+
+| Gate | Result | Wall |
+| --- | --- | ---: |
+| Build, `--workspace --all-targets --locked` | passed, 0 warnings | 102 s |
+| Format, both workspaces | passed | 5 s, 6 s |
+| Clippy, warnings denied | passed, 0 warnings | 28 s |
+| `cargo test --workspace --locked` | **1,906 passed, 0 failed, 5 ignored** (137 result lines) | 502 s |
+| Rustdoc, warnings denied | passed, 0 warnings | 7 s |
+| Release `doom-sim`, `doom-types` | **1,393 passed, 0 failed, 2 ignored** | 232 s |
+| Release `doom-render`, `doom-sound`, `doom-game`, `doom-play` | **480 passed, 0 failed, 1 ignored** | 176 s |
+| Rust 1.85.0, `cargo +1.85.0 test --workspace --locked` | **1,906 passed, 0 failed, 5 ignored**; one warning, the known dead-code `MAX_LINKED_THINGS` in `doom-sim` | 606 s |
+| Instruction counts (job `Simulation instruction counts`) | `threshold 3.0%: ok`, 9 workloads; largest increase +0.92%; malloc and realloc counts equal to the baseline | 57 s build, 13 s check |
+| Job `stable`, Linux steps after the Rust gates (the workflow's steps run in order) | 64 steps passed; 3 steps gated `runner.os != 'Linux'` skipped, as on CI's Linux leg; documentation check: 147 Markdown files, 3,086 relative links, 1,222 anchors, 20 exact archives | |
+| Jobs `M5a genuine renderer`, `M5b genuine status bar, HUD and input`, `M5c genuine sound` | all steps passed, self-tests included (leak detection disabled in the address variants) | 198 s, 235 s plus 52 s, not timed for M5c |
+| README animations, `--check` | both identical to the regenerated animations | 9 s, 25 s |
+| Synthetic local tools (`m5c_real_full.py`, `m5c_session_real.py`) | self-checks pass; planted faults caught | 14 s, 27 s |
+| Fuzz seed tools | checks and self-tests pass | about 1 s each |
+| Fuzz build, AddressSanitizer, target compiled only | 60 of 60 targets built, 0 warnings | 113 s |
+| Fuzz seed replays (7 targets) | all exit 0 | 13 s in all |
+| Fuzz AddressSanitizer campaigns, 300 s each, 7 targets | no findings; 0 artifact files | 35 min |
+| Kill check, synthetic (`m5d_kill_check.py`, 100 kills) | 118 files checked, 51,319 tics, **118 PASS, 0 FAIL** in the genuine session check; `SELF-CHECK: PASS` | |
+| Kill check, IWAD copy (50 kills) | 48 files, 6,444 tics, **48 PASS, 0 FAIL**; `SELF-CHECK: PASS` | 138 s |
+| Lost display, windowed `doom-play --no-sound` (display, SIGINT, SIGKILL; 4, 3 and 3 runs) | 10 of 10 PASS, 0 FAIL, no run without a demo | 43 s, 195 s, 37 s |
+| Kill test, 500 kills, release, `TMPDIR` on ext4 | 502 files checked, 202,303 tics; landed in the claim 122 times and in the session 378; 119 kills left no `.lmp`; passed; torn-append self-test passed | |
+| The owner's 13 session demos through the genuine engine | **13 of 13 `VERDICT: PASS`**, 27,146 tics (every tic's frame compared; the same totals M5c recorded) | about 730 s |
+
+The fuzz targets chosen were those nearest the diff (`game_input_events`, `render_display_state`,
+`render_display_state_v2` and the four sound targets). **No fuzz target exists for `doom-play`, its session file or its
+`--input-log`, and none was invented.** The other 53 targets were built only.
+
+**Slips (harness mistakes, none a product failure).** The first instruction-count run failed because the agent's script
+unset the target directory the tool needs; fixed and re-run alone. The four fuzz seed-tool commands were first called at the
+wrong path and re-run at the right one. A `pkill -f` killed the agent's own shell and left one orphan build, which it killed by PID.
+
+**Not run:** Windows and macOS; the exact-head CI of GitHub (below) and the Windows artifact; any audio device or played
+sound (the windowed runs used `--no-sound`); any timing or benchmark; mutation testing (above); `m5b_session_real.py`,
+`DOOM2.WAD` runs, and the real-IWAD `m5c_real_full.py`, `m5c_real.py`, `m5c_wire25_real.py` and `m5c_mixer_real.py` (not
+changed by M5d); LeakSanitizer coverage of the genuine C runs; any sanitizer other than AddressSanitizer for the fuzz
+campaigns, any campaign without a sanitizer, and a 1.85.0 build of the fuzz crate. The campaigns are bounded, not exhaustive.
+
+**Commits after `6e61fc8`.** The tester's tests and `e6b17b2` add or drop test code only. They were checked by `cargo test -p
+doom-game -p doom-play` (192 passed, 0 failed, 1 ignored), format and Clippy locally; the whole workspace on that head is
+CI's run (below).
 
 ### CI on the exact head
 
-To come.
+Recorded when the final head's CI and artifact runs finish.
 
 ### The Windows artifact
 
-To come.
+Recorded when the final head's CI and artifact runs finish.
 
 ## A6. The owner's Windows session
 
