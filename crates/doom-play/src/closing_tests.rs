@@ -373,8 +373,16 @@ fn a_first_failure_after_the_restart_is_rewritten_at_the_next_claim() {
         assert_ne!(p.app.session_name(), name, "{case}: restarted");
         disk.gate(true);
         p.host.host.wait_idle();
-        assert_eq!(disk.rewrites_of(false, 260), 1, "{case}: the failed catch-up");
-        assert_eq!(disk.synced_rewrites_of(260), 1, "{case}: the writer's rewrite");
+        assert_eq!(
+            disk.rewrites_of(false, 260),
+            1,
+            "{case}: the failed catch-up"
+        );
+        assert_eq!(
+            disk.synced_rewrites_of(260),
+            1,
+            "{case}: the writer's rewrite"
+        );
         if case == "claim" {
             assert_eq!(std::fs::read(&path).unwrap(), want, "{case}");
         } else {
@@ -754,11 +762,17 @@ fn a_stalled_log_drops_whole_pumps_and_says_how_many() {
     // fifth (at most 10 s)
     let pumps_written = || {
         let bytes = text.bytes.lock().unwrap();
-        bytes.split(|&b| b == b'\n').filter(|l| l.starts_with(b"pump ")).count()
+        bytes
+            .split(|&b| b == b'\n')
+            .filter(|l| l.starts_with(b"pump "))
+            .count()
     };
     let t0 = Instant::now();
     while pumps_written() < 5 {
-        assert!(t0.elapsed() < Duration::from_secs(10), "the log's thread did not drain");
+        assert!(
+            t0.elapsed() < Duration::from_secs(10),
+            "the log's thread did not drain"
+        );
         std::thread::sleep(Duration::from_millis(1));
     }
     log.line("raw", 20, format_args!("line 20"));
