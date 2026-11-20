@@ -5,13 +5,13 @@
 //! falls due, runs it and presents the result.
 
 use crate::FsHost;
+use crate::closing::Play;
 use crate::input_log::{InputLog, LoggedHost};
 use crate::keys::key_event;
 use crate::mouse_forward::Forward;
-use crate::session_writer::{Report, WriterHost};
+use crate::session_writer::WriterHost;
 use crate::tic_stats::TicStats;
-use crate::write_stats::{self, WriteTimes};
-use doom_game::app::{App, Host, Mode, PICTURE_BYTES, SaveStatus, TICRATE, UNRECORDED_LABEL};
+use doom_game::app::{App, Mode, PICTURE_BYTES, SaveStatus, TICRATE, UNRECORDED_LABEL};
 use doom_game::input::MouseButton;
 use doom_render::{SCREENHEIGHT, SCREENWIDTH};
 use miniquad::conf::{Conf, LinuxBackend, Platform};
@@ -152,13 +152,10 @@ struct Stage {
     pipeline: Pipeline,
     bindings: Bindings,
     rgba: Vec<u8>,
-    app: App,
-    host: LoggedHost<WriterHost>,
+    /// The app, its host, the mouse forwarding and the run's end ([`crate::closing`]).
+    play: Play,
     p: Presentation,
     start: Instant,
-    fwd: Forward,
-    reported: bool,
-    stats: Option<TicStats>,
 }
 
 impl Stage {
@@ -223,70 +220,30 @@ impl Stage {
                 images: vec![texture],
             },
             rgba: vec![0; PICTURE_BYTES],
-            app,
-            host,
+            play: Play::new(app, host, Forward::new(GRAB_AGAIN), p.tic_stats),
             p,
             start: Instant::now(),
-            fwd: Forward::new(GRAB_AGAIN),
-            reported: false,
-            stats: p.tic_stats.then(TicStats::default),
         }
     }
 
     fn now(&self) -> u64 {
         u64::try_from(self.start.elapsed().as_micros()).unwrap_or(u64::MAX)
     }
+}
 
-    /// Prints where the session went, once ([`exit_lines`]), after both writer threads have
-    /// written everything handed to them: the log is ended, the session writer drained, the
-    /// app's save on quit made again with the writer waiting (it writes only when the file is
-    /// behind or its last write failed, and so reports the real outcome), and the writer stopped.
-    /// Then the writers' own lines ([`writer_lines`]).
-    fn report(&mut self) {
-        if self.reported {
-            return;
-        }
-        self.reported = true;
-        self.host.log.summary(self.app.tic());
-        let log_times = self.host.log.finish();
-        self.host.host.finish();
-        self.app.quit(&mut self.host);
-        let late = self.late_failures();
-        let writes = self.host.host.close();
-        let mut lines = exit_lines(&self.app, &self.host.host.fs, self.stats.as_ref());
-        lines.extend(late);
-        lines.extend(writer_lines(&writes, log_times.as_ref(), self.p.tic_stats));
-        for line in lines {
-            eprintln!("doom-play: {line}");
-        }
+/// Prints the exit report's lines ([`Play::conclude`]), each after `doom-play: `.
+fn print(lines: Vec<String>) {
+    for line in lines {
+        eprintln!("doom-play: {line}");
     }
+}
 
-    /// The writes that failed after the app last heard from the writer: for the current
-    /// session, rewritten whole once more (the writer waits now) from the app's own demo.
-    fn late_failures(&mut self) -> Vec<String> {
-        let mut lines = Vec::new();
-        for (name, error) in self.host.host.take_unreported() {
-            if name != self.app.session_name() {
-                lines.push(format!(
-                    "an earlier session's file {name} was not fully written: {error}"
-                ));
-                continue;
-            }
-            let again = match self.app.recorder().bytes() {
-                Ok(bytes) => self.host.host.save(&name, &bytes),
-                Err(e) => Err(format!("the demo writer refused: {e:?}")),
-            };
-            lines.push(match again {
-                Ok(()) => format!("the session file's last write failed at exit ({error}); rewritten whole: saved"),
-                Err(e) => format!("the session file's last write failed at exit ({error}); rewritten whole: failed again: {e}"),
-            });
-        }
-        lines
-    }
-
-    fn quit(&mut self) {
-        self.app.quit(&mut self.host);
-        self.report();
+impl Drop for Stage {
+    /// The run's end and its exit report if no update made them after a quit (the window library
+    /// stopped without another `update`): the session file is then complete all the same.
+    fn drop(&mut self) {
+        self.play.quit();
+        print(self.play.conclude());
     }
 }
 
@@ -294,42 +251,45 @@ impl EventHandler for Stage {
     fn update(&mut self) {
         let tic = Duration::from_micros(1_000_000 / TICRATE);
         let now = self.now();
-        let wait = match self.app.next_tic_at() {
+        let wait = match self.play.app.next_tic_at() {
             Some(at) => Duration::from_micros(at.saturating_sub(now)).min(tic),
-            None if self.app.mode() != &Mode::Playing => tic,
+            None if self.play.app.mode() != &Mode::Playing => tic,
             None => Duration::ZERO,
         };
         std::thread::sleep(wait);
         let now = self.now();
-        let u = self.app.update(now, &mut self.host);
-        if let Some(s) = &mut self.stats {
+        let play = &mut self.play;
+        let ended_before = matches!(play.app.mode(), Mode::Ended(_));
+        let u = play.app.update(now, &mut play.host);
+        if let Some(s) = &mut play.stats {
             s.record(now, u.ran, u.dropped);
         }
-        let log = &mut self.host.log;
-        if let Some(capture) = self.fwd.sync_capture(&self.app, log, window::screen_size) {
+        // no tic runs from here to the next update: the session file is settled into the app
+        // when it is not playing (waiting up to closing::END_WAIT at a session's end)
+        play.settle_after_update(ended_before);
+        let log = &mut play.host.log;
+        if let Some(capture) = play.fwd.sync_capture(&play.app, log, window::screen_size) {
             window::set_cursor_grab(capture);
             window::show_mouse(!capture);
         }
-        if self.fwd.grab_again(&self.app, log) {
+        if play.fwd.grab_again(&play.app, log) {
             window::set_cursor_grab(true);
         }
         if let Some(n) = self.p.quit_after {
-            if self.app.tic() >= n || matches!(self.app.mode(), Mode::Ended(_)) {
-                self.quit();
+            if play.app.tic() >= n || matches!(play.app.mode(), Mode::Ended(_)) {
+                play.quit();
             }
         }
-        if self.app.quit_requested() {
-            self.report();
+        if play.app.quit_requested() {
+            play.end_run();
             window::order_quit();
         }
-        let captured = self.fwd.captured();
-        self.host
-            .log
-            .pump_end(&self.app, u.ran, u.dropped, captured);
+        let captured = play.fwd.captured();
+        print(play.pump_end(u, captured));
     }
 
     fn draw(&mut self) {
-        self.app.picture(self.p.gamma, &mut self.rgba);
+        self.play.app.picture(self.p.gamma, &mut self.rgba);
         self.ctx.texture_update(self.bindings.images[0], &self.rgba);
         let (w, h) = window::screen_size();
         let (x, y, vw, vh) = fit(w, h, self.p.square);
@@ -344,74 +304,86 @@ impl EventHandler for Stage {
     }
 
     fn key_down_event(&mut self, key: KeyCode, _mods: KeyMods, repeat: bool) {
-        self.host.log.line(
+        let play = &mut self.play;
+        play.host.log.line(
             "raw",
-            self.app.tic(),
+            play.app.tic(),
             format_args!("key-down {key:?} repeat={repeat}"),
         );
-        key_event(&mut self.app, &mut self.host, key, true, repeat);
+        key_event(&mut play.app, &mut play.host, key, true, repeat);
     }
 
     fn key_up_event(&mut self, key: KeyCode, _mods: KeyMods) {
-        self.host
+        let play = &mut self.play;
+        play.host
             .log
-            .line("raw", self.app.tic(), format_args!("key-up {key:?}"));
-        key_event(&mut self.app, &mut self.host, key, false, false);
+            .line("raw", play.app.tic(), format_args!("key-up {key:?}"));
+        key_event(&mut play.app, &mut play.host, key, false, false);
     }
 
     /// Whole units go to the app; the fraction waits for the next motion ([`Forward`]).
     fn raw_mouse_motion(&mut self, dx: f32, dy: f32) {
-        self.fwd
-            .raw_motion(&mut self.app, &mut self.host.log, dx, dy);
+        let play = &mut self.play;
+        play.fwd
+            .raw_motion(&mut play.app, &mut play.host.log, dx, dy);
     }
 
     /// Logged only (`--input-log`), never forwarded; the cursor-left detector reads it.
     fn mouse_motion_event(&mut self, x: f32, y: f32) {
-        self.fwd.cursor(&self.app, &mut self.host.log, x, y);
+        let play = &mut self.play;
+        play.fwd.cursor(&play.app, &mut play.host.log, x, y);
     }
 
     fn mouse_button_down_event(&mut self, button: miniquad::MouseButton, x: f32, y: f32) {
         let b = button_of(button);
-        self.fwd
-            .button(&mut self.app, &mut self.host.log, b, true, (x, y));
+        let play = &mut self.play;
+        play.fwd
+            .button(&mut play.app, &mut play.host.log, b, true, (x, y));
     }
 
     fn mouse_button_up_event(&mut self, button: miniquad::MouseButton, x: f32, y: f32) {
         let b = button_of(button);
-        self.fwd
-            .button(&mut self.app, &mut self.host.log, b, false, (x, y));
+        let play = &mut self.play;
+        play.fwd
+            .button(&mut play.app, &mut play.host.log, b, false, (x, y));
     }
 
     /// miniquad 0.4.11 sends this on minimising and, by its source, on focus loss too (X11
     /// FocusOut, Wayland keyboard leave, Windows `WM_ACTIVATE` inactive, macOS resign-key and
     /// window move): the app pauses and releases every held key.
     fn window_minimized_event(&mut self) {
-        self.host
+        let play = &mut self.play;
+        play.host
             .log
-            .line("raw", self.app.tic(), format_args!("focus-lost"));
-        self.app.focus_lost();
+            .line("raw", play.app.tic(), format_args!("focus-lost"));
+        play.app.focus_lost();
     }
 
     /// Logged (`--input-log`), and a reason to ask for the cursor grab again on Windows if it is
     /// held ([`GRAB_AGAIN`]): the app resumes on Esc or Pause, never by itself.
     fn window_restored_event(&mut self) {
-        self.host
+        let play = &mut self.play;
+        play.host
             .log
-            .line("raw", self.app.tic(), format_args!("restored"));
-        self.fwd.focus_gained();
+            .line("raw", play.app.tic(), format_args!("restored"));
+        play.fwd.focus_gained();
     }
 
     /// Logged only (`--input-log`): the picture is fitted at every draw.
     fn resize_event(&mut self, width: f32, height: f32) {
-        self.host.log.line(
+        let play = &mut self.play;
+        play.host.log.line(
             "raw",
-            self.app.tic(),
+            play.app.tic(),
             format_args!("resize {width}x{height}"),
         );
     }
 
+    /// The window is closing: the app's save on quit and the run's end; the exit report follows
+    /// the pump line of the update the window library runs next (as the log's last lines did in
+    /// b374aaa), or the stage's drop.
     fn quit_requested_event(&mut self) {
-        self.quit();
+        self.play.quit();
     }
 }
 
@@ -436,25 +408,6 @@ pub(crate) fn exit_lines(app: &App, host: &FsHost, stats: Option<&TicStats>) -> 
         SaveStatus::Failed(e) => format!("the session was not saved: {e}"),
         SaveStatus::NotSaved => "the session was not saved".to_string(),
     });
-    lines
-}
-
-/// The writers' lines at exit, after [`exit_lines`] ([`write_stats::exit_lines`]), and one line
-/// if the session writer's thread panicked.
-fn writer_lines(w: &Report, log: Option<&WriteTimes>, tic_stats: bool) -> Vec<String> {
-    let mut lines = write_stats::exit_lines(Some((&w.counts, &w.times)), log, tic_stats);
-    for (name, error) in &w.unreported {
-        lines.push(format!(
-            "the session file {name} was not fully written: {error}"
-        ));
-    }
-    if w.panicked {
-        lines.push(
-            "the session writer stopped unexpectedly (a panic); the session file holds its last \
-             completed write"
-                .to_string(),
-        );
-    }
     lines
 }
 

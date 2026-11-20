@@ -30,13 +30,24 @@
 //! tic is ever dropped: the file lags, and the first write after the stall is one whole rewrite
 //! holding every tic. Such a catch-up snapshot (one that follows a decline) is written unsynced.
 //!
-//! **Errors** travel back: a failed write is returned as `Err` from the next call about that
-//! session, so the app's existing failed-save handling (the pause box, the exit line, the retry
-//! once every 35 tics, ruling 4) works unchanged. After a failure the writer writes nothing more for
-//! the session until the app hands a whole demo over (its retry), so a failing disk sees one
-//! attempt per retry, not one per tic. While a retry's outcome is not known yet, [`Host::save`]
-//! returns the failure it is retrying, so the app keeps its own retry cadence; the outcome is
-//! learnt at the next retry.
+//! **Errors** travel back to the app by two roads. While tics run, a failed write is returned as
+//! `Err` from the next call about that session, so the app's existing failed-save handling (the
+//! pause box, the exit line, the retry once every 35 tics, ruling 4) works unchanged. After a
+//! failure the writer writes nothing more for the session until the app hands a whole demo over
+//! (its retry), so a failing disk sees one attempt per retry, not one per tic. While a retry's
+//! outcome is not known yet, [`Host::save`] returns the failure it is retrying, so the app keeps
+//! its own retry cadence; the outcome is learnt at the next retry. When no tic runs (the session
+//! paused or ended, and at quit) there may be no next call, so the window asks
+//! ([`WriterHost::settle`]: written, failed or not yet, after a wait it bounds) and tells the app
+//! (`App::settle_save`), whose status, pause box, end screen and retries at restart and quit then
+//! follow the truth (review 3, M1).
+//!
+//! **A session the writer moves on from** (the next claim) whose file does not hold its copy is
+//! rewritten whole from that copy once more first, unless that last failure was itself the
+//! app's whole demo (the app's retry at restart). If that fails too, the session is kept, copy
+//! and failure, and rewritten whole once more when the writer stops ([`WriterHost::close`]); the
+//! outcome is in the [`Report`] ([`Earlier`]), so an earlier session's file is never left behind
+//! without an exit line saying so. A session whose name another file took is never written.
 //!
 //! **The atomicity argument** is unchanged in kind: every write the writer makes is one of the
 //! all-or-nothing operations of [`crate::session_file`] (a five-byte write inside one page, or a
@@ -54,7 +65,7 @@ use std::collections::{BTreeSet, VecDeque};
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Condvar, Mutex, MutexGuard, PoisonError, mpsc};
 use std::thread::JoinHandle;
-use std::time::Instant;
+use std::time::{Duration, Instant};
 
 /// The most tics queued for the writer (five seconds of play). Past it, [`Host::append`] declines
 /// and the app hands the whole demo over instead (see the module documentation).
@@ -133,7 +144,7 @@ struct Snapshot {
     synced: bool,
 }
 
-/// A failed write the app may not have heard of yet.
+/// The current session's failed write, which the app may not have heard of yet.
 struct Failure {
     name: String,
     error: String,
@@ -155,8 +166,11 @@ struct State {
     /// The session file of the writer's last completed write and the tics it holds.
     held: Option<(String, u64)>,
     failure: Option<Failure>,
-    /// Failures superseded before the app heard of them.
-    unreported: Vec<(String, String)>,
+    /// Failures of a session that is not the one being written (unreachable by construction:
+    /// a whole demo handed over for another session).
+    strays: Vec<(String, String)>,
+    /// The earlier sessions left behind and what their rewrite at the writer's end did.
+    earlier: Vec<Earlier>,
     counts: SessionCounts,
     times: WriteTimes,
     /// The most tics ever queued at a hand-over, and the most snapshots pending.
@@ -182,9 +196,38 @@ pub(crate) struct Report {
     pub(crate) times: WriteTimes,
     /// Failures the app never heard of: (file name, error).
     pub(crate) unreported: Vec<(String, String)>,
+    /// The earlier sessions whose files the writer left behind, in order.
+    pub(crate) earlier: Vec<Earlier>,
     /// The writer thread panicked.
     pub(crate) panicked: bool,
 }
+
+/// An earlier session whose file did not hold its whole demo when the writer moved on to the
+/// next session (its last write failed, or another file took its name), and what became of it.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub(crate) struct Earlier {
+    /// The file's name.
+    pub(crate) name: String,
+    /// The failure it was left with.
+    pub(crate) error: String,
+    /// The whole rewrite when the writer stopped: the tics then written, or its failure;
+    /// `None` when another file took the name (never written).
+    pub(crate) retry: Option<Result<u64, String>>,
+}
+
+/// What became of a session's file, as far as the writer knows ([`WriterHost::settle`]).
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub(crate) enum Settled {
+    /// Every write handed over is done; the file holds this many tics.
+    Written(u64),
+    /// The session's last write failed (or the writer stopped before making it).
+    Failed(String),
+    /// Writes handed over are still being made (the wait ended first).
+    Pending,
+}
+
+/// The failure when the writer thread ended before making every write handed over (a panic).
+const STOPPED: &str = "the session writer stopped before writing it";
 
 /// The host the window runs (see the module documentation): [`FsHost`] for the clock, the
 /// directory and the sound, and the writer thread for every write.
@@ -233,6 +276,7 @@ impl WriterHost {
             notify,
             shared: Arc::clone(&shared),
             session: None,
+            left: Vec::new(),
         };
         let thread = std::thread::Builder::new()
             .name("session-writer".into())
@@ -289,13 +333,63 @@ impl WriterHost {
         st.counts.most_waiting = st.counts.most_waiting.max(tics.saturating_sub(held));
     }
 
+    /// Whether the writer thread ended before finishing every message sent.
+    fn stopped_short(&self) -> bool {
+        let st = self.shared.lock();
+        !st.alive && st.done < self.sent
+    }
+
     /// In synchronous mode, waits and returns the outcome for `name`; otherwise `queued`.
     fn outcome(&self, name: &str, queued: Result<(), String>) -> Result<(), String> {
         if self.synchronous {
             self.wait_idle();
-            return self.failure_of(name).map_or(Ok(()), Err);
+            if let Some(e) = self.failure_of(name) {
+                return Err(e);
+            }
+            if self.stopped_short() {
+                return Err(STOPPED.to_string());
+            }
+            return Ok(());
         }
         queued
+    }
+
+    /// What became of `name`'s file: waits at most `wait` for the writer to finish every write
+    /// handed over (the window calls this only when no tic runs: a session paused or ended, or
+    /// at quit), then says whether the session's last write failed, what the file holds, or
+    /// that writes are still being made. A failure answered here counts as reported to the app.
+    pub(crate) fn settle(&self, name: &str, wait: Duration) -> Settled {
+        let deadline = Instant::now().checked_add(wait);
+        let mut st = self.shared.lock();
+        while st.alive && st.done < self.sent {
+            let left = deadline.map_or(Duration::MAX, |d| {
+                d.saturating_duration_since(Instant::now())
+            });
+            if left.is_zero() {
+                break;
+            }
+            st = self
+                .shared
+                .changed
+                .wait_timeout(st, left)
+                .unwrap_or_else(PoisonError::into_inner)
+                .0;
+        }
+        if let Some(f) = st.failure.as_mut().filter(|f| f.name == name) {
+            f.reported = true;
+            return Settled::Failed(f.error.clone());
+        }
+        if st.done < self.sent {
+            return if st.alive {
+                Settled::Pending
+            } else {
+                Settled::Failed(STOPPED.to_string())
+            };
+        }
+        match &st.held {
+            Some((n, t)) if n == name => Settled::Written(*t),
+            _ => Settled::Pending,
+        }
     }
 
     /// The end of play: drains the queue, and from now on every call waits for its write and
@@ -327,24 +421,14 @@ impl WriterHost {
         )
     }
 
-    /// Takes the failures the app never heard of (`name`, error), marking them reported.
-    pub(crate) fn take_unreported(&self) -> Vec<(String, String)> {
-        let mut st = self.shared.lock();
-        let mut all = std::mem::take(&mut st.unreported);
-        if let Some(f) = st.failure.as_mut().filter(|f| !f.reported) {
-            f.reported = true;
-            all.push((f.name.clone(), f.error.clone()));
-        }
-        all
-    }
-
-    /// Stops the writer after it has finished every write handed over, and reports what it did.
-    /// Later calls fail (`Err`); closing again reports the same counts.
+    /// Stops the writer after it has finished every write handed over and rewritten the earlier
+    /// sessions it left behind once more ([`Earlier`]), and reports what it did. Later calls
+    /// fail (`Err`); closing again reports the same counts and nothing as unreported.
     pub(crate) fn close(&mut self) -> Report {
         self.tx = None;
         let panicked = self.thread.take().is_some_and(|t| t.join().is_err());
         let mut st = self.shared.lock();
-        let mut unreported = std::mem::take(&mut st.unreported);
+        let mut unreported = std::mem::take(&mut st.strays);
         if let Some(f) = st.failure.as_mut().filter(|f| !f.reported) {
             f.reported = true;
             unreported.push((f.name.clone(), f.error.clone()));
@@ -353,6 +437,7 @@ impl WriterHost {
             counts: st.counts.clone(),
             times: st.times.clone(),
             unreported,
+            earlier: std::mem::take(&mut st.earlier),
             panicked,
         }
     }
@@ -479,6 +564,15 @@ struct Session {
     name: String,
     model: Vec<u8>,
     disk: Disk,
+    /// The last write attempted was a whole demo the app handed over (its save or retry), and it
+    /// failed: moving on to the next session does not rewrite it once more at once.
+    retried: bool,
+}
+
+/// An earlier session whose file did not hold its copy when the writer moved on.
+struct Left {
+    session: Session,
+    error: String,
 }
 
 /// The changes of one batch not written yet.
@@ -496,6 +590,8 @@ struct Writer {
     notify: Box<dyn FnMut(String) + Send>,
     shared: Arc<Shared>,
     session: Option<Session>,
+    /// The earlier sessions left behind, rewritten once more when the writer stops.
+    left: Vec<Left>,
 }
 
 /// Marks the writer stopped when its thread ends (also by a panic), so no wait hangs.
@@ -527,6 +623,75 @@ impl Writer {
             drop(st);
             self.shared.changed.notify_all();
         }
+        self.rewrite_left();
+    }
+
+    /// The writer's end: each earlier session left behind is rewritten whole once more from its
+    /// copy (a claim if its file was never created); the outcomes go to the report.
+    fn rewrite_left(&mut self) {
+        let mut earlier = Vec::new();
+        for l in std::mem::take(&mut self.left) {
+            let s = &l.session;
+            let tics = tics_in(s.model.len());
+            let retry = match s.disk {
+                Disk::Lost | Disk::Current => None,
+                Disk::Unclaimed => {
+                    let began = Instant::now();
+                    let r = self.io.claim(&self.dir, &s.name, &s.model);
+                    let ok = matches!(r, Ok(Claim::Linked | Claim::Created));
+                    self.record(Kind::Claim, tics, began, ok);
+                    match r {
+                        Ok(Claim::Linked) => Some(Ok(tics)),
+                        Ok(Claim::Created) => {
+                            (self.notify)(session_file::fallback_line(&self.dir.join(&s.name)));
+                            Some(Ok(tics))
+                        }
+                        Ok(Claim::Taken) => Some(Err(lost(&self.dir, &s.name))),
+                        Err(e) => Some(Err(e)),
+                    }
+                }
+                Disk::Stale => {
+                    let began = Instant::now();
+                    let r = self.io.rewrite(&self.dir, &s.name, &s.model, true);
+                    self.record(Kind::SyncedRewrite, tics, began, r.is_ok());
+                    Some(r.map(|()| tics))
+                }
+            };
+            earlier.push(Earlier {
+                name: l.session.name,
+                error: l.error,
+                retry,
+            });
+        }
+        self.shared.lock().earlier = earlier;
+    }
+
+    /// The writer moves on from the current session (a new claim): if its file does not hold its
+    /// copy, it is rewritten whole once more (claimed, if it never was), unless its last failed
+    /// write was already the app's whole demo; if it still does not, the session is kept for
+    /// [`Writer::rewrite_left`], with its failure, which leaves the shared state.
+    fn retire(&mut self) {
+        let Some(s) = self.session.as_ref() else {
+            return;
+        };
+        if !s.retried {
+            match s.disk {
+                Disk::Unclaimed => self.claim(),
+                Disk::Stale => self.rewrite(true),
+                Disk::Lost | Disk::Current => {}
+            }
+        }
+        let Some(session) = self.session.take() else {
+            return;
+        };
+        let failure = {
+            let mut st = self.shared.lock();
+            st.failure.take_if(|f| f.name == session.name)
+        };
+        if session.disk != Disk::Current {
+            let error = failure.map_or_else(|| "its last write failed".to_string(), |f| f.error);
+            self.left.push(Left { session, error });
+        }
     }
 
     fn process(&mut self, batch: Vec<Msg>) {
@@ -535,10 +700,12 @@ impl Writer {
             match msg {
                 Msg::Claim { name, bytes } => {
                     self.flush(&mut p);
+                    self.retire();
                     self.session = Some(Session {
                         name,
                         model: bytes,
                         disk: Disk::Unclaimed,
+                        retried: false,
                     });
                     self.claim();
                 }
@@ -611,9 +778,10 @@ impl Writer {
                 let name = s.name.clone();
                 let e = lost(&self.dir, &name);
                 self.fail(&name, e);
+                return;
             }
             // nothing until the app hands a whole demo over (its retry cadence, ruling 4)
-            Disk::Unclaimed | Disk::Stale if !p.whole => {}
+            Disk::Unclaimed | Disk::Stale if !p.whole => return,
             Disk::Unclaimed => self.claim(),
             Disk::Current if !p.whole => {
                 let fits = (0..p.tails.len() as u64)
@@ -625,6 +793,9 @@ impl Writer {
                 }
             }
             Disk::Current | Disk::Stale => self.rewrite(p.synced),
+        }
+        if let Some(s) = self.session.as_mut() {
+            s.retried = p.whole && s.disk != Disk::Current;
         }
     }
 
@@ -724,7 +895,14 @@ impl Writer {
         let began = Instant::now();
         let r = self.io.append(&self.dir, &name, at, tails);
         self.record(Kind::Append, tics, began, r.is_ok());
-        self.shared.lock().counts.appended_tics += tails.len() as u64;
+        {
+            let mut st = self.shared.lock();
+            match r {
+                Ok(true) => st.counts.appended_tics += tails.len() as u64,
+                Ok(false) => st.counts.declined_appends += 1,
+                Err(_) => {}
+            }
+        }
         match r {
             Ok(true) => self.written(),
             // the file is not the length the copy says: repaired by a whole rewrite
@@ -742,17 +920,22 @@ impl Writer {
         }
     }
 
-    /// Records a failure of `name`'s writes for the app's next call about it.
+    /// Records a failure of the current session's writes for the app's next call about it (a
+    /// repeat of the standing one changes nothing); a failure of any other session goes to the
+    /// report as unreported.
     fn fail(&mut self, name: &str, error: String) {
+        let current = self.session.as_ref().is_some_and(|s| s.name == name);
         let mut st = self.shared.lock();
-        if let Some(f) = &st.failure {
-            if f.name == name && f.error == error {
-                return;
-            }
-            if f.name != name && !f.reported {
-                let old = (f.name.clone(), f.error.clone());
-                st.unreported.push(old);
-            }
+        if !current {
+            st.strays.push((name.to_string(), error));
+            return;
+        }
+        if st
+            .failure
+            .as_ref()
+            .is_some_and(|f| f.name == name && f.error == error)
+        {
+            return;
         }
         st.failure = Some(Failure {
             name: name.to_string(),
@@ -773,4 +956,4 @@ fn lost(dir: &Path, name: &str) -> String {
 
 #[cfg(test)]
 #[path = "session_writer_tests.rs"]
-mod tests;
+pub(crate) mod tests;

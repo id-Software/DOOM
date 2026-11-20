@@ -87,10 +87,13 @@ impl WriteTimes {
 #[derive(Clone, Debug, Default, Eq, PartialEq)]
 pub(crate) struct SessionCounts {
     pub(crate) claims: u64,
-    /// Append operations (one open each).
+    /// Append operations (one open each), failed and declined ones included.
     pub(crate) appends: u64,
-    /// Tics appended (one five-byte write each).
+    /// Tics written by the append operations that completed (one five-byte write each).
     pub(crate) appended_tics: u64,
+    /// Append operations that wrote nothing because the file was not the length the writer's
+    /// copy expected (each repaired by a whole rewrite).
+    pub(crate) declined_appends: u64,
     pub(crate) synced_rewrites: u64,
     pub(crate) rewrites: u64,
     /// The most tics the app had handed over that the file did not hold yet, at a hand-over.
@@ -115,11 +118,18 @@ fn longest(t: Option<&Timed>) -> String {
     }
 }
 
-/// The session writer's exit line.
+/// The session writer's exit line: the operations by kind ("appends A of T tics": A append
+/// operations, failed and declined ones included, and the T tics written by those that
+/// completed; the declined ones are named only when there were any), the failed operations, the
+/// longest and the most tics waiting.
 pub(crate) fn session_line(c: &SessionCounts, t: &WriteTimes) -> String {
+    let declined = match c.declined_appends {
+        0 => String::new(),
+        n => format!(", {n} appends declined"),
+    };
     format!(
-        "session file writes: {} (claims {}, appends {} of {} tics, whole rewrites {} synced and \
-         {} unsynced), {} failed; {}; at most {} tics waiting",
+        "session file writes: {} (claims {}, appends {} of {} tics{declined}, whole rewrites {} \
+         synced and {} unsynced), {} failed; {}; at most {} tics waiting",
         t.count,
         c.claims,
         c.appends,
@@ -215,6 +225,7 @@ mod tests {
             claims: 1,
             appends: 1,
             appended_tics: 1,
+            declined_appends: 0,
             synced_rewrites: 1,
             rewrites: 1,
             most_waiting: 3,
