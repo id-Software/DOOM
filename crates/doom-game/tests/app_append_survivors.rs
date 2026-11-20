@@ -242,7 +242,7 @@ fn a_restart_resets_the_failed_write_retry_counter() {
         assert_eq!(app.update(at(k), &mut host).ran, 1, "tic {k}");
     }
     assert!(matches!(app.save_status(), SaveStatus::Failed(_)));
-    assert!(FAILED_WRITE_RETRY_TICS > 2);
+    const { assert!(FAILED_WRITE_RETRY_TICS > 2) };
     // restart: the old session's write and the new session's claim both fail
     host.calls.clear();
     app.restart(&mut host);
