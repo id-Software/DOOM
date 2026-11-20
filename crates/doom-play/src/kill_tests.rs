@@ -1,30 +1,37 @@
-//! M5d: the session file survives `SIGKILL` at any instant as a valid demo of every tic run, or
-//! of every tic but the last (the owner's requirement for Ctrl+C, a closed console window and a
-//! lost display connection, all of which end the process without the app's save on quit).
+//! M5d: the session file survives `SIGKILL` at any instant as a valid demo of a prefix of the
+//! session (the owner's requirement for Ctrl+C, a closed console window and a lost display
+//! connection, all of which end the process without the app's save on quit). Since the session
+//! writer thread (`session_writer.rs`; the owner's rulings of 2026-11-20) the file lags the game:
+//! it holds at least every tic of the writer's last completed write and at most every tic run, a
+//! declared weakening of the earlier "every tic run, or every tic but the last" that the owner
+//! accepted; the test measures the lag.
 //!
 //! [`sigkill_at_random_points_leaves_valid_demos`] spawns this test executable again running the
 //! ignored [`child_session`] (selected by name, with `DOOM_PLAY_KILL_CHILD_DIR` naming a fresh
-//! directory under the system temporary directory and `DOOM_PLAY_KILL_SEED` a seed). The child
-//! plays the real [`App`] with the real [`FsHost`] (sound discarded) on the synthetic WADs of the
+//! directory and `DOOM_PLAY_KILL_SEED` a seed). The child plays the real [`App`] with doom-play's
+//! own [`WriterHost`] over [`FsHost`]'s directory (sound discarded) on the synthetic WADs of the
 //! M5c session check (`tests/reference/m5c_wads/sndmonst.wad` with the committed status bar, sound
 //! and music WADs, E1M1 skill 2) as fast as it can on a fake clock, with a seeded pseudo-random
 //! input script (keys, mouse motion and buttons, pauses, restarts; a death or another ending is
 //! followed by a restart), and prints one line per event to its standard output, unbuffered:
-//! `@start` before the first session, `@claim NAME` when a session's file is created,
-//! `@tic NAME M HASH` from `Host::tic` for each committed tic (M the tics committed in that
-//! session, HASH a running digest of the executed commands' demo bytes), `@end NAME LEN` after a
-//! session ended and `@restart` before a restart. The parent kills it (`Child::kill`, `SIGKILL`)
-//! after a seeded random delay counted from `@start` (a tenth of the kills within 0.3 ms and a
-//! tenth within 3 ms, aimed at the first claim), requires that the child died by that `SIGKILL`
-//! (any other end, such as a panic, fails the test and shows the child's standard error), and
-//! checks every `.lmp` left: not empty; parsed by doom-sim's
-//! reader through [`DemoCommands::parse`]; replayed headless by [`replay`] to its last command with
-//! no refusal; its commands' digest equal to the one printed at its tic count; the file of the
-//! session running at the kill holds M − 1 or M tics, where M is the last count printed for it
-//! (the app prints a tic in `Host::tic` and then writes it); every earlier session's file holds
-//! exactly its last printed count; a file whose claim line was not printed holds 0 tics and is
-//! the only such file; every claimed file exists. Leftover `*.tmp` files are counted (they are
-//! not demos); any other file fails the test.
+//! `@start` before the first session, `@claim NAME` when the host answers a session's claim
+//! (the writer creates the file afterwards), `@tic NAME M HASH W` from `Host::tic` for each
+//! committed tic (M the tics committed in that session, HASH a running digest of the executed
+//! commands' demo bytes, W the tics the file held after the writer's last completed write or `-`
+//! before its claim completed), `@end NAME LEN` after a session ended and `@restart` before a
+//! restart. The parent kills it (`Child::kill`, `SIGKILL`) after a seeded random delay counted
+//! from `@start` (a tenth of the kills within 0.3 ms and a tenth within 3 ms, aimed at the first
+//! claim), requires that the child died by that `SIGKILL` (any other end, such as a panic, fails
+//! the test and shows the child's standard error), and checks every `.lmp` left by the rules of
+//! [`check`]: not empty; parsed by doom-sim's reader through [`DemoCommands::parse`]; replayed
+//! headless by [`replay`] to its last command with no refusal; its commands' digest equal to the
+//! one printed at its tic count; between the last W and the last M printed for its session
+//! (exactly M once a later session's claim completed); missing only before its claim completed;
+//! a file whose claim line was not printed holds 0 tics and is the only such file. Leftover
+//! `*.tmp` files are counted (they are not demos); any other file fails the test. The summary
+//! gives the tics lost by the session running at each kill (M minus the tics in its file) as a
+//! distribution. The child runs far faster than 35 tics a second, so its lag is larger than in
+//! play: the distribution is the worst case of this machine's disk, not the player's.
 //!
 //! Environment: `DOOM_PLAY_KILLS` (default 50), `DOOM_PLAY_KILL_MAX_MS` (the longest ordinary
 //! delay, default 400), `DOOM_PLAY_KILL_LONG_MS` (a tenth of the kills wait 1 s plus up to this,
@@ -33,13 +40,17 @@
 //! doom-play's `--iwad` does; default the synthetic set), `DOOM_PLAY_KILL_MAP` (default 1),
 //! `DOOM_PLAY_KILL_AT_TIC` (aimed kills: wait for the first `@tic` line of this count, in any
 //! session, then up to `DOOM_PLAY_KILL_AT_US` microseconds, default 3000; for example 1021, the
-//! first page-boundary rewrite, or 1050, the first periodic rewrite) and
+//! first page-boundary rewrite, or 1050, the first periodic rewrite),
 //! `DOOM_PLAY_KILL_KEEP` (a directory: each kill's files are kept under it as `kNNNN/`, for
-//! `tools/reference/m5d_kill_check.py`; by default they are deleted) and `DOOM_PLAY_KILL_PLANT`
-//! (a planted fault in the child, for the self-test only: `torn` makes the child's appends two
-//! writes, the tic's four bytes and then the marker, [`TORN_GAP`] apart, instead of
-//! doom-play's one write; the test must then fail). One summary line goes to standard output
-//! (seen with `--nocapture`).
+//! `tools/reference/m5d_kill_check.py`; an existing `kNNNN/` there is replaced; by default the
+//! files go under the system temporary directory and are deleted), `DOOM_PLAY_KILL_DIR` (a
+//! directory, for example on another disk: the kills' directories `kNNNN/` are made there and
+//! kept, and the test deletes nothing; a `kNNNN/` that already exists fails the run, so give it a
+//! new, empty directory each time; it takes precedence over `DOOM_PLAY_KILL_KEEP`) and
+//! `DOOM_PLAY_KILL_PLANT` (a planted fault in the child, for the self-test only: `torn` makes the
+//! writer's appends two writes per tic, the tic's four bytes and then the marker, [`TORN_GAP`]
+//! apart, instead of doom-play's one write; the test must then fail). One summary line goes to
+//! standard output (seen with `--nocapture`).
 //!
 //! **Self-test** ([`a_torn_append_fails_the_kill_test`]): the parent runs aimed kills with the
 //! `torn` plant and requires a failure of the file check (a `.lmp` that is not a valid demo), so
@@ -60,6 +71,8 @@
 
 use crate::FsHost;
 use crate::audio::{Discard, Output};
+use crate::session_file::Claim;
+use crate::session_writer::{RealIo, SessionIo, WriterHost};
 use doom_game::app::{
     App, AudioSink, DemoCommands, GameData, Host, Mode, SessionConfig, TicReport, Timestamp, replay,
 };
@@ -166,37 +179,65 @@ fn load() -> GameData {
     GameData::load_with_sound(&refs, mode, map(), 2).expect("game data")
 }
 
-/// The child's host: doom-play's [`FsHost`], with the protocol lines.
+/// The child's host: doom-play's own [`WriterHost`] (the writer thread over [`FsHost`]'s
+/// directory), with the protocol lines.
 struct ChildHost {
-    fs: FsHost,
+    fs: WriterHost,
     out: std::io::Stdout,
     name: String,
     hash: u64,
-    /// The `torn` plant: appends as two writes ([`torn_append`]).
-    torn: bool,
 }
 
-/// The `torn` plant's append (the self-test only, never doom-play's): what
-/// `session_file::append` does, but as two writes, the tic's four bytes and then the marker,
-/// [`TORN_GAP`] apart, so that a kill in the gap leaves a file with no marker.
-fn torn_append(dir: &Path, name: &str, at: u64, tail: &[u8; 5]) -> Result<bool, String> {
-    if !crate::session_file::append_fits_one_page(at, 5) {
-        return Ok(false);
+/// The `torn` plant's file operations (the self-test only, never doom-play's): the claim and the
+/// whole rewrite as doom-play makes them, but each tic of an append as two writes, the tic's four
+/// bytes and then the marker, [`TORN_GAP`] apart, so that a kill in the gap leaves a file with no
+/// marker.
+struct TornIo;
+
+impl SessionIo for TornIo {
+    fn claim(&mut self, dir: &Path, name: &str, bytes: &[u8]) -> Result<Claim, String> {
+        RealIo.claim(dir, name, bytes)
     }
-    let path = dir.join(name);
-    let fail = |e: std::io::Error| format!("{}: {e}", path.display());
-    let mut f = std::fs::OpenOptions::new()
-        .write(true)
-        .open(&path)
-        .map_err(fail)?;
-    if f.metadata().map_err(fail)?.len() != at + 1 {
-        return Ok(false);
+    fn rewrite(
+        &mut self,
+        dir: &Path,
+        name: &str,
+        bytes: &[u8],
+        synced: bool,
+    ) -> Result<(), String> {
+        RealIo.rewrite(dir, name, bytes, synced)
     }
-    f.seek(SeekFrom::Start(at)).map_err(fail)?;
-    f.write_all(&tail[..4]).map_err(fail)?;
-    std::thread::sleep(TORN_GAP);
-    f.write_all(&tail[4..]).map_err(fail)?;
-    Ok(true)
+    fn append(
+        &mut self,
+        dir: &Path,
+        name: &str,
+        at: u64,
+        tails: &[[u8; 5]],
+    ) -> Result<bool, String> {
+        let offsets = (0..tails.len() as u64).map(|i| at + 4 * i);
+        if offsets
+            .clone()
+            .any(|o| !crate::session_file::append_fits_one_page(o, 5))
+        {
+            return Ok(false);
+        }
+        let path = dir.join(name);
+        let fail = |e: std::io::Error| format!("{}: {e}", path.display());
+        let mut f = std::fs::OpenOptions::new()
+            .write(true)
+            .open(&path)
+            .map_err(fail)?;
+        if f.metadata().map_err(fail)?.len() != at + 1 {
+            return Ok(false);
+        }
+        for (o, tail) in offsets.zip(tails) {
+            f.seek(SeekFrom::Start(o)).map_err(fail)?;
+            f.write_all(&tail[..4]).map_err(fail)?;
+            std::thread::sleep(TORN_GAP);
+            f.write_all(&tail[4..]).map_err(fail)?;
+        }
+        Ok(true)
+    }
 }
 
 impl ChildHost {
@@ -236,14 +277,17 @@ impl Host for ChildHost {
         self.fs.appends()
     }
     fn append(&mut self, name: &str, at: u64, tail: &[u8; 5]) -> Result<bool, String> {
-        if self.torn {
-            return torn_append(&self.fs.dir, name, at, tail);
-        }
         self.fs.append(name, at, tail)
     }
+    /// `@tic NAME M HASH W`: W the tics the file held after the writer's last completed write,
+    /// `-` before its claim completed. Printed before the app hands tic M to the writer.
     fn tic(&mut self, r: &TicReport<'_>) {
         self.hash = fnv_step(self.hash, &write_ticcmd_bytes(&r.executed));
-        let line = format!("@tic {} {} {:016x}\n", self.name, r.tic + 1, self.hash);
+        let w = self
+            .fs
+            .written(&self.name)
+            .map_or_else(|| "-".to_string(), |w| w.to_string());
+        let line = format!("@tic {} {} {:016x} {w}\n", self.name, r.tic + 1, self.hash);
         self.line(line);
     }
     fn audio(&mut self) -> Option<&mut dyn AudioSink> {
@@ -288,15 +332,20 @@ fn child_session() {
     };
     let mut rng = Rng(seed);
     let data = load();
+    let fs = FsHost {
+        dir: PathBuf::from(dir),
+        audio: Output::Discard(Discard::default()),
+    };
+    let io: Box<dyn SessionIo> = if torn {
+        Box::new(TornIo)
+    } else {
+        Box::new(RealIo)
+    };
     let mut host = ChildHost {
-        fs: FsHost {
-            dir: PathBuf::from(dir),
-            audio: Output::Discard(Discard::default()),
-        },
+        fs: WriterHost::with_io(fs, io, Box::new(|line| eprintln!("{line}"))).expect("the writer"),
         out: std::io::stdout(),
         name: String::new(),
         hash: FNV0,
-        torn,
     };
     // after a newline: the harness has printed "test kill_tests::child_session ... " unended
     host.line("\n@start\n".into());
@@ -360,6 +409,9 @@ struct Logged {
     hashes: BTreeMap<u64, u64>,
     /// The recorded length printed after the session ended.
     ended: Option<u64>,
+    /// The last W printed (the tics the file held after the writer's last completed write);
+    /// `None` while every W printed was `-` (the claim not completed).
+    written: Option<u64>,
 }
 
 /// Where the kill landed, judged from the child's last line.
@@ -385,8 +437,9 @@ struct Stats {
     tmp: u64,
     no_file: u64,
     landed: BTreeMap<String, u64>,
-    current_behind: u64,
-    current_even: u64,
+    /// The tics lost by the session running at each kill (its last printed count M minus the
+    /// tics its file holds; a missing file counts as M lost), by count.
+    lost: BTreeMap<u64, u64>,
     longest: u64,
     past_page_rewrite: u64,
 }
@@ -423,7 +476,15 @@ impl Host for Quiet {
 }
 
 /// Checks one kill's directory against the child's lines; returns where the kill landed or the
-/// first failure.
+/// first failure. The rules (the writer thread's guarantee, which the owner accepted on
+/// 2026-11-20 as a declared weakening): every `.lmp` is a valid demo of a prefix of its session:
+/// it is not empty, parses, replays with no refusal and its digest is the child's at its tic
+/// count. A session's file holds at least the last W printed for it (0 when none) and at most its
+/// last printed count M (its `@end` length once ended); once a later session printed a W (its
+/// claim completed, so the writer, which works in order, had finished every write of the earlier
+/// sessions), exactly M. A session's file may be missing only while no W was printed for it or
+/// for a later session (its claim had not completed). A file whose claim line was not printed
+/// holds 0 tics and is the only one.
 fn check(dir: &Path, lines: &[String], data: &GameData, stats: &mut Stats) -> Result<(), String> {
     let mut sessions: Vec<(String, Logged)> = Vec::new();
     let mut last_event = "";
@@ -436,7 +497,7 @@ fn check(dir: &Path, lines: &[String], data: &GameData, stats: &mut Stats) -> Re
                 sessions.push((name.to_string(), Logged::default()));
                 claim_pending = false;
             }
-            ["@tic", name, m, h] => {
+            ["@tic", name, m, h, written] => {
                 let (n, s) = sessions.last_mut().ok_or("a tic before any claim")?;
                 if n != name {
                     return Err(format!("tic of {name} while {n} is current"));
@@ -448,6 +509,13 @@ fn check(dir: &Path, lines: &[String], data: &GameData, stats: &mut Stats) -> Re
                 }
                 s.last = m;
                 s.hashes.insert(m, h);
+                if *written != "-" {
+                    let w: u64 = written.parse().map_err(|_| format!("bad line {l:?}"))?;
+                    if w >= m || s.written.is_some_and(|before| w < before) {
+                        return Err(format!("{name}: W {w} at tic {m} after {:?}", s.written));
+                    }
+                    s.written = Some(w);
+                }
             }
             ["@end", name, len] => {
                 let (n, s) = sessions.last_mut().ok_or("an end before any claim")?;
@@ -484,7 +552,10 @@ fn check(dir: &Path, lines: &[String], data: &GameData, stats: &mut Stats) -> Re
         }
     }
     stats.no_file += u64::from(lmps.is_empty());
-    let current = sessions.last().map(|(n, _)| n.clone());
+    // whether a later session's claim completed (then the earlier sessions' writes had)
+    let completed: Vec<bool> = (0..sessions.len())
+        .map(|i| sessions[i + 1..].iter().any(|(_, s)| s.written.is_some()))
+        .collect();
     let mut unlogged = 0;
     for (name, bytes) in &lmps {
         if bytes.is_empty() {
@@ -504,7 +575,7 @@ fn check(dir: &Path, lines: &[String], data: &GameData, stats: &mut Stats) -> Re
         stats.tics += tics;
         stats.longest = stats.longest.max(tics);
         stats.past_page_rewrite += u64::from(tics > 1021);
-        let Some((_, s)) = sessions.iter().find(|(n, _)| n == name) else {
+        let Some(i) = sessions.iter().position(|(n, _)| n == name) else {
             unlogged += 1;
             if tics != 0 || !claim_pending {
                 return Err(format!(
@@ -514,24 +585,18 @@ fn check(dir: &Path, lines: &[String], data: &GameData, stats: &mut Stats) -> Re
             }
             continue;
         };
-        let allowed: Vec<u64> = match s.ended {
-            Some(len) => vec![len],
-            None if current.as_deref() == Some(name) => {
-                if tics + 1 == s.last {
-                    stats.current_behind += 1;
-                } else if tics == s.last {
-                    stats.current_even += 1;
-                }
-                vec![s.last.saturating_sub(1), s.last]
-            }
-            None => vec![s.last],
+        let s = &sessions[i].1;
+        let most = s.ended.unwrap_or(s.last);
+        let least = if completed[i] {
+            most
+        } else {
+            s.written.unwrap_or(0)
         };
-        if !allowed.contains(&tics) {
+        if !(least..=most).contains(&tics) {
             return Err(format!(
-                "{name}: {tics} tics, allowed {allowed:?} (last printed {}, ended {:?}, current {})",
-                s.last,
-                s.ended,
-                current.as_deref() == Some(name)
+                "{name}: {tics} tics, allowed {least} to {most} (last printed {}, W {:?}, ended \
+                 {:?}, a later claim completed {})",
+                s.last, s.written, s.ended, completed[i]
             ));
         }
         if tics > 0 && s.hashes.get(&tics) != Some(&hash) {
@@ -543,9 +608,20 @@ fn check(dir: &Path, lines: &[String], data: &GameData, stats: &mut Stats) -> Re
     if unlogged > 1 {
         return Err(format!("{unlogged} files whose claim was never printed"));
     }
-    for (name, _) in &sessions {
-        if !lmps.contains_key(name) {
-            return Err(format!("{name} was claimed and is gone"));
+    for (i, (name, s)) in sessions.iter().enumerate() {
+        if !lmps.contains_key(name) && (s.written.is_some() || completed[i]) {
+            return Err(format!(
+                "{name} is gone, but its claim had completed (W {:?})",
+                s.written
+            ));
+        }
+    }
+    if let Some((name, s)) = sessions.last() {
+        if s.ended.is_none() {
+            let held = lmps
+                .get(name)
+                .map_or(0, |b| (b.len() as u64).saturating_sub(14) / 4);
+            *stats.lost.entry(s.last.saturating_sub(held)).or_default() += 1;
         }
     }
     Ok(())
@@ -677,6 +753,8 @@ struct Kills {
     seed0: u64,
     /// Keep each kill's files under this directory (else they go under `base` and are deleted).
     keep: Option<PathBuf>,
+    /// Never delete anything (`DOOM_PLAY_KILL_DIR`): each kill's directory must not exist yet.
+    never_delete: bool,
     base: PathBuf,
     plant: Option<String>,
 }
@@ -722,7 +800,18 @@ fn run_kills(k: &Kills, data: &GameData) -> Result<Stats, Failure> {
         for n in 0..k.kills {
             let seed = k.seed0 + n;
             let dir = base.join(format!("k{n:04}"));
-            let _ = std::fs::remove_dir_all(&dir);
+            if k.never_delete {
+                if dir.exists() {
+                    made = Err(Failure::Harness(format!(
+                        "{} exists: DOOM_PLAY_KILL_DIR needs a directory with no kNNNN in it (the \
+                         test deletes nothing there)",
+                        dir.display()
+                    )));
+                    break;
+                }
+            } else {
+                let _ = std::fs::remove_dir_all(&dir);
+            }
             std::fs::create_dir_all(&dir).expect("the kill's directory");
             // a tenth within 0.3 ms and a tenth within 3 ms of `@start` (aimed at the first
             // claim), a tenth late (past the first page-boundary rewrite in an optimised build),
@@ -763,6 +852,7 @@ fn run_kills(k: &Kills, data: &GameData) -> Result<Stats, Failure> {
 /// documentation), configured from the environment.
 #[test]
 fn sigkill_at_random_points_leaves_valid_demos() {
+    let fixed = std::env::var_os("DOOM_PLAY_KILL_DIR").map(PathBuf::from);
     let k = Kills {
         kills: env_u64("DOOM_PLAY_KILLS", 50),
         max_ms: env_u64("DOOM_PLAY_KILL_MAX_MS", 400).max(1),
@@ -772,7 +862,10 @@ fn sigkill_at_random_points_leaves_valid_demos() {
             .and_then(|v| v.parse::<u64>().ok()),
         at_us: env_u64("DOOM_PLAY_KILL_AT_US", 3_000).max(1),
         seed0: env_u64(SEED, 1),
-        keep: std::env::var_os("DOOM_PLAY_KILL_KEEP").map(PathBuf::from),
+        keep: fixed
+            .clone()
+            .or_else(|| std::env::var_os("DOOM_PLAY_KILL_KEEP").map(PathBuf::from)),
+        never_delete: fixed.is_some(),
         base: std::env::temp_dir().join(format!("doom-play-kill-{}", std::process::id())),
         plant: std::env::var(PLANT).ok(),
     };
@@ -782,8 +875,9 @@ fn sigkill_at_random_points_leaves_valid_demos() {
     assert_eq!(stats.kills, k.kills);
     println!(
         "kill test: {} kills (seeds {}..{}), {} files checked holding {} tics (longest {}, \
-         {} past the first page-boundary rewrite), landed {:?}, current file one tic behind {} \
-         and even {}, kills that left no .lmp {}, leftover .tmp {}, {:.1} s",
+         {} past the first page-boundary rewrite), landed {:?}, tics lost by the session running \
+         at the kill (M minus the tics in its file: kills) {:?}, kills that left no .lmp {}, \
+         leftover .tmp {}, aimed at {}, {:.1} s",
         stats.kills,
         k.seed0,
         k.seed0 + k.kills,
@@ -792,10 +886,13 @@ fn sigkill_at_random_points_leaves_valid_demos() {
         stats.longest,
         stats.past_page_rewrite,
         stats.landed,
-        stats.current_behind,
-        stats.current_even,
+        stats.lost,
         stats.no_file,
         stats.tmp,
+        k.at_tic.map_or_else(
+            || "no tic (random delays)".to_string(),
+            |t| format!("tic {t} (0 to {} us after its print)", k.at_us)
+        ),
         clock.elapsed().as_secs_f64()
     );
 }
@@ -815,6 +912,7 @@ fn a_torn_append_fails_the_kill_test() {
         at_us: 3_000,
         seed0: 1,
         keep: None,
+        never_delete: false,
         base: base.clone(),
         plant: Some("torn".into()),
     };
