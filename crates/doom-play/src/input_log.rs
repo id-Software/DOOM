@@ -736,6 +736,135 @@ mod tests {
         assert!(!log.is_on(), "the header write failed, so the log is off");
         assert!(InputLog::create(Path::new("/nonexistent-dir/x/log.txt")).is_err());
     }
+
+    /// A writer the log's thread can own, which the test reads back; each write call can be
+    /// made slow.
+    #[derive(Clone, Default)]
+    struct SharedSend {
+        bytes: std::sync::Arc<std::sync::Mutex<Vec<u8>>>,
+        delay: std::time::Duration,
+    }
+
+    impl Write for SharedSend {
+        fn write(&mut self, b: &[u8]) -> std::io::Result<usize> {
+            std::thread::sleep(self.delay);
+            self.bytes.lock().unwrap().extend_from_slice(b);
+            Ok(b.len())
+        }
+        fn flush(&mut self) -> std::io::Result<()> {
+            Ok(())
+        }
+    }
+
+    /// M5d (ruling of 2026-11-20): the log written by its own thread holds, after `finish`,
+    /// exactly the bytes the direct writer gets for the same session (the header is written by
+    /// `create` before the thread starts, so it is the one difference), and it is timed.
+    #[test]
+    fn the_threaded_log_writes_the_same_bytes() {
+        let base =
+            std::env::temp_dir().join(format!("doom-play-input-log-thread-{}", std::process::id()));
+        let direct = Shared::default();
+        let (frames_a, demo_a, _) = run(
+            InputLog::to_writer(Box::new(direct.clone())),
+            &base.join("a"),
+        );
+        let threaded = SharedSend::default();
+        let (frames_b, demo_b, mut log) = run(
+            InputLog::threaded(Box::new(threaded.clone())).unwrap(),
+            &base.join("b"),
+        );
+        assert_eq!((frames_a, demo_a), (frames_b, demo_b));
+        let times = log.finish().expect("a threaded log");
+        assert!(!log.is_on(), "finished");
+        assert!(times.count > 20 && times.failed == 0, "{times:?}");
+        let direct = String::from_utf8(direct.0.borrow().clone()).unwrap();
+        let threaded = String::from_utf8(threaded.bytes.lock().unwrap().clone()).unwrap();
+        let header = format!("# 1 0 {HEADER}\n");
+        // the session's file name holds the second it began, which may differ between the runs
+        let unnamed = |t: &str| -> String {
+            t.lines()
+                .map(|l| {
+                    if l.starts_with("session ") {
+                        "session"
+                    } else {
+                        l
+                    }
+                })
+                .collect::<Vec<_>>()
+                .join("\n")
+        };
+        let direct = direct.strip_prefix(&header).expect("the header first");
+        assert_eq!(unnamed(direct), unnamed(&threaded));
+        assert_eq!(threaded.matches("session 1 0 E1M1-skill2-").count(), 1);
+        assert!(threaded.ends_with("Left 5/5 Middle 0/0 Right 1/1\n"));
+        std::fs::remove_dir_all(&base).unwrap();
+    }
+
+    /// The ruling that no write may block the loop, for the log: with every write 200 ms slow,
+    /// each line and each pump's end returns at once; `finish` waits for the writes, and a
+    /// failure of the thread's writer stops the log at the next line, as the direct writer's does.
+    #[test]
+    fn a_slow_log_file_never_holds_up_the_pump() {
+        let slow = SharedSend {
+            delay: std::time::Duration::from_millis(200),
+            ..SharedSend::default()
+        };
+        let mut log = InputLog::threaded(Box::new(slow.clone())).unwrap();
+        let app = App::new(
+            load(),
+            SessionConfig::default(),
+            &mut LoggedHost {
+                host: FsHost {
+                    dir: std::env::temp_dir()
+                        .join(format!("doom-play-input-log-slow-{}", std::process::id())),
+                    audio: Output::Discard(Discard::default()),
+                },
+                log: InputLog::off(),
+            },
+        );
+        let mut longest = std::time::Duration::ZERO;
+        for k in 0..5 {
+            let t0 = std::time::Instant::now();
+            log.line("raw", k, format_args!("line {k}"));
+            log.pump_end(&app, 1, 0, false);
+            longest = longest.max(t0.elapsed());
+        }
+        assert!(
+            longest < std::time::Duration::from_millis(50),
+            "a pump took {longest:?}"
+        );
+        let times = log.finish().unwrap();
+        assert_eq!(times.count, 5);
+        assert!(times.longest.unwrap().took >= std::time::Duration::from_millis(200));
+        let text = String::from_utf8(slow.bytes.lock().unwrap().clone()).unwrap();
+        assert_eq!(text.lines().count(), 10, "{text}");
+        assert!(text.starts_with("raw 1 0 line 0\npump 1 0 ran=1 dropped=0"));
+        let _ = std::fs::remove_dir_all(
+            std::env::temp_dir().join(format!("doom-play-input-log-slow-{}", std::process::id())),
+        );
+        // a failing file: the thread's error stops the log at the next line
+        struct Full;
+        impl Write for Full {
+            fn write(&mut self, _: &[u8]) -> std::io::Result<usize> {
+                Err(std::io::Error::other("disk full"))
+            }
+            fn flush(&mut self) -> std::io::Result<()> {
+                Ok(())
+            }
+        }
+        let mut log = InputLog::threaded(Box::new(Full)).unwrap();
+        log.line("raw", 0, format_args!("x"));
+        log.pump_end(&app, 1, 0, false);
+        for _ in 0..200 {
+            if !log.is_on() {
+                break;
+            }
+            std::thread::sleep(std::time::Duration::from_millis(5));
+            log.line("raw", 0, format_args!("y"));
+        }
+        assert!(!log.is_on(), "the failure stopped the log");
+        assert_eq!(log.finish().map(|t| t.count), None, "already off");
+    }
 }
 
 /// Review survivors of M5d: [`LoggedHost`] must pass `append` to the host proper.

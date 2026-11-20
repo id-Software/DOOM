@@ -187,3 +187,84 @@ pub(crate) fn exit_lines(
     }
     lines
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn timed(kind: Kind, tic: u64, us: u64, began: Instant) -> Timed {
+        Timed {
+            kind,
+            tic,
+            took: Duration::from_micros(us),
+            began,
+        }
+    }
+
+    /// The exit lines' wording and arithmetic: counts by kind, the longest with its kind and tic,
+    /// milliseconds truncated to a tenth, the slow list in the order the writes began, capped.
+    #[test]
+    fn the_exit_lines_give_counts_the_longest_and_the_slow_writes() {
+        let t0 = Instant::now();
+        let mut s = WriteTimes::default();
+        s.record(timed(Kind::Claim, 0, 1_234, t0), true);
+        s.record(timed(Kind::Append, 1, 80, t0), true);
+        s.record(timed(Kind::SyncedRewrite, 1050, 45_678, t0), true);
+        s.record(timed(Kind::Rewrite, 1052, 20_000, t0), false);
+        let c = SessionCounts {
+            claims: 1,
+            appends: 1,
+            appended_tics: 1,
+            synced_rewrites: 1,
+            rewrites: 1,
+            most_waiting: 3,
+        };
+        assert_eq!(
+            session_line(&c, &s),
+            "session file writes: 4 (claims 1, appends 1 of 1 tics, whole rewrites 1 synced and 1 \
+             unsynced), 1 failed; longest 45.6 ms (synced rewrite at tic 1050); at most 3 tics \
+             waiting"
+        );
+        assert_eq!(s.slow.len(), 1, "exactly 20 ms is not over 20 ms");
+        let mut l = WriteTimes::default();
+        assert_eq!(log_line(&l), "input log writes: 0, 0 failed; longest none");
+        assert_eq!(
+            slow_line(&[&s, &l]).as_str(),
+            "writes over 20 ms: synced rewrite at tic 1050 45.6 ms"
+        );
+        l.record(
+            timed(Kind::Log, 7, 20_001, t0 - Duration::from_millis(1)),
+            true,
+        );
+        assert_eq!(
+            log_line(&l),
+            "input log writes: 1, 0 failed; longest 20.0 ms (input log at tic 7)"
+        );
+        assert_eq!(
+            slow_line(&[&s, &l]),
+            "writes over 20 ms: input log at tic 7 20.0 ms; synced rewrite at tic 1050 45.6 ms"
+        );
+        assert_eq!(
+            slow_line(&[&WriteTimes::default()]),
+            "writes over 20 ms: none"
+        );
+        // the cap: at most SLOW_LISTED listed, the rest counted, across both writers
+        let mut many = WriteTimes::default();
+        for k in 0..(SLOW_LISTED as u64 + 5) {
+            many.record(
+                timed(Kind::Append, k, 30_000, t0 + Duration::from_millis(k)),
+                true,
+            );
+        }
+        assert_eq!((many.slow.len(), many.slow_omitted), (SLOW_LISTED, 5));
+        let line = slow_line(&[&many, &l]);
+        assert_eq!(line.matches(" ms;").count() + 1, SLOW_LISTED + 1, "{line}");
+        assert!(line.ends_with("; 6 more not listed"), "{line}");
+        assert!(
+            line.starts_with(
+                "writes over 20 ms: input log at tic 7 20.0 ms; append at tic 0 30.0 ms"
+            ),
+            "{line}"
+        );
+    }
+}

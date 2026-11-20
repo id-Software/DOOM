@@ -770,3 +770,7 @@ fn lost(dir: &Path, name: &str) -> String {
         dir.join(name).display()
     )
 }
+
+#[cfg(test)]
+#[path = "session_writer_tests.rs"]
+mod tests;

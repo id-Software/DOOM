@@ -815,4 +815,128 @@ mod tests {
         assert_eq!(names(&dir), want);
         std::fs::remove_dir_all(&dir).unwrap();
     }
+
+    /// Ruling 6, the match rule: only this module's own two temporary names, built from a
+    /// session demo's name and a process id, match; anything near them does not.
+    #[test]
+    fn only_our_own_temporary_names_count_as_leftovers() {
+        let dir = Path::new("d");
+        for name in [
+            "E1M1-skill2-20261120-123456.lmp",
+            "E1M9-skill3-20261120-123456-9999.lmp",
+        ] {
+            for built in [temporary(dir, name), claim_temporary(dir, name)] {
+                let built = built.file_name().unwrap().to_str().unwrap().to_string();
+                assert!(is_leftover_name(&built), "{built}");
+            }
+        }
+        for good in [
+            "E1M1-skill2-20261120-123456.lmp.1.tmp",
+            "E1M5-skill0-00000000-000000.lmp.4294967295.claim.tmp",
+            "E1M1-skill2-20261120-123456-2.lmp.77.tmp",
+        ] {
+            assert!(is_leftover_name(good), "{good}");
+        }
+        for bad in [
+            "E1M1-skill2-20261120-123456.lmp",
+            "E1M1-skill2-20261120-123456.lmp.tmp",
+            "E1M1-skill2-20261120-123456.lmp..tmp",
+            "E1M1-skill2-20261120-123456.lmp.0.tmp",
+            "E1M1-skill2-20261120-123456.lmp.012.tmp",
+            "E1M1-skill2-20261120-123456.lmp.4294967296.tmp",
+            "E1M1-skill2-20261120-123456.lmp.12a.tmp",
+            "E1M1-skill2-20261120-123456.lmp.12.claim.tmp.tmp",
+            "E1M1-skill2-20261120-123456.lmp.12.other.tmp",
+            "E1M1-skill2-20261120-123456.lmp.12.TMP",
+            "E1M1-skill2-20261120-123456.lmp.12.tmp~",
+            "E1M0-skill2-20261120-123456.lmp.12.tmp",
+            "E1M10-skill2-20261120-123456.lmp.12.tmp",
+            "E2M1-skill2-20261120-123456.lmp.12.tmp",
+            "E1M1-skill22-20261120-123456.lmp.12.tmp",
+            "E1M1-skill2-2026112-123456.lmp.12.tmp",
+            "E1M1-skill2-20261120-1234567.lmp.12.tmp",
+            "E1M1-skill2-20261120-123456-1.lmp.12.tmp",
+            "E1M1-skill2-20261120-123456-02.lmp.12.tmp",
+            "E1M1-skill2-20261120-123456-10000.lmp.12.tmp",
+            "E1M1-skill2-20261120-123456-2-3.lmp.12.tmp",
+            "E1M1-skill2-20261120-123456.wad.12.tmp",
+            "x.lmp.12.tmp",
+            "notes.tmp",
+            "a.lmp.12.tmp",
+        ] {
+            assert!(!is_leftover_name(bad), "{bad}");
+        }
+    }
+
+    /// Ruling 6, the age rule: more than an hour by the modification time, with the clock
+    /// injected; a time in the future is not old.
+    #[test]
+    fn only_files_more_than_an_hour_old_are_stale() {
+        let now = std::time::SystemTime::UNIX_EPOCH + std::time::Duration::from_secs(1_000_000);
+        let ago = |s: u64| now - std::time::Duration::from_secs(s);
+        assert!(!is_stale(now, now));
+        assert!(!is_stale(ago(3_600), now), "exactly an hour is not more");
+        assert!(is_stale(ago(3_601), now));
+        assert!(is_stale(ago(86_400), now));
+        assert!(!is_stale(now + std::time::Duration::from_secs(5), now));
+    }
+
+    /// Ruling 6 on a directory: only the stale regular files of our two names are removed; a
+    /// fresh one, a directory of such a name, a demo and a stale file of another name stay; a
+    /// missing directory removes nothing.
+    #[test]
+    fn the_start_removes_only_our_stale_temporary_files() {
+        let dir = scratch("leftovers");
+        let now = std::time::SystemTime::now();
+        let old = now - std::time::Duration::from_secs(2 * 3_600);
+        let make = |name: &str, modified: std::time::SystemTime| {
+            let f = std::fs::File::create(dir.join(name)).unwrap();
+            f.set_modified(modified).unwrap();
+        };
+        make("E1M1-skill2-20261120-123456.lmp.41.tmp", old);
+        make("E1M1-skill2-20261120-123456.lmp.41.claim.tmp", old);
+        make("E1M1-skill2-20261120-123456.lmp.42.tmp", now);
+        make("E1M1-skill2-20261120-123456.lmp", old);
+        make("other.tmp", old);
+        std::fs::create_dir(dir.join("E1M1-skill2-20261120-123456.lmp.43.tmp")).unwrap();
+        let (removed, errors) = remove_leftovers(&dir, now);
+        assert_eq!((removed, errors.len()), (2, 0), "{errors:?}");
+        assert_eq!(
+            names(&dir),
+            [
+                "E1M1-skill2-20261120-123456.lmp",
+                "E1M1-skill2-20261120-123456.lmp.42.tmp",
+                "E1M1-skill2-20261120-123456.lmp.43.tmp",
+                "other.tmp"
+            ]
+        );
+        assert_eq!(remove_leftovers(&dir.join("missing"), now), (0, vec![]));
+        std::fs::remove_dir_all(&dir).unwrap();
+    }
+
+    /// Several tics through one open: each its own write at the marker the previous one left, the
+    /// result equal to one append at a time; a page straddle anywhere declines before writing.
+    #[test]
+    fn several_tics_append_like_single_appends_or_decline_whole() {
+        let dir = scratch("append-tics");
+        let mut demo = vec![110, 2, 1, 1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0x80];
+        std::fs::write(dir.join("a.lmp"), &demo).unwrap();
+        let tails = [[1, 0, 0, 0, 0x80], [2, 0, 0, 0, 0x80], [3, 0, 0, 0, 0x80]];
+        assert_eq!(append_tics(&dir, "a.lmp", 13, &tails), Ok(true));
+        demo.truncate(13);
+        for t in &tails {
+            demo.extend(&t[..4]);
+        }
+        demo.push(0x80);
+        assert_eq!(std::fs::read(dir.join("a.lmp")).unwrap(), demo);
+        // the second of two would straddle 4096: declined, nothing written
+        let mut long = demo[..13].to_vec();
+        long.extend(std::iter::repeat_n([0u8, 0, 0, 0], 1019).flatten());
+        long.push(0x80);
+        std::fs::write(dir.join("b.lmp"), &long).unwrap();
+        assert_eq!(append_tics(&dir, "b.lmp", 4089, &tails[..2]), Ok(false));
+        assert_eq!(std::fs::read(dir.join("b.lmp")).unwrap(), long);
+        assert_eq!(append_tics(&dir, "b.lmp", 4089, &tails[..1]), Ok(true));
+        std::fs::remove_dir_all(&dir).unwrap();
+    }
 }

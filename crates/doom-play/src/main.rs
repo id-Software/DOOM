@@ -838,6 +838,42 @@ mod tests {
         std::fs::remove_dir_all(&dir).unwrap();
     }
 
+    /// Ruling 7 (2026-11-20): miniaudio's INFO report is behind `--audio-report`, off by default,
+    /// listed in the help; the option changes nothing else.
+    #[test]
+    fn the_audio_report_is_an_option_off_by_default() {
+        let o = parse(args("--iwad a.wad")).unwrap().unwrap();
+        assert!(!o.audio_report, "off by default");
+        let o = parse(args("--iwad a.wad --audio-report")).unwrap().unwrap();
+        assert!(o.audio_report);
+        assert_eq!(
+            (o.map, o.skill, o.no_sound, o.trial, o.unrecorded),
+            (1, 2, false, Trial::DEFAULT, false),
+            "nothing else"
+        );
+        assert!(parse(args("--iwad a.wad --audio-report 1")).is_err());
+        assert!(HELP.contains("--audio-report       diagnostic: when a device opens, print"));
+        assert!(HELP.contains("(lines starting [INFO]) on standard error; off by\n"));
+        assert!(HELP.contains("With --audio-report, when a device opens"));
+        assert!(!HELP.contains("\nWhen a device opens, the audio library's own device report"));
+        assert!(audio_probe_requested(&args("--audio-probe --audio-report")).is_err());
+    }
+
+    /// The session-file paragraph of the help names the exit lines and the start's clean-up.
+    #[test]
+    fn the_help_describes_the_session_writer() {
+        for want in [
+            "the demo is written by a thread of its own",
+            "line starting \"session file\nwrites\"",
+            "\"input log writes\"",
+            "every write that took more than 20 ms",
+            "(NAME.PID.tmp, NAME.PID.claim.tmp)",
+            "more than an hour old are removed",
+        ] {
+            assert!(HELP.contains(want), "{want}");
+        }
+    }
+
     #[test]
     fn game_mode_follows_identify_version() {
         assert_eq!(game_mode(Path::new("/x/DOOM1.WAD")), GameMode::Shareware);

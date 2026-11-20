@@ -1462,6 +1462,31 @@ mod tests {
         }
     }
 
+    /// Ruling 7: with the report off (the default) the settings line does not point at a report
+    /// that was never printed.
+    #[test]
+    fn the_settings_line_says_when_the_info_report_is_off() {
+        let facts = DeviceFacts {
+            name: Ok("x".into()),
+            native_rates: Ok((vec![], 0)),
+            info_report: InfoReport::Off,
+        };
+        let lines = device_lines(
+            "ALSA",
+            &facts,
+            Trial::DEFAULT,
+            &PullStats::default(),
+            &Counters::default(),
+        );
+        assert_eq!(
+            lines[1],
+            "audio settings: period asked 512 frames; start threshold 1024 frames (2 buffers); \
+             granted period and buffer not shown (miniaudio's [INFO] report is off; \
+             --audio-report turns it on)"
+        );
+        assert!(!lines[1].contains("report at open"));
+    }
+
     #[test]
     fn the_device_lines_give_one_fact_per_field_with_units() {
         let facts = DeviceFacts {
