@@ -438,13 +438,12 @@ fn run(o: Options) -> Result<(), String> {
     }
     // ruling 6: our own stale temporary files, before the session's first file
     let (removed, errors) = session_file::remove_leftovers(&o.sessions, SystemTime::now());
-    if removed > 0 {
-        eprintln!(
-            "doom-play: removed {removed} leftover temporary file{} more than an hour old from {}",
-            if removed == 1 { "" } else { "s" },
-            o.sessions.display()
-        );
-    }
+    // the count is printed at every launch, zero included (the owner's ruling 6)
+    eprintln!(
+        "doom-play: removed {removed} leftover temporary file{} more than an hour old from {}",
+        if removed == 1 { "" } else { "s" },
+        o.sessions.display()
+    );
     for e in errors {
         eprintln!("doom-play: a leftover temporary file could not be removed: {e}");
     }
