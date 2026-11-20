@@ -69,8 +69,9 @@
 //! self-tests only, after which the test must fail: `torn` makes the writer's appends two writes
 //! per tic, the tic's four bytes and then the marker, [`TORN_GAP`] apart, instead of doom-play's
 //! one write; `early` makes every file operation [`EARLY_DELAY`] slow and the child print W
-//! [`EARLY_BY`] tics too high, capped at M − 1; `stall` makes the writer stop for good after
-//! [`STALL_AFTER`] file operations). One summary line goes to standard output (seen with
+//! [`EARLY_BY`] tics too high, capped at M − 1; `stall` makes the writer stop for good before
+//! the first file operation that would leave the file holding more than [`STALL_PAST`] tics). One
+//! summary line goes to standard output (seen with
 //! `--nocapture`).
 //!
 //! **Self-tests** (each run by default; each stops at its first failure, which it requires):
@@ -126,8 +127,12 @@ const TORN_GAP: Duration = Duration::from_millis(1);
 const EARLY_DELAY: Duration = Duration::from_millis(5);
 /// How many tics too high the `early` plant prints W (capped at M − 1).
 const EARLY_BY: u64 = 3;
-/// The file operations the `stall` plant's writer makes before it stops for good.
-const STALL_AFTER: u64 = 40;
+/// The `stall` plant's writer stops for good before the first file operation that would leave
+/// the file holding more than this many tics (review 4, N2: counted in tics, not operations, so
+/// that a slow first operation, after which one catch-up rewrite holds hundreds of tics, cannot
+/// carry the file close to the aimed tic). Kills aimed at tic 1,000 then find at least 800 tics
+/// lost, 275 more than the lag bound, however few or slow the operations were.
+const STALL_PAST: u64 = 200;
 /// The lag bound by default (see the module documentation): three times the writer's queue bound.
 const MAX_LOST: u64 = 3 * crate::session_writer::QUEUE_TICS;
 /// The signal `Child::kill` sends on Unix (`SIGKILL`, 9 on Linux and macOS).
@@ -227,28 +232,33 @@ struct ChildHost {
 }
 
 /// The `early` and `stall` plants' file operations (the self-tests only, never doom-play's):
-/// doom-play's own, each after `delay`; after `stall_after` operations the writer stops for good.
+/// doom-play's own, each after `delay`; the writer stops for good before an operation that would
+/// leave the file holding more than `stall_past` tics.
 struct PlantIo {
     delay: Duration,
-    stall_after: Option<u64>,
-    made: u64,
+    stall_past: Option<u64>,
+}
+
+/// The tics a demo of `len` bytes holds (13 header bytes, 4 a tic, the end marker).
+fn demo_tics(len: usize) -> u64 {
+    (len as u64).saturating_sub(14) / 4
 }
 
 impl PlantIo {
-    fn before(&mut self) {
-        if self.stall_after.is_some_and(|n| self.made >= n) {
+    /// Before an operation after which the file holds `tics` tics.
+    fn before(&mut self, tics: u64) {
+        if self.stall_past.is_some_and(|n| tics > n) {
             loop {
                 std::thread::sleep(Duration::from_secs(3_600));
             }
         }
-        self.made += 1;
         std::thread::sleep(self.delay);
     }
 }
 
 impl SessionIo for PlantIo {
     fn claim(&mut self, dir: &Path, name: &str, bytes: &[u8]) -> Result<Claim, String> {
-        self.before();
+        self.before(demo_tics(bytes.len()));
         RealIo.claim(dir, name, bytes)
     }
     fn rewrite(
@@ -258,7 +268,7 @@ impl SessionIo for PlantIo {
         bytes: &[u8],
         synced: bool,
     ) -> Result<(), String> {
-        self.before();
+        self.before(demo_tics(bytes.len()));
         RealIo.rewrite(dir, name, bytes, synced)
     }
     fn append(
@@ -268,7 +278,8 @@ impl SessionIo for PlantIo {
         at: u64,
         tails: &[[u8; 5]],
     ) -> Result<bool, String> {
-        self.before();
+        // the first tail is tic (at − 13) / 4 + 1, the last that plus the others
+        self.before(at.saturating_sub(13) / 4 + tails.len() as u64);
         RealIo.append(dir, name, at, tails)
     }
 }
@@ -419,13 +430,11 @@ fn child_session() {
         Some("torn") => Box::new(TornIo),
         Some("early") => Box::new(PlantIo {
             delay: EARLY_DELAY,
-            stall_after: None,
-            made: 0,
+            stall_past: None,
         }),
         Some("stall") => Box::new(PlantIo {
             delay: Duration::ZERO,
-            stall_after: Some(STALL_AFTER),
-            made: 0,
+            stall_past: Some(STALL_PAST),
         }),
         Some(p) => panic!("{PLANT}={p}: the plants are torn, early and stall"),
     };
@@ -1115,11 +1124,11 @@ fn a_w_printed_too_high_fails_the_kill_test() {
     }
 }
 
-/// The third self-test (review 3, m1): with the `stall` plant the writer stops for good after
-/// [`STALL_AFTER`] file operations while the child plays on; kills aimed just after the print of
-/// tic 1,000 must exceed the lag bound ([`MAX_LOST`]). Up to 10 kills (a kill can land in a
-/// session begun after the stall, whose claim never completes and which the bound does not
-/// cover); the run stops at the first failure, which must be the lag bound's.
+/// The third self-test (review 3, m1): with the `stall` plant the writer stops for good before
+/// the file would hold more than [`STALL_PAST`] tics while the child plays on; kills aimed just
+/// after the print of tic 1,000 must exceed the lag bound ([`MAX_LOST`]). Up to 10 kills (a kill
+/// can land in a session begun after the stall, whose claim never completes and which the bound
+/// does not cover); the run stops at the first failure, which must be the lag bound's.
 #[test]
 fn a_stopped_writer_fails_the_lag_bound() {
     let base = std::env::temp_dir().join(format!("doom-play-kill-stall-{}", std::process::id()));
