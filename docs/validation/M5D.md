@@ -1,10 +1,11 @@
 # M5d evidence record
 
-**Status (2026-11-20 05:30 PST):** code complete; the gates passed locally (A5). CI and the Windows artifact on the
-final head are pending, then the owner's Windows session (A6). Code done: the DPI request on Windows (A1, untested on
-Windows), the sound statistics and trial options (A2), the session file kept current tic by tic (A3), the mouse forwarding
-moved into its own file with the input log's review points M1 to M3 closed, and the CI job renamed (A4). Two independent
-reviews and three mutation runs are recorded under A5. Nothing in this milestone has been run on Windows or macOS.
+**Status (2026-11-20 05:23 PST):** **stopped at the owner's Windows session (A6); the pull request stays a draft.** Code
+complete: the DPI request on Windows (A1), the sound statistics and trial options (A2), the session file kept current tic by
+tic (A3), the mouse forwarding moved into its own file with the input log's review points M1 to M3 closed, and the CI job
+renamed (A4). The gates passed (A5: two independent reviews, three mutation runs, the full gates from a clean clone, CI green
+on all nine jobs at the last code head). CI built and tested the code on Windows and macOS; nobody has run it by hand there.
+Next: the owner's session with the Windows artifact (A6), then his rulings.
 
 Observed results of milestone M5d (play fixes from the owner's playtest of M5c). Only observations and the
 library-source readings behind each change appear here. The facts this milestone starts from are in the
@@ -608,12 +609,103 @@ CI's run (below).
 
 ### CI on the exact head
 
-Recorded when the final head's CI and artifact runs finish.
+**The last code head, `e6b17b2`:** all nine jobs of [run 44729364458](https://github.com/Copgunn/DOOM/actions/runs/44729364458)
+passed: Detect changes, Stable on ubuntu-latest, windows-latest and macos-latest, Minimum Rust 1.85.0, Simulation
+instruction counts, and the M5a, M5b and M5c genuine-engine jobs (the last under its new name, "M5c genuine sound"). Earlier
+heads: `14a9cc6` failed the Stable ubuntu and Minimum Rust jobs on the flaky claim test (B-1, fixed in `6e61fc8`); the other
+runs were cancelled by later pushes. Commits after `e6b17b2` change documentation only and take CI's documentation fast
+path; the run on the final head is GitHub's record, linked from the pull request.
 
 ### The Windows artifact
 
-Recorded when the final head's CI and artifact runs finish.
+Built by the `Windows artifact` workflow on the final head of the pull request; the run and the artifact are GitHub's record,
+linked from the pull request [#64](https://github.com/Copgunn/DOOM/pull/64). It is the build for the owner's session (A6).
 
 ## A6. The owner's Windows session
 
-To come.
+Nothing in this milestone was run on Windows. Acceptance of A1 and the choice of A2's default are the owner's. A3 has been
+shown on Linux only, and on Windows only he can show it. This is the plan for one sitting, with the build named below.
+
+**The build.** The `doom-play-windows-x86_64` artifact of the `Windows artifact` workflow on the final head of pull request
+[#64](https://github.com/Copgunn/DOOM/pull/64) (the run is linked in the PR). Unzip it into a folder of its own, for example
+`D:\DoomM5d`. Use **Command Prompt** (`cmd.exe`), not PowerShell: the redirections below are cmd's, and A3 needs a console
+window to close. In every command, replace `C:\path\to\DOOM.WAD` with the IWAD's path. Make the folders first:
+
+```
+mkdir D:\DoomSessions\m5d\dpi100 D:\DoomSessions\m5d\dpi125 D:\DoomSessions\m5d\dpi150 D:\DoomSessions\m5d\audio
+mkdir D:\DoomSessions\m5d\ctrlc D:\DoomSessions\m5d\close D:\DoomSessions\m5d\endtask
+cd /d D:\DoomM5d
+```
+
+Everything goes into `D:\DoomSessions\m5d`, which the orchestrator reads at `/mnt/d/DoomSessions/m5d`. Do not open, rename
+or delete the files there. Leftover `.tmp` files are expected and harmless.
+
+### Part 1: stuck fire at 100%, 125% and 150% (A1, about 15 minutes)
+
+For each scale: set it in Settings, System, Display, Scale. Sign out and in again if Windows asks you to. Then run, with
+`125` replaced by the scale:
+
+```
+doom-play.exe --iwad C:\path\to\DOOM.WAD --bindings modern --sessions D:\DoomSessions\m5d\dpi125 --input-log D:\DoomSessions\m5d\dpi125\input-log.txt 2> D:\DoomSessions\m5d\dpi125\terminal.txt
+```
+
+1. The window will look **smaller** at 125% and 150% than before. That is expected from the fix (the window is now 960×720
+   real pixels). **Do not resize, maximise or move the window:** each of those writes a `resize` line, and the test reads
+   that line as a fault.
+2. Play for about three minutes. Again and again, hold the left button, drag the mouse hard towards one edge, and release
+   while still moving. Do it towards the right, left, top and bottom, at least ten times each, as you did when it stuck.
+3. If fire sticks, keep your hands off the mouse for 2 seconds, then click once with the mouse still. Note the time.
+4. Quit with Esc, then Q.
+5. Open `input-log.txt` and look at the last line: `summary ... raw downs/ups: Left D/U`. **Accepted for this scale if D
+   equals U and the file has no line containing ` resize `.**
+
+If you have a second monitor set to a **different** scale, do one extra run with the window on it, in a folder `dpi-second`.
+That is the one case the fix is not expected to cover (record, A1).
+
+### Part 2: sound latency trials (A2, about 15 minutes)
+
+At any one scale. For each line below, run it, play about a minute with plenty of shooting, door and switch sounds, then
+quit with Esc then Q. Each run writes its `[INFO]` device report and its `audio` exit lines into its text file.
+
+```
+doom-play.exe --iwad C:\path\to\DOOM.WAD --bindings modern --sessions D:\DoomSessions\m5d\audio 2> D:\DoomSessions\m5d\audio\a-default.txt
+doom-play.exe --iwad C:\path\to\DOOM.WAD --bindings modern --sessions D:\DoomSessions\m5d\audio --experimental-audio-start-buffers 1 2> D:\DoomSessions\m5d\audio\b-start1.txt
+doom-play.exe --iwad C:\path\to\DOOM.WAD --bindings modern --sessions D:\DoomSessions\m5d\audio --experimental-audio-period-frames 256 2> D:\DoomSessions\m5d\audio\c-period256.txt
+doom-play.exe --iwad C:\path\to\DOOM.WAD --bindings modern --sessions D:\DoomSessions\m5d\audio --experimental-audio-period-frames 128 2> D:\DoomSessions\m5d\audio\d-period128.txt
+doom-play.exe --iwad C:\path\to\DOOM.WAD --bindings modern --sessions D:\DoomSessions\m5d\audio --experimental-audio-period-frames 128 --experimental-audio-start-buffers 1 2> D:\DoomSessions\m5d\audio\e-period128-start1.txt
+```
+
+For each, write one line in `D:\DoomSessions\m5d\notes.txt`: the letter, then the delay compared with `a` (shorter, same,
+longer), and any crackle, gaps or stutter. Then say which, if any, should become the default. The WASAPI period count (2 or
+3) is not offered: it cannot be set through the pinned audio library (record, A2), and the routes to it are your decision.
+
+### Part 3: a session that cannot be lost (A3, about 10 minutes)
+
+Without `2>` this time, so that the console stays visible.
+
+```
+doom-play.exe --iwad C:\path\to\DOOM.WAD --sessions D:\DoomSessions\m5d\ctrlc
+```
+
+1. **Ctrl+C:** play and move around, then click the console window (the game pauses when it loses focus, which is fine)
+   and press Ctrl+C. Do this three times, each a new run: after about 2 seconds, after about 10 seconds, and after at least
+   40 seconds of play.
+2. **Closing the console:** the same with `--sessions D:\DoomSessions\m5d\close`. Instead of Ctrl+C, click the console
+   window's close button (X). Three times again, at about 2 s, 10 s and 40 s or more.
+3. **Optional, End task:** the same with `--sessions D:\DoomSessions\m5d\endtask`. Open Task Manager, select doom-play.exe
+   and choose End task.
+
+Note in `notes.txt` roughly how long each run lasted, in order.
+
+### What to send back
+
+Tell the orchestrator when `D:\DoomSessions\m5d` is complete, with the scale names you used and anything you saw. The
+orchestrator will then:
+
+- check each input log for downs and ups and for `resize` lines;
+- read the audio lines and device reports;
+- run every `.lmp` through the session check (`tools/local/m5c_session_real.py`), where each must PASS. Each A3 file must
+  hold about 35 tics per second of unpaused play.
+
+**Until the owner has ruled, nothing is marked fixed.** README and COMPATIBILITY keep the stuck fire as a known fault and the
+lost session as a limit on Windows. The pull request stays a draft.
