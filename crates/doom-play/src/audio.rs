@@ -1205,4 +1205,316 @@ mod tests {
             Some(("none (headless)", Counters::default()))
         );
     }
+
+    // Milestone M5d step A2: the trial settings, the one-buffer threshold, the pull statistics,
+    // the native rates and the device's exit lines (Rust-only checks; no device is opened).
+
+    #[test]
+    fn the_trial_settings_accept_only_the_listed_values_and_default_to_m5c() {
+        let d = Trial::DEFAULT;
+        assert_eq!((d.start_frames(), d.period_frames()), (1024, 512));
+        assert_eq!(
+            (d.start_frames(), d.period_frames()),
+            (START_FRAMES, PERIOD_FRAMES)
+        );
+        assert_eq!(d.with_start_buffers(2), Some(d), "2 is the default");
+        assert_eq!(d.with_period_frames(512), Some(d), "512 is the default");
+        let one = d.with_start_buffers(1).expect("1 is accepted");
+        assert_eq!((one.start_frames(), one.period_frames()), (512, 512));
+        for bad in [0, 3, 4, 512, usize::MAX] {
+            assert_eq!(d.with_start_buffers(bad), None, "{bad}");
+        }
+        for (frames, ok) in [(128, true), (256, true), (512, true)] {
+            let t = one.with_period_frames(frames).expect("accepted");
+            assert_eq!((t.start_frames(), t.period_frames()), (512, frames), "{ok}");
+        }
+        for bad in [0, 1, 64, 127, 129, 255, 384, 511, 513, 1024, u32::MAX] {
+            assert_eq!(d.with_period_frames(bad), None, "{bad}");
+        }
+        assert_eq!(
+            d.describe(),
+            "period asked 512 frames; start threshold 1024 frames (2 buffers)"
+        );
+        assert_eq!(
+            one.with_period_frames(128).unwrap().describe(),
+            "period asked 128 frames (EXPERIMENTAL; default 512); start threshold 512 frames \
+             (1 buffer; EXPERIMENTAL; default 1024 frames)"
+        );
+        assert_eq!(
+            d.with_period_frames(256).unwrap().describe(),
+            "period asked 256 frames (EXPERIMENTAL; default 512); start threshold 1024 frames \
+             (2 buffers)"
+        );
+    }
+
+    #[test]
+    fn a_one_buffer_threshold_starts_at_512_frames_and_restarts_after_an_underrun() {
+        let start = Trial::DEFAULT.with_start_buffers(1).unwrap().start_frames();
+        let mut q = Queue::new(Volume::FULL).with_start_frames(start);
+        assert_eq!(pull(&mut q, 64), vec![[0, 0]; 64], "empty: silence");
+        assert_eq!(
+            q.counters(),
+            Counters::default(),
+            "not started: no underrun"
+        );
+        // while not started the queue holds whole buffers only, so one buffer is the least
+        // that can start it; the two-buffer queue stays silent with the same buffer
+        let mut two = Queue::new(Volume::FULL);
+        q.push(&ramp(1));
+        two.push(&ramp(1));
+        assert_eq!(
+            pull(&mut two, 1),
+            vec![[0, 0]],
+            "two buffers: one is not enough"
+        );
+        assert_eq!(
+            pull(&mut q, 1),
+            vec![[1, -1]],
+            "one buffer: 512 frames start it"
+        );
+        assert_eq!(q.counters(), Counters::default());
+        // 511 left; a pull of 600 gives them and 89 frames of silence, one underrun
+        let got = pull(&mut q, 600);
+        assert_eq!(got[510], [512, -512]);
+        assert!(got[511..].iter().all(|f| *f == [0, 0]));
+        assert_eq!(
+            q.counters(),
+            Counters {
+                underruns: 1,
+                underrun_frames: 89,
+                ..Counters::default()
+            }
+        );
+        // the threshold applies again: nothing until 512 frames are queued, then output
+        assert_eq!(pull(&mut q, 10), vec![[0, 0]; 10]);
+        assert_eq!(q.counters().underruns, 1, "waiting is not an underrun");
+        q.push(&ramp(1));
+        assert_eq!(
+            pull(&mut q, 2),
+            vec![[1, -1], [2, -2]],
+            "restarted at 512 frames"
+        );
+        // pause and resume: the threshold applies again too
+        q.pause();
+        q.resume();
+        q.push(&ramp(100));
+        assert_eq!(pull(&mut q, 1), vec![[100, -100]]);
+        // the default queue keeps the M5c threshold
+        assert_eq!(
+            Queue::new(Volume::FULL),
+            Queue::new(Volume::FULL).with_start_frames(1024)
+        );
+    }
+
+    #[test]
+    fn the_depth_statistics_sample_each_unpaused_pull_before_it_takes_frames() {
+        let mut q = Queue::new(Volume::FULL);
+        assert_eq!(q.pull_stats(), PullStats::default());
+        assert_eq!(q.pull_stats().depth_mean(), None);
+        q.pull(&mut [0; 2 * 100]); // depth 0
+        q.push(&ramp(1));
+        q.pull(&mut [0; 2 * 100]); // depth 512, below the threshold: nothing taken
+        q.push(&ramp(1));
+        q.pull(&mut [0; 2 * 300]); // depth 1024, takes 300
+        q.push(&ramp(1));
+        q.push(&ramp(1));
+        q.pull(&mut [0; 2 * 512]); // depth 724 + 1024 = 1748, takes 512
+        q.pause();
+        q.pull(&mut [0; 2 * 512]); // paused: counted as a pull, no depth sample
+        q.resume();
+        q.push(&ramp(1));
+        q.pull(&mut [0; 2 * 7]); // depth 512
+        let s = q.pull_stats();
+        assert_eq!(
+            s,
+            PullStats {
+                pulls: 6,
+                min_frames: 7,
+                max_frames: 512,
+                depth_samples: 5,
+                depth_min: 0,
+                depth_max: 1748,
+                depth_sum: 512 + 1024 + 1748 + 512,
+            }
+        );
+        // (0 + 512 + 1024 + 1748 + 512) / 5 = 759.2
+        assert_eq!(s.depth_mean().as_deref(), Some("759.2"));
+        // the mean rounds to the nearest tenth, halves up
+        let mean = |sum, n| {
+            PullStats {
+                depth_samples: n,
+                depth_sum: sum,
+                ..PullStats::default()
+            }
+            .depth_mean()
+        };
+        assert_eq!(mean(1, 3).as_deref(), Some("0.3"), "0.333");
+        assert_eq!(mean(2, 3).as_deref(), Some("0.7"), "0.667");
+        assert_eq!(mean(1, 20).as_deref(), Some("0.1"), "0.05 rounds up");
+        assert_eq!(mean(1, 21).as_deref(), Some("0.0"), "0.0476");
+        assert_eq!(mean(2048, 1).as_deref(), Some("2048.0"));
+    }
+
+    #[test]
+    fn the_callback_sizes_are_counted_for_every_pull_of_any_length() {
+        let mut q = Queue::new(Volume::FULL);
+        for frames in [512, 128, 300, 1, 777, 256] {
+            let mut out = vec![0i16; 2 * frames];
+            q.pull(&mut out);
+        }
+        let s = q.pull_stats();
+        assert_eq!((s.pulls, s.min_frames, s.max_frames), (6, 1, 777));
+        // an empty slice is a pull of 0 frames; an odd slice counts its whole frames only
+        q.pull(&mut []);
+        let mut odd = [0i16; 5];
+        q.pull(&mut odd);
+        let s = q.pull_stats();
+        assert_eq!((s.pulls, s.min_frames, s.max_frames), (8, 0, 777));
+        // the first pull sets the minimum (it does not stay at the default 0)
+        let mut q = Queue::new(Volume::FULL);
+        q.pull(&mut [0; 2 * 128]);
+        q.pull(&mut [0; 2 * 256]);
+        let s = q.pull_stats();
+        assert_eq!((s.pulls, s.min_frames, s.max_frames), (2, 128, 256));
+        // statistics never change the counters or what is pulled
+        assert_eq!(q.counters(), Counters::default());
+    }
+
+    #[test]
+    fn the_native_rates_are_read_from_the_reported_formats() {
+        use maudio::audio::formats::Format;
+        use maudio::device::device_info::DeviceInfoBuilder;
+        let info = DeviceInfoBuilder::from_index(0, "test".into())
+            .add_data_formats(Format::F32, 2, SampleRate::Sr48000, false)
+            .add_data_formats(Format::S16, 2, SampleRate::Sr44100, true)
+            .add_data_formats(Format::S16, 1, SampleRate::Sr48000, false)
+            .add_data_formats(Format::S16, 2, SampleRate::Custom(12_345), false)
+            .add_data_formats(Format::S16, 2, SampleRate::Sr11025, false)
+            .build();
+        assert_eq!(
+            native_rates(&info),
+            (vec![11_025, 12_345, 44_100, 48_000], 0)
+        );
+        // a rate of 0 is skipped by maudio and counted as unreadable here
+        let info = DeviceInfoBuilder::from_index(1, "zero".into())
+            .add_data_formats(Format::S16, 2, SampleRate::Custom(0), false)
+            .add_data_formats(Format::S16, 2, SampleRate::Sr44100, false)
+            .build();
+        assert_eq!(native_rates(&info), (vec![44_100], 1));
+        let none = DeviceInfoBuilder::from_index(2, "none".into()).build();
+        assert_eq!(native_rates(&none), (vec![], 0));
+        // the Debug text the parser reads, pinned
+        assert_eq!(
+            format!("{:?}", info.device_formats()[0]),
+            "DeviceFormat { format: S16, channels: 2, sample_rate: Sr44100, exclusive: false }"
+        );
+        for (text, want) in [
+            (
+                "DeviceFormat { sample_rate: Sr48000, exclusive: false }",
+                Some(48_000),
+            ),
+            (
+                "DeviceFormat { sample_rate: Custom(7), exclusive: false }",
+                Some(7),
+            ),
+            ("DeviceFormat { sample_rate: Sr8000 }", Some(8_000)),
+            ("DeviceFormat { rate: 48000 }", None),
+            ("DeviceFormat { sample_rate: Other(1) }", None),
+            ("DeviceFormat { sample_rate: Sr }", None),
+        ] {
+            assert_eq!(rate_in_format_debug(text), want, "{text}");
+        }
+    }
+
+    #[test]
+    fn the_device_lines_give_one_fact_per_field_with_units() {
+        let facts = DeviceFacts {
+            name: Ok("Speakers (Test)".into()),
+            native_rates: Ok((vec![44_100, 48_000], 0)),
+            info_report: Ok(()),
+        };
+        let pulls = PullStats {
+            pulls: 40,
+            min_frames: 512,
+            max_frames: 512,
+            depth_samples: 38,
+            depth_min: 0,
+            depth_max: 1536,
+            depth_sum: 31_357,
+        };
+        let c = Counters {
+            underruns: 2,
+            underrun_frames: 99,
+            overruns: 1,
+            dropped_frames: 512,
+        };
+        assert_eq!(
+            device_lines("WASAPI", &facts, Trial::DEFAULT, &pulls, &c),
+            [
+                "audio device: backend WASAPI; name \"Speakers (Test)\"; native sample rates \
+                 44100 Hz, 48000 Hz; stream 11025 Hz",
+                "audio settings: period asked 512 frames; start threshold 1024 frames (2 \
+                 buffers); granted period and buffer in miniaudio's [INFO] report at open",
+                "audio callbacks: 40 calls; frames per call min 512, max 512",
+                "audio queue: depth in frames when a callback arrived (not paused) min 0, mean \
+                 825.2, max 1536 (38 samples); underruns 2 (99 frames of silence); overruns 1 \
+                 (512 frames dropped)",
+            ]
+        );
+        // what could not be read says so; a trial setting says it is experimental
+        let facts = DeviceFacts {
+            name: Err("MA_ERROR".into()),
+            native_rates: Ok((vec![], 2)),
+            info_report: Err("MA_INVALID_ARGS".into()),
+        };
+        let trial = Trial::DEFAULT.with_start_buffers(1).unwrap();
+        let lines = device_lines("ALSA", &facts, trial, &PullStats::default(), &c);
+        assert_eq!(
+            lines[0],
+            "audio device: backend ALSA; name unavailable (MA_ERROR); native sample rates none \
+             reported (2 reported formats unreadable); stream 11025 Hz"
+        );
+        assert_eq!(
+            lines[1],
+            "audio settings: period asked 512 frames; start threshold 512 frames (1 buffer; \
+             EXPERIMENTAL; default 1024 frames); miniaudio's [INFO] report unavailable \
+             (MA_INVALID_ARGS)"
+        );
+        assert_eq!(lines[2], "audio callbacks: 0 calls");
+        assert!(
+            lines[3].starts_with(
+                "audio queue: depth in frames when a callback arrived (not paused): no sample; \
+                 underruns 2"
+            ),
+            "{}",
+            lines[3]
+        );
+        assert!(lines.iter().all(|l| !l.contains('\n')), "one line each");
+        // a device sink's lines are these, from its own facts and statistics; no device, none
+        let d = DeviceSink::headless_with(Volume::FULL, trial);
+        d.pull(&mut [0; 2 * 64]);
+        let lines = d.exit_lines();
+        assert_eq!(lines.len(), 4);
+        assert_eq!(
+            lines[0],
+            "audio device: backend none (headless); name unavailable (no device (headless)); \
+             native sample rates unavailable (no device (headless)); stream 11025 Hz"
+        );
+        assert_eq!(
+            lines[2],
+            "audio callbacks: 1 calls; frames per call min 64, max 64"
+        );
+        let out = Output::Device(d);
+        assert_eq!(out.device_exit_lines(), lines);
+        assert!(
+            Output::Discard(Discard::default())
+                .device_exit_lines()
+                .is_empty()
+        );
+        let (out, line) = Output::for_launch_with(true, Volume::FULL, trial);
+        assert!(
+            line.is_none() && out.device_exit_lines().is_empty(),
+            "--no-sound"
+        );
+    }
 }

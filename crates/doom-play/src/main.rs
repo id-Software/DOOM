@@ -635,6 +635,121 @@ mod tests {
         assert!(!HELP.contains("does not use the device yet"));
     }
 
+    /// Milestone M5d step A2: the experimental sound-latency options.
+    #[test]
+    fn experimental_audio_options() {
+        let o = parse(args("--iwad a.wad")).unwrap().unwrap();
+        assert_eq!(o.trial, Trial::DEFAULT, "defaults unchanged");
+        for (given, start, period) in [
+            ("--experimental-audio-start-buffers 1", 512, 512),
+            ("--experimental-audio-start-buffers 2", 1024, 512),
+            ("--experimental-audio-period-frames 128", 1024, 128),
+            ("--experimental-audio-period-frames 256", 1024, 256),
+            ("--experimental-audio-period-frames 512", 1024, 512),
+            (
+                "--experimental-audio-start-buffers 1 --experimental-audio-period-frames 128",
+                512,
+                128,
+            ),
+            (
+                "--experimental-audio-period-frames 256 --experimental-audio-start-buffers 1",
+                512,
+                256,
+            ),
+            (
+                "--experimental-audio-start-buffers 1 --experimental-audio-start-buffers 2",
+                1024,
+                512,
+            ),
+            ("--no-sound --experimental-audio-start-buffers 1", 512, 512),
+        ] {
+            let o = parse(args(&format!("--iwad a.wad {given}")))
+                .unwrap()
+                .unwrap();
+            assert_eq!(
+                (o.trial.start_frames(), o.trial.period_frames()),
+                (start, period),
+                "{given}"
+            );
+            // nothing else changes
+            assert_eq!(
+                (o.map, o.skill, o.screenblocks, o.gamma),
+                (1, 2, 10, 0),
+                "{given}"
+            );
+            assert_eq!((o.unrecorded, o.volume), (false, Volume::FULL), "{given}");
+            assert_eq!(o.no_sound, given.contains("--no-sound"), "{given}");
+        }
+        for (bad, message) in [
+            ("--experimental-audio-start-buffers 0", "is not 1 or 2"),
+            ("--experimental-audio-start-buffers 3", "is not 1 or 2"),
+            ("--experimental-audio-start-buffers two", "is not 1 or 2"),
+            ("--experimental-audio-start-buffers -1", "is not 1 or 2"),
+            ("--experimental-audio-start-buffers", "needs a value"),
+            (
+                "--experimental-audio-period-frames 0",
+                "is not 128, 256 or 512",
+            ),
+            (
+                "--experimental-audio-period-frames 64",
+                "is not 128, 256 or 512",
+            ),
+            (
+                "--experimental-audio-period-frames 100",
+                "is not 128, 256 or 512",
+            ),
+            (
+                "--experimental-audio-period-frames 511",
+                "is not 128, 256 or 512",
+            ),
+            (
+                "--experimental-audio-period-frames 1024",
+                "is not 128, 256 or 512",
+            ),
+            (
+                "--experimental-audio-period-frames 128.0",
+                "is not 128, 256 or 512",
+            ),
+            ("--experimental-audio-period-frames", "needs a value"),
+            ("--experimental-audio-periods 2", "unknown argument"),
+        ] {
+            let e = parse(args(&format!("--iwad a.wad {bad}"))).unwrap_err();
+            assert!(e.contains(message), "{bad}: {e}");
+            if !message.starts_with("unknown") {
+                assert!(e.starts_with(bad.split(' ').next().unwrap()), "{bad}: {e}");
+            }
+        }
+        // HELP: a block of its own, headed as experimental, after the other options and before
+        // the keys, naming both options, their values and defaults
+        let block = HELP
+            .find("Experimental options, for the owner's M5d sound-latency trials.")
+            .expect("the experimental block");
+        let keys = HELP.find("\nKeys:").expect("keys");
+        assert!(HELP.find("--audio-probe        diagnostic").unwrap() < block && block < keys);
+        let text = &HELP[block..keys];
+        for want in [
+            "Presentation only",
+            "never the game, the sound logic,\nthe mixer, the picture or the demo",
+            "do nothing without an audio device (or with\n--no-sound)",
+            "the defaults, which are unchanged",
+            "--experimental-audio-start-buffers N",
+            "1 or 2 (default 2)",
+            "--experimental-audio-period-frames N",
+            "128, 256 or 512 (default 512)",
+            "echo a setting that is not at its default",
+        ] {
+            assert!(text.contains(want), "{want}");
+        }
+        for name in [
+            "--experimental-audio-start-buffers",
+            "--experimental-audio-period-frames",
+        ] {
+            assert_eq!(HELP.matches(name).count(), 1, "{name} only in the block");
+        }
+        assert!(!HELP.contains("period count") && !HELP.contains("--experimental-audio-periods"));
+        assert!(HELP.contains("lines starting [INFO]"));
+    }
+
     #[test]
     fn the_audio_probe_is_asked_for_alone() {
         assert_eq!(audio_probe_requested(&args("--audio-probe")), Ok(true));

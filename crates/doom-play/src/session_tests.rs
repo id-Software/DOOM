@@ -6,7 +6,7 @@
 //! device's callback. Rust-only checks of doom-play's sink and key paths (the stream itself is
 //! compared with the genuine engine in doom-game's tests/m5c_frames.rs).
 
-use crate::audio::{Counters, DeviceSink, Output, Volume};
+use crate::audio::{Counters, DeviceSink, Output, Trial, Volume};
 use crate::keys::{MUTE_KEY, Mute, key_event};
 use doom_game::app::{
     App, AudioSink, DemoCommands, GameData, Host, RecordingSink, SessionConfig, TicReport,
@@ -337,4 +337,129 @@ fn the_exit_lines_hold_no_layout_line_for_an_unlabelled_session() {
     assert_eq!(lines.len(), 2, "{lines:?}");
     assert!(lines[0].starts_with("tic-stats: "), "{lines:?}");
     assert!(!lines.iter().any(|l| l.contains("layout-dependent")));
+}
+
+/// Milestone M5d step A2: whenever a device is open the exit lines carry the device's lines, with
+/// or without `--tic-stats` (they replace the counters line `--tic-stats` printed before), between
+/// the tic statistics and the save line; their figures are the sink's own.
+#[test]
+fn the_exit_lines_give_the_device_lines_with_or_without_tic_stats() {
+    let data = load();
+    let (host, app, pulled) = run(
+        &data,
+        Output::Device(DeviceSink::headless(Volume::FULL)),
+        315,
+        &[],
+    );
+    assert!(pulled.iter().any(|s| *s != 0), "the walk is audible");
+    let fs = crate::FsHost {
+        dir: std::path::PathBuf::from("sessions"),
+        audio: host.tee.out,
+    };
+    let Output::Device(d) = &fs.audio else {
+        panic!("a device sink")
+    };
+    let (p, c) = (d.pull_stats(), d.counters());
+    assert_eq!((p.min_frames, p.max_frames), (315, 315));
+    assert!(
+        p.pulls > 0 && p.depth_samples > 0 && p.depth_samples < p.pulls,
+        "{p:?}"
+    );
+    let lines = crate::window::exit_lines(&app, &fs, None);
+    assert_eq!(lines.len(), 5, "{lines:?}");
+    assert_eq!(
+        lines[0],
+        "audio device: backend none (headless); name unavailable (no device (headless)); \
+         native sample rates unavailable (no device (headless)); stream 11025 Hz"
+    );
+    assert_eq!(
+        lines[1],
+        "audio settings: period asked 512 frames; start threshold 1024 frames (2 buffers); \
+         miniaudio's [INFO] report unavailable (no device (headless))"
+    );
+    assert_eq!(
+        lines[2],
+        format!(
+            "audio callbacks: {} calls; frames per call min 315, max 315",
+            p.pulls
+        )
+    );
+    assert_eq!(
+        lines[3],
+        format!(
+            "audio queue: depth in frames when a callback arrived (not paused) min {}, mean {}, \
+             max {} ({} samples); underruns {} ({} frames of silence); overruns {} ({} frames \
+             dropped)",
+            p.depth_min,
+            p.depth_mean().unwrap(),
+            p.depth_max,
+            p.depth_samples,
+            c.underruns,
+            c.underrun_frames,
+            c.overruns,
+            c.dropped_frames
+        )
+    );
+    assert!(lines[4].starts_with("saved "), "{lines:?}");
+    assert!(
+        !lines.iter().any(|l| l.contains("EXPERIMENTAL")),
+        "defaults"
+    );
+    let stats = crate::tic_stats::TicStats::default();
+    let with = crate::window::exit_lines(&app, &fs, Some(&stats));
+    assert_eq!(with.len(), 6, "{with:?}");
+    assert!(with[0].starts_with("tic-stats: "), "{with:?}");
+    assert_eq!(
+        with[1..],
+        lines[..],
+        "the same lines after the tic statistics"
+    );
+    assert_eq!(
+        with.iter().filter(|l| l.contains("underruns")).count(),
+        1,
+        "no second counters line"
+    );
+}
+
+/// Milestone M5d step A2: the experimental trial settings (a one-buffer start, a 128-frame period)
+/// change nothing in the game: the same script gives the same tics, frames, indices, sound
+/// reports, stream and demo as `--no-sound`; at the sink the pulls are all 128 frames and the exit
+/// lines say the settings are experimental (the one-buffer start itself is tested on the queue in
+/// `audio.rs`: here 128-frame pulls against 315 frames made per tic fill the queue to its cap, so
+/// the start threshold leaves no trace in what is pulled later).
+#[test]
+fn the_trial_settings_change_no_tic_frame_index_sound_report_stream_or_demo() {
+    let data = load();
+    let (base, base_app, _) = run(&data, Output::for_launch(true, Volume::FULL).0, 0, &[]);
+    let trial = Trial::DEFAULT
+        .with_start_buffers(1)
+        .and_then(|t| t.with_period_frames(128))
+        .unwrap();
+    let (host, app, pulled) = run(
+        &data,
+        Output::Device(DeviceSink::headless_with(Volume::FULL, trial)),
+        128,
+        &[],
+    );
+    assert_eq!(host.seen, base.seen, "tics, frames, indices, sound reports");
+    assert_eq!(host.tee.rec, base.tee.rec, "the stream and the sink calls");
+    assert_eq!(
+        host.files[app.session_name()],
+        base.files[base_app.session_name()],
+        "the demo bytes"
+    );
+    assert!(pulled.iter().any(|s| *s != 0), "audible");
+    let Output::Device(d) = &host.tee.out else {
+        panic!("a device sink")
+    };
+    let p = d.pull_stats();
+    assert_eq!((p.min_frames, p.max_frames), (128, 128));
+    assert!(d.counters().overruns > 0, "the queue reached its cap");
+    let lines = d.exit_lines();
+    assert_eq!(
+        lines[1],
+        "audio settings: period asked 128 frames (EXPERIMENTAL; default 512); start threshold 512 \
+         frames (1 buffer; EXPERIMENTAL; default 1024 frames); miniaudio's [INFO] report \
+         unavailable (no device (headless))"
+    );
 }
