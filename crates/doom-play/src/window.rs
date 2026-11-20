@@ -5,8 +5,9 @@
 //! falls due, runs it and presents the result.
 
 use crate::FsHost;
-use crate::input_log::{Forward, InputLog, LoggedHost};
+use crate::input_log::{InputLog, LoggedHost};
 use crate::keys::key_event;
+use crate::mouse_forward::Forward;
 use crate::tic_stats::TicStats;
 use doom_game::app::{App, Mode, PICTURE_BYTES, SaveStatus, TICRATE, UNRECORDED_LABEL};
 use doom_game::input::MouseButton;
@@ -76,6 +77,24 @@ pub fn linux_backend(display: bool) -> LinuxBackend {
     }
 }
 
+/// Whether doom-play asks the window library for DPI awareness: on Windows only (milestone M5d,
+/// the stuck-fire fix proposed in `docs/validation/M5C.md`, untested until the owner's Windows
+/// session). By miniquad 0.4.11's source (`src/native/windows.rs`): the process calls
+/// `SetProcessDPIAware` before the window exists (`run`, 1158-1160), so the client rectangle,
+/// the `ClipCursor` rectangle built from it (`update_clip_rect`, 327-353) and the cursor are
+/// all in physical pixels, which is meant to keep the hidden cursor inside the client area
+/// instead of letting it rest on the border, where a button release goes to the frame and is
+/// lost (no `SetCapture` in the library). The requested 960×720 (or 960×600) is then taken as
+/// physical pixels (`create_window`, 894-964, does not scale it), so at 125% or 150% the window
+/// is smaller on screen than before (about 768×576 or 640×480 in Windows' scaled units, where
+/// it was 960×720 scaled up); `screen_size` is the physical client size after a truncation
+/// through the scale (`update_dimensions`), at most a pixel short, and the picture is fitted to
+/// it at every draw. Raw mouse motion is scaled by 1 either way (`init_dpi`, 1093-1116), so
+/// turning speed does not change. On Linux and macOS nothing is asked: there the flag would
+/// change only what the library reports (X11), or render at the backing resolution (Wayland
+/// with a scale, macOS Retina), and no fault was seen there.
+const HIGH_DPI: bool = cfg!(target_os = "windows");
+
 /// Opens the window and runs the app until it quits, writing `log` (`--input-log`, or off).
 /// Returns when the window is closed.
 pub(crate) fn play(app: App, host: FsHost, log: InputLog, title: String, p: Presentation) {
@@ -86,6 +105,7 @@ pub(crate) fn play(app: App, host: FsHost, log: InputLog, title: String, p: Pres
         window_height: height,
         fullscreen: p.fullscreen,
         window_resizable: true,
+        high_dpi: HIGH_DPI,
         platform: Platform {
             linux_backend: linux_backend(std::env::var_os("DISPLAY").is_some()),
             ..Platform::default()
@@ -389,5 +409,10 @@ mod tests {
             linux_backend(false),
             LinuxBackend::WaylandWithX11Fallback
         ));
+    }
+
+    #[test]
+    fn dpi_awareness_is_asked_for_on_windows_only() {
+        assert_eq!(HIGH_DPI, cfg!(target_os = "windows"));
     }
 }
