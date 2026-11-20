@@ -226,10 +226,10 @@ impl Host for DemandHost {
 
 /// Review 2 note N-A: `App::begin` resets the failed-write retry counter. A session that ends
 /// under a persistent failure holds `retry_from` at tic 71 (the claim fails at its beginning,
-/// is retried at tics 1 and 36, so the next retry is due at 71). After a restart whose new
-/// session begins well (the claim succeeds) and whose first append fails, the very next tic
-/// must retry with a whole rewrite (the documented "next tic" retry), not wait for tic 71 of
-/// the new session. Pins `self.retry_from = None` in `begin`.
+/// is retried at tics 1 and 36, so the next retry is due at 71). After a restart whose old
+/// write and new claim both fail (a successful write would clear the counter by itself), the new
+/// session's first tic must retry at once (the documented "next tic" retry; the new session's
+/// recorder holds 1 tic), not wait for tic 71. Pins `self.retry_from = None` in `begin`.
 #[test]
 fn a_restart_resets_the_failed_write_retry_counter() {
     let mut host = DemandHost {
@@ -242,26 +242,19 @@ fn a_restart_resets_the_failed_write_retry_counter() {
         assert_eq!(app.update(at(k), &mut host).ran, 1, "tic {k}");
     }
     assert!(matches!(app.save_status(), SaveStatus::Failed(_)));
-    // restart: the old session's write fails, the new session's claim succeeds
-    host.fail = false;
-    host.fail_next = 1;
-    app.restart(&mut host);
-    assert_eq!(app.save_status(), &SaveStatus::Saved(0));
+    assert!(FAILED_WRITE_RETRY_TICS > 2);
+    // restart: the old session's write and the new session's claim both fail
     host.calls.clear();
-    // tic 1 of the new session: its append fails
-    host.fail_next = 1;
+    app.restart(&mut host);
+    assert_eq!(host.calls, [Call::Claim, Call::Claim]);
+    assert!(matches!(app.save_status(), SaveStatus::Failed(_)));
+    host.calls.clear();
     let base = at(100);
     assert_eq!(app.update(base, &mut host).ran, 0, "the clock restarted");
     assert_eq!(app.update(base + at(1), &mut host).ran, 1);
-    assert_eq!(host.calls, [Call::Append { at: marker(0) }]);
-    assert!(matches!(app.save_status(), SaveStatus::Failed(_)));
-    // tic 2: the retry, a whole rewrite, comes at once
-    assert_eq!(app.update(base + at(2), &mut host).ran, 1);
     assert_eq!(
         host.calls,
-        [Call::Append { at: marker(0) }, Call::Save],
-        "the retry is not held back by the old session's counter"
+        [Call::Claim],
+        "the new session's first tic retries at once, not at the old session's tic 71"
     );
-    assert_eq!(app.save_status(), &SaveStatus::Saved(2));
-    assert!(FAILED_WRITE_RETRY_TICS > 2);
 }
