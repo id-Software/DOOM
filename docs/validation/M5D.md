@@ -86,7 +86,7 @@ of the release, the cursor is not over the game's client area or something else 
 
 Whether any of these happens on the owner's machine is not known. The acceptance test (drag-firing against
 every edge at 100%, 125% and 150% scaling, `--input-log`, left downs equal to ups and no `resize` line) tests
-the flag against the observed cause, case 0, and would show 1 only with a second monitor at another scale.
+the flag against the cause the log points to; it would show case 1 only with a second monitor at another scale.
 
 ### The options if it still happens (none taken; the owner's ruling)
 
@@ -98,8 +98,8 @@ the flag against the observed cause, case 0, and would show 1 only with a second
 
 ## A2. Sound latency on Windows: statistics and trial options
 
-Commits `5421b5c`, `8d40286`, `b6d6196` on the agent's worktree, cherry-picked as the three commits ending at
-`fd442ee`. Everything is in `crates/doom-play`; the declared mixing schedule, the mixer and every golden are
+Commits `5ffb210`, `6b024a7` and `fd442ee` on the branch (cherry-picked from the agent's worktree, where they were
+`5421b5c`, `8d40286`, `b6d6196`). Everything is in `crates/doom-play`; the declared mixing schedule, the mixer and every golden are
 untouched, and the defaults are unchanged. One shared line of the existing test file `session_tests.rs` changed:
 its `use crate::audio::{...}` import gained `Trial` for the new tests; no existing test's body or assertion changed.
 
@@ -380,8 +380,8 @@ Commit `30e535b`:
 
 - **The mouse forwarding** moved unchanged from `crates/doom-play/src/input_log.rs` into
   `crates/doom-play/src/mouse_forward.rs` (`Forward`; the log's button names became `pub(crate)` so the new
-  module can use them). The window and the log's test use it from there; the test module of `input_log.rs` is
-  textually unchanged (it reaches `Forward` through a test-only import in its parent module).
+  module can use them). The window and the log's test use it from there; no existing test of `input_log.rs` changed (they
+  reach `Forward` through a test-only import in the parent module); one new test was added (M1, below).
 - **M1:** the log names the session's demo file on a new `session` line when the file is created, and gives
   each committed tic's executed command and its fire bit on a new `tic` line (`tic PUMP TIC cmd forward=F
   side=S turn=T buttons=B fire=0|1`), after that tic's `game` lines. A new test checks the lines against the
