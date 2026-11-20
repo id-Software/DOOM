@@ -98,7 +98,98 @@ the flag against the observed cause, case 0, and would show 1 only with a second
 
 ## A2. Sound latency on Windows: statistics and trial options
 
-To come (agent running).
+Commits `5421b5c`, `8d40286`, `b6d6196` on the agent's worktree, cherry-picked as the three commits ending at
+`fd442ee`. Everything is in `crates/doom-play`; the declared mixing schedule, the mixer and every golden are
+untouched, and the defaults are unchanged. One shared line of the existing test file `session_tests.rs` changed:
+its `use crate::audio::{...}` import gained `Trial` for the new tests; no existing test's body or assertion changed.
+
+### (a) The exit lines
+
+Whenever a device is open, with or without `--tic-stats`, four lines follow `doom-play: ` on exit (they replace the
+counters line `--tic-stats` printed before). With no device (`--no-sound`, or no backend opened) nothing new is
+printed. The text below is what a unit test asserts for a headless sink; the backend and figures are test inputs,
+not a measurement:
+
+```
+audio device: backend WASAPI; name "Speakers (Test)"; native sample rates 44100 Hz, 48000 Hz; stream 11025 Hz
+audio settings: period asked 512 frames; start threshold 1024 frames (2 buffers); granted period and buffer in miniaudio's [INFO] report at open
+audio callbacks: 40 calls; frames per call min 441, max 512
+audio queue: depth in frames when a callback arrived (not paused) min 0, mean 825.2, max 1536 (38 samples); underruns 2 (99 frames of silence); overruns 1 (512 frames dropped)
+```
+
+- **Backend, device name, native sample rates:** the backend that opened; `get_name` and `get_info` of the device,
+  read after it is built and before it starts (maudio 0.1.15 `src/device.rs:241-256`).
+- **The period and buffer the device granted cannot be read in safe Rust through maudio 0.1.15.** It has no accessor
+  for miniaudio's internal period, period count or device rate, and no way to register a log callback of our own
+  (`private_device_b` is `pub(crate)`, `src/device/device_builder.rs:301`, `563`; the log FFI is private,
+  `src/logging.rs:198-257`). So `doom-play` turns on miniaudio's own INFO messages before building the device
+  (`print_level(LogLevel::Info)`, `src/logging.rs:151-188`), and miniaudio's device report is printed once on standard
+  error at open, as lines starting `[INFO]`, among them `Sample Rate: <stream> -> <device>` and
+  `Buffer Size: <period>*<periods> (<buffer>)` (`miniaudio.h:43887-43937`). By the miniaudio source nothing else is
+  posted at INFO during play on WASAPI, PulseAudio or ALSA; on DirectSound (the second Windows backend, used only if
+  WASAPI fails) one line can appear per playback stall (`miniaudio.h:26724-26736`).
+- **Callbacks:** every call counted, with the fewest and most frames in one. **Queue depth:** sampled at each
+  callback before it takes frames, while not paused; min, mean (rounded to a tenth) and max in frames.
+  **Underruns and overruns:** the counters that existed.
+
+### (b) The trial options
+
+In a separate block of `--help` headed as experimental, presentation only, for the owner's M5d trials; a setting
+away from its default is marked `EXPERIMENTAL` on the `audio settings` line. Values outside the listed sets are
+refused with exit code 2 and a message. They reach only the device sink; a test shows a one-buffer, 128-frame trial
+gives the same tics, frames, sound reports, stream and demo bytes as `--no-sound`.
+
+| Option | Values (default) | What it changes |
+| --- | --- | --- |
+| `--experimental-audio-start-buffers N` | 1, 2 (2) | The queue's start threshold (after the start, every gap and every resume) |
+| `--experimental-audio-period-frames N` | 128, 256, 512 (512) | The device period asked for. With miniaudio's fixed-size callback (maudio's default) the callback then always gets exactly N frames (`miniaudio.h:43798-43836`, `20271-20302`) |
+| WASAPI period count, 2 or 3 | **left out** | Not reachable through maudio 0.1.15's safe API: `ma_device_config.periods` (`miniaudio.h:7108`) is written only through the crate-private `inner`, no builder method sets it, and at 0 miniaudio uses `MA_DEFAULT_PERIODS` = 3 (`miniaudio.h:12202-12204`). |
+
+The WASAPI period count could be had only by (i) a maudio change or fork with a `periods` setter, (ii) unsafe FFI on
+`maudio-sys` (an exception to the workspace's unsafe ban), or (iii) a build-time route **found but not tried**:
+`MA_DEFAULT_PERIODS` is guarded by `#ifndef` (`miniaudio.h:12202`) and the `cc` crate passes `CFLAGS` to the C build,
+so a build with `CFLAGS=/DMA_DEFAULT_PERIODS=2` would use two periods for every backend in that binary. Each is the
+owner's decision; none is taken.
+
+**What each option is expected to change, by arithmetic** (the link model of the
+[M5c latency record](M5C.md#sound-latency-the-arithmetic-in-full), assuming the backend grants what is asked; not
+measured). From the call that starts a sound to the end of the buffer WASAPI is asked for:
+
+| Start buffers, period | WASAPI, to the end of the requested buffer |
+| --- | --- |
+| 2, 512 (default) | 167.9 to 260.6 ms |
+| 1, 512 | 139.3 to 232.0 ms |
+| 2, 256 | 98.2 to 167.7 ms |
+| 1, 256 | 69.7 to 139.1 ms |
+| 2, 128 | 63.4 to 121.3 ms |
+| 1, 128 | 34.8 to 92.7 ms |
+
+The original built with its in-process sound code: above 0 to 92.9 ms on the same basis. A one-buffer start leaves no
+margin (gaps are likely early in every session and after every pause); smaller periods mean two or four times as many
+callbacks and less room against Windows' engine; under WASAPI's automatic conversion miniaudio's low-latency
+IAudioClient3 path stays off (`miniaudio.h:23885`), so Windows may grant more than asked. The two-buffer margin was
+computed for 512-frame callbacks; it was not recomputed for 128 or 256.
+
+### Observed on this machine (Linux under WSLg; silence only)
+
+`doom-play --audio-probe` (digital silence for about 1 s): backend PulseAudio, device "RDP Sink", native rate
+44,100 Hz, stream opened at 11,025 Hz with no resampling in miniaudio (`Sample Rate: 11025 -> 11025`), 23 callbacks
+of exactly 512 frames. **The RDP sink granted three quarters of the requested length:** `Buffer Size: 384*4 (1536)`
+for a 512-frame request. With a scratch build of the probe at 256 and 128 frames (not the committed binary; reverted):
+44 callbacks of 256 and 88 of 128 frames, granted 192 and 96 frames. The M5c arithmetic assumed 512 frames on
+PulseAudio; with 384 the default PulseAudio total would be 63.4 to 156.1 ms (arithmetic, one probe run).
+
+### Checks (the agent's run, Linux)
+
+fmt (workspace and fuzz), clippy with warnings denied on `doom-game` and `doom-play` (debug and release), tests in
+debug and release (166 passed, 0 failed; `doom-play` 35, from 26), `cargo +1.85.0 check`, rustdoc with warnings denied
+(with and without private items). Fault plants: 22 planted, 20 caught at first; one survivor (min and max swapped in
+the callbacks line) led to a stronger test in `b6d6196`, and one is equivalent (`resume` clearing a flag `pause`
+already cleared). Not run: anything on Windows or macOS, a windowed run with a device.
+
+**Open for the owner:** keep miniaudio's INFO report at every launch (about 18 lines on PulseAudio here) or put it
+behind an option, and limit it to the open (remove the INFO callback after start) in case DirectSound stalls repeat;
+whether to pursue the WASAPI period count by any of the three routes above.
 
 ## A3. A session that cannot be lost
 
