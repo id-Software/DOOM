@@ -329,6 +329,24 @@ mod tests {
         );
     }
 
+    /// Review 3, P27: a pump with no raw motion and no cursor event (idle) is not silent: idle
+    /// pumps between two motion pumps do not count, so the report comes at the second pump that
+    /// moved, however many idle pumps came between.
+    #[test]
+    fn idle_pumps_do_not_count_as_silent() {
+        let mut l = started_at(936.0, 490.0);
+        assert_eq!(silent(&mut l, 1, 60.0, 0.0), [None]);
+        for _ in 0..10 {
+            assert_eq!(l.pump_end(), None, "an idle pump");
+        }
+        let r = silent(&mut l, 1, 60.0, 0.0);
+        assert_eq!(
+            r[0].map(|f| (f.net, f.pumps)),
+            Some(((120.0, 0.0), 2)),
+            "{r:?}"
+        );
+    }
+
     /// The next cursor event re-arms the detector: a second run off an edge is reported again.
     #[test]
     fn a_cursor_event_re_arms_the_detector() {

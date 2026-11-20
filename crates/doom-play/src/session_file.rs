@@ -914,6 +914,37 @@ mod tests {
         std::fs::remove_dir_all(&dir).unwrap();
     }
 
+    /// Review 3, P19: the clean-up removes regular files only. With `now` two hours ahead, every
+    /// entry counts as old, so the age rule cannot hide the guard: a regular file of a leftover
+    /// name goes; a directory and (on Unix) a symbolic link of leftover names stay, and so does the
+    /// file the link points at.
+    #[test]
+    fn the_start_removes_regular_files_only_whatever_their_age() {
+        let dir = scratch("leftover-kinds");
+        let later = std::time::SystemTime::now() + std::time::Duration::from_secs(2 * 3_600);
+        std::fs::File::create(dir.join("E1M1-skill2-20261120-123456.lmp.41.tmp")).unwrap();
+        std::fs::create_dir(dir.join("E1M1-skill2-20261120-123456.lmp.43.tmp")).unwrap();
+        let mut want = vec!["E1M1-skill2-20261120-123456.lmp.43.tmp".to_string()];
+        #[cfg(unix)]
+        {
+            std::fs::File::create(dir.join("target")).unwrap();
+            std::os::unix::fs::symlink(
+                dir.join("target"),
+                dir.join("E1M1-skill2-20261120-123456.lmp.44.claim.tmp"),
+            )
+            .unwrap();
+            want.insert(
+                1,
+                "E1M1-skill2-20261120-123456.lmp.44.claim.tmp".to_string(),
+            );
+            want.push("target".to_string());
+        }
+        let (removed, errors) = remove_leftovers(&dir, later);
+        assert_eq!((removed, errors.len()), (1, 0), "{errors:?}");
+        assert_eq!(names(&dir), want);
+        std::fs::remove_dir_all(&dir).unwrap();
+    }
+
     /// Several tics through one open: each its own write at the marker the previous one left, the
     /// result equal to one append at a time; a page straddle anywhere declines before writing.
     #[test]

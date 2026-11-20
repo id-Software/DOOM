@@ -656,3 +656,41 @@ fn each_earlier_session_left_behind_gets_one_line() {
         ]
     );
 }
+
+/// Review 3, m3: the log as doom-play makes it ([`InputLog::threaded`]) keeps at most
+/// [`crate::input_log::LOG_QUEUE_PUMPS`] pumps waiting (1,024) besides the one being written:
+/// with the file stalled for 1,100 pumps, the rest are dropped and counted.
+#[test]
+fn the_logs_queue_holds_1024_pumps() {
+    assert_eq!(crate::input_log::LOG_QUEUE_PUMPS, 1_024);
+    let gate = Gate::closed();
+    let text = Text {
+        gate: Some(Arc::clone(&gate)),
+        ..Text::default()
+    };
+    let dir = scratch("close-log-default");
+    let mut p = play(&dir, &Disk::default(), 1_000);
+    let mut log = InputLog::threaded(Box::new(text.clone())).unwrap();
+    let _open = gate.opens_on_drop();
+    for _ in 0..1_100 {
+        log.pump_end(&p.app, 1, 0, false);
+    }
+    gate.set(true);
+    log.summary(0);
+    log.finish();
+    let got = String::from_utf8(text.bytes.lock().unwrap().clone()).unwrap();
+    let kept = got.lines().filter(|l| l.starts_with("pump ")).count();
+    assert!(kept == 1_024 || kept == 1_025, "{kept}");
+    let dropped = 1_100 - kept;
+    assert!(
+        got.contains(&format!(
+            "{dropped} lines of {dropped} pumps were not written"
+        )),
+        "{}",
+        got.lines()
+            .find(|l| l.starts_with("dropped"))
+            .unwrap_or("no dropped line")
+    );
+    p.quit();
+    std::fs::remove_dir_all(&dir).unwrap();
+}

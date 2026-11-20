@@ -90,6 +90,8 @@ pub(crate) struct TestIo {
     pub(crate) ops: Arc<Mutex<Vec<Op>>>,
     pub(crate) fail_appends: Arc<AtomicBool>,
     pub(crate) fail_rewrites: Arc<AtomicBool>,
+    /// A whole rewrite panics (the writer thread dies).
+    pub(crate) panic_rewrites: Arc<AtomicBool>,
     pub(crate) race: bool,
     pub(crate) fallback: bool,
 }
@@ -131,6 +133,10 @@ impl SessionIo for TestIo {
         if self.fail_rewrites.load(Ordering::SeqCst) {
             return Err("planted: disk full".into());
         }
+        assert!(
+            !self.panic_rewrites.load(Ordering::SeqCst),
+            "planted: the writer panics"
+        );
         RealIo.rewrite(dir, name, bytes, synced)
     }
     fn append(
@@ -675,5 +681,232 @@ fn the_fallback_claim_prints_one_line() {
         [session_file::fallback_line(&dir.join("a.lmp"))]
     );
     assert!(lines.lock().unwrap()[0].contains("refused a hard link"));
+    std::fs::remove_dir_all(&dir).unwrap();
+}
+
+/// Review 3, P25: after `finish` (the run's end) the host is synchronous: every call waits for its
+/// write and returns its real outcome, so the app's save on quit reports the truth, and the file
+/// holds the write when the call returns (before `close`).
+#[test]
+fn after_finish_every_call_waits_and_returns_its_real_outcome() {
+    let dir = scratch("sync");
+    let fail = Arc::new(AtomicBool::new(false));
+    let mut host = writer(
+        &dir,
+        TestIo {
+            delay: Duration::from_millis(20),
+            fail_rewrites: Arc::clone(&fail),
+            ..TestIo::default()
+        },
+    );
+    let name = "E1M1-skill2-20261120-000003.lmp";
+    assert_eq!(host.claim(name, &demo(0)), Ok(true));
+    let tail: [u8; 5] = demo(1)[demo(1).len() - 5..].try_into().unwrap();
+    assert_eq!(host.append(name, 13, &tail), Ok(true));
+    host.finish();
+    assert_eq!(host.queue_depth().0, 0, "drained");
+    assert_eq!(std::fs::read(dir.join(name)).unwrap(), demo(1));
+    fail.store(true, Ordering::SeqCst);
+    assert_eq!(
+        host.save(name, &demo(2)),
+        Err("planted: disk full".to_string())
+    );
+    fail.store(false, Ordering::SeqCst);
+    assert_eq!(host.save(name, &demo(2)), Ok(()));
+    assert_eq!(std::fs::read(dir.join(name)).unwrap(), demo(2), "on return");
+    host.close();
+    std::fs::remove_dir_all(&dir).unwrap();
+}
+
+/// Review 3: a writer thread that dies (a panic) before making a write handed over never lets a
+/// waiting call or a settle report it written: both report that the writer stopped.
+#[test]
+fn a_writer_that_died_is_never_reported_as_having_written() {
+    let dir = scratch("died");
+    let panic = Arc::new(AtomicBool::new(false));
+    let mut host = writer(
+        &dir,
+        TestIo {
+            panic_rewrites: Arc::clone(&panic),
+            ..TestIo::default()
+        },
+    );
+    let name = "E1M1-skill2-20261120-000004.lmp";
+    assert_eq!(host.claim(name, &demo(0)), Ok(true));
+    host.finish();
+    panic.store(true, Ordering::SeqCst);
+    assert_eq!(host.save(name, &demo(1)), Err(STOPPED.to_string()));
+    assert_eq!(
+        host.settle(name, Duration::ZERO),
+        Settled::Failed(STOPPED.to_string())
+    );
+    assert!(host.close().panicked);
+    std::fs::remove_dir_all(&dir).unwrap();
+}
+
+/// Review 3, P8: a failure of the current session that the app never heard of (no call came
+/// after it and nothing settled it) is in the closed writer's report; once settled (reported to
+/// the app) it is not reported twice.
+#[test]
+fn a_failure_the_app_never_heard_of_is_in_the_report() {
+    for settled in [false, true] {
+        let dir = scratch(&format!("unheard-{settled}"));
+        let fail = Arc::new(AtomicBool::new(false));
+        let mut host = writer(
+            &dir,
+            TestIo {
+                fail_appends: Arc::clone(&fail),
+                ..TestIo::default()
+            },
+        );
+        let name = "E1M1-skill2-20261120-000005.lmp";
+        assert_eq!(host.claim(name, &demo(0)), Ok(true));
+        host.wait_idle();
+        fail.store(true, Ordering::SeqCst);
+        let tail: [u8; 5] = demo(1)[demo(1).len() - 5..].try_into().unwrap();
+        assert_eq!(host.append(name, 13, &tail), Ok(true));
+        host.wait_idle();
+        if settled {
+            assert_eq!(
+                host.settle(name, Duration::ZERO),
+                Settled::Failed("planted: disk full".into())
+            );
+        }
+        let report = host.close();
+        let want = if settled {
+            vec![]
+        } else {
+            vec![(name.to_string(), "planted: disk full".to_string())]
+        };
+        assert_eq!(report.unreported, want);
+        std::fs::remove_dir_all(&dir).unwrap();
+    }
+}
+
+/// A writer made directly, with its shared state, for the branches the host cannot reach.
+fn bare(dir: &Path, ops: &Arc<Mutex<Vec<Op>>>, model: Vec<u8>) -> (Writer, Arc<Shared>) {
+    let shared = Arc::new(Shared {
+        state: Mutex::new(State {
+            alive: true,
+            ..State::default()
+        }),
+        changed: Condvar::new(),
+    });
+    let w = Writer {
+        dir: dir.to_path_buf(),
+        io: Box::new(TestIo {
+            ops: Arc::clone(ops),
+            ..TestIo::default()
+        }),
+        notify: Box::new(|_| {}),
+        shared: Arc::clone(&shared),
+        session: Some(Session {
+            name: "a.lmp".into(),
+            model,
+            disk: Disk::Current,
+            retried: false,
+        }),
+        left: Vec::new(),
+    };
+    (w, shared)
+}
+
+/// Review 3, P21 (and P7's successor): a whole demo handed over for a session that is not the one
+/// being written (unreachable through the host: snapshots are taken in order) is never written
+/// and never dropped silently: its failure goes to the report.
+#[test]
+fn a_demo_of_another_session_is_not_written_and_is_reported() {
+    let dir = scratch("stray");
+    let ops = Arc::new(Mutex::new(Vec::new()));
+    let (mut w, shared) = bare(&dir, &ops, demo(1));
+    shared.lock().snapshots.push_back(Snapshot {
+        name: "b.lmp".into(),
+        bytes: demo(2),
+        synced: true,
+    });
+    w.process(vec![Msg::Snapshot]);
+    assert_eq!(*ops.lock().unwrap(), []);
+    let st = shared.lock();
+    assert_eq!(
+        st.strays,
+        [(
+            "b.lmp".to_string(),
+            "b.lmp: not the session being written".to_string()
+        )]
+    );
+    assert!(
+        st.failure.is_none(),
+        "the session being written is unaffected"
+    );
+    drop(st);
+    std::fs::remove_dir_all(&dir).unwrap();
+}
+
+/// Review 3, P24: a tic that does not follow the writer's copy (a gap) marks the file stale, so a
+/// later tic of the same batch that does follow the copy is not appended to a file the writer no
+/// longer vouches for; the failure is recorded for the app.
+#[test]
+fn a_tic_out_of_step_marks_the_file_stale() {
+    let dir = scratch("gap");
+    let ops = Arc::new(Mutex::new(Vec::new()));
+    let (mut w, shared) = bare(&dir, &ops, demo(1));
+    let tail = |k: u64| -> [u8; 5] { demo(k)[demo(k).len() - 5..].try_into().unwrap() };
+    w.process(vec![
+        Msg::Append {
+            at: 21,
+            tail: tail(3),
+        },
+        Msg::Append {
+            at: 17,
+            tail: tail(2),
+        },
+    ]);
+    assert_eq!(*ops.lock().unwrap(), [], "nothing appended after the gap");
+    assert_eq!(w.session.as_ref().map(|s| s.disk), Some(Disk::Stale));
+    let failure = shared.lock().failure.as_ref().map(|f| f.error.clone());
+    assert_eq!(
+        failure.as_deref(),
+        Some("a.lmp: a tic at byte 21, but the writer's copy holds 18 bytes")
+    );
+    std::fs::remove_dir_all(&dir).unwrap();
+}
+
+/// Review 3, P23: a pending synced snapshot (the app's own save) replaced in place by a catch-up
+/// snapshot (after a decline at the bound, unsynced) stays synced: the one rewrite made is
+/// flushed.
+#[test]
+fn a_synced_snapshot_replaced_in_place_stays_synced() {
+    let dir = scratch("synced");
+    let gate = Gate::closed();
+    let ops = Arc::new(Mutex::new(Vec::new()));
+    let mut host = writer(
+        &dir,
+        TestIo {
+            gate: Some(Arc::clone(&gate)),
+            ops: Arc::clone(&ops),
+            ..TestIo::default()
+        },
+    );
+    let _open = gate.opens_on_drop();
+    let name = "E1M1-skill2-20261120-000006.lmp";
+    // the claim's file operation waits at the gate, so both saves are pending behind it
+    assert_eq!(host.claim(name, &demo(0)), Ok(true));
+    assert_eq!(host.save(name, &demo(1)), Ok(()));
+    host.declined = true; // as after an append declined at the bound
+    assert_eq!(host.save(name, &demo(1)), Ok(()));
+    assert_eq!(host.queue_depth().1, 1, "replaced in place");
+    gate.set(true);
+    host.finish();
+    host.close();
+    assert_eq!(
+        *ops.lock().unwrap(),
+        [
+            Op::Claim,
+            Op::Rewrite {
+                synced: true,
+                tics: 1
+            }
+        ]
+    );
     std::fs::remove_dir_all(&dir).unwrap();
 }
