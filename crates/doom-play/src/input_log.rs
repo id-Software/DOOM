@@ -50,8 +50,16 @@
 //!   write may block the tic loop), which writes and flushes each pump's lines in order; so a
 //!   crash loses the current pump and the pumps the thread had not written yet. The lines are
 //!   formatted on the loop's thread exactly as before, so the file's bytes are the same.
-//! - `summary`: written on quit: the raw downs and ups counted per button; the window then ends
-//!   the log ([`InputLog::finish`]), which waits for the thread to write everything.
+//! - `dropped`: `N lines of P pumps were not written: the log's writer was behind`. The pumps
+//!   waiting for the thread are bounded ([`LOG_QUEUE_PUMPS`]; the loop never waits for the
+//!   thread while tics run): when that many are waiting (a disk that has stopped answering), a
+//!   pump's lines are dropped whole and counted, and this one line is written in their place,
+//!   before the lines of the first pump the thread takes again, with that pump's `PUMP` and
+//!   `TIC`. It never appears while the disk keeps up, so the bytes are then those of b374aaa.
+//! - `summary`: written on quit: the raw downs and ups counted per button. From then on the loop
+//!   waits for the thread rather than drop a pump (no tic runs after quit); the window ends the
+//!   log ([`InputLog::finish`]) after the last pump's line, so, as in b374aaa, a `pump` line
+//!   follows the summary.
 
 use crate::FsHost;
 use crate::keys::Mute;
@@ -61,6 +69,7 @@ use doom_game::input::Event;
 use std::fmt;
 use std::io::Write;
 use std::path::Path;
+use std::sync::mpsc::{SyncSender, TrySendError};
 use std::time::Instant;
 
 // The window and this module's test share the mouse forwarding, which lives in its own module.
@@ -87,15 +96,26 @@ enum Out {
     Thread(LogThread),
 }
 
+/// The most pumps' lines waiting for the log's writer thread (about 30 seconds of play at 35
+/// pumps a second; a few kilobytes each even with a 1,000 Hz mouse). Past it, a pump's lines
+/// are dropped whole and counted (the module documentation's `dropped` line).
+pub(crate) const LOG_QUEUE_PUMPS: usize = 1_024;
+
 /// The log's writer thread: the loop formats the lines into `buf` (the same bytes the direct
 /// writer gets) and hands them over at the end of each pump; the thread writes and flushes each
 /// hand-over in order and times it. A failure stops the thread's writing and is reported on the
-/// loop's next line or hand-over, as the direct writer's failure is.
+/// loop's next line or hand-over, as the direct writer's failure is. At most a bound of
+/// hand-overs wait ([`LOG_QUEUE_PUMPS`]); while play runs a full queue drops the pump's lines
+/// (counted in `dropped`), after the summary the loop waits instead (`ending`).
 struct LogThread {
     buf: Vec<u8>,
-    tx: Option<std::sync::mpsc::Sender<(Vec<u8>, u64)>>,
+    tx: Option<SyncSender<(Vec<u8>, u64)>>,
     shared: std::sync::Arc<std::sync::Mutex<LogState>>,
     thread: Option<std::thread::JoinHandle<()>>,
+    /// Lines and pumps dropped since the thread last took a hand-over.
+    dropped: (u64, u64),
+    /// The summary was written: hand-overs wait for room instead of dropping.
+    ending: bool,
 }
 
 #[derive(Default)]
@@ -105,10 +125,11 @@ struct LogState {
 }
 
 impl LogThread {
-    fn spawn(mut w: Box<dyn Write + Send>) -> Result<Self, String> {
+    /// Starts the thread writing to `w`, with at most `bound` hand-overs waiting.
+    fn spawn(mut w: Box<dyn Write + Send>, bound: usize) -> Result<Self, String> {
         let shared = std::sync::Arc::new(std::sync::Mutex::new(LogState::default()));
         let state = std::sync::Arc::clone(&shared);
-        let (tx, rx) = std::sync::mpsc::channel::<(Vec<u8>, u64)>();
+        let (tx, rx) = std::sync::mpsc::sync_channel::<(Vec<u8>, u64)>(bound);
         let thread = std::thread::Builder::new()
             .name("input-log-writer".into())
             .spawn(move || {
@@ -139,6 +160,8 @@ impl LogThread {
             tx: Some(tx),
             shared,
             thread: Some(thread),
+            dropped: (0, 0),
+            ending: false,
         })
     }
 
@@ -147,22 +170,56 @@ impl LogThread {
         lock(&self.shared).error.clone()
     }
 
-    /// Hands the lines formatted so far over to the thread.
-    fn hand_over(&mut self, tic: u64) {
+    /// Hands the lines formatted so far over to the thread (`pump` and `tic` the loop's, for the
+    /// `dropped` line and the timing). While the queue is full and the summary not written, the
+    /// lines are dropped whole and counted; the first hand-over the thread takes after a drop
+    /// begins with the `dropped` line.
+    fn hand_over(&mut self, pump: u64, tic: u64) {
         if self.buf.is_empty() {
             return;
         }
-        let bytes = std::mem::take(&mut self.buf);
-        if let Some(tx) = &self.tx {
-            if tx.send((bytes, tic)).is_err() {
-                lock(&self.shared).error = Some("the input log's writer stopped".into());
+        let Some(tx) = &self.tx else {
+            self.buf.clear();
+            return;
+        };
+        let mut bytes = Vec::new();
+        let (lines, pumps) = self.dropped;
+        if lines > 0 {
+            let _ = writeln!(
+                bytes,
+                "dropped {pump} {tic} {lines} lines of {pumps} pumps were not written: the log's \
+                 writer was behind"
+            );
+        }
+        bytes.append(&mut self.buf);
+        let sent = if self.ending {
+            tx.send((bytes, tic)).map_err(|_| ())
+        } else {
+            match tx.try_send((bytes, tic)) {
+                Ok(()) => Ok(()),
+                Err(TrySendError::Full((mut bytes, _))) => {
+                    // keep the buffer's allocation for the next pump, without the notice
+                    let notice = bytes.iter().position(|&b| b == b'\n').map_or(0, |i| i + 1);
+                    let skip = if lines > 0 { notice } else { 0 };
+                    let n = bytes[skip..].iter().filter(|&&b| b == b'\n').count() as u64;
+                    self.dropped = (lines + n, pumps + 1);
+                    bytes.clear();
+                    self.buf = bytes;
+                    return;
+                }
+                Err(TrySendError::Disconnected(_)) => Err(()),
             }
+        };
+        match sent {
+            Ok(()) => self.dropped = (0, 0),
+            Err(()) => lock(&self.shared).error = Some("the input log's writer stopped".into()),
         }
     }
 
     /// Hands the rest over, waits for the thread to write everything and returns its timing.
-    fn close(&mut self, tic: u64) -> WriteTimes {
-        self.hand_over(tic);
+    fn close(&mut self, pump: u64, tic: u64) -> WriteTimes {
+        self.ending = true;
+        self.hand_over(pump, tic);
         self.tx = None;
         if let Some(t) = self.thread.take() {
             if t.join().is_err() {
@@ -176,7 +233,7 @@ impl LogThread {
 impl Drop for LogThread {
     /// Writes what is left (as a dropped buffered writer would) and joins the thread.
     fn drop(&mut self) {
-        self.close(0);
+        self.close(0, 0);
     }
 }
 
@@ -184,7 +241,9 @@ fn lock(m: &std::sync::Mutex<LogState>) -> std::sync::MutexGuard<'_, LogState> {
     m.lock().unwrap_or_else(std::sync::PoisonError::into_inner)
 }
 
-/// The header line's text (written as `# 1 0 HEADER`, pump 1 and tic 0).
+/// The header line's text (written as `# 1 0 HEADER`, pump 1 and tic 0). The kinds are those of
+/// the module documentation; `dropped` (M5d review 3) appears only when the log's writer fell
+/// [`LOG_QUEUE_PUMPS`] pumps behind, and says how many lines are missing at that point.
 const HEADER: &str = "doom-play input log 1: KIND PUMP TIC TEXT";
 
 /// `BT_ATTACK`, the fire bit of a command's buttons (d_event.h:75), for the `tic` lines.
@@ -222,8 +281,13 @@ impl InputLog {
 
     /// A log whose lines go to `w` through the log's writer thread, with no header line.
     pub(crate) fn threaded(w: Box<dyn Write + Send>) -> Result<Self, String> {
+        Self::threaded_bounded(w, LOG_QUEUE_PUMPS)
+    }
+
+    /// [`InputLog::threaded`] with at most `bound` pumps waiting for the thread.
+    pub(crate) fn threaded_bounded(w: Box<dyn Write + Send>, bound: usize) -> Result<Self, String> {
         let mut log = Self::off();
-        log.out = Some(Out::Thread(LogThread::spawn(w)?));
+        log.out = Some(Out::Thread(LogThread::spawn(w, bound)?));
         Ok(log)
     }
 
@@ -248,7 +312,7 @@ impl InputLog {
         let Some(Out::Thread(t)) = self.out.as_mut() else {
             return None;
         };
-        let times = t.close(0);
+        let times = t.close(self.pump, 0);
         if let Some(e) = t.error() {
             eprintln!("doom-play: the input log stopped: {e}");
         }
@@ -362,8 +426,12 @@ impl InputLog {
         self.pump += 1;
     }
 
-    /// The `summary` line and a flush.
+    /// The `summary` line and a flush. From here on the log's thread is waited for rather than a
+    /// pump dropped (no tic runs after quit).
     pub(crate) fn summary(&mut self, tic: u64) {
+        if let Some(Out::Thread(t)) = self.out.as_mut() {
+            t.ending = true;
+        }
         let [d, u] = [self.downs, self.ups];
         self.line(
             "summary",
@@ -379,12 +447,13 @@ impl InputLog {
     /// Flushes the direct writer, or hands the pump's lines over to the writer thread (`tic`
     /// is the app's tic, for the timing).
     fn flush(&mut self, tic: u64) {
+        let pump = self.pump;
         let failed = match self.out.as_mut() {
             None => None,
             #[cfg(test)]
             Some(Out::Direct(w)) => w.flush().err().map(|e| e.to_string()),
             Some(Out::Thread(t)) => t.error().or_else(|| {
-                t.hand_over(tic);
+                t.hand_over(pump, tic);
                 None
             }),
         };
