@@ -545,24 +545,30 @@ fn tics_queued_behind_a_failure_wait_for_the_retry() {
     let dir = scratch("behind");
     let fail_appends = Arc::new(AtomicBool::new(false));
     let ops = Arc::new(Mutex::new(Vec::new()));
+    let gate = Gate::closed();
+    gate.set(true);
     let mut host = writer(
         &dir,
         TestIo {
-            delay: Duration::from_millis(60),
+            gate: Some(Arc::clone(&gate)),
             ops: Arc::clone(&ops),
             fail_appends: Arc::clone(&fail_appends),
             ..TestIo::default()
         },
     );
+    let _open = gate.opens_on_drop();
     let name = "E1M1-skill2-20261120-000002.lmp";
     assert_eq!(host.claim(name, &demo(0)), Ok(true));
     host.wait_idle();
     fail_appends.store(true, Ordering::SeqCst);
     let tail = |k: u64| -> [u8; 5] { demo(k)[demo(k).len() - 5..].try_into().unwrap() };
+    gate.set(false);
     assert_eq!(host.append(name, 13, &tail(1)), Ok(true));
-    // the writer is inside the first append's 60 ms when the second tic is queued
-    std::thread::sleep(Duration::from_millis(15));
+    // the writer is held inside the first append when the second tic is queued (a gate, not a
+    // sleep: a slow machine once let the first append fail before the second was queued)
+    gate.await_waiter();
     assert_eq!(host.append(name, 17, &tail(2)), Ok(true));
+    gate.set(true);
     host.wait_idle();
     assert_eq!(
         *ops.lock().unwrap(),
