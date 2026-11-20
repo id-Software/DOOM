@@ -1,0 +1,26 @@
+# M5c session restart (scripted, not played by a person): pickups and a rocket, the app's pause, a restart from
+# the pause (a fresh process, decision T15), then a second session with the use key and the pistol.
+wad tests/reference/m5c_wads/sndmonst.wad
+map 1
+skill 2
+screenblocks 10
+frame 10000
+200 motion 256 0         # turn round to face east: four turns of 8192
+240 motion 256 0
+280 motion 256 0
+320 motion 256 0
+400 key up down          # over the soulsphere and the launcher
+1100 key up up
+2000 key fire down       # a rocket at the closed door (the launcher was selected when it was picked up)
+2100 key fire up
+3000 key esc down        # the app's pause
+3010 key esc up
+3500 key r down          # restart from the pause: the sink hears resume, then session_start; a new session file
+3510 key r up
+3800 key use down        # the second session: the use key against the west wall (noway)
+3820 key use up
+4200 key fire down       # pistol shots at the wall
+4900 key fire up
+5100 key down down       # back east over the soulsphere
+5700 key down up
+7000 end

@@ -2,6 +2,7 @@
 name: c-evidence
 description: C evidence, simulation code and DSIM encoder work, and tests that need new citations from the linuxdoom-1.10 source.
 model: opus
+effort: high
 ---
 
 Read `AGENTS.md` in full before anything else; every rule binds you.

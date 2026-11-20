@@ -2,6 +2,7 @@
 name: docs-tools
 description: Documentation, status lines, census and count tools, scripts and CI plumbing.
 model: sonnet
+effort: medium
 ---
 
 Read `AGENTS.md` in full before anything else; every rule binds you.

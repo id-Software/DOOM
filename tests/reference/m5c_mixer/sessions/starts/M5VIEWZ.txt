@@ -1,0 +1,18 @@
+# Start list of M5VIEWZ.sound (sha256 53d144ce8728dc2b605c560d7999ddde4db84b85a051189b411ff13a5c599668), written by tools/reference/m5c_starts.py:
+# the 12 S rows with outcome started, in stream order; 12 S rows in all; 568 R rows.
+# handle convention: integrated (stated by the stream).
+schema DOOM-M5C-STARTS-v1
+config integrated
+tics 568
+s 70 1 70 36 6 129 126 64 100
+s 98 2 98 34 8 128 128 64 101
+s 110 3 110 2 8 138 141 64 102
+s 114 4 114 25 8 128 127 64 103
+s 155 8 155 2 8 154 127 64 104
+s 159 9 159 25 8 128 132 64 105
+s 191 13 191 2 8 139 123 64 106
+s 195 14 195 25 8 128 132 64 107
+s 245 18 245 2 8 102 134 64 108
+s 249 19 249 25 8 128 127 64 109
+s 332 23 332 2 8 208 121 64 110
+s 339 24 339 57 8 128 131 64 111

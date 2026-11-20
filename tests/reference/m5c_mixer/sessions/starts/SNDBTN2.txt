@@ -1,0 +1,17 @@
+# Start list of SNDBTN2.sound (sha256 6f842f7c6e1a36248fa5550413804f6ed915fef319ca12cd69dd7e3e53f13a4d), written by tools/reference/m5c_starts.py:
+# the 11 S rows with outcome started, in stream order; 11 S rows in all; 248 R rows.
+# handle convention: integrated (stated by the stream).
+schema DOOM-M5C-STARTS-v1
+config integrated
+tics 248
+s 94 1 94 18 7 131 131 64 100
+s 94 2 94 23 8 128 143 64 101
+s 106 3 106 19 7 128 118 64 102
+s 127 4 127 18 7 135 113 64 103
+s 127 5 127 23 8 39 116 64 104
+s 128 6 128 23 4 35 117 64 105
+s 139 7 139 19 7 130 137 64 106
+s 161 8 161 23 4 35 139 64 107
+s 211 9 211 18 6 99 113 64 108
+s 224 10 224 19 6 99 124 64 109
+s 244 11 244 18 7 129 122 64 110

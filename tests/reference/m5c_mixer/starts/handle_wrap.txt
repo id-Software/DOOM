@@ -1,0 +1,7 @@
+# The handle counter (i_sound.c:271, 335-340): 65,436 starts in tic 0 take handles 100..65535; the unsigned
+# short then wraps to 0 and the next start resets it to 100.
+schema DOOM-M5C-STARTS-v1
+config integrated
+n 65436 0 0 0 3 8 128 128 64
+s 0 65436 0 3 8 128 128 64 100
+s 1 0 1 3 8 128 128 64 101

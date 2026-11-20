@@ -173,3 +173,8 @@ original evidence and former guide contents with exact-byte copies and digests.
   (the original C facts of input, recording, the loop, the status bar and the HUD, the two harness prototypes,
   the Rust state inventory and design, the window-library comparison, decisions S1–S23 confirmed 2026-11-17 and
   the plan; [support](COMPATIBILITY.md#playable-build-m5b) and [observations](validation/M5B.md)).
+- [M5c sound effects (and the face-glance gap) investigation](M5C_REFERENCE_INVESTIGATION.md)
+  (the original C facts of the sound logic, every call that starts a sound, the mixer, `M_Random` and the
+  level-start wipe, the two genuine-engine harness prototypes, what the simulation gives today, the Rust
+  design, a measured audio-library comparison, decisions T1–T16 (confirmed 2026-11-18) and the plan;
+  in progress; [support](COMPATIBILITY.md#sound-effects-m5c) and [observations](validation/M5C.md)).

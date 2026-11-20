@@ -178,7 +178,9 @@ pub struct StatusInputs {
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct StatusBarState {
     /// `rndindex` of `M_Random` (m_random.c:63-66): 0 at a new game, advanced only by the
-    /// ticker under the declared sound-free, wipe-free contract (decision S15).
+    /// ticker under the declared sound-free, wipe-free contract (decision S15); under M5c's
+    /// `RandomContract::WithSound` also by the tic's sound draws and the level-start wipe
+    /// (`crate::d_display`).
     pub rndindex: u8,
     /// `st_oldhealth` (st_stuff.c:378, 994).
     pub oldhealth: i32,

@@ -44,6 +44,9 @@ pub const PLAYER_EPISODE1_CONTEXT_SCHEMA: &[u8] = b"PLAYER-MONSTERS-EPISODE1-1-M
 /// because the skill is the canonical `actors.options` field; older contexts stay
 /// frozen.
 pub const PLAYER_EPISODE1_V2_CONTEXT_SCHEMA: &[u8] = b"PLAYER-MONSTERS-EPISODE1-2-v1";
+/// Explicit Episode 1 part 3 context (M5c, wire 25, DSIM41): wire 24's world
+/// with canonical sound records; older contexts stay frozen.
+pub const PLAYER_EPISODE1_V3_CONTEXT_SCHEMA: &[u8] = b"PLAYER-MONSTERS-EPISODE1-3-v1";
 /// The Episode 1 map numbers the wire-24 constructor admits (`E1M1`–`E1M9`).
 pub const EPISODE1_MAP_NUMBERS: std::ops::RangeInclusive<u8> = 1..=9;
 
@@ -324,7 +327,42 @@ impl Simulation {
         skill: Skill,
         context: MapContextOptions,
     ) -> Result<Self, OriginalRegistryError> {
-        let policy = OriginalExecutionProfile::PlayerMonstersEpisode1V2;
+        Self::episode1_v2_with(
+            OriginalExecutionProfile::PlayerMonstersEpisode1V2,
+            map,
+            map_number,
+            skill,
+            context,
+        )
+    }
+    /// Episode 1, part 3 (M5c, wire 25, decisions T3, T4 and T12): the world of
+    /// [`Simulation::original_player_episode1_v2_map`], byte for byte in every
+    /// state field, plus only what sound needs. Captures are DSIM41, read by
+    /// [`crate::Diagnostic::decode_episode1_v3`]: the DSIM40 layout under policy 25
+    /// and the [`PLAYER_EPISODE1_V3_CONTEXT_SCHEMA`] context, plus the group
+    /// `events.sounds` ([`Simulation::sound_records`]). The setup calls are wire
+    /// 24's.
+    pub fn original_player_episode1_v3_map(
+        map: Map,
+        map_number: u8,
+        skill: Skill,
+        context: MapContextOptions,
+    ) -> Result<Self, OriginalRegistryError> {
+        Self::episode1_v2_with(
+            OriginalExecutionProfile::PlayerMonstersEpisode1V3,
+            map,
+            map_number,
+            skill,
+            context,
+        )
+    }
+    fn episode1_v2_with(
+        policy: OriginalExecutionProfile,
+        map: Map,
+        map_number: u8,
+        skill: Skill,
+        context: MapContextOptions,
+    ) -> Result<Self, OriginalRegistryError> {
         if !EPISODE1_MAP_NUMBERS.contains(&map_number) {
             return Err(SimError::from(PlayerBodyError::Unsupported).into());
         }
@@ -340,6 +378,11 @@ impl Simulation {
         )?;
         sim.level_map = Some(map_number);
         sim.world.map_number = Some(map_number);
+        if policy.has_sound_records() {
+            // Wire 25: `P_GroupLines`'s sector sound origins, once at load
+            // (p_setup.c:536-557); a sum that overflows `int` refuses the map.
+            sim.world.sound_origins = Some(crate::sound::sector_sound_origins(sim.world.map())?);
+        }
         Ok(sim)
     }
 }

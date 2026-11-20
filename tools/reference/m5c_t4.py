@@ -1,0 +1,187 @@
+#!/usr/bin/env python3
+"""Evidence for M5c decision T4: the THING-loading truncation, genuine engine against wire 25 and wire 24.
+
+P_LoadThings of a non-commercial game (gamemode != commercial) ends its whole loop at the first THING of ten Doom
+II types (68, 64, 88, 89, 69, 67, 71, 65, 66, 84), before P_SpawnMapThing, so that THING and every later one are
+never loaded (linuxdoom-1.10/p_setup.c:317-337). The whole-engine runners set gamemode = registered
+(tools/reference/m4a_driver.c: d_main.c:697-701, doom.wad), so they truncate; wire 25 truncates (M5c step 3a);
+wires 22-24 spawn type 65 and every later THING (docs/COMPATIBILITY.md, the known gap).
+
+The map (tests/reference/m5c_t4/truncate.wad, E1M1, the M5a framing of tools/reference/m5c_wad.py's rooms, imported
+read-only) is one hall whose THINGS are, in lump order: the player start, a zombieman (3004), a Former Human
+Commando (type 65, the chaingunner), a second zombieman and a stimpack (2011). The script TRUNC (skill 2) fires the
+pistol at the first zombieman and waits. Checks:
+
+  genuine   the frozen M4b runner (strict) loads the player and the first zombieman only (2 mobjs at load), and
+            the M5c runner's sound stream (strict, recommended switches, --render none) is taken for the records;
+  wire 25   `sound_records_run --alone --captures` against the dumps and the stream with
+            tools/reference/level_compare_m5c.py (DSIM41, every sound record): match on every tic;
+  wire 24   the frozen `player_level_run --policy episode1v2 --captures` against the same dumps with the frozen
+            tools/reference/level_compare_m4b.py (DSIM40): it must diverge at the load capture (DSIM tic 0), the
+            recorded gap; the first differing field and the number of actors wire 24 spawned are recorded.
+
+--check regenerates the WAD and the script in memory and compares them with the committed files, runs all of it and
+compares tests/reference/m5c_t4_results.json (counts, pass/fail facts, the first wire-24 difference and genuine or
+encoder digests only); without --check it writes the files.
+
+    m5c_t4.py --sound-records PATH --player-level PATH [--work DIR] [--check] [--cc CC]
+"""
+import argparse, hashlib, json, os, shutil, struct, subprocess, sys
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parents[2]
+sys.path.insert(0, str(ROOT / 'tools/reference'))
+sys.dont_write_bytecode = True
+import m5c_wad as W               # noqa: E402  (read-only: the room class, framing and constants)
+import m4a_wad as A               # noqa: E402  (read-only: the map lump order)
+import m4b_scripts as SC          # noqa: E402  (read-only: the script format)
+import m5a_wad as R               # noqa: E402  (read-only)
+import m5a_gfx as X               # noqa: E402  (read-only)
+import m4b_build                  # noqa: E402
+import m5c_build                  # noqa: E402
+import m5c_reference as C         # noqa: E402  (read-only: the PWADs and switches)
+import level_snapshot as L        # noqa: E402
+import level_snapshot_m4b as M    # noqa: E402
+import level_snapshot_m5c as S    # noqa: E402
+import level_compare_m4b as K4    # noqa: E402
+import level_compare_m5c as K5    # noqa: E402
+
+DIR = 'tests/reference/m5c_t4'
+WAD = f'{DIR}/truncate.wad'
+TXT, LMP = f'{DIR}/TRUNC.txt', f'{DIR}/TRUNC.lmp'
+RESULTS = ROOT / 'tests/reference/m5c_t4_results.json'
+SCHEMA = 'DOOM-M5C-T4-RESULTS-v1'
+COMMANDO, STIMPACK = 65, 2011
+DOOM2_ONLY = (68, 64, 88, 89, 69, 67, 71, 65, 66, 84)           # p_setup.c:322-331
+SCRIPT = ['idle 10', 'cmd 1 0 0 0 ATTACK', 'idle 20', 'cmd 1 0 0 0 ATTACK', 'idle 60']
+sha = lambda b: hashlib.sha256(b).hexdigest()
+
+
+def room():
+    p = W.Room('truncate', wall='M5WALLA')
+    p.sector('HALL', [(-256, -384, 768, 384)], ceil=128, light=176, fpic='M5FLAT1', cpic='M5FLAT2')
+    p.thing(0, 0, W.EAST, W.PLAYER1)
+    p.thing(512, 0, W.WEST, W.ZOMBIE)
+    p.thing(512, 256, W.WEST, COMMANDO)          # the first of the ten types: the genuine loop ends here
+    p.thing(512, -256, W.WEST, W.ZOMBIE)
+    p.thing(128, 0, W.EAST, STIMPACK)
+    return p
+
+
+def wad_bytes():
+    p = room()
+    m = R.build(p)
+    R.apply_styles(p, m)
+    lumps = dict(m['lumps'])
+    lumps['THINGS'] = b''.join(struct.pack('<hhhhh', *t) for t in p.things)
+    assert list(lumps) == ['MAP01'] + A.MAP_LUMPS, list(lumps)
+    types = [t[3] for t in p.things]
+    assert [k for k, t in enumerate(types) if t in DOOM2_ONLY] == [2], types
+    wad = R.framing() + [('E1M1', b'')] + [(n, lumps[n]) for n in A.MAP_LUMPS]
+    data = bytearray(b'IWAD' + struct.pack('<ii', len(wad), 0))
+    directory = b''
+    for n, b in wad:
+        directory += struct.pack('<ii8s', len(data), len(b), X.name8(n))
+        data += b
+    struct.pack_into('<i', data, 8, len(data))
+    return bytes(data + directory)
+
+
+def script():
+    text = ('# M5c T4 script TRUNC: the pistol fired at the zombieman loaded before the type-65 THING, then a wait.\n'
+            '# Generated by tools/reference/m5c_t4.py.\n' + '\n'.join(SCRIPT) + '\n')
+    lmp, _tics = SC.lump(text)
+    return text, lmp
+
+
+def evidence(a, work, wad, lmp):
+    with open(os.devnull, 'w') as q:
+        so, sys.stdout = sys.stdout, q
+        try: m4b, m5c = m4b_build.build('strict', work / 'm4bbuild', a.cc), m5c_build.build('strict', work / 'm5cbuild', a.cc)
+        finally: sys.stdout = so
+    cdir, r25, r24 = work / 'c', work / 'rust25', work / 'rust24'
+    for d in (cdir, r25, r24):
+        if d.exists(): shutil.rmtree(d)
+    cdir.mkdir(parents=True)
+    run = lambda cmd, **k: subprocess.run([str(x) for x in cmd], capture_output=True, text=True, **k)
+    p = run([m4b, '--wad', wad, '--wad', lmp, '--demo', 'TRUNC', '--out', cdir])
+    if p.returncode: sys.exit(f'genuine runner exit {p.returncode}')
+    h = hashlib.sha256()
+    for x in L.m3h9c_dump.snapshot_names(str(cdir)): h.update((cdir / x).read_bytes())
+    snaps = len(L.m3h9c_dump.snapshot_names(str(cdir)))
+    load = L.Dump(str(cdir / 'load.txt'))
+    mobjs = [r for k, r in load.thinkers if k == 'M']
+    sp = work / 'sound.txt'
+    sw = [x for k, v in C.RECOMMENDED.items() for x in (k, v)]
+    p = run([m5c, *[x for f in (wad, C.GFX, C.SFX, C.MUSIC, lmp) for x in ('--wad', f)], '--demo', 'TRUNC', '--no-dump', '--render', 'none',
+             *sw, '--sound-out', sp], env=C.ENV)
+    if p.returncode: sys.exit(f'M5c runner exit {p.returncode}')
+    text = sp.read_text()
+    skill, number = M.demo_header(lmp)
+    mapdata = L.MapData(str(wad), 'E1M1', L.demo_lumps(str(lmp)))
+    p = run([a.sound_records, '--wad', wad, '--map', 'E1M1', '--demo', lmp, '--captures', r25, '--alone'])
+    if p.returncode: sys.exit(f'sound_records_run exit {p.returncode}: {p.stdout[-300:]}')
+    res25, lines25 = K5.compare(str(cdir), str(r25), mapdata, skill, number, S.SoundStream(text=text))
+    p = run([a.player_level, '--wad', wad, '--map', 'E1M1', '--demo', lmp, '--out', r24, '--captures', '--policy', 'episode1v2'])
+    res24, lines24 = K4.compare(str(cdir), str(r24), mapdata, skill, number)
+    _, f24 = L.decode((r24 / 'tic_00000.bin').read_bytes()) if (r24 / 'tic_00000.bin').exists() else (None, [])
+    actors24 = sum(1 for k, v in f24 if k.startswith('actor.') and k.endswith('.occupied') and v == b'\1')
+    _, f25 = L.decode((r25 / 'tic_00000.bin').read_bytes())
+    actors25 = sum(1 for k, v in f25 if k.startswith('actor.') and k.endswith('.occupied') and v == b'\1')
+    for d in (cdir, r25, r24): shutil.rmtree(d, ignore_errors=True)
+    snd = res25['sounds']
+    doc = dict(schema=SCHEMA, note='M5c decision T4: P_LoadThings ends at the first Doom II type outside commercial mode '
+               '(p_setup.c:317-337). Genuine: the frozen M4b runner (registered) and the M5c runner sound stream; wire 25: '
+               'sound_records_run --alone; wire 24: the frozen player_level_run --policy episode1v2.',
+               wad=dict(file=WAD, sha256=sha(Path(wad).read_bytes()), things=[t[3] for t in room().things]),
+               script=dict(file=LMP, sha256=sha(Path(lmp).read_bytes()), skill=skill),
+               genuine=dict(snapshots=snaps,
+                            dumps_sha256=h.hexdigest(), mobjs_at_load=len(mobjs), mobj_types_at_load=sorted(r['type'] for r in mobjs),
+                            sound_rows_sha256=sha('\n'.join(l for l in text.splitlines() if l[:2] in ('S,', 'T,')).encode()),
+                            starts=snd['starts'], placed=snd['placed'], stops=snd['stops']),
+               wire25=dict(match=res25['match'], tics_compared=res25['tics_compared'], sound_disagreements=snd['disagreements'],
+                           actors_at_load=actors25, c_sequence_sha256=res25['c_sequence_sha256'], c_sound_sha256=res25['c_sound_sha256']),
+               wire24=dict(match=res24['match'], tics_compared=res24['tics_compared'], first_divergence=res24['first_divergence'],
+                           projection_stop=res24['projection_stop'], actors_at_load=actors24))
+    ok = res25['match'] and not res24['match'] and (res24['first_divergence'] or {}).get('tic') == 0 \
+        and len(mobjs) == 2 and actors25 == 2 and actors24 == 5
+    return doc, ok, lines25 + lines24
+
+
+def main():
+    ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    ap.add_argument('--sound-records', type=Path, required=True, help='sound_records_run (release)')
+    ap.add_argument('--player-level', type=Path, required=True, help='player_level_run (release)')
+    ap.add_argument('--work', type=Path, default=Path.home() / 'scratch/doom-m5c-t4')
+    ap.add_argument('--check', action='store_true'); ap.add_argument('--cc', default='cc')
+    a = ap.parse_args()
+    work = a.work.resolve()
+    if work == ROOT or ROOT in work.parents: sys.exit('--work must lie outside the repository')
+    data = wad_bytes(); text, lmp = script()
+    files = {WAD: data, TXT: text.encode(), LMP: lmp}
+    if a.check:
+        bad = [p for p, b in files.items() if not (ROOT / p).exists() or (ROOT / p).read_bytes() != b]
+        if bad: print('check FAILED: differs or missing: ' + ', '.join(bad)); return 1
+        wad, lmpp = ROOT / WAD, ROOT / LMP
+    else:
+        (ROOT / DIR).mkdir(parents=True, exist_ok=True)
+        for p, b in files.items(): (ROOT / p).write_bytes(b)
+        wad, lmpp = ROOT / WAD, ROOT / LMP
+    doc, ok, lines = evidence(a, work, wad, lmpp)
+    for line in lines: print(line)
+    g, w25, w24 = doc['genuine'], doc['wire25'], doc['wire24']
+    print(f"genuine: {g['mobjs_at_load']} mobjs at load (types {g['mobj_types_at_load']}), {g['snapshots']} snapshots, "
+          f"{g['starts']} starts ({g['placed']} placed), {g['stops']} stops")
+    print(f"wire 25: match {w25['match']} on {w25['tics_compared']} tics, {w25['actors_at_load']} actors at load, "
+          f"sound disagreements {w25['sound_disagreements']}")
+    print(f"wire 24: match {w24['match']}; first divergence {w24['first_divergence']}; {w24['actors_at_load']} actors at load")
+    if not ok: print('FAILED: the expected outcome (wire 25 matches, wire 24 diverges at the load) did not hold'); return 1
+    out = json.dumps(doc, indent=1) + '\n'
+    if a.check:
+        if not RESULTS.exists() or RESULTS.read_text() != out: print(f'{RESULTS.relative_to(ROOT)} differs'); return 1
+        print(f'check passed: {len(files)} files and {RESULTS.relative_to(ROOT)}'); return 0
+    RESULTS.write_text(out); print(f'wrote {len(files)} files and {RESULTS.relative_to(ROOT)}'); return 0
+
+
+if __name__ == '__main__':
+    sys.exit(main())

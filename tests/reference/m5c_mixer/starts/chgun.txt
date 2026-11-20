@@ -1,0 +1,7 @@
+# The linked chaingun (sounds.c:204): lengths[86] = lengths[0] = 0 (i_sound.c:811), so a start mixes exactly
+# one frame, the pistol's first sample (i_sound.c:810), at pitch 150 and at pitch 128.
+schema DOOM-M5C-STARTS-v1
+config integrated
+s 0 0 0 86 127 128 150 64 -
+s 4 0 4 86 127 128 128 64 -
+s 8 0 8 86 15 33 166 64 -

@@ -17,6 +17,7 @@ doom-sim = { path = "../crates/doom-sim" }
 doom-types = { path = "../crates/doom-types" }
 doom-render = { path = "../crates/doom-render" }
 doom-game = { path = "../crates/doom-game" }
+doom-sound = { path = "../crates/doom-sound" }
 
 [lints.rust]
 unsafe_code = "forbid"
@@ -405,6 +406,41 @@ bench = false
 [[bin]]
 name = "render_display_state"
 path = "fuzz_targets/render_display_state.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "render_display_state_v2"
+path = "fuzz_targets/render_display_state_v2.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "sound_lumps"
+path = "fuzz_targets/sound_lumps.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "sound_mixer"
+path = "fuzz_targets/sound_mixer.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "sound_logic"
+path = "fuzz_targets/sound_logic.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "sound_state"
+path = "fuzz_targets/sound_state.rs"
 test = false
 doc = false
 bench = false

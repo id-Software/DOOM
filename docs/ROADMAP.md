@@ -538,20 +538,88 @@ monster/player behavior. Further stages require separate owner direction.
     three is killed by a test or argued equivalent), and frame-time and tic-jitter timings (WSLg only, recorded, not
     gated). The final gates were all run from a clean clone at `d5a4c4a` (2026-11-17/18; every one passed, including the
     fourth mutation run; see [step 15](validation/M5B.md#step-15-final-gates-from-clean)). Remaining: CI on the exact final head, the
-    Windows artifact rebuilt on it, the pull request marked ready and the owner's review. [Support](COMPATIBILITY.md#playable-build-m5b) is written. Nobody has yet seen the
-    picture or played with a real key or mouse; a human has to judge feel, latency and looks. See the
+    Windows artifact rebuilt on it, the pull request marked ready and the owner's review. [Support](COMPATIBILITY.md#playable-build-m5b) is written. The owner played the
+    M5c build (M5b's input and picture included) on 2026-11-18 on Windows 11 and under WSLg (see [the owner's playtest](validation/M5C.md#the-owners-playtest-2026-11-18)); beyond that, a human has to judge feel, latency and looks. See the
     [investigation note](M5B_REFERENCE_INVESTIGATION.md#4-owner-decisions-s1s23-with-recommendations).
-  - **M5c (proposed; not started, owner-approved items only).** One item so far: close the status bar
-    face's idle glance gap (S15). Model the `M_Random` draws of sound starts and of the level-start wipe so
-    that the idle face's left, ahead or right glance matches a vanilla session with sound; until then, frames
-    are identical to the genuine engine only under the declared sound-free, wipe-free contract.
-- **Simulation follow-up (proposed, pending the owner): model the THING-loading truncation under a new
-  wire.** `P_LoadThings` ends the whole THINGS loop at the first Doom II type (doomednums 64-69, 71, 84,
-  88, 89) when `gamemode != commercial` (p_setup.c:317-337); wires 12-24 spawn such a type-65 THING and
-  everything after it. A new wire would stop loading at the first such THING in registered and shareware
-  mode, with a synthetic map and genuine-engine evidence. Today's gap is recorded in
+  - **M5c (sound effects matched to linuxdoom-1.10, and the closing of the status bar face's idle glance
+    gap, S15).** In progress on the branch `feat/m5c-sound` (draft [PR #63](https://github.com/Copgunn/DOOM/pull/63);
+    status on 2026-11-18). Sound starts and the level-start wipe draw `M_Random`, so modelling both makes the idle
+    face's left, ahead or right glance match the genuine engine replaying the session's demo. The owner confirmed
+    decisions T1-T16 on 2026-11-18 (the reference is "linuxdoom-1.10 built with its in-process sound code (one define
+    removed)"). **Done and recorded** in the [evidence record](validation/M5C.md): the genuine sound-logic and mixer
+    harnesses with their goldens (steps 1 and 2); the proof that the audio library compiles and links in CI on all
+    three systems (T7); wire 25 with canonical sound records, the corrected scream and the THING-loading truncation,
+    compared with the genuine engine on the 64 synthetic items and the 61 real runs (step 3); the crate `doom-sound`
+    (step 4); **the display contract with sound, `DDSP` version 2 and the sound session in the game loop, with every
+    frame of the 64 items (45,540) equal and the face equal on every frame (step 5 part 1); restore and continue
+    (step 6); the 61 real runs through the whole pipeline locally (158,966 tics: every sound row, every frame at both
+    sizes and 98,578 mixer buffers equal, step 5 part 2); nine scripted app sessions against the genuine engine (step 5
+    part 3); and sound in `doom-play` (a device sink that never waits for the device to play anything, `--volume`,
+    `--no-sound`, End to mute, step 7)**; the CI job `M5c genuine sound (not required)` and the mutation workflow's coverage of `doom-sound`
+    (step 8, part 1); five fuzz targets, the fifth for `DDSP` version 2 (step 11); timings (step 12); **and the independent
+    review (step 13): three reviewers, no blocker, one major finding (the DSIM41 reader refused every capture of a map the
+    THING truncation cuts short), 11 minor and 19 notes, each fixed or documented, with a test that failed before the change wherever a behaviour was fixed** ([record](validation/M5C.md#step-13-independent-review)). **The status bar face's idle glance gap (S15) is closed** in the
+    owner's T14 wording ([COMPATIBILITY](COMPATIBILITY.md#the-status-bar-faces-idle-glance-is-closed-with-sound-decision-s15-t14)).
+    **Mutation testing is done**: the first run's 74 survivors each have a disposition (60 killed by new tests, 12 equivalent,
+    2 unreachable) and an independent check agreed; the final run at `a8abf0c` (999 mutants: 865 caught, 28 missed, 3 timeouts, 103
+    unviable) had 14 new survivors, all killed by new tests; the confirming run at `937cf9d` (879 caught, 14 missed, 3 timeouts, 103
+    unviable) missed only the 14 equivalent or unreachable mutants ([step 10](validation/M5C.md#step-10-mutation-testing)); a local verifier for
+    `doom-play` sessions with sound exists (not in CI). One check failed on the branch: `Simulation instruction counts` at
+    `3c1cc5d`, a code-generation effect of a review fix on one case; a code-only fix is on the branch (instruction counts end up
+    0.01 to 0.34 percentage points higher in all nine cases, inside the threshold; the baseline is unchanged). **The job is green
+    at `a8abf0c`, with all nine jobs of that run**, and the owner accepted the fix on 2026-11-18, which changed one call-site line of
+    an existing test and no assertion, on the condition that every frozen wire's goldens pass in CI on that head, which they did
+    ([record](validation/M5C.md#the-instruction-count-check)). The README gains a sound visual (waveforms of the genuine and Rust
+    mixers for one synthetic session, 0 of 30,720 samples differing; [record](validation/M5C.md#the-sound-visual-and-the-session-checks-label)).
+    CI was green on all nine jobs at `937cf9d` ([record](validation/M5C.md#the-ci-record)). **The final gates** were all run from a clean clone at `a15e0dc` on 2026-11-19 and every one passed (1,876 workspace tests; the Linux steps of the Stable job;
+    the M5a, M5b and M5c genuine-engine jobs; all 60 fuzz targets built, 7 seed replays and 10 bounded campaigns on the five M5c targets with no finding; the 61 real runs
+    through every local tool; the owner's 13 session demos, all passing) ([record](validation/M5C.md#step-14-final-gates-from-clean); a first run at `937cf9d` was
+    stopped and is superseded). **What remains:** the pull request marked ready with its rewritten body, the Windows artifact and CI on the final head (GitHub's
+    record), and the owner's review; the optional melt is not built. **Observed by the owner on 2026-11-18** (one person, one evening, release builds of
+    `3c1cc5d`; [the owner's playtest](validation/M5C.md#the-owners-playtest-2026-11-18)): on Windows 11 the window opens, the game
+    plays at 35 frames a second, the mouse is captured and sound plays, with a delay on every sound that he judged normal for the
+    original and left unchanged (the arithmetic puts the Windows range above the original's; both are in the
+    [record](validation/M5C.md#sound-latency-the-arithmetic-in-full)); under WSLg sound plays but the pointer is not captured, so WSLg is
+    keyboard-only for now; his 12 session files replay equal to the genuine in-process build (12 of 12). **Not judged:** macOS, long
+    sessions, every map, every weapon and monster, vanilla bindings. **A fault he reported on Windows,** left mouse fire sticking
+    while the mouse moves, did not reproduce in the app's event layer on Linux. He retested on Windows 11 on 2026-11-19 with the logging
+    option `doom-play --input-log FILE`: the log shows three left-button releases that never reached doom-play (summary line Left 18/15) and
+    points, as an inference, to the hidden cursor resting on the window's border at 125% display scaling. **By his ruling it is not fixed in M5c;**
+    the fix is the first item of the next milestone, below ([record](validation/M5C.md#the-owners-windows-retest-with-the-input-log-2026-11-19)). Nobody has listened to the visual's WAV file, the SVG was not rendered on
+    the development machine, and no MP4 was written (ffmpeg is not installed, so that code path has never run). **Owner rulings
+    of 2026-11-18 (second set):** a game under WSLg that occasionally opens already paused stays as it is, and the owner will judge it
+    when he plays; when sound or display refuses a tic the simulation's tic stays committed and its command stays in the demo while
+    sound and display stay at the last good tic (a future save must never combine a simulation at tic N with sound or display at
+    tic N-1); the layout-dependent label in `doom-play`'s exit line is enough, with nothing drawn on screen; the device queue's two-buffer
+    start is accepted as presentation, unmeasured, and the owner will judge lag and crackle by ear; the macOS job's limit is 90
+    minutes (the follow-up is below). Support is in [COMPATIBILITY](COMPATIBILITY.md#sound-effects-m5c). See the
+    [investigation note](M5C_REFERENCE_INVESTIGATION.md) and its
+    [owner decisions](M5C_REFERENCE_INVESTIGATION.md#5-owner-decisions-t1t16-with-recommendations).
+  - **The next milestone (not yet named; owner ruling of 2026-11-19): its first item.** In this order: (a) **the stuck-fire fix** (proposed, untested):
+    ask the window library for DPI awareness (`Conf { high_dpi: true, .. }` in `crates/doom-play/src/window.rs`) so that the client rectangle, the clip
+    rectangle and the cursor share physical pixels and the clip holds the cursor inside the window; the requested size and the picture's fit are then in
+    physical pixels and must be checked. Acceptance: on Windows at 100%, 125% and 150% scaling, a session of drag-firing against every edge with
+    `--input-log` ends with left downs equal to ups and no resize line. If a release can still be lost, a real mouse capture is needed, which miniquad
+    0.4.11 does not offer: a library change or upgrade, or a reviewed exception to the no-unsafe rule, which is the owner's decision
+    ([record](validation/M5C.md#the-owners-windows-retest-with-the-input-log-2026-11-19)). (b) **Measuring the real sound latency on Windows and trying the cheapest way to shorten it**
+    (the candidates and their costs are in the [evidence record](validation/M5C.md#sound-latency-the-arithmetic-in-full): the start threshold, a smaller callback
+    or period, WASAPI with two periods, WASAPI at the mix rate with the library's resampler, drift control); which is cheapest is decided after measuring, and
+    the declared schedule itself is part of the claim, not a presentation knob. (c) **Writing the session demo so that Ctrl+C or a closed console loses
+    nothing** (options in the [lost-connection record](validation/M5C.md#the-lost-display-connection-under-wslg-what-is-saved): writing the demo incrementally,
+    one tic at a time, is the safe-Rust candidate; the X connection loss under WSLg is the same class of exit). (d) **In that code change, by the owner's
+    ruling:** the mouse-forwarding logic moves out of `crates/doom-play/src/input_log.rs` into a file named for what it does, and the review's three minor
+    points are closed (M1: the log gains a line for each committed tic's command or fire bit and names the session; M2: the stale test comment at
+    `crates/doom-play/src/audio.rs:601`; M3: the log's module comment states the exceptions to its pump rule and what position a button line carries on Windows).
+- **Simulation follow-up (decided: the THING-loading truncation is closed under wire 25 only).** `P_LoadThings` ends the
+  whole THINGS loop at the first Doom II type (doomednums 64-69, 71, 84, 88, 89) when `gamemode != commercial`
+  (p_setup.c:317-337). Wire 25 (decision T4, confirmed 2026-11-18) stops loading there, with a synthetic map and
+  genuine-engine evidence; wires 12-24 still spawn a type-65 THING and everything after it, and stay as they are. The
+  gap is recorded in
   [COMPATIBILITY](COMPATIBILITY.md#known-gap-thing-loading-stops-at-the-first-doom-ii-type-outside-commercial-mode);
-  no Episode 1 map is affected.
+  no Episode 1 map is affected. Wire 25 is part of the M5c pull request.
+- **CI follow-up (owner ruling, 2026-11-18): split or trim the `Stable / macos-latest` job.** It took 38 to 50 minutes on the
+  M5c heads; its limit was raised from 60 to 90 minutes in M5c as a stopgap. A later milestone splits the job or trims what
+  it repeats, without dropping a validation step or changing a required check's name.
 - Multiplayer and later experiments, after their source/game-context dependencies
   can be independently validated.
 

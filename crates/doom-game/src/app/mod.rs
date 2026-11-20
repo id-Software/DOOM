@@ -14,13 +14,27 @@
 //! draws it. Every executed tic is drawn; the picture shown is the last one. With the opt-in
 //! [`SessionConfig::unrecorded_full_turning`] (S3 (ii)) the built command itself is executed and
 //! nothing is recorded or written; every screen then carries [`UNRECORDED_LABEL`].
+//!
+//! Sound (M5c, decision T15): game data loaded with [`GameData::load_with_sound`] runs wire 25 and
+//! a fresh process's sound session in every session and restart, with the display under
+//! doom-render's `RandomContract::WithSound` (the order within a tic is in [`FrameSource`]'s
+//! documentation). The mixed buffers leave through [`Host::audio`]'s [`AudioSink`], which also
+//! hears the app's pause, resume and session starts; a sound refusal ends the session through the
+//! same typed refusal path as every other ([`Witness::Sound`]). [`GameData::load`] keeps M5b's
+//! configuration exactly (wire 24, no sound, the sound-free, wipe-free contract) for the frozen
+//! M5b tests, examples and tools.
 
+mod audio;
 mod frames;
 mod gamma;
 mod recorder;
 mod screens;
 
-pub use frames::{FrameAssets, FrameRefusal, PALETTE_BYTES};
+pub use audio::{AudioSink, RecordingSink, SinkCall};
+pub use frames::{
+    FrameAssets, FrameRefusal, FrameSource, PALETTE_BYTES, PresentationRestoreError, Presented,
+    SavedPresentation, SoundAssets, StatusAdjustment,
+};
 pub use gamma::GAMMA;
 pub use recorder::{
     DemoCommands, RecordError, Recorder, TIC_CAP, Timestamp, session_name, wire24_admits,
@@ -38,8 +52,11 @@ use doom_render::{
 use doom_sim::{
     MapContextOptions, PlayerSlot, SimError, Simulation, Skill, TicCommand, WeaponInventory,
 };
-use frames::FrameSource;
+use doom_sound::detector::LayoutDetector;
+use doom_sound::lumps::{SoundCaps, SoundLoadError, SoundSet};
+use doom_sound::session::{SessionRefusal, Sound, SoundConfig, TicSound};
 use std::fmt;
+use std::sync::Arc;
 
 /// Logical tics per second (`TICRATE`, doomdef.h:122).
 pub const TICRATE: u64 = 35;
@@ -86,6 +103,23 @@ pub trait Host {
     /// Called after every committed and drawn tic, for headless session verification (M5b
     /// investigation §2.3); a window has no use for it.
     fn tic(&mut self, _report: &TicReport<'_>) {}
+    /// The sink of the mixed sound stream (M5c), if the host has one. The default has none: the
+    /// sound session still runs (its draws decide the face), and its buffers are dropped.
+    fn audio(&mut self) -> Option<&mut dyn AudioSink> {
+        None
+    }
+}
+
+/// What the sound session did in a committed tic (M5c).
+#[derive(Clone, Copy, Debug)]
+pub struct SoundReport<'a> {
+    /// The tic's records, update, draws, index and buffer.
+    pub tic: &'a TicSound,
+    /// The session after the tic: its channel table (`logic().channels()`), mixer, schedule and
+    /// the layout detector of decision T12 (`detector().layout_dependent_from()` is the tic from
+    /// which the session is labelled layout-dependent, `detector().firings()` how often it fired;
+    /// both persist in every later report).
+    pub session: &'a Sound,
 }
 
 /// One committed and drawn tic, as [`Host::tic`] receives it.
@@ -105,8 +139,11 @@ pub struct TicReport<'a> {
     pub display: &'a DisplayFrame,
     /// The message `HU_Ticker` took in the tic.
     pub message: Option<Message>,
-    /// The `M_Random` index after the tic.
+    /// The `M_Random` index after the tic (with sound, after the wipe's draws on the first
+    /// frame).
     pub rndindex: u8,
+    /// With sound (M5c): what the sound session did.
+    pub sound: Option<SoundReport<'a>>,
 }
 
 /// Replays a session's demo through the simulation and the app's frame source as play does,
@@ -123,50 +160,99 @@ pub fn replay(
 
 /// [`replay`] of commands as they are, `angle_turn` at full resolution: the commands an
 /// unrecorded session executed ([`SessionConfig::unrecorded_full_turning`]) or the commands the
-/// injection evidence feeds (`tools/reference/m5b_inject.py`). A command outside wire 24 is
-/// refused by the simulation's own preflight.
+/// injection evidence feeds (`tools/reference/m5b_inject.py`). A command outside the data's wire
+/// (wire 24, or wire 25 for data loaded with sound) is refused by the simulation's own preflight.
 pub fn replay_full_resolution(
     data: &GameData,
     screenblocks: u8,
     commands: &[TicCommand],
     host: &mut dyn Host,
 ) -> Option<Ending> {
-    let refuse = |tic, e| {
-        Some(Ending::Refused {
-            tic,
-            witness: Witness::Frame(e),
-        })
-    };
+    replay_inner(data, screenblocks, commands, host, None)
+}
+
+/// [`replay_full_resolution`] with the bespoke cheat scenario's adjustment of the status bar
+/// inputs (decision S1; [`FrameSource::tic_adjusted`]), for its frame tests only.
+pub fn replay_adjusted(
+    data: &GameData,
+    screenblocks: u8,
+    commands: &[TicCommand],
+    host: &mut dyn Host,
+    adjust: StatusAdjustment<'_>,
+) -> Option<Ending> {
+    replay_inner(data, screenblocks, commands, host, Some(adjust))
+}
+
+fn replay_inner(
+    data: &GameData,
+    screenblocks: u8,
+    commands: &[TicCommand],
+    host: &mut dyn Host,
+    adjust: Option<StatusAdjustment<'_>>,
+) -> Option<Ending> {
+    let refuse = |tic, witness| Some(Ending::Refused { tic, witness });
     let mut sim = data.start.clone();
-    let mut frames = match FrameSource::start(&data.assets, screenblocks, &sim) {
+    let mut frames = match FrameSource::start(data, screenblocks, &sim) {
         Ok(f) => f,
         Err(e) => return refuse(0, e),
     };
+    if let Some(sink) = host.audio() {
+        sink.session_start();
+    }
     let (mut frame, none) = (Frame::new(), TicCommand::default());
     for &executed in commands {
         let tic = sim.tic();
         if let Err(e) = sim.advance([executed, none, none, none]) {
             return Some(ending_of(&sim, e, tic));
         }
-        let drawn = frames
-            .observe(&sim, &executed)
-            .and_then(|m| Ok((m, frames.draw(&data.assets, &sim, &mut frame)?)));
-        let (message, display) = match drawn {
-            Ok(d) => d,
+        let presented = match adjust {
+            None => frames.tic(data, &sim, &executed, &mut frame),
+            Some(a) => frames.tic_adjusted(data, &sim, &executed, &mut frame, a),
+        };
+        let presented = match presented {
+            Ok(p) => p,
             Err(e) => return refuse(tic, e),
         };
-        host.tic(&TicReport {
-            tic,
-            events: &[],
-            executed,
-            simulation: &sim,
-            frame: &frame,
-            display: &display,
-            message,
-            rndindex: frames.rndindex(),
-        });
+        report(host, &frames, &sim, &frame, tic, &[], executed, &presented);
     }
     None
+}
+
+/// Hands a presented tic's buffer to the host's sink and its report to [`Host::tic`].
+#[allow(
+    clippy::too_many_arguments,
+    reason = "one call site per loop, all borrowed"
+)]
+fn report(
+    host: &mut dyn Host,
+    frames: &FrameSource,
+    sim: &Simulation,
+    frame: &Frame,
+    tic: u64,
+    events: &[Event],
+    executed: TicCommand,
+    presented: &Presented,
+) {
+    if let Some(buffer) = presented.sound.as_ref().and_then(|s| s.buffer.as_ref()) {
+        if let Some(sink) = host.audio() {
+            sink.buffer(buffer);
+        }
+    }
+    let sound = match (&presented.sound, frames.sound()) {
+        (Some(tic), Some(session)) => Some(SoundReport { tic, session }),
+        _ => None,
+    };
+    host.tic(&TicReport {
+        tic,
+        events,
+        executed,
+        simulation: sim,
+        frame,
+        display: &presented.display,
+        message: presented.message,
+        rndindex: frames.rndindex(),
+        sound,
+    });
 }
 
 /// The ending of a refused `advance`: the exit, the reborn or a witness.
@@ -211,6 +297,12 @@ pub enum LoadError {
     Registry(doom_sim::OriginalRegistryError),
     /// The simulation refused the map's set-up.
     Admission(SimError),
+    /// [`GameData::load_with_sound`]: the sound data could not be loaded (`I_InitSound`'s
+    /// fatal case, or a resource bound).
+    SoundData(SoundLoadError),
+    /// [`GameData::load_with_sound`]: the sound session refused its configuration (more textures
+    /// than the layout detector admits).
+    SoundSession(doom_sound::logic::SoundRefusal),
 }
 
 impl fmt::Display for LoadError {
@@ -228,17 +320,20 @@ impl fmt::Display for LoadError {
             Self::Resources(e) => write!(f, "the graphics could not be loaded: {e:?}"),
             Self::Registry(e) => write!(f, "the simulation does not admit this map: {e:?}"),
             Self::Admission(e) => write!(f, "the simulation does not admit this map: {e:?}"),
+            Self::SoundData(e) => write!(f, "the sound data could not be loaded: {e:?}"),
+            Self::SoundSession(e) => write!(f, "the sound session refused the data: {e:?}"),
         }
     }
 }
 
 impl std::error::Error for LoadError {}
 
-/// Everything loaded once per run: the frame assets and the simulation at tic 0, which every
-/// session (and restart) starts from.
+/// Everything loaded once per run: the frame assets, with sound the sound data, and the
+/// simulation at tic 0, which every session (and restart) starts from.
 #[derive(Clone, Debug)]
 pub struct GameData {
     assets: FrameAssets,
+    sound: Option<SoundAssets>,
     start: Simulation,
     map: u8,
     skill: u8,
@@ -246,8 +341,37 @@ pub struct GameData {
 
 impl GameData {
     /// Loads `E1M<map>` at `skill` from `wads` (the IWAD first, then extra WADs; later files
-    /// take precedence, as `W_AddFile` order does) in game `mode`.
+    /// take precedence, as `W_AddFile` order does) in game `mode`, in M5b's configuration: wire
+    /// 24, no sound, doom-render's sound-free, wipe-free contract (decision S15). Kept exactly for
+    /// the frozen M5b tests, examples and tools; the playable build's default is
+    /// [`Self::load_with_sound`] (decision T15).
     pub fn load(wads: &[&[u8]], mode: GameMode, map: u8, skill: u8) -> Result<Self, LoadError> {
+        Self::load_inner(wads, mode, map, skill, false)
+    }
+
+    /// [`Self::load`] with sound (M5c, decision T15, the playable build's default): the
+    /// simulation runs wire 25 (`original_player_episode1_v3_map`, canonical sound records), the
+    /// sound data is loaded from the same lump directory (`I_InitSound`, i_sound.c:796-813), and
+    /// every session runs a fresh process's sound session (volume 8, 3 channels, decisions T9,
+    /// T15) with the display under `RandomContract::WithSound`. The `--no-sound` and `--volume`
+    /// of decision T9 need nothing from here: the session always runs (so the face stays the
+    /// genuine one) and the gain or the silence belongs to the host's [`AudioSink`].
+    pub fn load_with_sound(
+        wads: &[&[u8]],
+        mode: GameMode,
+        map: u8,
+        skill: u8,
+    ) -> Result<Self, LoadError> {
+        Self::load_inner(wads, mode, map, skill, true)
+    }
+
+    fn load_inner(
+        wads: &[&[u8]],
+        mode: GameMode,
+        map: u8,
+        skill: u8,
+        with_sound: bool,
+    ) -> Result<Self, LoadError> {
         let skill_value = match skill {
             2 => Skill::Medium,
             3 => Skill::Hard,
@@ -275,15 +399,38 @@ impl GameData {
             doom_map::MapLimits::default(),
         )
         .map_err(LoadError::Map)?;
+        let set = if with_sound {
+            Some(SoundSet::load(&dir, SoundCaps::default()).map_err(LoadError::SoundData)?)
+        } else {
+            None
+        };
         let res = Resources::load(dir, mode).map_err(LoadError::Resources)?;
+        // numtextures (r_data.c:480), for the layout detector of decision T12.
+        let textures = u32::try_from(res.textures.len()).unwrap_or(u32::MAX);
         let assets = FrameAssets::load(res, &map_data).map_err(LoadError::Resources)?;
-        // The M4b/M5a run set-up (player_level_run --policy episode1v2).
-        let mut start = Simulation::original_player_episode1_v2_map(
-            map_data,
-            map,
-            skill_value,
-            MapContextOptions::default(),
-        )
+        let sound = match set {
+            Some(set) => Some(
+                SoundAssets::new(Arc::new(set), SoundConfig::fresh(i32::from(map), textures))
+                    .map_err(LoadError::SoundSession)?,
+            ),
+            None => None,
+        };
+        // The M4b/M5a run set-up (player_level_run --policy episode1v2), under wire 25 with sound.
+        let mut start = if with_sound {
+            Simulation::original_player_episode1_v3_map(
+                map_data,
+                map,
+                skill_value,
+                MapContextOptions::default(),
+            )
+        } else {
+            Simulation::original_player_episode1_v2_map(
+                map_data,
+                map,
+                skill_value,
+                MapContextOptions::default(),
+            )
+        }
         .map_err(LoadError::Registry)?;
         start.spawn_map_things().map_err(LoadError::Admission)?;
         start
@@ -292,10 +439,16 @@ impl GameData {
         start.spawn_level_specials().map_err(LoadError::Admission)?;
         Ok(Self {
             assets,
+            sound,
             start,
             map,
             skill,
         })
+    }
+
+    /// The sound data, when loaded with [`Self::load_with_sound`].
+    pub fn sound(&self) -> Option<&SoundAssets> {
+        self.sound.as_ref()
     }
 
     /// The map number.
@@ -357,6 +510,9 @@ pub enum Witness {
     Simulation(SimError),
     /// The frame source refused the tic's frame.
     Frame(FrameRefusal),
+    /// The sound session refused the tic (M5c, decision T11: where the C aborts or reads memory
+    /// it does not own, at the exact start; and the T12 slot-15 release).
+    Sound(SessionRefusal),
 }
 
 impl fmt::Display for Witness {
@@ -366,6 +522,7 @@ impl fmt::Display for Witness {
             Self::Record(e) => write!(f, "recorder: {e}"),
             Self::Simulation(e) => write!(f, "{e}"),
             Self::Frame(e) => write!(f, "{e}"),
+            Self::Sound(e) => write!(f, "sound: {e}"),
         }
     }
 }
@@ -472,6 +629,43 @@ pub struct App {
     events: Vec<Event>,
     screen: Option<Screen>,
     quit: bool,
+    audio_notes: Vec<AudioNote>,
+    /// Earlier sessions of this run (before a restart) that the layout detector of decision T12
+    /// labelled layout-dependent.
+    layout_earlier: u64,
+}
+
+/// The one plain line that says a run held a session labelled layout-dependent by the detector of
+/// decision T12 ("counted separately in every report"): `current` is the current session's
+/// detector, `earlier` the number of earlier sessions of the run that were labelled. `None` when
+/// no session was.
+pub fn layout_dependent_line(current: Option<LayoutDetector>, earlier: u64) -> Option<String> {
+    let earlier_text = match earlier {
+        0 => String::new(),
+        1 => "; 1 earlier session of this run was labelled too".to_string(),
+        n => format!("; {n} earlier sessions of this run were labelled too"),
+    };
+    match current.and_then(|d| d.layout_dependent_from().map(|t| (t, d.firings()))) {
+        Some((tic, firings)) => Some(format!(
+            "layout-dependent session from tic {tic} ({firings} detector {}): a 32-bit build \
+             could have played a switch-release sound differently; this one used the 64-bit \
+             reading{earlier_text}",
+            if firings == 1 { "firing" } else { "firings" }
+        )),
+        None if earlier > 0 => Some(format!(
+            "this session is not layout-dependent{earlier_text}"
+        )),
+        None => None,
+    }
+}
+
+/// A notification for the host's [`AudioSink`], kept until the next call that has the host
+/// ([`App::focus_lost`] has none).
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+enum AudioNote {
+    Pause,
+    Resume,
+    SessionStart,
 }
 
 impl App {
@@ -496,6 +690,8 @@ impl App {
             events: Vec::new(),
             screen: None,
             quit: false,
+            audio_notes: Vec::new(),
+            layout_earlier: 0,
             data,
             cfg,
         };
@@ -506,6 +702,14 @@ impl App {
     /// A fresh session (decision S11): the tic-0 simulation, fresh input, presentation and
     /// recorder, a new file name, the clock re-based.
     fn begin(&mut self, host: &mut dyn Host) {
+        if self.mode == Mode::Paused {
+            self.audio_notes.push(AudioNote::Resume);
+        }
+        self.audio_notes.push(AudioNote::SessionStart);
+        let labelled = self
+            .sound()
+            .is_some_and(|s| s.detector().layout_dependent_from().is_some());
+        self.layout_earlier += u64::from(labelled);
         let controls = self.cfg.preset.controls();
         self.sim = self.data.start.clone();
         self.input = Input::new(controls);
@@ -524,19 +728,44 @@ impl App {
         // the file is created at once (an empty demo), so an unwritable directory shows at
         // the first pause, not at the session's end
         self.save(host);
-        match FrameSource::start(&self.data.assets, self.cfg.screenblocks, &self.sim) {
+        match FrameSource::start(&self.data, self.cfg.screenblocks, &self.sim) {
             Ok(f) => self.frames = Some(f),
-            Err(e) => {
+            Err(witness) => {
                 self.frames = None;
-                self.end(
-                    Ending::Refused {
-                        tic: 0,
-                        witness: Witness::Frame(e),
-                    },
-                    host,
-                );
+                self.end(Ending::Refused { tic: 0, witness }, host);
             }
         }
+        self.flush_audio(host);
+    }
+
+    /// Hands the pending pause, resume and session-start notifications to the host's sink.
+    fn flush_audio(&mut self, host: &mut dyn Host) {
+        if self.audio_notes.is_empty() {
+            return;
+        }
+        let notes = std::mem::take(&mut self.audio_notes);
+        if let Some(sink) = host.audio() {
+            for n in &notes {
+                match n {
+                    AudioNote::Pause => sink.pause(),
+                    AudioNote::Resume => sink.resume(),
+                    AudioNote::SessionStart => sink.session_start(),
+                }
+            }
+        }
+    }
+
+    /// The sound session, when the data was loaded with sound (M5c): its channel table, mixer,
+    /// schedule and the layout detector of decision T12.
+    pub fn sound(&self) -> Option<&Sound> {
+        self.frames.as_ref().and_then(FrameSource::sound)
+    }
+
+    /// The run's layout-dependence line ([`layout_dependent_line`]) for the current session and
+    /// the earlier sessions of this run, or `None` when no session was labelled. The window prints
+    /// it on standard error at exit; nothing is drawn.
+    pub fn layout_dependent_line(&self) -> Option<String> {
+        layout_dependent_line(self.sound().map(Sound::detector), self.layout_earlier)
     }
 
     /// Creates the session's file under the first free name made from the session's start
@@ -644,12 +873,16 @@ impl App {
             Mode::Playing => {
                 self.layer.key(code, down);
             }
-            Mode::Paused if down && pause_key => self.mode = Mode::Playing,
+            Mode::Paused if down && pause_key => {
+                self.mode = Mode::Playing;
+                self.audio_notes.push(AudioNote::Resume);
+            }
             Mode::Paused | Mode::Ended(_) if down && code == b'r' => self.restart(host),
             Mode::Paused if down && code == b'q' => self.quit(host),
             Mode::Ended(_) if down && (code == b'q' || code == keys::KEY_ESCAPE) => self.quit(host),
             _ => {}
         }
+        self.flush_audio(host);
     }
 
     /// Relative mouse motion in the platform's raw device units (doom-play passes miniquad's raw
@@ -679,8 +912,10 @@ impl App {
     }
 
     /// The app's pause: no tics run, held keys are released through the event layer (posted
-    /// before the first tic after the pause) and the clock is re-based on resume.
+    /// before the first tic after the pause) and the clock is re-based on resume. The host's
+    /// sink hears [`AudioSink::pause`] at the next call that has the host.
     fn pause(&mut self) {
+        self.audio_notes.push(AudioNote::Pause);
         self.mode = Mode::Paused;
         self.layer.release_all();
         self.clock.origin = None;
@@ -710,6 +945,7 @@ impl App {
     /// dropped. The first call only starts the clock; the first tic falls due 1/35 s later.
     /// After [`App::quit`] no tic runs.
     pub fn update(&mut self, now_us: u64, host: &mut dyn Host) -> Update {
+        self.flush_audio(host);
         if self.mode != Mode::Playing || self.quit {
             return Update::default();
         }
@@ -761,28 +997,25 @@ impl App {
         let Some(frames) = self.frames.as_mut() else {
             return;
         };
-        let drawn = frames.observe(&self.sim, &executed).and_then(|m| {
-            let d = frames.draw(&self.data.assets, &self.sim, &mut self.frame)?;
-            Ok((m, d))
-        });
-        match drawn {
-            Ok((message, drawn)) => {
-                self.palette = drawn.palette;
+        match frames.tic(&self.data, &self.sim, &executed, &mut self.frame) {
+            Ok(presented) => {
+                self.palette = presented.display.palette;
                 self.drawn = true;
-                host.tic(&TicReport {
+                report(
+                    host,
+                    frames,
+                    &self.sim,
+                    &self.frame,
                     tic,
-                    events: &self.events,
+                    &self.events,
                     executed,
-                    simulation: &self.sim,
-                    frame: &self.frame,
-                    display: &drawn,
-                    message,
-                    rndindex: frames.rndindex(),
-                });
+                    &presented,
+                );
             }
             // The simulation committed the tic, so its command stays in the demo (only a
-            // simulation refusal drops it): the demo replays to this same frame refusal.
-            Err(e) => return self.end(refuse(Witness::Frame(e)), host),
+            // simulation refusal drops it): the demo replays to this same frame or sound
+            // refusal. With sound, the sound session and the display are as before the tic.
+            Err(witness) => return self.end(refuse(witness), host),
         }
         if self.recorder.len() % SAVE_INTERVAL == 0 {
             self.save(host);
@@ -961,5 +1194,114 @@ mod tests {
         let eight = app_on("m4b_wads/boss8.wad", 8);
         assert_eq!(yellow(&eight, false), episode);
         assert_eq!(yellow(&eight, true), episode);
+    }
+
+    /// A session whose layout detector (decision T12) has fired: a fresh process over the app's
+    /// own sound data (`SoundConfig::fresh(1, 1)`), one empty tic, then at tic 1 the switch
+    /// release start of p_spec.c:1151 (`S_StartSound(&buttonlist[i].soundorg, sfx_swtchn)`,
+    /// sfx 23, origin button 0) with the declared 64-bit reading (34, 0) placed 34 raw units
+    /// inside the clipping distance from the listener, where the 32-bit reading (0, 34) would be
+    /// out of range: the same construction as tests/m5c_app.rs
+    /// `a_layout_dependent_session_gives_one_plain_line`, which pins the detector's result
+    /// (labelled from tic 1, one firing). This helper asserts that result again before use.
+    fn fired_sound(app: &App) -> Sound {
+        use doom_sound::logic::{Listener, OriginPositions, S_CLIPPING_DIST, SoundOrigin};
+        use doom_sound::logic::{SoundPlacement, SoundRecord};
+        struct Quiet;
+        impl OriginPositions for Quiet {
+            fn actor_xy(&self, _: doom_sim::ActorId) -> Option<[i32; 2]> {
+                None
+            }
+            fn sector_xy(&self, _: u16) -> Option<[i32; 2]> {
+                None
+            }
+            fn button_xy(&self, _: u8) -> Option<[i32; 2]> {
+                Some([0, 0])
+            }
+        }
+        let set = app.data.sound().expect("sound data").set().clone();
+        let edge = S_CLIPPING_DIST - (130 << 16);
+        let listener = Listener {
+            actor: doom_sim::ActorId::from_parts(0, 0),
+            xy: [edge + 34, 0],
+            angle: 0,
+        };
+        let release = SoundRecord::Start {
+            sfx: 23,
+            origin: SoundOrigin::Button(0),
+            at: Some(SoundPlacement {
+                origin: [34, 0],
+                listener: listener.xy,
+                listener_angle: 0,
+            }),
+        };
+        let mut s = Sound::new(set, SoundConfig::fresh(1, 1)).expect("session");
+        s.tic(&[], 0, &listener, &Quiet).expect("tic 0");
+        s.tic(&[release], 0, &listener, &Quiet).expect("tic 1");
+        let d = s.detector();
+        assert_eq!((d.layout_dependent_from(), d.firings()), (Some(1), 1));
+        s
+    }
+
+    /// `App::layout_dependent_line` and the run's count of earlier labelled sessions, through a
+    /// real `App` (decision T12: a layout-dependent session is "counted separately in every
+    /// report"). The app is built on the M5a AMP room with `m5b_gfx.wad` and the synthetic sound
+    /// lumps `m5c_sfx.wad`. The committed scenarios never fire the detector, so the test makes
+    /// the next session labelled by replacing the game data's fresh sound session
+    /// (`SoundAssets::fresh`, which `App::begin` clones through `FrameSource::start`) with the
+    /// fired session of [`fired_sound`], and unlabelled again by putting the original back, each
+    /// followed by `App::restart`. No tic runs. The expected lines are the documented texts of
+    /// the pure [`layout_dependent_line`] (pinned by tests/m5c_app.rs); the expected counts
+    /// follow from the documentation of `App::layout_earlier` and `App::begin`: one more for each
+    /// labelled session a restart ends, no change otherwise.
+    #[test]
+    fn the_app_counts_layout_dependent_sessions_across_restarts() {
+        let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../tests/reference");
+        let files: Vec<Vec<u8>> = ["m5a_wads/amp.wad", "m5b_gfx.wad", "m5c_sfx.wad"]
+            .iter()
+            .map(|w| std::fs::read(root.join(w)).expect("WAD"))
+            .collect();
+        let refs: Vec<&[u8]> = files.iter().map(Vec::as_slice).collect();
+        let data = GameData::load_with_sound(&refs, GameMode::Registered, 1, 2).expect("data");
+        let mut host = NullHost;
+        let mut app = App::new(data, SessionConfig::default(), &mut host);
+        // an unlabelled run prints no line, before and after a restart
+        assert_eq!(app.layout_dependent_line(), None);
+        app.restart(&mut host);
+        assert_eq!(app.layout_dependent_line(), None);
+        let fresh = app.data.sound.as_ref().expect("sound").fresh.clone();
+        let fired = fired_sound(&app);
+        let mut install = |app: &mut App, sound: &Sound| {
+            app.data.sound.as_mut().expect("sound").fresh = sound.clone();
+            app.restart(&mut host);
+        };
+        let labelled = "layout-dependent session from tic 1 (1 detector firing): a 32-bit build \
+                        could have played a switch-release sound differently; this one used the \
+                        64-bit reading";
+        // a labelled current session, no earlier one
+        install(&mut app, &fired);
+        assert_eq!(app.layout_dependent_line().as_deref(), Some(labelled));
+        // the restart ends a labelled session: one earlier, the new session not labelled
+        install(&mut app, &fresh);
+        assert_eq!(
+            app.layout_dependent_line().as_deref(),
+            Some(
+                "this session is not layout-dependent; 1 earlier session of this run was \
+                 labelled too"
+            )
+        );
+        // the restart ends an unlabelled session: the count stays one
+        install(&mut app, &fired);
+        let one = format!("{labelled}; 1 earlier session of this run was labelled too");
+        assert_eq!(app.layout_dependent_line(), Some(one));
+        // the restart ends the second labelled session: two
+        install(&mut app, &fresh);
+        assert_eq!(
+            app.layout_dependent_line().as_deref(),
+            Some(
+                "this session is not layout-dependent; 2 earlier sessions of this run were \
+                 labelled too"
+            )
+        );
     }
 }

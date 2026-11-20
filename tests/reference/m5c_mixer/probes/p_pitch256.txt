@@ -1,0 +1,5 @@
+# Declared probe outside the golden set: pitch 256 indexes steptable[256] (i_sound.c:495); s_sound.c
+# clamps the pitch to 0..255 (s_sound.c:331-334, 341-344), so no game start reaches it.
+schema DOOM-M5C-STARTS-v1
+config integrated
+s 0 0 0 2 127 128 256 64 -

@@ -1527,6 +1527,31 @@ impl<A: ActorAccess> LifeHost<'_, A> {
     }
     pub(crate) fn sound(&mut self, actor: Option<ActorId>, sound: u16) {
         self.observe(ActorStateEvent::Sound { actor, sound });
+        // Wire 25: a positional start (s_sound.c:304) is placed now, from the
+        // staged store, as `S_AdjustSoundParams` reads it at the call
+        // (s_sound.c:761-768).
+        if let (Some(listener), Some(id)) = (self.listener(), actor) {
+            if id != listener.body {
+                let at = self.access.get(id).and_then(|origin| {
+                    listener.place(|a| self.access.get(a).copied(), origin.position())
+                });
+                crate::sound::push_placed(
+                    self.events,
+                    sound,
+                    crate::sound::SoundOrigin::Actor(id),
+                    at,
+                );
+            }
+        }
+    }
+    /// Wire 25: the listener (the console player's body) for the sound records;
+    /// `None` under every other policy and without a bound player.
+    pub(crate) fn listener(&self) -> Option<crate::sound::Listener> {
+        self.player
+            .as_deref()
+            .filter(|p| p.policy.has_sound_records())
+            .and_then(|p| p.mo)
+            .map(|body| crate::sound::Listener { body, held: None })
     }
     pub(crate) fn enter_counted(&mut self, id: ActorId, state: StateId, work: &mut usize) {
         self.enter_inner(id, state, work);
@@ -1698,14 +1723,25 @@ impl<A: ActorAccess> LifeHost<'_, A> {
                         }
                     }
                     Some(OriginalAction::XScream) => self.sound(Some(id), sound_id("sfx_slop")),
-                    Some(OriginalAction::PlayerScream) => self.sound(
-                        Some(id),
-                        sound_id(if life.health < -50 {
-                            "sfx_pdiehi"
-                        } else {
-                            "sfx_pldeth"
-                        }),
-                    ),
+                    // p_enemy.c:1994-2007: `sfx_pdiehi` only when `gamemode ==
+                    // commercial` and the health is below -50. Wire 25 declares a
+                    // non-commercial game (its maps are E1M1-E1M9), so it always
+                    // plays `sfx_pldeth`; wires 22-24 keep their frozen events,
+                    // which test the health alone (M5c decision T3).
+                    Some(OriginalAction::PlayerScream) => {
+                        let wire25 = self
+                            .player
+                            .as_deref()
+                            .is_some_and(|p| p.policy.has_sound_records());
+                        self.sound(
+                            Some(id),
+                            sound_id(if !wire25 && life.health < -50 {
+                                "sfx_pdiehi"
+                            } else {
+                                "sfx_pldeth"
+                            }),
+                        );
+                    }
                     Some(OriginalAction::Scream) => {
                         let sound = info.sounds()[3];
                         if sound == 0 {

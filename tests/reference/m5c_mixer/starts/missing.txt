@@ -1,0 +1,9 @@
+# pstart is missing: getsfx gave it a copy of dspistol at load (i_sound.c:213-216), so a start plays the
+# pistol's samples; the lookup s_sound.c makes first (I_GetSfxLumpNum, s_sound.c:364-365, i_sound.c:451-456)
+# succeeds for the pistol and ends the run in I_Error for pstart (w_wad.c:399-409).
+schema DOOM-M5C-STARTS-v1
+config integrated
+s 0 0 0 18 127 128 128 64 -
+s 2 0 2 1 127 128 128 64 -
+g 4 0 1
+g 4 1 18

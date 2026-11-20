@@ -1,0 +1,22 @@
+# Start list of M5SWTCH.sound (sha256 38fdf6b0e60f6f50737da01843f4c6791b0d8e839febb648408d7930fa45bff8), written by tools/reference/m5c_starts.py:
+# the 16 S rows with outcome started, in stream order; 16 S rows in all; 213 R rows.
+# handle convention: integrated (stated by the stream).
+schema DOOM-M5C-STARTS-v1
+config integrated
+tics 213
+s 2 1 2 23 8 128 127 64 100
+s 6 2 6 19 8 129 137 64 101
+s 12 3 12 23 8 129 115 64 102
+s 12 4 12 19 8 129 118 64 103
+s 36 5 36 23 8 128 138 64 104
+s 59 6 59 23 8 128 120 64 105
+s 63 7 63 19 8 129 135 64 106
+s 93 8 93 23 8 128 138 64 107
+s 107 9 107 20 8 35 129 64 108
+s 107 10 107 23 8 128 144 64 109
+s 123 11 123 1 8 128 117 64 110
+s 123 12 123 20 8 152 142 64 111
+s 123 13 123 23 8 128 115 64 112
+s 146 15 146 1 8 128 127 64 113
+s 146 16 146 23 8 129 130 64 114
+s 157 17 157 23 8 128 134 64 115

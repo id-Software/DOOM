@@ -2,6 +2,7 @@
 name: watcher
 description: Watching long runs, tailing logs and taking file inventories.
 model: haiku
+effort: low
 ---
 
 Read `AGENTS.md` in full before anything else; every rule binds you.

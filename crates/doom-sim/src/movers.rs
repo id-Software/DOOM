@@ -349,6 +349,9 @@ pub(crate) struct Starter<'a, M: ?Sized> {
     pub specials: Option<&'a mut [SectorSpecial]>,
     /// The player whose use runs the starter (`None` for a monster or a crossing).
     pub player: Option<&'a mut PlayerRuntime>,
+    /// Wire 25 only: the listener the starter's sector sounds are placed for
+    /// (`None` under every other policy).
+    pub listener: Option<crate::sound::Listener>,
 }
 impl<M: MoverAccess + ?Sized> Starter<'_, M> {
     fn surrounding(&self) -> Surrounding<'_> {
@@ -358,12 +361,30 @@ impl<M: MoverAccess + ?Sized> Starter<'_, M> {
         }
     }
     fn sector_sound(&mut self, sector: u16, name: &str) {
+        self.sector_sound_id(sector, sound(name));
+    }
+    /// `S_StartSound (&sector->soundorg, sound)`; under wire 25 placed at the
+    /// sector's sound origin (p_setup.c:556-557) with the listener read now.
+    pub(crate) fn sector_sound_id(&mut self, sector: u16, sound: u16) {
         self.events
             .push(Event::Mover(crate::MoverEvent::SectorSound {
                 origin: crate::planes::SoundOrigin::Sector,
                 index: sector,
-                sound: sound(name),
+                sound,
             }));
+        if let Some(listener) = self.listener {
+            let store = self.store.mover_store();
+            let at = self
+                .world
+                .sound_origin(sector)
+                .and_then(|origin| listener.place(|a| store.get(a).copied(), origin));
+            crate::sound::push_placed(
+                self.events,
+                sound,
+                crate::sound::SoundOrigin::Sector(sector),
+                at,
+            );
+        }
     }
     fn tagged(&self, line: u16) -> Result<impl Iterator<Item = u16> + '_, SimError> {
         let world = self.world;
@@ -985,12 +1006,34 @@ fn removed_sound(mover: SectorThinker, removed: bool) -> Option<&'static str> {
     (removed && matches!(mover, SectorThinker::Floor(_))).then_some("sfx_pstop")
 }
 fn sector_sound(host: &mut PlaneHost<'_, '_>, sector: u16, name: &str) {
+    let sound = sound(name);
     host.events
         .push(Event::Mover(crate::MoverEvent::SectorSound {
             origin: crate::planes::SoundOrigin::Sector,
             index: sector,
-            sound: sound(name),
+            sound,
         }));
+    // Wire 25: a mover's turn in `P_RunThinkers` places its sound at the
+    // sector's origin with the listener read from the staged store now.
+    if let Some(body) = host
+        .player
+        .as_deref()
+        .filter(|p| p.policy.has_sound_records())
+        .and_then(|p| p.mo)
+    {
+        let listener = crate::sound::Listener { body, held: None };
+        let access = &*host.access;
+        let at = host
+            .world
+            .sound_origin(sector)
+            .and_then(|origin| listener.place(|a| access.get(a).copied(), origin));
+        crate::sound::push_placed(
+            host.events,
+            sound,
+            crate::sound::SoundOrigin::Sector(sector),
+            at,
+        );
+    }
 }
 
 /// p_doors.c `T_VerticalDoor` (63–200) for `normal`, `close30ThenOpen`, `open` and
@@ -1180,6 +1223,7 @@ impl crate::Simulation {
             events: &mut events,
             specials: self.specials.as_mut().map(|s| s.sectors.as_mut_slice()),
             player: self.original_player.as_mut(),
+            listener: None,
         })?;
         self.pending.extend(events);
         Ok(result)

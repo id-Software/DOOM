@@ -65,6 +65,7 @@ dependencies = [
  "doom-map",
  "doom-render",
  "doom-sim",
+ "doom-sound",
  "doom-test-evidence",
  "doom-wad",
 ]
@@ -83,6 +84,7 @@ version = "0.1.0"
 dependencies = [
  "doom-game",
  "doom-render",
+ "maudio",
  "miniquad",
 ]
 
@@ -103,6 +105,18 @@ name = "doom-sim"
 version = "0.1.0"
 dependencies = [
  "doom-map",
+ "doom-test-evidence",
+ "doom-types",
+ "doom-wad",
+]
+
+[[package]]
+name = "doom-sound"
+version = "0.1.0"
+dependencies = [
+ "doom-map",
+ "doom-render",
+ "doom-sim",
  "doom-test-evidence",
  "doom-types",
  "doom-wad",
@@ -185,6 +199,24 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "62bb907fe88d54d8d9ce32a3cceab4218ed2f6b7d35617cafe9adf84e43919cb"
 dependencies = [
  "libc",
+]
+
+[[package]]
+name = "maudio"
+version = "0.1.15"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "0a8c12c69ee8b6c42705ca1ae980bbb9b0b30f278224d68849c4219a8d1430ad"
+dependencies = [
+ "maudio-sys",
+]
+
+[[package]]
+name = "maudio-sys"
+version = "0.1.9"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b407c39b290e82b248dd0c9662b5fb4b4b8dbf231025d864a3ca15b7cc3afe0c"
+dependencies = [
+ "cc",
 ]
 
 [[package]]

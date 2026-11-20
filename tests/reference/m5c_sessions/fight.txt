@@ -1,0 +1,27 @@
+# M5c session fight (scripted, not played by a person): a door, the rocket launcher against zombiemen, shotgun guys and imps, and the player killed.
+wad tests/reference/m5c_wads/sndmonst.wad
+map 1
+skill 2
+screenblocks 10
+frame 10000
+200 motion 256 0         # turn round to face east: four turns of -8192 (a motion of 256 posts 1024; recorded as 32 each)
+240 motion 256 0
+280 motion 256 0
+320 motion 256 0
+400 key up down          # walk east over the soulsphere, the launcher and the rocket box to the door
+1550 key up up
+1700 key use down        # open the door (doropn; dorcls when it closes)
+1720 key use up
+1800 key 5 down          # the rocket launcher
+1820 key 5 up
+2600 key fire down       # rockets through the door: explosions, pain, deaths, the monsters' see sounds and attacks
+4400 key fire up
+4500 motion -60 0        # aim a little to the left
+4600 key fire down
+6000 key fire up
+6100 motion 120 0        # and to the right
+6200 key fire down
+7800 key fire up
+8500 key use down        # the player was killed in the fight: use asks for the reborn, which ends the session (decision S10)
+8520 key use up
+9000 end

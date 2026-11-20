@@ -1,0 +1,13 @@
+# Separation: the s_sound.c extremes 33 and 224 (s_sound.c:793 with finesine -65535..65535) and 128
+# (s_sound.c:315, 323), at volumes 127, 15 and 8.
+schema DOOM-M5C-STARTS-v1
+config integrated
+s 0 0 0 2 127 33 128 64 -
+s 8 0 8 2 127 128 128 64 -
+s 16 0 16 2 127 224 128 64 -
+s 24 0 24 2 15 33 128 64 -
+s 32 0 32 2 15 128 128 64 -
+s 40 0 40 2 15 224 128 64 -
+s 48 0 48 2 8 33 128 64 -
+s 56 0 56 2 8 128 128 64 -
+s 64 0 64 2 8 224 128 64 -

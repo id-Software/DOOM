@@ -1,0 +1,481 @@
+{
+ "schema": "DOOM-M5C-MIXER-RESULTS-v1",
+ "contract_sha256": "2c46cc5a1502786251b0db4c09da8373ca7bad8fde8f64229485329105a7ac0e",
+ "switches": {
+  "configuration": "integrated",
+  "schedule": "ticbuffers",
+  "frames_per_buffer": 512,
+  "frames_per_tic": 315,
+  "rule": "Recommended reading of decision T5 (open): after the starts of tic t (counted from the first tic of the session), mix every buffer k not yet mixed with 512*k < 315*(t+1), each by one genuine I_UpdateSound and I_SubmitSound; buffer k is mixed after tic floor(512k/315), none or one per tic, 315 buffers per 512 tics, the first after tic 0. A start takes effect in the next buffer mixed (the original mixes after all tics of a loop pass, d_main.c:389-405). The compared signal is the sequence of mixed buffers, not the device output.",
+  "also_recorded": "pertic (digests only, never goldens)"
+ },
+ "variants": [
+  "strict",
+  "overflow",
+  "address"
+ ],
+ "asan_options": "detect_leaks=0 (leak detection disabled; not LeakSanitizer coverage)",
+ "scenarios": 23,
+ "starts": 65882,
+ "buffers": 490,
+ "golden_bytes": 86550,
+ "goldens_sha256": "b0c7b17ef06d8e942b00c10f3ebd034485824f460b001a1124aabe101598f81d",
+ "tables": {
+  "steptable_sha256": "95f2209c952180e797cf3ef5a836db333d8ca88fc3b1c7893f136272f4e96dde",
+  "vol_lookup_sha256": "f727268ad58a2714746072664e37d5c8425d1c21d83a70eabe9e2098836a0043",
+  "steptable_integer_reconstruction": "equal",
+  "vol_lookup_truncating_division": "equal",
+  "steptable_min": 16384,
+  "steptable_max": 259320,
+  "steptable_exact_powers_of_two": 4,
+  "steptable_min_distance_to_integer_billionths": 12529933,
+  "steptable_min_distance_at_pitch": 112,
+  "vol_lookup_min": -32768,
+  "vol_lookup_max": 32512
+ },
+ "per_scenario": {
+  "lumps_main": {
+   "wad": "m5c_sfx.wad",
+   "starts": 0,
+   "buffers": 0,
+   "stream_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+   "golden_sha256": "901488821e93035255a7d1e358c2355352fe063e3f4ab7a242140d37877e6206",
+   "golden_bytes": 11037,
+   "end": "drained",
+   "model": "identical"
+  },
+  "lumps_edge": {
+   "wad": "m5c_sfx_edge.wad",
+   "starts": 0,
+   "buffers": 0,
+   "stream_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+   "golden_sha256": "2f3c15aa9fe14b97ae50893fd457fe69423d04c657cd853463874959b7dcfdcb",
+   "golden_bytes": 10943,
+   "end": "drained",
+   "model": "identical"
+  },
+  "basic": {
+   "wad": "m5c_sfx.wad",
+   "starts": 6,
+   "buffers": 16,
+   "stream_sha256": "3afa5dde24e5f51349360cba6dc24aab4e81eb599a72e7ac36fdc4dbae60cc23",
+   "golden_sha256": "038120ea25ca6bc16bea362ad0fa6829126c0974d49db5a07ec75fef5b3b1ad5",
+   "golden_bytes": 1586,
+   "end": "drained",
+   "model": "identical"
+  },
+  "volume": {
+   "wad": "m5c_sfx.wad",
+   "starts": 5,
+   "buffers": 22,
+   "stream_sha256": "ae28b66b3c8005e4887d56b6a1cc27fe8a22a5e28df151dbb115dccd1ddb33a2",
+   "golden_sha256": "2b6dace13a7b7713306360c3a2cd23a9d4790f91f27707dec83e841719da1854",
+   "golden_bytes": 1703,
+   "end": "drained",
+   "model": "identical"
+  },
+  "separation": {
+   "wad": "m5c_sfx.wad",
+   "starts": 9,
+   "buffers": 42,
+   "stream_sha256": "1d848db61433a2d1e409ab682d75e552100d5a3bb8593b4f3a0fb5d65a0b3ba8",
+   "golden_sha256": "f7a40057d7a67a01707c03e5adb63e5af0ba48869d9487c63810e13d6cde4400",
+   "golden_bytes": 2940,
+   "end": "drained",
+   "model": "identical"
+  },
+  "separation_wide": {
+   "wad": "m5c_sfx.wad",
+   "starts": 6,
+   "buffers": 27,
+   "stream_sha256": "69aa5ac717e86822313d8266db5b10dd3d6baa2f228802e27ec37cfc787e6105",
+   "golden_sha256": "ea9d0a7e9963320c73c3a089314ee2c44bf90b5eeda4095038757a96319b5307",
+   "golden_bytes": 2075,
+   "end": "drained",
+   "model": "identical"
+  },
+  "pitch": {
+   "wad": "m5c_sfx.wad",
+   "starts": 9,
+   "buffers": 41,
+   "stream_sha256": "ee8d5032fd22b2ff6c0f1db796c874fdd00d72f716194e2ccd317a815add9402",
+   "golden_sha256": "d796c6efb49eb3f3256b8c42f9c7483023d8ea2d4d4254886e2d8b773b49e661",
+   "golden_bytes": 2632,
+   "end": "drained",
+   "model": "identical"
+  },
+  "single_instance": {
+   "wad": "m5c_sfx.wad",
+   "starts": 19,
+   "buffers": 21,
+   "stream_sha256": "a1fe13eaf375c7a0c77cf709b3590893503a6e08d33cde3e94eec3eec26682ef",
+   "golden_sha256": "74f32c05fb63b11b11d1ce237192d4644ad7e7303d4957f1943c986e7f26c821",
+   "golden_bytes": 3010,
+   "end": "drained",
+   "model": "identical"
+  },
+  "nine": {
+   "wad": "m5c_sfx.wad",
+   "starts": 10,
+   "buffers": 2,
+   "stream_sha256": "e5428dc1baf1488b1e6cadb24a5360cb12fa5a87ff5f6da09620503854c09ff7",
+   "golden_sha256": "0cc36cce11ebdaf5a8ca360d22fd6f423b5cf551049b68bdcaa77dd917943d4f",
+   "golden_bytes": 1102,
+   "end": "drained",
+   "model": "identical"
+  },
+  "oldest": {
+   "wad": "m5c_sfx.wad",
+   "starts": 14,
+   "buffers": 13,
+   "stream_sha256": "fff82723f7de46dab1acbd1f7f1a0d2296462b50745e16f951af6a221a788bc2",
+   "golden_sha256": "9b3b6d3fbba1cfb5ca0f9a18a77dcfe75ffabe5ee22e6f3b558d78ea46ac8b83",
+   "golden_bytes": 2025,
+   "end": "drained",
+   "model": "identical"
+  },
+  "boundary": {
+   "wad": "m5c_sfx_edge.wad",
+   "starts": 6,
+   "buffers": 9,
+   "stream_sha256": "0a703a2daf89bbb9561b6bbdc6eb329f8090402891d5b532a3071516d0cfef74",
+   "golden_sha256": "4287121b5ca380b7eb843fc4ad87dd019324cacbe60856b6f060ae9ec68f28b6",
+   "golden_bytes": 1352,
+   "end": "drained",
+   "model": "identical"
+  },
+  "clip": {
+   "wad": "m5c_sfx_edge.wad",
+   "starts": 24,
+   "buffers": 5,
+   "stream_sha256": "ec5cfc7012cedd1a7105f765caaa2c10fe9f6a12ed225f9e3308df6eba9e9621",
+   "golden_sha256": "a01f9998b323b73849c2b763fe3eb3d287bc6027651411c536a895730516a031",
+   "golden_bytes": 2066,
+   "end": "drained",
+   "model": "identical"
+  },
+  "chgun": {
+   "wad": "m5c_sfx.wad",
+   "starts": 3,
+   "buffers": 6,
+   "stream_sha256": "8bc5de656461ba80ac0d891e1c9247533d6ccde661d00ce5560f092b7495c6cf",
+   "golden_sha256": "a67d13efe1533b92c831d0fadf2fbfd450b0fd47656de9d1707ed3e9e101649d",
+   "golden_bytes": 966,
+   "end": "drained",
+   "model": "identical"
+  },
+  "header": {
+   "wad": "m5c_sfx_edge.wad",
+   "starts": 2,
+   "buffers": 4,
+   "stream_sha256": "0c95569c12ce5f89df2ef03d9cf333531cf4437f42c8663b68bf968726122501",
+   "golden_sha256": "4c21818e253626afbbd29a1b079a717d7ccb9f3e88f11f64c09bfce670695bfc",
+   "golden_bytes": 768,
+   "end": "drained",
+   "model": "identical"
+  },
+  "padding": {
+   "wad": "m5c_sfx_edge.wad",
+   "starts": 5,
+   "buffers": 10,
+   "stream_sha256": "58f4162ff11142ea3fb8fba8366b7aa3b575c44ac53114da7272b047c735fd5d",
+   "golden_sha256": "11db67103542e50c1c5790983f9b5f53fdfaf804bd7cf79a6bda3f0f1721795a",
+   "golden_bytes": 1442,
+   "end": "drained",
+   "model": "identical"
+  },
+  "missing": {
+   "wad": "m5c_sfx_edge.wad",
+   "starts": 2,
+   "buffers": 3,
+   "stream_sha256": "438060510d20366d16a0d683717fcba6156a6e6609fcd8f17db6e8253abaf3b3",
+   "golden_sha256": "0f025f7db29c3b37a684070bffdee5975ce828eb051c77bc25a916d87d08960c",
+   "golden_bytes": 814,
+   "end": "x 4 1",
+   "model": "identical"
+  },
+  "handle_wrap": {
+   "wad": "m5c_sfx.wad",
+   "starts": 65438,
+   "buffers": 2,
+   "stream_sha256": "b7c954d962e9160971aa86f157346f078a3a92a50a040fd36b1b7d1b5f45e9e2",
+   "golden_sha256": "d4897bd79cc53d05f52c415c9320b6c3abc1e9468a9c03811f5e4a4c1e77efe8",
+   "golden_bytes": 855,
+   "end": "drained",
+   "model": "identical"
+  },
+  "phase": {
+   "wad": "m5c_sfx.wad",
+   "starts": 16,
+   "buffers": 11,
+   "stream_sha256": "b69db2dcfcbeccfa7565cff0a9795dda8fd2ea312d1de56b029aecdb34c1a259",
+   "golden_sha256": "fab2764abf9ae41767e26550b456297356ab05da71f2ce0511464a45a72b8b32",
+   "golden_bytes": 2068,
+   "end": "drained",
+   "model": "identical"
+  },
+  "busy": {
+   "wad": "m5c_sfx.wad",
+   "starts": 300,
+   "buffers": 248,
+   "stream_sha256": "be35ff55661a0dfa13b39efe8cfaaff5a5d9e08ca75e1d1a8042cd72ccd82ddf",
+   "golden_sha256": "38457c5e3e83b36121d2e5b6c23bd1873ceeeecac89bd0b7f094b9e41374816b",
+   "golden_bytes": 34528,
+   "end": "drained",
+   "model": "identical"
+  },
+  "x_vol128_left": {
+   "wad": "m5c_sfx_edge.wad",
+   "starts": 2,
+   "buffers": 2,
+   "stream_sha256": "178a3192f27ccbd52633733ee4b812bcfd3b41324c82f7ee891a0d4a98f53d9d",
+   "golden_sha256": "3ae467b18e91ef4e16817b175cccf85d5c3ffda9a9e5f29a393a3a729bde13df",
+   "golden_bytes": 659,
+   "end": "x 2 0",
+   "model": "identical"
+  },
+  "x_vol128_right": {
+   "wad": "m5c_sfx_edge.wad",
+   "starts": 2,
+   "buffers": 2,
+   "stream_sha256": "178a3192f27ccbd52633733ee4b812bcfd3b41324c82f7ee891a0d4a98f53d9d",
+   "golden_sha256": "cb9782d044c3454554f50cde9060cf59d69de8d61378408c09d5abee0acea228",
+   "golden_bytes": 660,
+   "end": "x 2 0",
+   "model": "identical"
+  },
+  "x_sep257": {
+   "wad": "m5c_sfx_edge.wad",
+   "starts": 2,
+   "buffers": 2,
+   "stream_sha256": "178a3192f27ccbd52633733ee4b812bcfd3b41324c82f7ee891a0d4a98f53d9d",
+   "golden_sha256": "3ae467b18e91ef4e16817b175cccf85d5c3ffda9a9e5f29a393a3a729bde13df",
+   "golden_bytes": 659,
+   "end": "x 2 0",
+   "model": "identical"
+  },
+  "x_sepm2": {
+   "wad": "m5c_sfx_edge.wad",
+   "starts": 2,
+   "buffers": 2,
+   "stream_sha256": "178a3192f27ccbd52633733ee4b812bcfd3b41324c82f7ee891a0d4a98f53d9d",
+   "golden_sha256": "cb9782d044c3454554f50cde9060cf59d69de8d61378408c09d5abee0acea228",
+   "golden_bytes": 660,
+   "end": "x 2 0",
+   "model": "identical"
+  }
+ },
+ "pertic": {
+  "lumps_main": {
+   "buffers": 0,
+   "stream_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+   "rows_sha256": "33d1af02c46f77994eecfa2ea8c61d0987b372e21b2e7f4b886bd5c1dd830a34",
+   "model": "identical"
+  },
+  "lumps_edge": {
+   "buffers": 0,
+   "stream_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+   "rows_sha256": "a7d9af97e9dce84cc6e10f4150bb257680f78eadc7eeae3431911ef00e3c9529",
+   "model": "identical"
+  },
+  "basic": {
+   "buffers": 23,
+   "stream_sha256": "118ae2a084ea117f7c7d0fceed9385cb2bd48e8fdc5a981b513341ee55d72522",
+   "rows_sha256": "9651f121b6e97f15e921a7a778bd32263b83ee891a06dc05c6953258f43d6398",
+   "model": "identical"
+  },
+  "volume": {
+   "buffers": 34,
+   "stream_sha256": "f3a84704d6d7c64609ce9f6ed24fe38092d948e7e4f9795ceae1424e72485c81",
+   "rows_sha256": "eaed2ce2098e53e204f3658ff3e8d2be7dc87de1289f12181042e9f4700eaaa1",
+   "model": "identical"
+  },
+  "separation": {
+   "buffers": 66,
+   "stream_sha256": "ecf1259156e499833c22c3334f7798f204b11e9961b2e8982b38ef1689a6d9f1",
+   "rows_sha256": "daa75becf91fc5ecd63578f373fbd75146b8f4b4f6712f505a28c899e877b726",
+   "model": "identical"
+  },
+  "separation_wide": {
+   "buffers": 42,
+   "stream_sha256": "f96bd80823b318a44226e855c4fd146f73b4a5fd758d136b86219df0b6cd21c1",
+   "rows_sha256": "977ca11e35abc83c456f5db2d113ff0cced2678a5cca90aee8c6036f04a7b1a4",
+   "model": "identical"
+  },
+  "pitch": {
+   "buffers": 65,
+   "stream_sha256": "4d609047ef180e38ae02de2e4242af00b42449f27a2b809ff3d969a9dd6e2e77",
+   "rows_sha256": "9753e819cd5147b97489360f6e40064fcb77af4d498130f9c0824f974f1ad46a",
+   "model": "identical"
+  },
+  "single_instance": {
+   "buffers": 32,
+   "stream_sha256": "ae61d62b44bdb3127b8b24c720d8c3c206ea2a68da5fcc78e0c97d02388d11cc",
+   "rows_sha256": "a6e45cbe7d31ecb2da2e6a9aaafa2fcfe94ae8bdc958bf17a0f1adb0f1443754",
+   "model": "identical"
+  },
+  "nine": {
+   "buffers": 2,
+   "stream_sha256": "e5428dc1baf1488b1e6cadb24a5360cb12fa5a87ff5f6da09620503854c09ff7",
+   "rows_sha256": "29a7402b5e1652bbc54005765e2d0282ad66f14128506019a942307092de1f32",
+   "model": "identical"
+  },
+  "oldest": {
+   "buffers": 15,
+   "stream_sha256": "1e4824480af14e9e58836121556230dacdb902eca22ef74bd6ecbda908b15627",
+   "rows_sha256": "68e568f282cb70bf20db46510a29d6d076bb6ab6bbe6b1ab5ceb4dbf490b1dff",
+   "model": "identical"
+  },
+  "boundary": {
+   "buffers": 12,
+   "stream_sha256": "7b655f81d5f230645b08188dbf76930dd2e62add6901406e6f674e55ed864885",
+   "rows_sha256": "cfb56df5f83dce70f5a669f17bf2048e8b9e7a688e35894572cd366454837189",
+   "model": "identical"
+  },
+  "clip": {
+   "buffers": 6,
+   "stream_sha256": "80b0d42704f4a9ea25dec09ca24faa0f0ae09b5bb10b4b1ccdb33ae0ccb22e63",
+   "rows_sha256": "7037602e5be7faa65205d2ac9c897d4a60f1ed899877b1c85b557a2753de4967",
+   "model": "identical"
+  },
+  "chgun": {
+   "buffers": 9,
+   "stream_sha256": "9d28c9adb602b41677b136c7cebda4354ed60d2ab840add91738c56cafabeca0",
+   "rows_sha256": "0d0ae98e4a48370c81ea3c450a4c856457be510d823903741b2a876fbe5f6907",
+   "model": "identical"
+  },
+  "header": {
+   "buffers": 5,
+   "stream_sha256": "d21c3b84f0014a18dd83e8f04233e9fa0f2c4f0f225ccf9e69eafb7a28cda04b",
+   "rows_sha256": "cb676712289ed531cd204705505a9c0c371affc8157efd2826f7299419aa89d7",
+   "model": "identical"
+  },
+  "padding": {
+   "buffers": 15,
+   "stream_sha256": "714112e8751e39ebd2dd190e847d667b8b333f8f734821976ae4e5d797076b07",
+   "rows_sha256": "e8be227871cd44480c62a5c97abb12ddb5ce5b70e8b6ee63331c9b54bb6c0cbf",
+   "model": "identical"
+  },
+  "missing": {
+   "buffers": 4,
+   "stream_sha256": "50cdf1e63c19bfc2220f06787facd472da8819f562433a541871bce4fef190a3",
+   "rows_sha256": "95b2796959907a67f12bcb365e543d2079e6ecbf4ddaa7dd46da625b36145669",
+   "model": "identical"
+  },
+  "handle_wrap": {
+   "buffers": 2,
+   "stream_sha256": "b7c954d962e9160971aa86f157346f078a3a92a50a040fd36b1b7d1b5f45e9e2",
+   "rows_sha256": "9788b8b72a61737adc1ed70af5384c43e6e2c98b49d3b4142c4200d4c3e62dcb",
+   "model": "identical"
+  },
+  "phase": {
+   "buffers": 16,
+   "stream_sha256": "c51dbe96e74d15b748c946f15f3640fc3e0372bccde4e406bec3adcbbcb34f57",
+   "rows_sha256": "67ed189a1648743ee7a8920e86516b904c917ff519edc3ec8d524521fddd737a",
+   "model": "identical"
+  },
+  "busy": {
+   "buffers": 401,
+   "stream_sha256": "c61dad6df0309e5ebbf98b88dc0d416902e556a6feaaa10b67cf890c7f665c87",
+   "rows_sha256": "4b672e3845b5403802d58d763db14c094ecf457fc3df0df589e76b5039e13d64",
+   "model": "identical"
+  },
+  "x_vol128_left": {
+   "buffers": 2,
+   "stream_sha256": "178a3192f27ccbd52633733ee4b812bcfd3b41324c82f7ee891a0d4a98f53d9d",
+   "rows_sha256": "09212991e6b91c0a89cdefcbff48cf2dd80feb2207cf34c7ab3a7e3c595f2cb1",
+   "model": "identical"
+  },
+  "x_vol128_right": {
+   "buffers": 2,
+   "stream_sha256": "178a3192f27ccbd52633733ee4b812bcfd3b41324c82f7ee891a0d4a98f53d9d",
+   "rows_sha256": "3bef27ca34c308d39c0f5544d5f1e23215a4c985d4c43dcad925a6d9d4814613",
+   "model": "identical"
+  },
+  "x_sep257": {
+   "buffers": 2,
+   "stream_sha256": "178a3192f27ccbd52633733ee4b812bcfd3b41324c82f7ee891a0d4a98f53d9d",
+   "rows_sha256": "09212991e6b91c0a89cdefcbff48cf2dd80feb2207cf34c7ab3a7e3c595f2cb1",
+   "model": "identical"
+  },
+  "x_sepm2": {
+   "buffers": 2,
+   "stream_sha256": "178a3192f27ccbd52633733ee4b812bcfd3b41324c82f7ee891a0d4a98f53d9d",
+   "rows_sha256": "3bef27ca34c308d39c0f5544d5f1e23215a4c985d4c43dcad925a6d9d4814613",
+   "model": "identical"
+  }
+ },
+ "refusal_witnesses_T11": {
+  "note": "never goldened: the genuine code reads one byte past an 8-byte zone block (i_sound.c:230-247, 591, 606); AddressSanitizer cannot see it because the read stays inside the zone's single malloc. The three contract builds (LP64) agree; the opt-in strict32 build reads a different byte (m5c_mixer_reference.py --strict32, local only), as Phase 1 observed (section 3.2.5 row 3)",
+  "w_short0": {
+   "flagged_start": [
+    2,
+    0
+   ],
+   "o_row_in": [
+    "address",
+    "overflow",
+    "strict"
+   ],
+   "model_refusal": "x 2 0 refused: no sample byte at the start (padded length 0): the mixed frame would read past the 8-byte block (i_sound.c:230-247, 591)",
+   "stream_digest": {
+    "strict": "b4a8d2f66579e04176a9180c8171965ceb8a6831e6513c5b07ec78609a00c14d",
+    "overflow": "b4a8d2f66579e04176a9180c8171965ceb8a6831e6513c5b07ec78609a00c14d",
+    "address": "b4a8d2f66579e04176a9180c8171965ceb8a6831e6513c5b07ec78609a00c14d"
+   }
+  },
+  "w_short5": {
+   "flagged_start": [
+    2,
+    0
+   ],
+   "o_row_in": [
+    "address",
+    "overflow",
+    "strict"
+   ],
+   "model_refusal": "x 2 0 refused: no sample byte at the start (padded length 0): the mixed frame would read past the 8-byte block (i_sound.c:230-247, 591)",
+   "stream_digest": {
+    "strict": "b4a8d2f66579e04176a9180c8171965ceb8a6831e6513c5b07ec78609a00c14d",
+    "overflow": "b4a8d2f66579e04176a9180c8171965ceb8a6831e6513c5b07ec78609a00c14d",
+    "address": "b4a8d2f66579e04176a9180c8171965ceb8a6831e6513c5b07ec78609a00c14d"
+   }
+  },
+  "w_short8": {
+   "flagged_start": [
+    2,
+    0
+   ],
+   "o_row_in": [
+    "address",
+    "overflow",
+    "strict"
+   ],
+   "model_refusal": "x 2 0 refused: no sample byte at the start (padded length 0): the mixed frame would read past the 8-byte block (i_sound.c:230-247, 591)",
+   "stream_digest": {
+    "strict": "d9fccb83a5cbc4f1057d452a4041da0352420db175eb5c0077d39f5e9432f695",
+    "overflow": "d9fccb83a5cbc4f1057d452a4041da0352420db175eb5c0077d39f5e9432f695",
+    "address": "d9fccb83a5cbc4f1057d452a4041da0352420db175eb5c0077d39f5e9432f695"
+   }
+  }
+ },
+ "sanitizer_findings": [
+  {
+   "scenario": "p_pitch256",
+   "variant": "address",
+   "site": "i_sound.c:495:36",
+   "compiled_site": "i_sound.c:496:36",
+   "message": "index 256 out of bounds for type 'int [256]'",
+   "in_s_sound_domain": false
+  }
+ ],
+ "probes": {
+  "p_pitch256": {
+   "variant": "address",
+   "exit": 1,
+   "report": "i_sound.c:495:36: index 256 out of bounds for type 'int [256]'",
+   "compiled_site": "i_sound.c:496:36",
+   "as_expected": true
+  }
+ }
+}

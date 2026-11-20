@@ -1,0 +1,6 @@
+# Start list of M5VPLAN.sound (sha256 b3cd3c0f6b567fca5ae2db68412581fad577a9078681aee00e167a37e39b94a5), written by tools/reference/m5c_starts.py:
+# the 0 S rows with outcome started, in stream order; 0 S rows in all; 49 R rows.
+# handle convention: integrated (stated by the stream).
+schema DOOM-M5C-STARTS-v1
+config integrated
+tics 49

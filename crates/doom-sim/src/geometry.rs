@@ -191,6 +191,10 @@ pub struct StaticWorld {
     /// (DSIM40 `level.map`); set once by the wire-24 constructor and constant for
     /// the run. `None` under every other policy.
     pub(crate) map_number: Option<u8>,
+    /// Under wire 25 alone, every sector's sound origin (`sector->soundorg`,
+    /// computed once by `P_GroupLines`, p_setup.c:536-557), in sector order.
+    /// Derived from the immutable map at load; never canonical state.
+    pub(crate) sound_origins: Option<Vec<[Fixed; 2]>>,
     /// Per-operation monster sight-query allowance: the historical 64, or
     /// `8·(K + 1)` under the Episode 1 policy (decision D8).
     pub(crate) sight_query_limit: usize,
@@ -204,6 +208,14 @@ pub struct StaticWorld {
     ceiling: Fixed,
 }
 impl StaticWorld {
+    /// Wire 25: the sound origin of `sector` (`None` under every other policy and
+    /// for an index past the sectors).
+    pub(crate) fn sound_origin(&self, sector: u16) -> Option<[Fixed; 2]> {
+        self.sound_origins
+            .as_ref()?
+            .get(usize::from(sector))
+            .copied()
+    }
     /// Rejects unsupported geometry before any simulation mutation.
     pub fn new(map: Map) -> Result<Self, GeometryError> {
         Self::build(map, false, false)
@@ -267,6 +279,7 @@ impl StaticWorld {
             episode1: None,
             teleport: false,
             map_number: None,
+            sound_origins: None,
             sight_query_limit: 64,
             checked_arithmetic: false,
             floor,

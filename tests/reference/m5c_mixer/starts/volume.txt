@@ -1,0 +1,10 @@
+# Every volume s_sound.c can pass at the centre: 0 (the channel is busy but silent), 1, 8 (the default
+# snd_SfxVolume, m_misc.c:237), 15 (the menu maximum and map 8, m_menu.c:821-826, s_sound.c:800-808) and 127
+# (the S_SetSfxVolume limit, s_sound.c:634-635). Shotgn is 1024 samples.
+schema DOOM-M5C-STARTS-v1
+config integrated
+s 0 0 0 2 0 128 128 64 -
+s 8 0 8 2 1 128 128 64 -
+s 16 0 16 2 8 128 128 64 -
+s 24 0 24 2 15 128 128 64 -
+s 32 0 32 2 127 128 128 64 -

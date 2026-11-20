@@ -330,6 +330,9 @@ pub(crate) fn run(actors: &mut ThinkerStore<Actor>, input: Inputs<'_>) {
                                         events: &mut *events,
                                         specials: specials.as_deref_mut(),
                                         player: None,
+                                        // Only policies before wire 24 cross
+                                        // after the motion; wire 25 never does.
+                                        listener: None,
                                     },
                                     id,
                                     crosser,

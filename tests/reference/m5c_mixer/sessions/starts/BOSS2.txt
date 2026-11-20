@@ -1,0 +1,21 @@
+# Start list of BOSS2.sound (sha256 e0421d4b5ef689ea9cb3c8dabbaacd2552a7da700ca77d8eda13f1b778628a16), written by tools/reference/m5c_starts.py:
+# the 15 S rows with outcome started, in stream order; 15 S rows in all; 364 R rows.
+# handle convention: integrated (stated by the stream).
+schema DOOM-M5C-STARTS-v1
+config integrated
+tics 364
+s 64 1 64 35 15 128 120 64 100
+s 64 2 64 35 8 129 134 64 101
+s 72 3 72 67 8 128 140 64 102
+s 175 6 175 35 12 128 129 64 103
+s 175 7 175 35 8 129 114 64 104
+s 183 8 183 67 8 128 141 64 105
+s 216 9 216 22 15 216 128 64 106
+s 224 10 224 22 15 216 116 64 107
+s 232 11 232 22 15 216 138 64 108
+s 240 12 240 22 15 216 119 64 109
+s 248 15 248 22 15 216 127 64 110
+s 256 16 256 22 15 216 143 64 111
+s 264 17 264 22 15 216 129 64 112
+s 272 18 272 22 15 216 136 64 113
+s 279 19 279 19 15 216 134 64 114

@@ -1,0 +1,370 @@
+{
+ "schema": "DOOM-M5C-MIXER-v1",
+ "revision": "a77dfb96cb91780ca334d0d4cfd86957558007e0",
+ "purpose": "Headless whole-file build of the genuine linuxdoom-1.10 in-process mixer (i_sound.c with w_wad.c, z_zone.c and sounds.c) behind a declared fake OSS device, driven by start lists. The expected sample streams come from the genuine code only, never from Rust output and never from the independent model (tools/reference/m5c_mixer_model.py), which is a second check. No audio device is opened.",
+ "configuration": {
+  "sound": "integrated (doomdef.h:84 commented out; decision T2, recommended value, still open)",
+  "handles": "addsfx: 100, 101, ... from a static unsigned short (i_sound.c:271, 335-340)",
+  "process": "fresh: every mixer global zero (static storage, i_sound.c:84-151), handlenums 0",
+  "frames_per_buffer": 512,
+  "frames_per_tic": 315,
+  "sample_rate": 11025
+ },
+ "whole_files": [
+  "i_sound.c",
+  "w_wad.c",
+  "z_zone.c",
+  "sounds.c"
+ ],
+ "source_sha256": {
+  "i_sound.c": "8a11322daa57ba407f7a0d85e55e5e60e971244f9d496f928823ef5e3a9d32d8",
+  "sounds.c": "d489534e93fdb20cad1757f6625913bddf10646ab3b21badbeafdc6cecc027d2",
+  "w_wad.c": "a193860a2a1f671a680999aaa93ca294f90c9b1d6b5ba33152c0aa92000074a9",
+  "z_zone.c": "80174204a0a2c96e89ceb059e0922238046106be4fd5116f1c0a6a530df9010b"
+ },
+ "header_sha256": {
+  "am_map.h": "75c3671cbc7f003e16cc50abe98fe824e595f1c3bf66c2c722e8597a015e40ed",
+  "d_englsh.h": "b018968e3aef65e0009d6ec676d40c8731b33e2882758640d3028c530c87a789",
+  "d_event.h": "24ba8629e157f4f76c4da0821a9f1bf71c34c2aec5cbc1ee4ec5898751225d22",
+  "d_french.h": "018e635134bb064b6c559407221629bc27bc400769d9074dc742510ac7d88086",
+  "d_items.h": "322a73acb345703c9f00ae7528900daa3a49bd27c670d5acee4196c1ded74bda",
+  "d_main.h": "adb0988d417528bdb689f5249cc650360f5a81936c797346d8390b80af0c4ca9",
+  "d_net.h": "54d77e10fe98e7ad640c711e7146f1440e4bd3f73e46d27905f9c19b8117ac3d",
+  "d_player.h": "9c9a342ab7c3661ab02d32890bd0d74ede94a0745ae0d622de83a9ae11046ffb",
+  "d_textur.h": "fac8baf1195a1a1a00f872271c7e159ad8b66a3632385128403ed99f99cf5ba1",
+  "d_think.h": "a8d3d4943495c729cd33b67eff1b56d801f1cf8cd0db74fb5d63b613c4eabddc",
+  "d_ticcmd.h": "2f70caa7c187365850e467254d8b0a31c07ea304d59339c68fde63d05274d146",
+  "doomdata.h": "f0504fd3926491ee56c61c8e9c732f0bf7e74306cba482eb267beda5022accca",
+  "doomdef.h": "643daca966fb762fa86f39ce9a1779355117578527bf2e295163647f9ad0d74e",
+  "doomstat.h": "c8b9eb311ec529a371c1c49dbd9a571ee07976dfd1bdc83d26b77ff6ba163355",
+  "doomtype.h": "e2b8da9ed44c6686a282af8e14a53b605ecc781d05ccd78579fcf57c720297e6",
+  "dstrings.h": "de1d24709df885ac93ddc5c1b86dbc2e0baad1027dde01ea09076d9e28778bc0",
+  "f_finale.h": "ee5cb17f104a894de9fed452dfad04df3e070a7bc70e65d9d336421f7dee9359",
+  "f_wipe.h": "fff2fb466d978eb4d482464899302830a377e305b0d31c9524072ec569cfaff0",
+  "g_game.h": "ab47e29d7506cda9a702073c451d6e533204e49a064a0ccc6e98ae4c5e9faa60",
+  "hu_lib.h": "611143caa98ef13992845fde571be9a9c3d944fa850ee2f2d8b0406aae9ed02e",
+  "hu_stuff.h": "09a1c0ef0434b0b46e9ea3b43232898b7b939b07bf18f302458227948d98579c",
+  "i_net.h": "0c32e01a687cda4e8db3f87ec38db53b7c4c9826e69a128f6dc7a2121a622f5a",
+  "i_sound.h": "7a4171979ac20b40c02969be19d404cbc77e4493aa69bb22c0eeaf1f9b8c519b",
+  "i_system.h": "426ccb2f2b29facaa80e0a43165bb62395ceda6dbb8ed27d0a3cfc99a91a6abc",
+  "i_video.h": "d9af47ac4d55f1acb0dd1060b663b8d2c085688a39807b101a9ff082800b4e42",
+  "info.h": "3e68ee6cc13323e69cbcf208e9a0af7b13867bead49e66d765abefa5d914b0dd",
+  "m_argv.h": "388205a8bda230f472caafac172a42621c72693f018e66c7c71389e4ea24c7b4",
+  "m_bbox.h": "fc041f774ff1f7b2b05d5bd8dd35a9496cf4dd4ca2a0a2df2420ac6f827b0b5d",
+  "m_cheat.h": "92f43c6df575a07bc394981f1beb1b901889f84bce67b557b8274f0379f0ae88",
+  "m_fixed.h": "67aa3925a905d448fb947fb7358093a39367f534c3e26e3f8b06228f553227ef",
+  "m_menu.h": "ccfc1f2abe50cbb78e83d2ec35eb3812003945f2d668e69551b5b2d56bfc4dfa",
+  "m_misc.h": "5cf237e545bd93d01a59f3696afa02073beedf8131ea23f30924fd5cc3891c7b",
+  "m_random.h": "31ec17387c9b7148f8e9762b71cccebaa199bffece76e1103bdb64f0ae615caa",
+  "m_swap.h": "04e76b9143f1d78a8f5cbb11b8d5022b2d5b0f18f644615384fa793f741ffd19",
+  "p_inter.h": "348edaf0dbbac0b455e54823d3e8bdab72ac210bf22cd17cffc519596661fa2a",
+  "p_local.h": "8d71f591ed5f26580042d991558c89d674b683f9cd1c2801ac7714de04b0185f",
+  "p_mobj.h": "85be6ea83fc4b5f95df666c68c8999f7fe5745a5f503d3a441afd66b5f7e5db0",
+  "p_pspr.h": "21b95a0eb8b901287be5077b780b809e5e4e296393cb63c8e02970646a8f8e67",
+  "p_saveg.h": "31457a112b24c4bd91df919c9e2c81add41019194492d320f81f2d837ed00bac",
+  "p_setup.h": "ffffe92a94edde836ca5d2d5db311d003ce03e1dcfe542d948ee8094f1637be0",
+  "p_spec.h": "95d93e2e3b803126b0ecf6ea42de41d2bce7b2d09ea701e03992f0cc6dae22a3",
+  "p_tick.h": "a0512fd19e760d5d43e477bfe4fabf686542bc21bc27daa87108cb703fc562a7",
+  "r_bsp.h": "08ca429757b65ac35798cf9f47ef9dea072e27a5b856fdf300c9fc2fcba5fac6",
+  "r_data.h": "4dbb1515b2e1be1e2496018365ebd37507f001ae449a181a54a894a70141ed1b",
+  "r_defs.h": "d8856503bea02282f5f338f3533885e87c6c430ce4f11511d6a04b5fc040db31",
+  "r_draw.h": "4ab1c0bbf7dba3712db71ba0ba7901184b2a35a8b6132db40bd0f6c87b74ccfe",
+  "r_local.h": "b92f15cbc8620b38de46512166244ba9f357de4fc8ef32be2f35088bc1cfd443",
+  "r_main.h": "9576bf120653af7127dcfd754f50e294b76be38bacb3b43f8686111a2dcd501b",
+  "r_plane.h": "abc99d0fc7845c8e9e73057b14a886b138046d5e432303c87fa5c34879f5903e",
+  "r_segs.h": "9343a51c57d93f13098118cfbc23377487b4063ec0dbf447c6aee8a7d0fd68ce",
+  "r_sky.h": "2c4a650afa36997ccb8ff97b7e1a5a0b25c1090a17c9e39b3d66e1d53ea9391e",
+  "r_state.h": "35a0d8f2e6a8f88ff100625708e54a6f04d22506319bef1c08033293e3ca22bd",
+  "r_things.h": "7e7a985f29f971e7e5c14c93c79f8d3462f4a42f5544d4c298a90df00561cf50",
+  "s_sound.h": "d747126bc8105ef540dee2f6f7e9f17db047dabb2c03a740ddc1bb9f98746b83",
+  "sounds.h": "fa5a6c19c689eeb6e4a2df08b1d4efe5c445b3d0cb4081dc3a7d28fdadfd39f8",
+  "st_lib.h": "8ae86cf219785672579e6dd75ce3a5abae2e9991c44af647d59f6bec384307c2",
+  "st_stuff.h": "0e2aad8828e13314e754c370da0c8cb61f08006c349fb1587ad28ea789ba4d85",
+  "tables.h": "54e366ed33a0bd65e5cad6c5b6f7df77573909e5974b8af296fdb1503c77fcf2",
+  "v_video.h": "728500c3b693d1baff1a43c5df6d0c6d55d1ec343247becd7db33c1be747635b",
+  "w_wad.h": "1c5f7a0f6ba41f1f6ce22440fb020596d0ea7b16742f9f2a044e9bc7d66e8abb",
+  "wi_stuff.h": "57ab19c222d6e54158b3fff8ea6ea23d23e7646925aab830b06cf8cfc1e84f5e",
+  "z_zone.h": "46498575b14b5f5538d0d93f3d7c8325941b76f0e36b435bb895ecaac6f54cca"
+ },
+ "adapted_sha256": {
+  "strict": {
+   "i_sound.c": "c7fcd88952549e73edd6fbf1ad178c0285d2aa57cd8fbafcb2f8b6de4c10ec49",
+   "w_wad.c": "a193860a2a1f671a680999aaa93ca294f90c9b1d6b5ba33152c0aa92000074a9",
+   "z_zone.c": "20a1304e28da07c73d72ad4aabdf6096b03138ac7ebb19ebdb36ad474addd5c4",
+   "sounds.c": "d489534e93fdb20cad1757f6625913bddf10646ab3b21badbeafdc6cecc027d2",
+   "doomdef.h": "bac9c654faf62ec93a5593b7bef2a9c68e433a0f0017d427871a9fc1d41ca038"
+  },
+  "strict32": {
+   "i_sound.c": "c7fcd88952549e73edd6fbf1ad178c0285d2aa57cd8fbafcb2f8b6de4c10ec49",
+   "w_wad.c": "a193860a2a1f671a680999aaa93ca294f90c9b1d6b5ba33152c0aa92000074a9",
+   "z_zone.c": "80174204a0a2c96e89ceb059e0922238046106be4fd5116f1c0a6a530df9010b",
+   "sounds.c": "d489534e93fdb20cad1757f6625913bddf10646ab3b21badbeafdc6cecc027d2",
+   "doomdef.h": "bac9c654faf62ec93a5593b7bef2a9c68e433a0f0017d427871a9fc1d41ca038"
+  }
+ },
+ "flags": {
+  "strict": [
+   "-std=gnu89",
+   "-O0",
+   "-fwrapv",
+   "-fno-strict-aliasing",
+   "-ffp-contract=off",
+   "-fexcess-precision=standard",
+   "-fsigned-char",
+   "-DNORMALUNIX",
+   "-DLINUX"
+  ],
+  "overflow": [
+   "-std=gnu89",
+   "-O0",
+   "-fno-strict-aliasing",
+   "-ffp-contract=off",
+   "-fexcess-precision=standard",
+   "-fsigned-char",
+   "-DNORMALUNIX",
+   "-DLINUX",
+   "-fno-wrapv",
+   "-fsanitize=signed-integer-overflow,integer-divide-by-zero,float-cast-overflow",
+   "-fno-sanitize-recover=all"
+  ],
+  "address": [
+   "-std=gnu89",
+   "-O0",
+   "-fno-strict-aliasing",
+   "-ffp-contract=off",
+   "-fexcess-precision=standard",
+   "-fsigned-char",
+   "-DNORMALUNIX",
+   "-DLINUX",
+   "-fno-wrapv",
+   "-fsanitize=address,undefined",
+   "-fno-sanitize-recover=all",
+   "-fno-sanitize=alignment"
+  ]
+ },
+ "variant_notes": {
+  "overflow": "run as is",
+  "address": "run with ASAN_OPTIONS=detect_leaks=0 (leak detection disabled; not LeakSanitizer coverage); -fno-sanitize=alignment because z_zone.c rounds block sizes to 4 (z_zone.c:195) while the LP64 memblock_t needs 8-byte alignment"
+ },
+ "optional_variants": {
+  "strict32": {
+   "flags": [
+    "-std=gnu89",
+    "-O0",
+    "-fwrapv",
+    "-fno-strict-aliasing",
+    "-ffp-contract=off",
+    "-fexcess-precision=standard",
+    "-fsigned-char",
+    "-DNORMALUNIX",
+    "-DLINUX",
+    "-m32"
+   ],
+   "note": "config and errno adapters only, no ABI adapter (ILP32 target); needs a 32-bit toolchain; run only by m5c_mixer_reference.py --strict32 and never required"
+  }
+ },
+ "file_flags": {
+  "z_zone.c": [
+   "-include",
+   "stdint.h"
+  ]
+ },
+ "include_dirs": [
+  "<build>/m5c_fakesnd (tools/reference/m5c_fakesnd)",
+  "<build>/src (the genuine headers, doomdef.h adapted)"
+ ],
+ "link_flags": [
+  "-Wl,--wrap=open,--wrap=close,--wrap=ioctl,--wrap=write,--wrap=sigaction,--wrap=setitimer",
+  "-lm"
+ ],
+ "wrapped": [
+  "open",
+  "close",
+  "ioctl",
+  "write",
+  "sigaction",
+  "setitimer"
+ ],
+ "config_adapters": [
+  {
+   "file": "doomdef.h",
+   "line": 84,
+   "original": "#define SNDSERV  1",
+   "adapted": "//#define SNDSERV  1",
+   "original_sha256": "1a8d9db7d617f9bd3bfa243a9ca961deeceb31b31ae414a3810ec06980b0f08f",
+   "adapted_sha256": "fa2a332c70965e340ffaeb1c69e9a09ff92e120aa47fa2d9cf982609a8b9d19d",
+   "builds": [
+    "strict",
+    "overflow",
+    "address",
+    "strict32"
+   ],
+   "reason": "Selects the in-process (integrated) sound configuration. With SNDSERV defined (doomdef.h:84, seen by i_sound.c through i_sound.h:26 and i_sound.c:59) I_InitSound starts the external sndserver (i_sound.c:740-757), I_StartSound writes to its pipe and returns the sfx id (i_sound.c:482-489) and D_DoomLoop never calls I_UpdateSound (d_main.c:396-400), so the mixer this driver runs never runs. The source offers this configuration itself (doomdef.h:76-85: \"Default is synchronous\"); SNDINTR stays undefined as shipped (doomdef.h:85). Owner decision T2 (recommended: integrated) is still open; the mixer exists only in this configuration."
+  }
+ ],
+ "errno_adapters": [
+  {
+   "file": "i_sound.c",
+   "line": 166,
+   "original": "    extern int\terrno;",
+   "adapted": "    /* errno: <errno.h> (M5c ABI adapter) */",
+   "original_sha256": "52ca05ec05609b6abad20bef7a69f3116ddd1f22a906d82769a655c13a116116",
+   "adapted_sha256": "6810ee4eed2efb4d38783b38fc0021f192d3e934f33096a25a9685ba75f1e9e6",
+   "builds": [
+    "strict",
+    "overflow",
+    "address",
+    "strict32"
+   ],
+   "reason": "myioctl (i_sound.c:159-175) declares errno itself; with <errno.h> included (next adapter) the macro would turn this declaration into a conflicting declaration of __errno_location, so it becomes a comment. errno is read only if an ioctl fails (i_sound.c:168-174), which the fake device never does."
+  },
+  {
+   "file": "i_sound.c",
+   "line": 27,
+   "original": "#include <stdio.h>",
+   "adapted": "#include <errno.h>\n#include <stdio.h>",
+   "original_sha256": "1e839e32685d525d4c1965f9ba99267582bb562cbb1d9eba94b1c8058cde2f2e",
+   "adapted_sha256": "26dbbbf2ea486a31ad84e773bde0640f4ddefe737fad5fa3d9bc6c3db27d0927",
+   "builds": [
+    "strict",
+    "overflow",
+    "address",
+    "strict32"
+   ],
+   "reason": "glibc declares errno thread-local in <errno.h>; the plain `extern int errno;` of i_sound.c:166 does not link against it (observed in Phase 1, section 1.3.10). Including <errno.h> gives myioctl the C library's errno."
+  }
+ ],
+ "abi_adapters": [
+  {
+   "file": "z_zone.c",
+   "line": 440,
+   "original": "    if (tag >= PU_PURGELEVEL && (unsigned)block->user < 0x100)",
+   "adapted": "    if (tag >= PU_PURGELEVEL && (uintptr_t)block->user < 0x100)",
+   "original_sha256": "49f144bd6387e859167fc9e58d67f78c0489d27e1808c38d162e4988c9ea6ed4",
+   "adapted_sha256": "bd7b6a7db69bca6029398b98ba22cfcbbe8cd871d44e5451442244b17d8e0470",
+   "builds": [
+    "strict",
+    "overflow",
+    "address"
+   ],
+   "reason": "Z_ChangeTag: the owner test truncates the 64-bit user pointer to 32 bits, so a valid owner whose address has small low 32 bits (observed under ASan on the CI runner: W_CacheLumpNum re-caching the one patch lump) raises \"an owner is required for purgable blocks\"; the 32-bit original compares the whole pointer, which uintptr_t does on LP64 (stdint.h comes from -include on the command line)."
+  }
+ ],
+ "stubs": [
+  {
+   "symbol": "gametic",
+   "kind": "variable",
+   "classification": "var",
+   "vanilla": "g_game.c:123",
+   "reason": "the tic counter; the driver sets it to each start's GAMETIC before I_StartSound, as G_Ticker runs with gametic = t (d_net.c:745-746); read by addsfx (i_sound.c:276, 348) and I_SoundIsPlaying (i_sound.c:520)",
+   "file": "tools/reference/m5c_mixer_stubs.c"
+  },
+  {
+   "symbol": "snd_SfxVolume",
+   "kind": "variable",
+   "classification": "var",
+   "vanilla": "s_sound.c:113",
+   "reason": "written by I_SetSfxVolume (i_sound.c:434), which nothing calls here; the mixer never reads it (volume reaches it only as an argument of I_StartSound)",
+   "file": "tools/reference/m5c_mixer_stubs.c"
+  },
+  {
+   "symbol": "snd_MusicVolume",
+   "kind": "variable",
+   "classification": "var",
+   "vanilla": "s_sound.c:116",
+   "reason": "written by I_SetMusicVolume (i_sound.c:441), which nothing calls here; music is out of scope",
+   "file": "tools/reference/m5c_mixer_stubs.c"
+  },
+  {
+   "symbol": "I_Error",
+   "kind": "function",
+   "classification": "io",
+   "vanilla": "i_system.c:162-183",
+   "reason": "formats the message and longjmps back to the driver, which writes an x row and stops the run (vanilla prints it and exits)",
+   "file": "tools/reference/m5c_mixer_stubs.c"
+  },
+  {
+   "symbol": "I_ZoneBase",
+   "kind": "function",
+   "classification": "io",
+   "vanilla": "i_system.c:76-80",
+   "reason": "*size = mb_used MiB (6, i_system.c:51, unless --zone-mb) and malloc, as vanilla; the zone size moves addresses only",
+   "file": "tools/reference/m5c_mixer_stubs.c"
+  }
+ ],
+ "stub_counts": {
+  "functions": 2,
+  "variables": 3
+ },
+ "driver_hooks": [
+  "stub_armed",
+  "stub_jmp",
+  "stub_msg",
+  "stub_zone_mb"
+ ],
+ "fake_device": {
+  "files": [
+   "tools/reference/m5c_mixer_fakesnd.c",
+   "tools/reference/m5c_fakesnd/linux/soundcard.h"
+  ],
+  "behaviour": [
+   "Header: m5c_fakesnd/linux/soundcard.h stands for <linux/soundcard.h> (i_sound.c:45) and declares only the seven names i_sound.c uses (i_sound.c:775-789), with the values of the Linux UAPI OSS header.",
+   "open: \"/dev/dsp\" with O_WRONLY (i_sound.c:770) returns fd 1000 and touches no device; any other \"/dev/\" path aborts; every other path (the WAD files, w_wad.c:163) goes to the real open.",
+   "ioctl: accepted only on fd 1000 (myioctl, i_sound.c:159-175, at i_sound.c:776, 777, 781, 784, 786, 789); records SETFRAGMENT, SPEED, STEREO and SETFMT; GETFMTS answers AFMT_S16_LE so the genuine SETFMT branch runs (i_sound.c:788-789); unknown requests abort; it never fails, so myioctl's exit path is not reached.",
+   "write: accepted only on fd 1000 (I_SubmitSound, i_sound.c:669): the 2,048 bytes go to the driver, which digests them; any other fd aborts.",
+   "close: fd 1000 (I_ShutdownSound, i_sound.c:725) is counted; other fds (w_wad.c:225) go to the real close.",
+   "sigaction, setitimer: referenced only by I_SoundSetTimer and I_SoundDelTimer (i_sound.c:941-985), called only with SNDINTR (i_sound.c:720-722, 762-765), which stays undefined (doomdef.h:85): they abort."
+  ]
+ },
+ "runner_sha256": {
+  "tools/reference/m5c_mixer_driver.c": "8712383a896c7ff4a9be330e1457c7e321262180f215568ea211ee78b2b15af3",
+  "tools/reference/m5c_mixer_stubs.c": "b82c9d22fa4459ff3062285ed60547a8949dc3f6f468b54f0ea16321ff2153ea",
+  "tools/reference/m5c_mixer_fakesnd.c": "a025edfc89da4e0a0502722d4764254d51e88b7a6cb5111ad8cb5189f4c81974",
+  "tools/reference/m5c_fakesnd/linux/soundcard.h": "f5bd074296a8ebfc3caff0aa6181319604cc4cb81742bce036e8ea1fd76953f5"
+ },
+ "start_list": {
+  "schema": "DOOM-M5C-STARTS-v1",
+  "directives": {
+   "schema DOOM-M5C-STARTS-v1": "first directive, required",
+   "config integrated": "required before the first row: the handle convention of the run that made the list (decision T2); any other value is refused, because the in-process mixer exists only in the integrated configuration",
+   "tics N": "optional: run at least tics 0..N-1 (the session length); default 0",
+   "s TIC SEQ GAMETIC SFX VOL SEP PITCH PRIO HANDLE": "one I_StartSound call: the session tic, the call order (the pair TIC SEQ strictly increases down the list), gametic at the call, the five arguments exactly as s_sound.c passes them (s_sound.c:389-394), and the handle the sound-logic run received, or \"-\"; the driver writes an m row when the genuine handle differs",
+   "n COUNT TIC SEQ GAMETIC SFX VOL SEP PITCH PRIO": "harness only: COUNT identical starts with call orders SEQ..SEQ+COUNT-1, echoed as one sn row (the handle wrap)",
+   "g TIC SEQ SFX": "harness only: one call of the genuine I_GetSfxLumpNum (i_sound.c:451-456), the lookup of s_sound.c:364-365"
+  },
+  "domain": "SFX 1..NUMSFX-1 (the driver indexes S_sfx with it; s_sound.c:277 also passes NUMSFX, refusal T11 item 3); PITCH 0..255 unless --probe (s_sound.c clamps it, s_sound.c:332-335, 342-345; steptable has 256 entries); VOL and SEP are passed as given (out-of-range values reach the genuine I_Error of i_sound.c:364-368).",
+  "comments": "lines whose first non-blank character is # are ignored"
+ },
+ "schedule": {
+  "default": "ticbuffers",
+  "ticbuffers": "Recommended reading of decision T5 (open): after the starts of tic t (counted from the first tic of the session), mix every buffer k not yet mixed with 512*k < 315*(t+1), each by one genuine I_UpdateSound and I_SubmitSound; buffer k is mixed after tic floor(512k/315), none or one per tic, 315 buffers per 512 tics, the first after tic 0. A start takes effect in the next buffer mixed (the original mixes after all tics of a loop pass, d_main.c:389-405). The compared signal is the sequence of mixed buffers, not the device output.",
+  "pertic": "One genuine I_UpdateSound and I_SubmitSound after every tic (the singletics loop, d_main.c:375-405): 512 frames per tic, 1.625 times the real-time rate. Kept only so that this reading can be reproduced; never the source of a golden."
+ },
+ "driver_behaviour": [
+  "Start-up in the genuine order: Z_Init (d_main.c:1018); W_InitMultipleFiles over the --wad files in order (d_main.c:1021); I_InitSound (I_Init, d_main.c:1101, i_system.c:107-110), which opens the fake device and loads every non-linked sfx 1..108 with the genuine getsfx (i_sound.c:799-813); I_SetChannels (S_Init, d_main.c:1107, s_sound.c:170), which builds steptable and vol_lookup (i_sound.c:396-424).",
+  "Per tic t = 0, 1, ...: every start-list row of tic t in list order; for a start, gametic = GAMETIC, then the genuine I_StartSound (SFX, VOL, SEP, PITCH, PRIO); then the schedule mixes buffers. The run continues after the last row and the last of the N tics until every mixer channel is idle at a tic boundary, or until --max-buffers (x limit row).",
+  "The driver only reads i_sound.c's globals (channels, channelsend, channelhandles, channelids, channelstep, lengths, steptable, vol_lookup, the volume row pointers, S_sfx[].data) to write its rows; it never writes them. The mixing channel of a start is the channel whose handle the call changed.",
+  "I_Error (the stub) longjmps to the driver, which writes an x row and stops, as the genuine game exits; the genuine I_ShutdownSound (i_system.c:119) then runs if I_InitSound completed.",
+  "Raw samples are written only with --raw FILE (a scratch path, never committed): the bytes exactly as the fake write received them, little-endian signed 16-bit, left first (mixbuffer is native shorts, i_sound.c:112, 565-567; the device is set to S16_LE, i_sound.c:788-789).",
+  "Test-only: --perturb-byte N flips bit 0 of stream byte N before it is digested; --probe accepts a pitch outside 0..255 (the declared probe of i_sound.c:495). Neither changes genuine code text.",
+  "The zone is 6 MiB (vanilla mb_used, i_system.c:51) unless --zone-mb is given; it moves addresses only, which only the short-lump witnesses can see."
+ ],
+ "golden_row_kinds": {
+  "h": "DOOM-M5C-MIXER-v1 schedule S frames 512: the header",
+  "d": "opens O ioctls I fragment 0xF speed S stereo T fmt 0xM: the fake device after I_InitSound (device glue; not written by the model)",
+  "T": "steptable|vol_lookup SHA256: SHA-256 of the genuine table as little-endian int32",
+  "L": "COUNT SHA256: SHA-256 of the COUNT l rows (each with its newline), whether or not they are printed",
+  "l": "SFX LEN SHA256: lengths[SFX] and SHA-256 of the LEN padded data bytes, or - when S_sfx[SFX].data is NULL (with --lumps)",
+  "P": "SFX SIZE PADDED PAD OF128 own|fallback: a loaded sfx whose lump size - 8 differs from its padded length, or whose ds lump is missing so getsfx used dspistol (with --lumps); PAD padding bytes, OF128 of them equal to 128",
+  "s": "TIC SEQ GAMETIC SFX VOL SEP PITCH PRIO > HANDLE SLOT STEP LVOL RVOL BEFORE PREV FREED: one start as given and what the genuine code did: the handle returned, the mixer channel, channelstep, the left and right vol_lookup rows, the occupancy mask before the call (hex), the sfx that occupied SLOT before the call or -, the other channels the call freed (comma-separated) or -",
+  "m": "TIC SEQ EXPECTED GOT: the start list's HANDLE differs from the genuine handle",
+  "o": "TIC SEQ SFX: the started non-linked sfx has padded length 0, so its one mixed frame reads one byte past its 8-byte zone block (i_sound.c:230-247, 591, 606): a layout-dependent start, refused by the model (decision T11)",
+  "sn": "TIC SEQ COUNT GAMETIC SFX VOL SEP PITCH PRIO > FIRST LAST HSHA SSHA MASK: an n row: the first and last handle, SHA-256 of the handles and of the slots (one decimal and a newline each), the occupancy mask after the last",
+  "g": "TIC SEQ SFX > LUMP: the genuine I_GetSfxLumpNum result",
+  "b": "K TIC SHA256 MASK: buffer K, mixed after tic TIC: SHA-256 of the 2,048 bytes I_SubmitSound wrote, and the occupancy mask after it was mixed (hex)",
+  "r": "N KLAST TICLAST: the previous b row's digest and mask repeat for N more buffers, the last being KLAST, mixed after tic TICLAST",
+  "x": "TIC SEQ MESSAGE | init MESSAGE | limit - MESSAGE: I_Error at a start or a lookup, at init, or the buffer limit; the run stops",
+  "q": "closes C writes W: the fake device after the genuine I_ShutdownSound (device glue; not written by the model)",
+  "z": "NBUF SHA256: the number of buffers and SHA-256 of the whole stream"
+ }
+}

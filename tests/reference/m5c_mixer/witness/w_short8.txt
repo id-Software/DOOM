@@ -1,0 +1,6 @@
+# Refusal witness (decision T11), never a golden: a 8-byte lump has padded length 0 (i_sound.c:230), so
+# its one mixed frame reads one byte past the 8-byte zone block (i_sound.c:591 before the test at 606).
+schema DOOM-M5C-STARTS-v1
+config integrated
+s 0 0 0 2 60 128 128 64 -
+s 2 0 2 7 127 128 128 64 -

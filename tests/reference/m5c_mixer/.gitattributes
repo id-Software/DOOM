@@ -1,0 +1,2 @@
+# Start lists and goldens are compared byte for byte on every host.
+* text eol=lf

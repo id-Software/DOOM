@@ -1,14 +1,21 @@
 //! `doom-play`: the playable port's window around doom-game's platform-free app (milestone
-//! M5b, decisions S2, S13, S14, S19–S21). This crate is the only one that depends on the
-//! window library (miniquad); it reads the files, keeps the monotonic clock, translates input
-//! and presents the picture. Nothing here reaches the simulation except through
-//! [`doom_game::app::App`]'s input calls. No `unsafe` (forbidden by the workspace lints).
+//! M5b, decisions S2, S13, S14, S19–S21), with sound (milestone M5c, decisions T7–T9, T15).
+//! This crate is the only one that depends on the window library (miniquad) and the audio
+//! library (maudio); it reads the files, keeps the monotonic clock, translates input, presents
+//! the picture and hands the mixed sound stream to the device. Nothing here reaches the
+//! simulation except through [`doom_game::app::App`]'s input calls. No `unsafe` (forbidden by
+//! the workspace lints).
 
+mod audio;
+mod input_log;
 mod keys;
+#[cfg(test)]
+mod session_tests;
 mod tic_stats;
 mod window;
 
-use doom_game::app::{App, GameData, Host, SessionConfig, Timestamp, UNRECORDED_LABEL};
+use audio::{Output, Volume};
+use doom_game::app::{App, AudioSink, GameData, Host, SessionConfig, Timestamp, UNRECORDED_LABEL};
 use doom_game::input::Preset;
 use doom_render::GameMode;
 use std::io::Write as _;
@@ -17,9 +24,11 @@ use std::time::{SystemTime, UNIX_EPOCH};
 
 const HELP: &str = "\
 doom-play: play one Episode 1 map of DOOM in a window, with the Linux DOOM 1.10 game rules
-(no cheats, menu or sound; see Limits).
+and the sound effects of linuxdoom-1.10 built with its in-process sound code (one define
+removed); no cheats, menu or music (see Sound and Limits).
 
 usage: doom-play --iwad PATH [options]
+       doom-play --audio-probe
 
   --iwad PATH          the IWAD (required; read only, never copied)
   --wad PATH           an extra WAD loaded after the IWAD (repeatable; later files win)
@@ -37,6 +46,11 @@ usage: doom-play --iwad PATH [options]
   --quit-after-tics N  measurement aid: save and quit after N tics (or at a session end)
   --tic-stats          measurement aid: print, on exit, the intervals between executed tics
                        (taken from the loop's monotonic clock) to stderr; no other effect
+  --input-log FILE     diagnostic: write to FILE (replaced if it exists) one line for every
+                       raw input the window library delivers (mouse buttons, motion and
+                       cursor position, keys, focus) and for every event sent to the game,
+                       each with the loop's pump number and the tic, flushed every pump;
+                       no effect on the game, the demo or the picture
   --unrecorded-full-turning
                        opt-in, never implied by another option: mouse and keyboard turns
                        are executed at full resolution instead of being rounded to demo
@@ -46,20 +60,45 @@ usage: doom-play --iwad PATH [options]
                        and the end screens say \"not recorded: no demo, cannot be replayed\",
                        and so does a band over the top of the picture for the first five
                        seconds (175 tics) of every session, in a window or fullscreen.
+  --volume N           sound volume at the speakers, 0-100 percent (default 100). It
+                       scales the finished sound only; 0 is silent. The game's sound
+                       logic always runs at the original's default volume, so the game,
+                       the status bar face and the demo do not depend on this setting.
+  --no-sound           open no audio device. The sound logic and the mixer still run, so
+                       the picture, the face and the demo are the same as with sound.
   --help               this text
+  --audio-probe        diagnostic, taking no other option: open the audio device from the
+                       listed real backends only, play digital silence (no sound) for about
+                       one second, print which backend opened and exit 0; or print why
+                       none opened and exit 1.
 
 Keys: Esc or Pause pauses (then Esc or Pause resumes, R restarts, Q quits); on an end screen
-R restarts and Q or Esc quits. When the window library reports that the window was
-minimised or lost focus, the game pauses and every held key is released. Every session
+R restarts and Q or Esc quits. End mutes and unmutes the sound (the player's own key, never
+seen by the game); pausing also silences it. When the window library reports that the window
+was minimised or lost focus, the game pauses and every held key is released. Under WSLg the
+window now and then reports a focus loss in its first moments, so the game can open already
+paused (the PAUSED box shows): Esc or Pause resumes. Every session
 (unless --unrecorded-full-turning) is recorded as a version-110 demo named
 E1M<map>-skill<n>-<yyyymmdd-hhmmss>.lmp (the time is UTC) in the sessions directory; an
 existing file is never replaced (a suffix -2, -3, ... is added). If writing the demo fails,
 the pause box says so, the end screen and the exit message give the reason, and the write
 is tried again on quit and restart.
 
-Limits: an OpenGL 2.1 (or OpenGL ES 2) driver is required. There is no sound, menu,
+Sound: sound effects play from the first audio backend that opens (Linux: PulseAudio, then
+ALSA, which need the system's libpulse.so.0 or libasound.so.2; Windows: WASAPI, DirectSound,
+then WinMM; macOS: Core Audio). If none opens, one line on standard error says so and names
+the backends tried, and the game runs exactly the same without sound output. The sound logic
+and mixer are matched to linuxdoom-1.10 built with its in-process sound code (one define
+removed), under the declared schedule; what reaches the speakers after that (the device,
+resampling, latency and volume) is presentation and is not part of any claim.
+
+Limits: an OpenGL 2.1 (or OpenGL ES 2) driver is required. There is no music, menu,
 automap, intermission or next level; the session ends at the level's exit, or when the
-dead player presses use. Cheat codes have no effect: their keys reach the game as ordinary keys.";
+dead player presses use. Cheat codes have no effect: their keys reach the game as ordinary
+keys. The status bar face's idle glance follows the sound's random draws as the genuine
+engine replaying the session's demo does, under the declared schedule and build; a vanilla
+player's menu keys (Esc, -, =, F1-F10), which start menu sounds, are not part of a demo and
+are not modelled.";
 
 /// The parsed command line.
 #[derive(Debug)]
@@ -77,6 +116,9 @@ struct Options {
     quit_after: Option<u64>,
     tic_stats: bool,
     unrecorded: bool,
+    volume: Volume,
+    no_sound: bool,
+    input_log: Option<PathBuf>,
 }
 
 fn number<T: std::str::FromStr>(
@@ -108,6 +150,9 @@ fn parse(args: impl IntoIterator<Item = String>) -> Result<Option<Options>, Stri
         quit_after: None,
         tic_stats: false,
         unrecorded: false,
+        volume: Volume::FULL,
+        no_sound: false,
+        input_log: None,
     };
     let mut it = args.into_iter();
     while let Some(flag) = it.next() {
@@ -149,7 +194,13 @@ fn parse(args: impl IntoIterator<Item = String>) -> Result<Option<Options>, Stri
             }
             "--fullscreen" => o.fullscreen = true,
             "--tic-stats" => o.tic_stats = true,
+            "--input-log" => o.input_log = Some(PathBuf::from(value()?)),
             "--unrecorded-full-turning" => o.unrecorded = true,
+            "--no-sound" => o.no_sound = true,
+            "--volume" => {
+                let percent = number(&flag, &value()?, |v: &u8| *v <= 100)?;
+                o.volume = Volume::new(percent).ok_or("--volume: above 100")?;
+            }
             "--screenblocks" => {
                 o.screenblocks = number(&flag, &value()?, |s| (10..=11).contains(s))?;
             }
@@ -159,6 +210,18 @@ fn parse(args: impl IntoIterator<Item = String>) -> Result<Option<Options>, Stri
     }
     o.iwad = iwad.ok_or("--iwad PATH is required (see --help)")?;
     Ok(Some(o))
+}
+
+/// Whether the arguments ask for the audio probe: `Ok(true)` for `--audio-probe` alone,
+/// `Ok(false)` when it is absent, an error when it is mixed with other arguments.
+fn audio_probe_requested(args: &[String]) -> Result<bool, String> {
+    match args {
+        [only] if only == "--audio-probe" => Ok(true),
+        _ if args.iter().any(|a| a == "--audio-probe") => {
+            Err("--audio-probe takes no other argument (see --help)".into())
+        }
+        _ => Ok(false),
+    }
 }
 
 /// The window title: the session's label when nothing is recorded (decision S3 (ii)).
@@ -184,9 +247,10 @@ fn game_mode(iwad: &Path) -> GameMode {
     }
 }
 
-/// The sessions directory on disk.
+/// The sessions directory on disk and the sound output.
 struct FsHost {
     dir: PathBuf,
+    audio: Output,
 }
 
 impl Host for FsHost {
@@ -206,6 +270,10 @@ impl Host for FsHost {
             f.write_all(b).and_then(|()| f.sync_all())
         })
     }
+    /// The device sink, or the sink that discards (no device, or `--no-sound`).
+    fn audio(&mut self) -> Option<&mut dyn AudioSink> {
+        Some(&mut self.audio)
+    }
     /// Writes a temporary file whose name holds the process id (two processes never share
     /// it), flushes it to the disk and renames it over the session's file; a failed write
     /// removes the temporary file.
@@ -219,6 +287,12 @@ impl Host for FsHost {
             let _ = std::fs::remove_file(&tmp);
         }
         written.map_err(|e| format!("{}: {e}", path.display()))
+    }
+}
+
+impl keys::Mute for FsHost {
+    fn toggle_mute(&mut self) {
+        self.audio.toggle_mute();
     }
 }
 
@@ -295,23 +369,38 @@ fn run(o: Options) -> Result<(), String> {
         files.push(std::fs::read(path).map_err(|e| format!("{}: {e}", path.display()))?);
     }
     let refs: Vec<&[u8]> = files.iter().map(Vec::as_slice).collect();
-    let data =
-        GameData::load(&refs, game_mode(&o.iwad), o.map, o.skill).map_err(|e| e.to_string())?;
+    // wire 25 with sound (decision T15)
+    let data = GameData::load_with_sound(&refs, game_mode(&o.iwad), o.map, o.skill)
+        .map_err(|e| e.to_string())?;
     drop(files);
     if !display_available() {
         return Err("no display: neither DISPLAY nor WAYLAND_DISPLAY is set".into());
     }
+    let log = match &o.input_log {
+        Some(path) => input_log::InputLog::create(path)?,
+        None => input_log::InputLog::off(),
+    };
     let cfg = SessionConfig {
         screenblocks: o.screenblocks,
         preset: o.preset,
         unrecorded_full_turning: o.unrecorded,
         ..SessionConfig::default()
     };
-    let mut host = FsHost { dir: o.sessions };
+    // after the checks that can still refuse the launch; during play the loop never waits for
+    // the device: it takes the queue's lock, which the callback holds only to copy one period
+    let (audio, line) = Output::for_launch(o.no_sound, o.volume);
+    if let Some(line) = line {
+        eprintln!("{line}");
+    }
+    let mut host = FsHost {
+        dir: o.sessions,
+        audio,
+    };
     let app = App::new(data, cfg, &mut host);
     window::play(
         app,
         host,
+        log,
         title(!o.unrecorded),
         window::Presentation {
             gamma: o.gamma,
@@ -325,7 +414,30 @@ fn run(o: Options) -> Result<(), String> {
 }
 
 fn main() {
-    let code = match parse(std::env::args().skip(1)) {
+    let args: Vec<String> = std::env::args().skip(1).collect();
+    let code = match audio_probe_requested(&args) {
+        Ok(true) => match audio::probe() {
+            Ok(line) => {
+                println!("{line}");
+                0
+            }
+            Err(e) => {
+                eprintln!("doom-play: audio probe: {e}");
+                1
+            }
+        },
+        Ok(false) => play(args),
+        Err(e) => {
+            eprintln!("doom-play: {e}");
+            2
+        }
+    };
+    std::process::exit(code);
+}
+
+/// Parses the arguments and plays; the process exit code.
+fn play(args: Vec<String>) -> i32 {
+    match parse(args) {
         Ok(None) => {
             println!("{HELP}");
             0
@@ -341,8 +453,7 @@ fn main() {
             eprintln!("doom-play: {e}");
             2
         }
-    };
-    std::process::exit(code);
+    }
 }
 
 #[cfg(test)]
@@ -424,9 +535,84 @@ mod tests {
     }
 
     #[test]
+    fn sound_options() {
+        let o = parse(args("--iwad a.wad")).unwrap().unwrap();
+        assert_eq!(
+            (o.volume, o.no_sound),
+            (Volume::FULL, false),
+            "sound by default"
+        );
+        let o = parse(args("--iwad a.wad --no-sound --volume 0"))
+            .unwrap()
+            .unwrap();
+        assert_eq!((o.volume, o.no_sound), (Volume::new(0).unwrap(), true));
+        for (v, want) in [("0", 0), ("1", 1), ("37", 37), ("100", 100)] {
+            let o = parse(args(&format!("--iwad a.wad --volume {v}")))
+                .unwrap()
+                .unwrap();
+            assert_eq!(o.volume, Volume::new(want).unwrap(), "{v}");
+        }
+        for bad in [
+            "--iwad a --volume 101",
+            "--iwad a --volume 255",
+            "--iwad a --volume 256",
+            "--iwad a --volume -1",
+            "--iwad a --volume 50%",
+            "--iwad a --volume",
+            "--iwad a --no-sound 1",
+        ] {
+            assert!(parse(args(bad)).is_err(), "{bad}");
+        }
+        for (other, unrecorded) in [("--no-sound", false), ("--volume 0", false)] {
+            let o = parse(args(&format!("--iwad a.wad {other}")))
+                .unwrap()
+                .unwrap();
+            assert_eq!(o.unrecorded, unrecorded, "{other} changes nothing else");
+            assert_eq!((o.map, o.skill, o.screenblocks), (1, 2, 10));
+        }
+        assert!(HELP.contains("--volume N") && HELP.contains("--no-sound"));
+        assert!(HELP.contains("End mutes and unmutes the sound"));
+        assert!(HELP.contains(
+            "The sound logic\nand mixer are matched to linuxdoom-1.10 built with its \
+             in-process sound code (one define\nremoved), under the declared schedule"
+        ));
+        assert!(HELP.contains("is presentation and is not part of any claim"));
+        // review-app M3: the header names the sound's reference with its qualifier (ruling T2)
+        // and the face sentence names the declared schedule and build (ruling T14)
+        assert!(HELP.contains(
+            "and the sound effects of linuxdoom-1.10 built with its in-process sound code (one \
+             define\nremoved)"
+        ));
+        assert!(!HELP.contains("game rules\nand sound effects"));
+        assert!(HELP.contains(
+            "as the genuine\nengine replaying the session's demo does, under the declared \
+             schedule and build;"
+        ));
+        assert!(HELP.contains("There is no music, menu"));
+        assert!(!HELP.contains("There is no sound") && !HELP.contains("menu or sound"));
+        assert!(!HELP.contains("does not use the device yet"));
+    }
+
+    #[test]
+    fn the_audio_probe_is_asked_for_alone() {
+        assert_eq!(audio_probe_requested(&args("--audio-probe")), Ok(true));
+        for absent in ["", "--iwad a.wad", "--help"] {
+            assert_eq!(audio_probe_requested(&args(absent)), Ok(false), "{absent}");
+        }
+        for mixed in ["--audio-probe --iwad a.wad", "--iwad a.wad --audio-probe"] {
+            assert!(audio_probe_requested(&args(mixed)).is_err(), "{mixed}");
+        }
+        assert!(parse(args("--iwad a.wad --audio-probe")).is_err());
+        assert!(HELP.contains("--audio-probe") && HELP.contains("digital silence"));
+    }
+
+    #[test]
     fn session_files_are_created_once_and_rewritten_through_a_synced_temporary() {
         let dir = std::env::temp_dir().join(format!("doom-play-test-{}", std::process::id()));
-        let mut host = FsHost { dir: dir.clone() };
+        let mut host = FsHost {
+            dir: dir.clone(),
+            audio: Output::Discard(audio::Discard::default()),
+        };
         assert_eq!(host.claim("a.lmp", b"one"), Ok(true));
         assert_eq!(
             host.claim("a.lmp", b"two"),
@@ -461,7 +647,10 @@ mod tests {
         assert!(r.as_ref().is_err_and(|e| e.ends_with("disk full")), "{r:?}");
         assert!(!dir.join("a.lmp").exists(), "the partial file is removed");
         // a file another claim made is never removed by a failing one
-        let mut host = FsHost { dir: dir.clone() };
+        let mut host = FsHost {
+            dir: dir.clone(),
+            audio: Output::Discard(audio::Discard::default()),
+        };
         assert_eq!(host.claim("b.lmp", b"kept"), Ok(true));
         assert_eq!(claim_new(&dir, "b.lmp", b"x", full), Ok(false));
         assert_eq!(std::fs::read(dir.join("b.lmp")).unwrap(), b"kept");

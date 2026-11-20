@@ -74,7 +74,10 @@ struct Field<'a> {
 #[derive(Debug)]
 pub struct Diagnostic<'a> {
     bytes: &'a [u8],
+    /// The layout version every DSIM40 rule reads: 40 for a DSIM41 frame.
     version: u32,
+    /// DSIM41 (wire 25): the DSIM40 layout plus `events.sounds`.
+    sounds: bool,
     fields: Vec<Field<'a>>,
     sorted: Vec<usize>,
 }
@@ -322,6 +325,34 @@ impl<'a> Diagnostic<'a> {
     ) -> Result<Self, DiagnosticError> {
         Self::decode_selected(bytes, limits, Some(40))
     }
+    /// Explicit DSIM41 Episode 1 part 3 reader (M5c, wire 25, decision T3); every
+    /// earlier reader, `decode_episode1_v2` included, rejects 41 and this reader
+    /// rejects every earlier version. DSIM41 is the DSIM40 layout, event
+    /// vocabulary, bounds and witnesses, field for field, under policy 25 and the
+    /// `PLAYER-MONSTERS-EPISODE1-3-v1` context, plus the sound records after
+    /// `events.pending`: `events.sounds.last.count` (u64) and
+    /// `events.sounds.last.N`, then `events.sounds.pending.count` and
+    /// `events.sounds.pending.N`. A record is tag 1, a start: u16 sfx (1..=108);
+    /// u8 origin kind 0 none, 1 actor (a 12-byte handle), 2 sector (u16, below
+    /// `sectors.count`), 3 button (u8, below 15: slot 15's release reads past
+    /// `buttonlist`, p_spec.h:244, and is refused); u8 placed (0 or 1), then when 1
+    /// origin x, origin y, listener x, listener y (i32) and the listener angle
+    /// (u32). A start is placed exactly when its origin is a sector, a button, or
+    /// an actor other than `original_player.0.mo` (s_sound.c:304); a button's
+    /// origin y is 0 and its x a timer, 0..=35 (the declared 64-bit reading of
+    /// p_spec.c:1151). Tag 2 is a stop: the 12-byte handle. Integers are little
+    /// endian. The group holds no other field, and the pending records, without
+    /// their placements, are exactly the sound calls of `events.pending` in order
+    /// (each sound event a start, each `RemovalMarked` a stop). The DSIM40 bounds,
+    /// totals and lump-order witnesses are counted over the THINGS records
+    /// `P_LoadThings` loads, those before the first of the ten Doom II types
+    /// (p_setup.c:317-337).
+    pub fn decode_episode1_v3(
+        bytes: &'a [u8],
+        limits: DiagnosticLimits,
+    ) -> Result<Self, DiagnosticError> {
+        Self::decode_selected(bytes, limits, Some(41))
+    }
     /// Explicit DSIM30 real-map-scale reader; every earlier reader rejects 30 and
     /// this reader rejects every earlier version.
     pub fn decode_map_scale(
@@ -400,9 +431,11 @@ impl<'a> Diagnostic<'a> {
         {
             return Err(DiagnosticError::Structure);
         }
+        let sounds = version == 41;
         let result = Self {
             bytes,
-            version,
+            version: if sounds { 40 } else { version },
+            sounds,
             fields,
             sorted,
         };
@@ -419,7 +452,7 @@ impl<'a> Diagnostic<'a> {
     }
     /// Explicit format version, separate from the execution profile field.
     pub const fn version(&self) -> u32 {
-        self.version
+        if self.sounds { 41 } else { self.version }
     }
     /// Borrow a field without reordering the original capture/event sequence.
     pub fn field(&self, path: &str) -> Option<&'a [u8]> {
@@ -430,6 +463,20 @@ impl<'a> Diagnostic<'a> {
     }
     fn required(&self, path: &str) -> Result<&'a [u8], DiagnosticError> {
         self.field(path).ok_or(DiagnosticError::Structure)
+    }
+    /// The frame's `map.things` as the source loaded it: under DSIM41 (wire 25)
+    /// the records before the first Doom II type, which `P_LoadThings` of a
+    /// non-commercial game never reaches (p_setup.c:317-337; M5c review MAJOR 1),
+    /// so that every bound, total and lump-order witness counts the spawned
+    /// things only (`totalkills`, `totalitems`: p_mobj.c:790, 792); the whole
+    /// lump for every older version.
+    fn loaded_things(&self) -> Result<&'a [u8], DiagnosticError> {
+        let things = self.required("map.things")?;
+        Ok(if self.sounds {
+            crate::spawning::loaded_thing_records(things)
+        } else {
+            things
+        })
     }
     /// DSIM39: the per-map bounds counted from the frame's `map.things`; `None`
     /// for every other version (and for a malformed lump, which the THINGS
@@ -442,7 +489,7 @@ impl<'a> Diagnostic<'a> {
             // Wire 24 counts the Baron (doomednum 3003) in `K` (M4b step 5), and
             // counts with the option bit of the frame's skill (step 6).
             return Episode1Bounds::from_thing_records_v2(
-                self.field("map.things")?,
+                self.loaded_things().ok()?,
                 self.v40_skill(),
             );
         }
@@ -531,6 +578,9 @@ impl<'a> Diagnostic<'a> {
                 || crate::barrels::is_barrel(self.policy(), actor))
     }
     fn policy(&self) -> OriginalExecutionProfile {
+        if self.sounds {
+            return OriginalExecutionProfile::PlayerMonstersEpisode1V3;
+        }
         if self.version == 40 {
             return OriginalExecutionProfile::PlayerMonstersEpisode1V2;
         }
@@ -630,6 +680,142 @@ impl<'a> Diagnostic<'a> {
         } else {
             OriginalExecutionProfile::DemonNormalV1
         }
+    }
+    /// DSIM41: the two record lists of `events.sounds` (see
+    /// [`Self::decode_episode1_v3`]).
+    fn validate_sound_records(&self) -> Result<(), DiagnosticError> {
+        let sectors = u32::from_le_bytes(number(self.required("sectors.count")?)?);
+        let mo = self.required("original_player.0.mo")?;
+        let listener = (mo.len() == 13 && mo[0] == 1).then(|| &mo[1..]);
+        // The fields the group must hold: its two counts and their records.
+        let mut group = 2_usize;
+        // The pending records without their placements, for the cross-check with
+        // `events.pending` below.
+        let mut pending = Vec::new();
+        for prefix in ["events.sounds.last", "events.sounds.pending"] {
+            let count = u64::from_le_bytes(number(self.required(&format!("{prefix}.count"))?)?);
+            let count = usize::try_from(count).map_err(|_| DiagnosticError::Limit)?;
+            if count > self.fields.len() {
+                return Err(DiagnosticError::Limit);
+            }
+            group += count;
+            for i in 0..count {
+                let r = self.required(&format!("{prefix}.{i}"))?;
+                let mut bare = r;
+                match r.first() {
+                    Some(1) => {
+                        let sfx = u16::from_le_bytes(number(r.get(1..3).unwrap_or(&[]))?);
+                        if !(1..=108).contains(&sfx) {
+                            return Err(DiagnosticError::Identity);
+                        }
+                        let kind = *r.get(3).ok_or(DiagnosticError::Structure)?;
+                        let (identity, positional) = match kind {
+                            0 => (0, false),
+                            1 => {
+                                let handle = r.get(4..16).ok_or(DiagnosticError::Structure)?;
+                                validate_handle(handle, self.slot_bound())?;
+                                (12, listener != Some(handle))
+                            }
+                            2 => {
+                                let sector =
+                                    u16::from_le_bytes(number(r.get(4..6).unwrap_or(&[]))?);
+                                if u32::from(sector) >= sectors {
+                                    return Err(DiagnosticError::Identity);
+                                }
+                                (2, true)
+                            }
+                            3 => {
+                                // Slot 15's release reads past `buttonlist`
+                                // (MAXBUTTONS 16, p_spec.h:244; p_spec.c:1151):
+                                // the simulation refuses that tic, so no record
+                                // names it.
+                                if *r.get(4).ok_or(DiagnosticError::Structure)? >= 15 {
+                                    return Err(DiagnosticError::Identity);
+                                }
+                                (1, true)
+                            }
+                            _ => return Err(DiagnosticError::Structure),
+                        };
+                        let placed_at = 4 + identity;
+                        let placed = *r.get(placed_at).ok_or(DiagnosticError::Structure)?;
+                        let expected = placed_at + 1 + if placed == 1 { 20 } else { 0 };
+                        if placed > 1 || r.len() != expected || (placed == 1) != positional {
+                            return Err(DiagnosticError::Structure);
+                        }
+                        bare = &r[..placed_at];
+                        if kind == 3 {
+                            let x = i32::from_le_bytes(number(&r[placed_at + 1..placed_at + 5])?);
+                            let y = i32::from_le_bytes(number(&r[placed_at + 5..placed_at + 9])?);
+                            if y != 0 || !(0..=35).contains(&x) {
+                                return Err(DiagnosticError::Identity);
+                            }
+                        }
+                    }
+                    Some(2) => {
+                        if r.len() != 13 {
+                            return Err(DiagnosticError::Structure);
+                        }
+                        validate_handle(&r[1..13], self.slot_bound())?;
+                    }
+                    _ => return Err(DiagnosticError::Structure),
+                }
+                if prefix == "events.sounds.pending" {
+                    pending.push(bare);
+                }
+            }
+        }
+        // No surplus record and no field outside the documented names: every
+        // required name was found above and paths are unique, so the counts agree
+        // exactly when the group holds nothing else.
+        if self
+            .fields
+            .iter()
+            .filter(|f| f.path.starts_with("events.sounds."))
+            .count()
+            != group
+        {
+            return Err(DiagnosticError::Structure);
+        }
+        // The pending records are the calls of `events.pending`, in order (what
+        // `sound::same_calls` requires before the next tic): a sound event
+        // (tag 12, sub-tag 3: the optional origin handle and the sound) is a
+        // start with an actor or NULL origin, a sector sound (tag 26, sub-tag 12:
+        // origin kind 1 sector or 2 button, index, sound) a start at that sector
+        // or button slot, and a `RemovalMarked` (tag 2: the handle) the stop of
+        // `P_RemoveMobj` (p_mobj.c:565-566). Placements are not compared.
+        let count = u64::from_le_bytes(number(self.required("events.pending.count")?)?);
+        let count = usize::try_from(count).map_err(|_| DiagnosticError::Limit)?;
+        if count > self.fields.len() {
+            return Err(DiagnosticError::Limit);
+        }
+        let mut calls = Vec::new();
+        for i in 0..count {
+            let e = self.required(&format!("events.pending.{i}"))?;
+            let mut call = Vec::new();
+            match e {
+                [12, 3, present @ (0 | 1), handle @ .., s0, s1] if handle.len() == 12 => {
+                    call.extend([1, *s0, *s1]);
+                    if *present == 1 {
+                        call.push(1);
+                        call.extend(handle);
+                    } else {
+                        call.push(0);
+                    }
+                }
+                [26, 12, 1, i0, i1, s0, s1] => call.extend([1, *s0, *s1, 2, *i0, *i1]),
+                [26, 12, 2, i0, 0, s0, s1] => call.extend([1, *s0, *s1, 3, *i0]),
+                [2, handle @ ..] if handle.len() == 12 => {
+                    call.push(2);
+                    call.extend(handle);
+                }
+                _ => continue,
+            }
+            calls.push(call);
+        }
+        if calls.len() != pending.len() || calls.iter().zip(&pending).any(|(c, p)| c != p) {
+            return Err(DiagnosticError::Identity);
+        }
+        Ok(())
     }
     fn validate(&self) -> Result<(), DiagnosticError> {
         let profile = u32::from_le_bytes(number(self.required("profile")?)?);
@@ -731,6 +917,15 @@ impl<'a> Diagnostic<'a> {
                     return Err(DiagnosticError::Identity);
                 }
             }
+        }
+        if self.sounds {
+            self.validate_sound_records()?;
+        } else if self
+            .fields
+            .iter()
+            .any(|f| f.path.starts_with("events.sounds."))
+        {
+            return Err(DiagnosticError::Structure);
         }
         for prefix in ["events.last", "events.pending"] {
             let count = u64::from_le_bytes(number(self.required(&format!("{prefix}.count"))?)?);
@@ -1612,7 +1807,7 @@ impl<'a> Diagnostic<'a> {
         }
         // Lump order: each decoration of the thinker list matches the next unused
         // THINGS record with its spawnpoint bytes (x, y, angle, type, options).
-        let things = self.required("map.things")?;
+        let things = self.loaded_things()?;
         let mut records = things.chunks_exact(10);
         for handle in self.required("thinker.order")?.chunks_exact(12) {
             let slot = u32::from_le_bytes(number(&handle[..4])?) as usize;
@@ -1753,7 +1948,7 @@ impl<'a> Diagnostic<'a> {
         }
         // Lump order: each barrel of the thinker list matches the next unused THINGS
         // record with its spawnpoint bytes (a barrel is spawned only from the lump).
-        let things = self.required("map.things")?;
+        let things = self.loaded_things()?;
         let mut records = things.chunks_exact(10);
         for handle in self.required("thinker.order")?.chunks_exact(12) {
             let slot = u32::from_le_bytes(number(&handle[..4])?) as usize;
@@ -1931,7 +2126,7 @@ impl<'a> Diagnostic<'a> {
     /// slot (allocated in spawn order on the fresh store) lies between the number
     /// of those actors and the number of those records.
     fn validate_level_body(&self) -> Result<(), DiagnosticError> {
-        let things = self.required("map.things")?;
+        let things = self.loaded_things()?;
         if things.len() % 10 != 0 {
             return Err(DiagnosticError::Structure);
         }
@@ -2176,6 +2371,8 @@ impl<'a> Diagnostic<'a> {
         if things.len() % 10 != 0 || things.len() > bound {
             return Err(DiagnosticError::Limit);
         }
+        // DSIM41: the totals count the loaded prefix only (p_setup.c:317-337).
+        let things = self.loaded_things()?;
         let raw = || {
             things.chunks_exact(10).map(|t| {
                 (

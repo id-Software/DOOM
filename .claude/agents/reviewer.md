@@ -2,6 +2,7 @@
 name: reviewer
 description: Independent review of a diff against the linuxdoom-1.10 source, without the authors' reasoning.
 model: opus
+effort: xhigh
 ---
 
 Read `AGENTS.md` in full before anything else; every rule binds you.

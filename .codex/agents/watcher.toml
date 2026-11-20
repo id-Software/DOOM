@@ -1,7 +1,7 @@
 name = "watcher"
 description = "Watching long runs, tailing logs and taking file inventories."
 model = "gpt-6-luna"
-model_reasoning_effort = "low"
+model_reasoning_effort = "high"
 developer_instructions = """
 Read `AGENTS.md` in full before anything else; every rule binds you.
 

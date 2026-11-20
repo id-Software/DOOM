@@ -4,11 +4,50 @@
 //! 256 or more (keypad digits, Insert, Home and so on) never reaches `gamekeydown`
 //! (the `data1 < NUMKEYS` tests, g_game.c:566 and 571), so it is not forwarded.
 
+use doom_game::app::{App, Host};
 use doom_game::input::keys::{
     KEY_BACKSPACE, KEY_DOWNARROW, KEY_ENTER, KEY_EQUALS, KEY_ESCAPE, KEY_F, KEY_LEFTARROW,
     KEY_MINUS, KEY_PAUSE, KEY_RALT, KEY_RCTRL, KEY_RIGHTARROW, KEY_RSHIFT, KEY_TAB, KEY_UPARROW,
 };
 use miniquad::KeyCode;
+
+/// The app-level mute key (decision T9): End. It is never an input the game sees: linuxdoom's
+/// `xlatekey` leaves `XK_End` as its keysym, 0xff57, which is 256 or more, so it never reaches
+/// `gamekeydown` (i_video.c:152-157 converts only `XK_space..XK_asciitilde`; g_game.c:566, 571
+/// test `data1 < NUMKEYS`, 256 at g_game.c:181) and [`doom_key`] does not forward it; the menu hot keys are Esc,
+/// `-`, `=` and F1–F11 (m_menu.c:1519-1617) and the app's own keys are Esc, Pause, R and Q.
+/// miniquad 0.4.11 reports it on X11, Wayland, Windows and macOS (Fn+Right on a Mac laptop).
+pub const MUTE_KEY: KeyCode = KeyCode::End;
+
+/// The host's mute switch, which the mute key toggles.
+pub trait Mute {
+    /// Mutes or unmutes the sound output; no effect without a device.
+    fn toggle_mute(&mut self);
+}
+
+/// A key went down (`down`, with `repeat` for auto-repeat) or up: the mute key toggles the
+/// host's mute on its first down event and goes nowhere else; any other key the game path can
+/// see goes to the app, auto-repeated downs excepted, as before M5c.
+pub fn key_event<H: Host + Mute>(
+    app: &mut App,
+    host: &mut H,
+    key: KeyCode,
+    down: bool,
+    repeat: bool,
+) {
+    if key == MUTE_KEY {
+        if down && !repeat {
+            host.toggle_mute();
+        }
+        return;
+    }
+    if down && repeat {
+        return;
+    }
+    if let Some(code) = doom_key(key) {
+        app.key(code, down, host);
+    }
+}
 
 /// The DOOM key code of `key`, or `None` when linuxdoom's game path would never see it.
 pub fn doom_key(key: KeyCode) -> Option<u8> {
@@ -140,5 +179,10 @@ mod tests {
         for k in [K::Insert, K::Home, K::CapsLock, K::Menu, K::Kp0, K::Unknown] {
             assert_eq!(doom_key(k), None, "{k:?}");
         }
+        assert_eq!(
+            doom_key(MUTE_KEY),
+            None,
+            "the mute key never reaches the game"
+        );
     }
 }

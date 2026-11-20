@@ -767,3 +767,60 @@ observations in [validation/M4B.md](../../docs/validation/M4B.md#synthetic-mecha
   [m4b_synthetic_goldens.json](../../tests/reference/m4b_synthetic_goldens.json) and the
   `m4b_episode1v2_*.bin` fixtures; `--selftest` proves the encoder can fail
   ([observations](../../docs/validation/M4B.md#independent-projection)).
+
+## M5c sound effects: the genuine sound logic and mixer
+
+M5c's genuine-engine tools compile the original `s_sound.c`, `f_wipe.c`, `i_sound.c`, `w_wad.c`, `z_zone.c`
+and `sounds.c` whole and unmodified, apart from declared one-line adapters, and record what they do. Nothing opens
+an audio device. Commands are in [TESTING](../../docs/TESTING.md#m5c-sound-effects-the-genuine-sound-logic-and-mixer);
+observations in [validation/M5C.md](../../docs/validation/M5C.md); the source facts and the open owner decisions
+T1-T16 in the [investigation](../../docs/M5C_REFERENCE_INVESTIGATION.md). Results are under the recommended values
+of T2, T5 and T6 (the `--handle`, `--update-schedule` and `--wipe` switches); none of these tools runs in CI yet.
+
+Sound lumps and rooms:
+
+- [m5c_sfx.py](m5c_sfx.py) writes the three synthetic PWADs [m5c_sfx.wad](../../tests/reference/m5c_sfx.wad) (one
+  lump per sound `I_InitSound` loads), [m5c_sfx_edge.wad](../../tests/reference/m5c_sfx_edge.wad) (the edge cases:
+  short, padded and oddly headed lumps) and [m5c_music.wad](../../tests/reference/m5c_music.wad) (placeholders for
+  the nine Episode 1 music names). Our own computed tones, no id audio. [m5c_check_sfx.py](m5c_check_sfx.py) is the
+  independent verifier (it re-parses `sounds.c`) with a `--self-test`.
+- [m5c_wad.py](m5c_wad.py) writes four rooms ([m5c_wads](../../tests/reference/m5c_wads)) and five scripts
+  ([m5c_scripts](../../tests/reference/m5c_scripts)) and the manifest
+  [m5c_manifest.json](../../tests/reference/m5c_manifest.json), through the frozen M5a and M4b framing and script
+  format. [m5c_rust_check.py](m5c_rust_check.py) runs the existing wire-24 comparison on them unchanged (frozen
+  M4b runner, `player_level_run`, `level_compare_m4b.py`).
+
+The sound-logic runner:
+
+- [m5c_build.py](m5c_build.py) builds the M5b runner fork with the sound logic and the wipe whole, and writes or
+  `--check`s [m5c_runner_contract.json](../../tests/reference/m5c_runner_contract.json) (adapters, stubs, wrapped
+  symbols and the declared configuration). [m5c_driver.c](m5c_driver.c) and [m5c_stubs.c](m5c_stubs.c) are the
+  driver and stubs; the driver writes the sound stream `DOOM-M5C-SOUND-v1` and the frame stream's extra rows.
+- [m5c_reference.py](m5c_reference.py) runs 64 items (the 59 existing and the 5 new) in the strict, overflow and
+  address builds at screenblocks 10 and 11, with the independent audibility model, the face check and the
+  self-test. It writes or `--check`s [m5c_sound](../../tests/reference/m5c_sound),
+  [m5c_frames](../../tests/reference/m5c_frames), [m5c_results.json](../../tests/reference/m5c_results.json) and
+  the measured [m5c_coverage.json](../../tests/reference/m5c_coverage.json); `--strict32` is a local opt-in
+  comparison mode.
+
+The mixer:
+
+- [m5c_mixer_build.py](m5c_mixer_build.py) builds [m5c_mixer_driver.c](m5c_mixer_driver.c) with the genuine
+  `i_sound.c` behind a declared fake OSS device ([m5c_mixer_fakesnd.c](m5c_mixer_fakesnd.c),
+  [m5c_fakesnd](m5c_fakesnd), [m5c_mixer_stubs.c](m5c_mixer_stubs.c)) and writes or `--check`s
+  [m5c_mixer_contract.json](../../tests/reference/m5c_mixer_contract.json).
+- [m5c_mixer_model.py](m5c_mixer_model.py) is the independent model (standard library only, no code shared with the
+  C); a second check, never a source of goldens.
+- [m5c_starts.py](m5c_starts.py) converts a sound stream into a start list.
+  [m5c_mixer_reference.py](m5c_mixer_reference.py) runs the 23 scenarios, 3 witnesses and 1 probe and the 64
+  committed sessions and writes or `--check`s [m5c_mixer](../../tests/reference/m5c_mixer) (see its
+  [README](../../tests/reference/m5c_mixer/README.md)),
+  [m5c_mixer_results.json](../../tests/reference/m5c_mixer_results.json) and
+  [m5c_mixer_sessions_results.json](../../tests/reference/m5c_mixer_sessions_results.json).
+
+Local only (they read a scratch copy of an IWAD; never in CI; counts and digests only are committed):
+[tools/local/m5c_real.py](../local/m5c_real.py) with
+[m5c_real_results.json](../../tests/reference/m5c_real_results.json) (the 61 real Episode 1 runs) and
+[tools/local/m5c_mixer_real.py](../local/m5c_mixer_real.py) with
+[m5c_mixer_real_results.json](../../tests/reference/m5c_mixer_real_results.json) (the mixer on DOOM.WAD and
+DOOM2.WAD).

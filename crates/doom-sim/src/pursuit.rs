@@ -238,6 +238,7 @@ fn use_lines_blocked<A: ActorAccess>(
     let mut good = false;
     for &line in hit.lines().iter().rev() {
         let special = h.sectors.line_special(line);
+        let listener = h.listener();
         let Some(store) = h.access.movers() else {
             h.fail_sight(StoreError::UnsupportedThinker.into());
             return false;
@@ -249,6 +250,7 @@ fn use_lines_blocked<A: ActorAccess>(
             events: &mut *h.events,
             specials: None,
             player: None,
+            listener,
         };
         match use_lines::use_special_line(
             &mut starter,
@@ -291,6 +293,8 @@ fn cross_lines<A: ActorAccess>(
                 }
             }
         }
+        // The monster and the listener are both in the staged store here.
+        let listener = h.listener();
         let Some(store) = h.access.movers() else {
             h.fail_sight(StoreError::UnsupportedThinker.into());
             return;
@@ -302,6 +306,7 @@ fn cross_lines<A: ActorAccess>(
             events: &mut *h.events,
             specials: None,
             player: None,
+            listener,
         };
         if let Err(error) =
             line_triggers::cross(&mut starter, id, line_triggers::Crosser::Monster, crossing)

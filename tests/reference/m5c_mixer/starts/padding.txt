@@ -1,0 +1,9 @@
+# Padding (i_sound.c:230-241): 1, 511, 512, 513 and 1024 samples become 512, 512, 512, 1024 and 1024; the
+# padding is 128, which mixes to 0 but keeps the channel busy.
+schema DOOM-M5C-STARTS-v1
+config integrated
+s 0 0 0 8 127 128 128 64 -
+s 2 0 2 9 127 128 128 64 -
+s 5 0 5 10 127 128 128 64 -
+s 8 0 8 11 127 128 128 64 -
+s 13 0 13 12 127 128 128 64 -

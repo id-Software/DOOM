@@ -1,4 +1,4 @@
-# Canonical diagnostic state format: DSIM versions 1–40
+# Canonical diagnostic state format: DSIM versions 1–41
 
 This is a diagnostic/replay comparison format for explicit simulation profiles,
 not a DOOM savegame or network/demo format. A field schema change requires an
@@ -8,7 +8,9 @@ No Rust layout, padding, pointers, addresses, timestamps, paths, or GPU state is
 encoded. Shared immutable map storage uses Arc internally; reference counts and
 addresses are excluded. The M5a renderer's own, separate `DRST` format is at the
 [end of this page](#render-state-drst-version-2-m5a); it is not a DSIM version and no DSIM
-reader decodes it.
+reader decodes it. The same holds for the display state `DDSP` ([version 1](#display-state-ddsp-version-1-m5b),
+[version 2](#display-state-ddsp-version-2-m5c)) and for the sound session's
+saved state `DSND` ([DSND version 1](#sound-session-state-dsnd-version-1-m5c)).
 
 M3f8's execution-scope brands and derived target availability are API observations,
 not persistent fields. V20/v21, profile/registry/context schema identifiers, stored
@@ -2395,9 +2397,175 @@ Reader limitations, as for v39: the reader does not re-run the load rules or rep
 So it cannot tell whether a teleport, a stomp or an `A_BossDeath` outcome matches the map. Those
 are replay and C-comparison facts, not per-capture invariants.
 
+## DSIM v41 — wire 25: canonical sound records
+
+`PlayerMonstersEpisode1V3` captures are version 41. Version 41 selects policy 25
+(`PlayerMonstersEpisode1V3`, wire 25; decision T3 of the
+[M5c investigation](M5C_REFERENCE_INVESTIGATION.md#5-owner-decisions-t1t16-with-recommendations)),
+the unchanged original registry schema, layout selector 17 and context
+`PLAYER-MONSTERS-EPISODE1-3-v1` (29 bytes, like the wire-24 context). **Frozen-reader rule:** every
+earlier reader, the v40 reader included, rejects 41, and the v41 reader (`Diagnostic::decode_episode1_v3`)
+reads 41 only. A frame that carries version 40 but contains an `events.sounds.*` field is refused. DSIM1-40
+bytes, encoders, fixtures and policy/context meanings are unchanged. What wire 25 does is in
+[COMPATIBILITY](COMPATIBILITY.md#original-episode-1-part-3-canonical-sound-records-wire-25).
+
+The Rust writer is checked against the independent Python encoder
+(`tools/reference/level_snapshot_m5c.py`, profile `episode1v3`), which builds the sound records from the
+genuine engine's sound stream and never from Rust output; commands in
+[TESTING](TESTING.md#m5c-sound-effects-the-genuine-sound-logic-and-mixer); observations in the
+[evidence record](validation/M5C.md).
+
+### Layout: DSIM40 plus one group
+
+V41 is the DSIM40 layout, field for field, with the following differences and no others.
+
+| Position | Field | Value encoding | Why |
+| --- | --- | --- | --- |
+| header | version word | u32 `41` | selects the policy |
+| `profile` (same place) | same field | u32 `25` | wire 25 |
+| `context.schema` (same place) | same field | the 29 bytes `PLAYER-MONSTERS-EPISODE1-3-v1` | names the policy |
+| right after `events.pending` (its count and its entries) | **`events.sounds.last.count`** (u64), then **`events.sounds.last.<i>`** for i in 0..count | one sound record each (below) | the sound calls the simulation made during the last tic, in call order |
+| after that | **`events.sounds.pending.count`** (u64), then **`events.sounds.pending.<i>`** | one sound record each | the calls made by explicit operations between tics, in call order (for example a removal marked by hand). `events.last` and `events.pending` have the same two-list shape. In a demo run the list is always empty. A frame's list must equal the sound calls of its own `events.pending`, in order (see [the reader](#what-the-v41-reader-checks)) |
+
+Every other DSIM40 field keeps its path, width, position, source and meaning, and so does every event
+tag. The events of wire 25 are wire 24's events with one exception: the hard-death scream of a player
+outside commercial mode is the sound `sfx_pldeth`, where wires 22-24 name `sfx_pdiehi`
+([COMPATIBILITY](COMPATIBILITY.md#known-gap-the-players-hard-death-scream-in-the-sound-events-of-wires-22-24)).
+
+### The sound record
+
+All integers are little endian. A record is one of two kinds, told apart by its first byte.
+
+| Tag | Kind | Layout |
+| --- | --- | --- |
+| 1 | start: one call of `S_StartSound` | u16 `sfx` (1..=108); u8 origin kind; the origin's identity (below); u8 `placed` (0 or 1); when `placed` is 1: i32 origin x, i32 origin y, i32 listener x, i32 listener y (raw 16.16 bits) and u32 listener angle (BAM) |
+| 2 | stop: one call of `S_StopSound` (made by `P_RemoveMobj`) | the 12-byte actor handle (u32 slot, u64 generation) of the removed actor |
+
+| Origin kind | Meaning | Identity bytes |
+| --- | --- | --- |
+| 0 | none (a NULL origin: the sound is centred and full volume) | none |
+| 1 | an actor (a monster, a missile, a fog, or the player's own body) | 12 bytes: u32 slot, u64 generation |
+| 2 | a sector's sound origin | u16 sector index |
+| 3 | a switch button's origin (the release sound; see below) | u8 button slot, 0..=14 |
+
+`placed` is the one bit of position the sound logic needs: a start carries its positions exactly when
+the original computes the distance and the stereo position, which is when the origin is neither NULL nor
+the listener's own body (`origin && origin != players[consoleplayer].mo`, s_sound.c:304). So a start is
+placed exactly when its origin is a sector, a button, or an actor other than the console player's body.
+The positions are the values at the moment of the call, in the middle of the tic, which is why the record
+carries them. A start without a position carries neither the origin nor the listener position: the
+original does not read them there.
+
+A button origin's position is the declared 64-bit reading of `p_spec.c:1151` (decision T12): origin x is
+the next button slot's timer (0..=35) and origin y is 0, so the reader requires y = 0 and x in 0..=35.
+Slot 15 would read past the array (`MAXBUTTONS` is 16, p_spec.h:244); the simulation refuses the tic before such a
+record exists, and the reader refuses slot 15 and above, so only slots 0..=14 are valid.
+
+### What the v41 reader checks
+
+The v41 reader applies every v40 check, with these changes:
+
+- version 41, `profile` 25 and the v41 context;
+- **the THINGS the original loads.** `P_LoadThings` ends at the first of ten Doom II types outside commercial mode
+  (p_setup.c:317-337), and `totalkills` and `totalitems` count only spawned things (p_mobj.c:790, 792). So under v41
+  every per-map bound, every total and every witness that is counted over `map.things` (the Episode 1 bounds, the
+  decoration, barrel, level-body and bonus-statistics checks) counts only the records before the first of those types;
+  for every older version it counts the whole lump. The record-count limit and the whole-record length check stay on
+  the whole lump. A map the truncation cuts short therefore decodes: before this rule (an independent review found it,
+  [record](validation/M5C.md#step-13-independent-review)) the reader refused every frame of such a map;
+- **the group holds exactly its two counts and their records.** Both `events.sounds` counts are present, each at most
+  the number of fields in the frame, every entry `events.sounds.<list>.<i>` is present, and no other field starts with
+  `events.sounds.` (a surplus record or an unknown name is `Structure`). Field order stays free, as in every DSIM
+  reader; the position of the group is checked by the comparator, not by the reader;
+- every record: a known tag; for a start, `sfx` in 1..=108, an origin kind of 0 to 3, a well-formed actor handle for
+  kind 1 (slot below the actor-slot bound, generation not 0), a sector below `sectors.count` for kind 2, a button slot
+  **below 15** for kind 3 (slot 15 reads past `buttonlist`, p_spec.c:1151), `placed` 0 or 1 and equal to the rule
+  above (the player's own body is read from `original_player.0.mo`), the exact length, and the button rule; for a stop,
+  exactly 13 bytes and a well-formed handle;
+- **the pending list is the pending events.** The records of `events.sounds.pending`, without their placements, must
+  equal in order the sound calls that `events.pending` holds: each sound event (tag 12, sub-tag 3) and sector sound
+  (tag 26, sub-tag 12) is a start with that origin and sound, and each `RemovalMarked` (tag 2) is the stop that
+  `P_RemoveMobj` makes (p_mobj.c:565-566). A removal without its stop, a stop without its removal, a stop of another
+  actor or a start that does not match is refused (`Identity`). This is the rule the simulation applies before its next
+  tic (`sound::same_calls`).
+
+**Reader limitations.** The reader checks each record's shape and the cross-checks above, not that the sound could
+have been made there: it does not replay the engine, so it cannot tell that a start's origin has the right type or
+that a `last` record follows from the tic's actions. That is a comparison fact (the genuine engine against wire 25),
+not a per-capture invariant. The writer places the group after the last `events.pending.<i>` field; the independent
+comparator (`level_compare_m5c.py`) checks the frame layout of every capture, so a group moved elsewhere is reported
+there, not by the reader.
+
+## Sound session state (`DSND` version 1, M5c)
+
+Not a DSIM version and not a change to `DRST` or `DDSP`. `DSND` is the saved state of one sound session
+(`doom_sound::state::SoundState`): what the sound logic, the mixer, the schedule and the T12 layout detector
+carry from one tic to the next, so that a restored session continues exactly as an uninterrupted one. It
+is saved next to a DSIM snapshot of the same tic. What it does **not** save: the sound data (reloaded from
+the WADs), the `M_Random` index (it belongs to the status bar's state, in the display state, not in the
+sound session), the mixer's `channelids` (equal to the channel's sound number, i_sound.c:377) and the stale
+fields of a free channel (never read before a start rewrites them). All integers are little endian; the
+encoding is at most 1,505 bytes.
+
+| Field | Encoding | Meaning |
+| --- | --- | --- |
+| magic | 4 bytes `DSND` | |
+| version | u16 = 1 | |
+| tics run | u64 | the next tic: `gametic` after the last tic run |
+| buffers mixed | u64 | must equal ceil(315 x tics run / 512), the declared schedule |
+| `snd_SfxVolume` | u8, 0..=127 | 8 in a fresh process. The encoder writes 255 for a volume no session holds (outside 0..=127), which the decoder refuses, so a forged value cannot wrap into an accepted one |
+| `numChannels` | u8, 0..=64 | 3 in a fresh process; N below. Written as 255 in the same way when out of range |
+| `gamemap` | i32 | the map number the sound logic reads (s_sound.c:773, 800) |
+| detector texture count | u32, 0..=65,536 | the textures the T12 detector tries as the 32-bit build's read |
+| detector label | u8, 0 or 1 | 1 means the session is labelled layout-dependent |
+| first tic | u64 | the tic of the first detector firing; 0 without a label, otherwise below tics run |
+| firings | u64 | how often the detector fired; 0 exactly when there is no label |
+| lump looked up | 14 bytes | one bit per sound number 0..=108 (bit `n % 8` of byte `n / 8`); bit 0 and bits 109..=111 are 0. They decide which start writes the genuine lump-lookup row (s_sound.c:363-365) |
+| N sound-logic channels | per channel: u8 tag 0 (free), or 1 then u8 sfx (1..=108), u8 origin kind (0 none, 1 actor, 2 sector, 3 button), the identity (actor: u32 slot and u64 generation; sector: u16; button: u8 below 15; none: nothing), and i32 handle (100..=65,535) | one channel per origin: no two busy channels share an origin (s_sound.c:349) |
+| mixer handle counter | u16 | never 1..=99 (i_sound.c:271, 335-340) |
+| 8 mixer channels | per channel: u8 tag 0 (free), or 1 then u8 sfx, u32 pos, u32 end, u32 step, u32 frac, i32 start, i32 handle, u8 left, u8 right | `NUM_CHANNELS` is 8 (i_sound.c:94). A linked sound (only `sfx_chgun`) that has been started and not yet mixed is stored with `pos`, `end` and `frac` all 0 (below) |
+
+**What the decoder rejects** (`StateError`, nothing is changed): more than 1,505 bytes, truncation,
+trailing bytes, a wrong magic or any version but 1, a volume above 127 or more than 64 channels, a
+buffer count the schedule rule does not give, a detector with too many textures or a label byte other
+than 0 or 1 or a label without firings (or the reverse) or a first tic not before the tics run, a looked-up
+bit for sound 0 or 109..=111, a tag other than 0 or 1, a sound number outside 1..=108, an origin kind above
+3, a button slot of 15 or more (p_spec.c:1151), two channels with one origin, a handle outside
+100..=65,535, a mixer channel with `pos` not below `end` (except a linked sound that has not been mixed yet: `pos`,
+`end` and `frac` all 0, which is accepted, and nothing else with `pos` at `end`), `frac` above 65,535, a `step` not in the step
+table, a volume above 127, a handle outside 100..=65,535 or a `start` that is negative or not before the
+tics run (`channelstart` is `gametic` at the start, i_sound.c:348), a busy channel before any tic has run,
+and a handle counter in 1..=99.
+
+**What restoring checks** (`Sound::from_state`, `Sound::restore`; the target session is never changed). Both take the
+**caller's own configuration** as an argument (`expected`, for example the configuration of the caller's fresh session)
+and refuse a state saved under another one (`StateError::ConfigMismatch`): the bytes never choose the map number, the
+volume, the channel count or the detector's texture count of the session they restore into. (A state of another map
+would change the map-8 rule, another volume or channel count the draws and the channel choice, another texture count
+the layout detector.) The detector's texture count must also equal the configuration's. Then: every mixer channel's `end`
+equals the sound set's padded length and has a sample byte at `pos` (a linked sound has length 0, so its one
+unmixed frame is exactly the state with `pos` and `end` 0); no looked-up sound is missing its lump; the simulation has
+completed exactly the state's tics; every actor origin resolves in the simulation and every sector origin exists. The
+map number is checked only against the caller's configuration, not against the simulation (wire 25 has no accessor for it
+yet). The sound saved at a tic is saved **before the frame of that tic's buffer is mixed**: a linked sound started in
+the tic is still busy with its one frame, which is the case the `pos` = `end` = 0 rule admits.
+
+**What is still not checked across fields.** These are consistency checks, not a proof that a run reaches the state:
+they trust that the occupied channels, positions and remainders came from some sequence of starts. In particular
+nothing checks that a sound-logic handle is above the tics run (a channel whose handle is at or below them would
+already have been freed by the last `S_UpdateSounds`), that a handle is not above the counter's last issued value,
+that a busy channel's sound is marked as looked up (or that a looked-up sound has a channel), or that a mixer
+channel's position fits the tic at which it started. A forged state that is consistent in each field but not across
+them is accepted.
+
+The Rust encoding was checked against an independent writer (the seed tool, [TESTING](TESTING.md#m5c-fuzz-targets-of-doom-sound)),
+and the state's behaviour by restoring and continuing on the 64 synthetic items
+([evidence](validation/M5C.md#step-4-part-2-the-session-the-detector-the-saved-state-and-the-end-to-end-gate)).
+The display state `DDSP` version 2, which carries the random contract, is [described below](#display-state-ddsp-version-2-m5c).
+
 ## Render state (`DRST` version 2, M5a)
 
-Not a DSIM version and not part of any simulation schema: the frozen DSIM 1-40 formats above
+Not a DSIM version and not part of any simulation schema: the frozen DSIM 1-41 formats above
 are unchanged. `DRST` is the M5a renderer's own history (`doom_render::RenderState`, owner
 ruling on decisions R5, R6 and R7 of the
 [M5a investigation](M5A_REFERENCE_INVESTIGATION.md#owner-rulings-2026-11-15)): what the renderer
@@ -2452,7 +2620,7 @@ integers are little endian; i8 values are stored as their byte.
 | DRST length n, DRST | u32, n bytes | a complete `DRST` version 2 encoding, decoded by its own decoder |
 | screenblocks | u8, 10 or 11 | decision S14 |
 | display flags | u8: bit 0 `fullscreen`, bit 1 wipe due | `D_Display`'s `fullscreen` (d_main.c:198, 247) and `gamestate != wipegamestate` (d_main.c:223) |
-| rndindex | u8 | `M_Random`'s index (decision S15: 0 at a new game, advanced only by `ST_Ticker`) |
+| rndindex | u8 | `M_Random`'s index under the M5b contract (decision S15: 0 at a new game, advanced only by `ST_Ticker`); [version 2](#display-state-ddsp-version-2-m5c) carries the index of the contract with sound |
 | oldweaponsowned | u16, bits 0..8 | `oldweaponsowned[9]` (st_stuff.c:381) |
 | oldhealth, facecount, faceindex, priority, lastattackdown, palette | 6 x i32 | `st_oldhealth` (>= -1), `st_facecount` (0..=70), `st_faceindex` (0..=41), face `priority` (0, 4..=9), `lastattackdown` (-1..=70), `st_palette` (-1..=13) |
 | keyboxes, arms old, face old, keys old | 3 + 6 + 1 + 3 x i8 | `keyboxes[i]` (-1, i or i+3), `w_arms[i].oldinum` (-1..=1), `w_faces.oldinum` (-1..=41), `w_keyboxes[i].oldinum` (-1..=5) |
@@ -2468,3 +2636,41 @@ undefined flag bits and every value outside the ranges above (`StateDecodeError:
 the field). `Display::restore` then requires the state's tic to be the simulation's, checks the
 same ranges, restores the embedded `DRST` through `Renderer::restore`, redraws the background from
 STBAR when it had been drawn, and reads the status bar inputs from the simulation.
+
+## Display state (`DDSP` version 2, M5c)
+
+Written only by a `Display` under the contract `RandomContract::WithSound` (M5c decision T16; the app plays under it).
+**The M5b contract still writes version 1, byte for byte**, so every M5b state, golden and test is unchanged.
+Version 2 is version 1's layout with **one byte added after the version**, the contract byte, and nothing else
+moved. In the table of [version 1](#display-state-ddsp-version-1-m5b) the version is 2 and a row follows it:
+
+| Field | Encoding | Meaning |
+| --- | --- | --- |
+| magic | 4 bytes `DDSP` | as version 1 |
+| version | u32 = 2 | |
+| contract | u8 = 1 | `WithSound`; the only value written |
+| everything after | exactly version 1's rows, from the embedded `DRST` length to the stored message line | as version 1 |
+
+What differs in meaning is `rndindex`: under this contract it is the index after **all** the draws the C makes
+in a tic, which are the sound session's draws, `ST_Ticker`'s one draw and, once, the level-start wipe's 320 draws after
+the frame of tic 0 (the order is in [COMPATIBILITY](COMPATIBILITY.md#the-display-contract-with-sound-m5c); the byte
+itself is any value 0..=255). The sound session's own state is separate ([`DSND`](#sound-session-state-dsnd-version-1-m5c));
+the app saves nothing, and tests save the two next to each other. A future save must hold the simulation, the sound state and the display state of the same tic, never a simulation at tic N with sound or display at tic N-1 ([COMPATIBILITY](COMPATIBILITY.md#the-app-with-sound-and-what-is-presentation)).
+
+**The wipe flag's rule (version 2 only).** The flag the state already carries (bit 1 of the display flags byte) moves the index by 320 draws at the next frame under this contract, so a state must hold a value the original
+could hold at its tic. The wipe is due once, before the first `D_Display` (`wipegamestate` starts as `GS_DEMOSCREEN`,
+d_main.c:187, 223-227, and the first `D_Display` clears it, d_main.c:300; g_game.c:472-475). So `Display::restore`
+refuses (`Inconsistent("wipe")`) a state whose flag is clear at tic 0, or set at tic 2 or later (the state's tic is the simulation's); at tic 1 either
+value is accepted (between the first observation and the first draw). Version 1 (M5b) is unchanged and accepts any flag,
+as it always has (there the flag changes only `redrawsbar`), because M5b's states and tests are frozen. Without this rule a
+forged version-2 state with the flag set after the first frame was accepted and made the 320 draws again.
+
+**What the decoders accept.** `DisplayState::decode` reads version 1 only, so a version-2 state is refused by it as
+`Version(2)` (the frozen M5b test requires this). `DisplayState::decode_any` reads version 1 (the M5b contract) and
+version 2 (`WithSound`), with the same field rules and range checks for both. It refuses a wrong magic (`Magic`),
+truncation, a version that is neither 1 nor 2 (`Version`), and a version-2 contract byte other than 1
+(`Invalid("contract")`: only the canonical encoding is read, and an M5b state is never written as version 2). Encoding a
+decoded state gives back the same bytes. `Display::restore` is as for version 1 and the restored display keeps the
+decoded contract. These rules are tested in `crates/doom-render/tests/m5c_contract.rs` (round trip, forgeries,
+restore and continue) and, with the sound session and the simulation, in `crates/doom-game/tests/m5c_restore.rs`
+([evidence](validation/M5C.md#step-5-part-1-the-frame-gate-restore-and-continue-and-the-headless-app-tests)).

@@ -84,7 +84,9 @@ jobs:
     # Retain every validation step. M4a's first 2e33c35 macOS attempt hit
     # its 40-minute limit; the retry took 33m33s. Ubuntu took 32m33s of 45,
     # and Windows 11m57s of 30. Give the growing suite explicit headroom.
-    timeout-minutes: ${{ matrix.os == 'windows-latest' && 45 || 60 }}
+    # M5c: macOS took 38 to 50 minutes of its 60 on the heads of 2026-11-18; the owner
+    # raised its limit to 90 (ROADMAP carries the item to split or trim this job).
+    timeout-minutes: ${{ matrix.os == 'windows-latest' && 45 || matrix.os == 'macos-latest' && 90 || 60 }}
     needs: changes
     # Run even if the classification failed: an empty output means a full run.
     if: ${{ !cancelled() }}
@@ -412,7 +414,7 @@ jobs:
   msrv:
     name: Minimum Rust / 1.85.0
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 20
     needs: changes
     if: ${{ !cancelled() }}
     env:
@@ -504,6 +506,77 @@ jobs:
       - name: Documentation-only fast path
         if: env.DOCS_ONLY == 'true'
         run: echo "documentation-only change, so the genuine status bar, HUD and input runs were skipped"
+
+  m5c-genuine-sound:
+    # M5c step 8 (decision T16 (3)): the genuine linuxdoom-1.10 sound logic and mixer (the M5c
+    # runner and mixer driver, compiled whole with the in-process sound code), against the
+    # committed synthetic goldens (Linux only, as M5a and M5b). The Rust sound-logic and mixer
+    # tests of doom-sound run in the Stable job on all three operating systems and in the Minimum
+    # Rust job as part of `--workspace`. The tools that read an IWAD (tools/local) and the
+    # local-only --strict32 option (a 32-bit comparison needing a multilib toolchain) are never
+    # used here. No step opens an audio device. Not a required check name.
+    name: M5c genuine sound (not required)
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    needs: changes
+    if: ${{ !cancelled() }}
+    env:
+      DOCS_ONLY: ${{ needs.changes.outputs.docs_only }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - name: M5c sound PWADs, their verifier and its self-test, rooms, scripts, runner and mixer contracts, and sound tables
+        if: env.DOCS_ONLY != 'true'
+        run: |
+          python3 tools/reference/m5c_sfx.py --check
+          python3 tools/reference/m5c_check_sfx.py
+          python3 tools/reference/m5c_check_sfx.py --self-test
+          python3 tools/reference/m5c_wad.py --check
+          python3 tools/reference/m5c_build.py --check
+          python3 tools/reference/m5c_mixer_build.py --check
+          python3 tools/reference/m5c_sounds_table.py --check
+          python3 tools/reference/m5c_sounds_table.py --self-test
+      - name: Sound-logic streams converted to mixer start lists (self-test, then every committed list against a fresh conversion)
+        if: env.DOCS_ONLY != 'true'
+        run: |
+          python3 tools/reference/m5c_starts.py --selftest
+          for f in tests/reference/m5c_sound/*.sound; do
+            n=$(basename "$f" .sound)
+            python3 tools/reference/m5c_starts.py "$f" --check "tests/reference/m5c_mixer/sessions/starts/$n.txt"
+          done
+      - name: Genuine sound-logic runs of every M5c room (strict, overflow and address variants identical; address runs with leak detection DISABLED, detect_leaks=0), goldens and self-test
+        if: env.DOCS_ONLY != 'true'
+        run: ASAN_OPTIONS=detect_leaks=0 python3 tools/reference/m5c_reference.py --check --selftest --jobs 4 --work "$RUNNER_TEMP/m5c"
+      - name: Genuine mixer runs (strict, overflow and address variants identical; address runs with leak detection DISABLED, detect_leaks=0) of 23 scenarios and 64 session lists, goldens and self-test
+        if: env.DOCS_ONLY != 'true'
+        run: ASAN_OPTIONS=detect_leaks=0 python3 tools/reference/m5c_mixer_reference.py --check --selftest --jobs 4 --work "$RUNNER_TEMP/m5c_mixer"
+      - name: Build the release wire-24 example the room check needs
+        if: env.DOCS_ONLY != 'true'
+        run: cargo +stable build -p doom-sim --release --locked --example player_level_run
+      - name: M5c rooms and scripts, genuine engine against the Rust wire-24 simulation
+        if: env.DOCS_ONLY != 'true'
+        run: python3 tools/reference/m5c_rust_check.py --binary target/release/examples/player_level_run --work "$RUNNER_TEMP/m5c_rust"
+      - name: Build the release wire-25 example the sound-record checks need
+        if: env.DOCS_ONLY != 'true'
+        run: cargo +stable build -p doom-sim --release --locked --example sound_records_run
+      - name: Every synthetic item, genuine engine against the Rust wire-25 simulation over DSIM41 with every sound record, results and self-test
+        if: env.DOCS_ONLY != 'true'
+        run: python3 tools/reference/m5c_wire25_check.py --binary target/release/examples/sound_records_run --work "$RUNNER_TEMP/m5c_wire25" --check --selftest --jobs 4
+      - name: THING-loading truncation map (decision T4), genuine engine against wire 25 (match) and wire 24 (the recorded gap)
+        if: env.DOCS_ONLY != 'true'
+        run: python3 tools/reference/m5c_t4.py --sound-records target/release/examples/sound_records_run --player-level target/release/examples/player_level_run --work "$RUNNER_TEMP/m5c_t4" --check
+      - name: Scripted app sessions under the new contract replayed through the genuine input driver, the genuine M5c runner (strict, overflow and address variants identical; address runs with leak detection DISABLED, detect_leaks=0) and the genuine mixer, every tic, frame, sound row and buffer compared, results and self-test
+        if: env.DOCS_ONLY != 'true'
+        run: ASAN_OPTIONS=detect_leaks=0 python3 tools/reference/m5c_session.py --check --selftest --jobs 4 --work "$RUNNER_TEMP/m5c_session"
+      - name: README sound visual, genuine (strict build, golden SNDDIST) against the Rust mixer, SVG and WAV byte for byte, self-test (no MP4, nothing played)
+        if: env.DOCS_ONLY != 'true'
+        run: |
+          cargo +stable build -p doom-sound --release --locked --example m5c_mixer_raw
+          python3 tools/media/m5c_readme_visual.py --binary target/release/examples/m5c_mixer_raw --work "$RUNNER_TEMP/m5c_visual" --check --selftest
+      - name: Documentation-only fast path
+        if: env.DOCS_ONLY == 'true'
+        run: echo "documentation-only change, so the genuine sound-logic and mixer runs were skipped"
 
   simulation-ir:
     # M4p decision P6: an instruction-count regression guard for Simulation::advance.

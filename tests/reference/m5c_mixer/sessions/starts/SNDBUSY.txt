@@ -1,0 +1,21 @@
+# Start list of SNDBUSY.sound (sha256 7a4ffca432bfdb9ba2ca2e1f134319e837cfa594fca4c7a8a5527f22c7d91ab1), written by tools/reference/m5c_starts.py:
+# the 15 S rows with outcome started, in stream order; 21 S rows in all; 125 R rows.
+# handle convention: integrated (stated by the stream).
+schema DOOM-M5C-STARTS-v1
+config integrated
+tics 125
+s 2 1 2 34 8 128 127 64 100
+s 9 2 9 34 8 128 138 64 101
+s 40 3 40 20 7 35 128 64 102
+s 40 4 40 20 7 34 131 64 103
+s 40 5 40 20 6 46 124 64 104
+s 40 6 40 20 6 60 138 64 105
+s 40 7 40 20 5 73 127 64 106
+s 40 8 40 20 5 82 114 64 107
+s 40 9 40 20 4 89 143 64 108
+s 40 10 40 20 3 94 135 64 109
+s 40 11 40 20 2 98 126 64 110
+s 68 14 68 1 8 128 144 64 111
+s 104 20 104 22 7 157 131 64 112
+s 112 21 112 22 7 157 116 64 113
+s 120 22 120 22 7 157 115 64 114

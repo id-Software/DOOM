@@ -1,0 +1,25 @@
+# M5c session pause (scripted, not played by a person): the locked door used twice, nine doors at once, the app's
+# pause in the middle of their sounds, then a pistol shot.
+#! nopause 1810 5000      the tool also plays this script without the pause (see README.md) and requires every stream to be the same
+wad tests/reference/m5c_wads/sndbusy.wad
+map 1
+skill 2
+screenblocks 10
+frame 10000
+100 key use down         # the locked door: oof (no origin)
+120 key use up
+400 key use down         # again: the second oof replaces the first
+420 key use up
+700 motion -256 0        # turn left to face east (two turns of 8192)
+740 motion -256 0
+1040 key up down         # walk east over the first walk line: nine doors open at once
+1780 key up up
+1810 key pause down      # the app's pause in the tic after the doors start, before their buffer is mixed
+1810 key pause up
+5000 key pause down      # resume: the next tic mixes the nine starts
+5010 key pause up
+5200 key up down         # on over the second walk line: the floor's sounds, refused while the doors hold the channels
+6000 key up up
+6300 key fire down       # a pistol shot
+6320 key fire up
+8500 end

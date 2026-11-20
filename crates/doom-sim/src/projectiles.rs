@@ -56,6 +56,13 @@ pub(crate) trait MissileWorld {
     /// Refuses the tic (the movers policy's `spechit` witness); only a host whose
     /// sector view carries line specials can reach it.
     fn refuse(&mut self, error: SimError);
+    /// `S_StartSound (missile, sound)` (p_mobj.c:103-104, 902-903, 975-976).
+    fn missile_sound(&mut self, id: ActorId, sound: u16) {
+        self.emit(Event::ActorState(ActorStateEvent::Sound {
+            actor: Some(id),
+            sound,
+        }));
+    }
 }
 /// `ceilingline` of a refused `P_CheckPosition` (p_map.c:400, 406–407, 227–231):
 /// reset first; `tmceilingz` starts at the destination sector's ceiling; things are
@@ -96,10 +103,7 @@ fn observed_draw<W: MissileWorld>(w: &mut W, kind: u8) -> u8 {
 }
 fn missile_sound<W: MissileWorld>(w: &mut W, id: ActorId, sound: u16) {
     if sound != 0 {
-        w.emit(Event::ActorState(ActorStateEvent::Sound {
-            actor: Some(id),
-            sound,
-        }));
+        w.missile_sound(id, sound);
     }
 }
 /// P_SpawnMissile aim: angle, `(dest z - source z) / flight time`, shadow.
@@ -542,6 +546,13 @@ impl<A: lifecycle::ActorAccess> MissileWorld for LifeHost<'_, A> {
         if !self.sight_failed() {
             self.fail_sight(error);
         }
+    }
+    fn missile_sound(&mut self, id: ActorId, sound: u16) {
+        // The missile's record is in the staged store at the call (its launch
+        // point before `P_CheckMissileSpawn`'s half step, p_mobj.c:902-903; its
+        // impact point at `P_ExplodeMissile`, p_mobj.c:103-104), and so is the
+        // listener: the wire-25 placement reads both there.
+        self.sound(Some(id), sound);
     }
 }
 /// A_TroopAttack's P_SpawnMissile inside the checked transaction. The live cap
