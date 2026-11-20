@@ -884,10 +884,10 @@ impl App {
     /// [`App::restart`] and [`App::quit`] rewrite the file whole, as after any failed save (so
     /// does the next tic if play resumes, and then at most once every
     /// [`FAILED_WRITE_RETRY_TICS`] tics while the retries keep failing). An end screen being
-    /// shown is drawn again from the new status. Nothing changes for an unrecorded session or
-    /// one whose file was never created.
+    /// shown is drawn again from the new status. Nothing changes for a session whose file was
+    /// never created, which includes every unrecorded session.
     pub fn settle_save(&mut self, outcome: Result<(), String>) {
-        if !self.recorded() || !self.claimed {
+        if !self.claimed {
             return;
         }
         self.retry_from = None;
