@@ -7,6 +7,7 @@
 //! the workspace lints).
 
 mod audio;
+mod cursor_leave;
 mod input_log;
 mod keys;
 #[cfg(all(test, unix))]

@@ -98,6 +98,21 @@ pub fn linux_backend(display: bool) -> LinuxBackend {
 /// with a scale, macOS Retina), and no fault was seen there.
 const HIGH_DPI: bool = cfg!(target_os = "windows");
 
+/// Whether doom-play asks for the cursor grab again while it holds it, and runs the cursor-left
+/// detector: on Windows only (owner ruling 1 of the M5d Windows session, 2026-11-20). At 100%
+/// the owner's `--input-log` showed the grab asked for at the first pump and the cursor still
+/// leaving the window, with presses whose releases never came. miniquad 0.4.11 applies the clip
+/// once, discards `ClipCursor`'s result and puts it back only on `WM_SIZE` or `WM_MOVE`, and its
+/// grab flag stays set ([`crate::mouse_forward::Again`] has the source lines); what cleared the
+/// clip on the owner's machine is Windows' behaviour, not readable in the library's source. So
+/// doom-play asks again on every button-down, on focus gained and when the detector reports
+/// ([`crate::cursor_leave`]); the decision is [`crate::mouse_forward::grab_again`]. Not on Linux
+/// or macOS: there the library's grab is a different mechanism (X11 ungrabs and grabs the pointer
+/// on every call, `src/native/linux_x11.rs`, 345-370; macOS ignores a repeated request and freezes
+/// the cursor while grabbed, `src/native/macos.rs`, 51-65, so the detector's silence rule would
+/// misread it), no fault was seen there and nothing changes, by construction.
+const GRAB_AGAIN: bool = cfg!(target_os = "windows");
+
 /// Opens the window and runs the app until it quits, writing `log` (`--input-log`, or off).
 /// Returns when the window is closed.
 pub(crate) fn play(app: App, host: FsHost, log: InputLog, title: String, p: Presentation) {
@@ -209,7 +224,7 @@ impl Stage {
             host,
             p,
             start: Instant::now(),
-            fwd: Forward::default(),
+            fwd: Forward::new(GRAB_AGAIN),
             reported: false,
             stats: p.tic_stats.then(TicStats::default),
         }
@@ -256,6 +271,9 @@ impl EventHandler for Stage {
         if let Some(capture) = self.fwd.sync_capture(&self.app, log, window::screen_size) {
             window::set_cursor_grab(capture);
             window::show_mouse(!capture);
+        }
+        if self.fwd.grab_again(&self.app, log) {
+            window::set_cursor_grab(true);
         }
         if let Some(n) = self.p.quit_after {
             if self.app.tic() >= n || matches!(self.app.mode(), Mode::Ended(_)) {
@@ -309,13 +327,9 @@ impl EventHandler for Stage {
             .raw_motion(&mut self.app, &mut self.host.log, dx, dy);
     }
 
-    /// Logged only (`--input-log`), never forwarded.
+    /// Logged only (`--input-log`), never forwarded; the cursor-left detector reads it.
     fn mouse_motion_event(&mut self, x: f32, y: f32) {
-        self.host.log.line(
-            "raw",
-            self.app.tic(),
-            format_args!("cursor x={x:.1} y={y:.1}"),
-        );
+        self.fwd.cursor(&self.app, &mut self.host.log, x, y);
     }
 
     fn mouse_button_down_event(&mut self, button: miniquad::MouseButton, x: f32, y: f32) {
@@ -340,11 +354,13 @@ impl EventHandler for Stage {
         self.app.focus_lost();
     }
 
-    /// Logged only (`--input-log`): the app resumes on Esc or Pause, never by itself.
+    /// Logged (`--input-log`), and a reason to ask for the cursor grab again on Windows if it is
+    /// held ([`GRAB_AGAIN`]): the app resumes on Esc or Pause, never by itself.
     fn window_restored_event(&mut self) {
         self.host
             .log
             .line("raw", self.app.tic(), format_args!("restored"));
+        self.fwd.focus_gained();
     }
 
     /// Logged only (`--input-log`): the picture is fitted at every draw.

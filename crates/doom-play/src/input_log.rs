@@ -9,10 +9,10 @@
 //! `update`, which runs the tics that fell due (each tic first drains what the app's event
 //! layer holds). A `raw` or `app` line written while inputs arrive carries the number of the
 //! `update` call that follows it, so it usually shares its `PUMP` with the `game` lines of the
-//! tics that drained it. The exceptions: a `capture` line is written inside an `update` call,
-//! after its tics, so it carries that call's number; a button release that decision S6 holds
-//! back reaches the game in a later tic, so its `game` line carries a later `PUMP` than its
-//! `raw` and `app` lines; and inputs that arrive before an `update` call that runs no tic (the
+//! tics that drained it. The exceptions: `capture` lines (`capture again` too) and `cursor-left`
+//! lines are written inside an `update` call, after its tics, so they carry that call's number;
+//! a button release that decision S6 holds back reaches the game in a later tic, so its `game`
+//! line carries a later `PUMP` than its `raw` and `app` lines; and inputs that arrive before an `update` call that runs no tic (the
 //! game paused or ended, or no tic yet due) have no `game` line in their pump. `TIC` is the
 //! app's tic count when the line is written; on a `game` or `tic` line it is the number of the
 //! tic whose command was built after those events.
@@ -26,10 +26,17 @@
 //!   with every button message), `motion` (raw device motion, `ignored` while the mouse is not
 //!   captured), `cursor` (the window-relative cursor position, logged only, never forwarded;
 //!   the library reports it only while the cursor is over the window's client area),
-//!   `key-down` / `key-up`, `focus-lost` (minimised or unfocused), `restored`, `resize`.
-//! - `app`: what doom-play passed to the app or the window: `mouse-motion` (the whole units
-//!   given to `App::mouse_motion`), `mouse-button`, `capture on|off` (the cursor grab, with
-//!   the window size).
+//!   `key-down` / `key-up`, `focus-lost` (minimised or unfocused), `restored` (restored from
+//!   minimised, or focused), `resize`.
+//! - `app`: what doom-play passed to the app or the window, or concluded itself: `mouse-motion`
+//!   (the whole units given to `App::mouse_motion`), `mouse-button`, `capture on|off` (the cursor
+//!   grab, with the window size). On Windows only (owner ruling 1 of the M5d Windows session,
+//!   2026-11-20; `window::GRAB_AGAIN`) also: `cursor-left from x=X y=Y dx=DX dy=DY pumps=N`, the
+//!   inference that the cursor left the client area while the grab is held (last cursor position,
+//!   raw motion since and silent pumps; [`crate::cursor_leave`]), once until the next `cursor`
+//!   line; and `capture again (REASONS)`, the grab asked for again while held, once per pump at
+//!   most, with the reasons since the previous pump in the order `button-down`, `focus-gained`,
+//!   `cursor-left`, separated by spaces. Both come after the pump's `capture` line, if any.
 //! - `game`: an event the app posted before a tic's command was built: `keydown 0xNN`,
 //!   `keyup 0xNN`, `mouse buttons=B dx=X dy=Y` (`ev_mouse`'s `data1`, `data2`, `data3`). Only
 //!   committed and drawn tics report their events.

@@ -3,20 +3,89 @@
 //! fraction kept for the next motion, and the buttons always. Every input and what was passed on
 //! is written to the `--input-log` file when it is on ([`InputLog`]).
 
+use crate::cursor_leave::Leave;
 use crate::input_log::{BUTTONS, InputLog};
 use doom_game::app::App;
 use doom_game::input::MouseButton;
 
+/// What happened since the last pump that makes doom-play ask for the cursor grab again (owner
+/// ruling 1 of the M5d Windows session, 2026-11-20).
+///
+/// By miniquad 0.4.11's source (`src/native/windows.rs`), the grab is one `ClipCursor` call whose
+/// result is discarded (`set_cursor_grab`, 124-133; `update_clip_rect`, 327-353, the call at
+/// 352), made again only on `WM_SIZE` and `WM_MOVE` (439-442, 522-524), never on `WM_ACTIVATE`
+/// or `WM_SETFOCUS` (763-769, 770-797), while the library's `cursor_grabbed` flag stays set; and
+/// the window is shown (1222) before the event handler and the window's user data are set (1239,
+/// 1242), so the activation at launch reaches only `DefWindowProcW` (392-394). Nothing in the
+/// library puts the clip back if Windows or another program clears or replaces it. Asking again
+/// costs one `ClipCursor` of the same rectangle, sent through the library's request channel and
+/// made at the top of the next loop iteration (1248-1250, `process_request`, 1126).
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub(crate) struct Again {
+    /// A mouse button went down.
+    pub(crate) button_down: bool,
+    /// The window gained focus (`window_restored_event`).
+    pub(crate) focus_gained: bool,
+    /// The cursor-left detector reported ([`crate::cursor_leave`]).
+    pub(crate) cursor_left: bool,
+}
+
+impl Again {
+    /// Whether anything happened.
+    pub(crate) fn any(self) -> bool {
+        self.button_down || self.focus_gained || self.cursor_left
+    }
+
+    /// The reasons for the log, in a fixed order, separated by spaces.
+    pub(crate) fn names(self) -> String {
+        [
+            (self.button_down, "button-down"),
+            (self.focus_gained, "focus-gained"),
+            (self.cursor_left, "cursor-left"),
+        ]
+        .iter()
+        .filter(|(on, _)| *on)
+        .map(|(_, name)| *name)
+        .collect::<Vec<_>>()
+        .join(" ")
+    }
+}
+
+/// The decision, pure and the same on every system: ask for the grab again when asking is
+/// enabled (`enabled`: on Windows only, `window::GRAB_AGAIN`), doom-play holds the grab
+/// (`captured`, after the pump's capture change) and something in `why` happened.
+pub(crate) fn grab_again(enabled: bool, captured: bool, why: Again) -> bool {
+    enabled && captured && why.any()
+}
+
 /// doom-play's forwarding of the mouse to the app, shared by the window and the test: whole
 /// units of raw motion while captured (the fraction waits for the next motion), and the
-/// buttons always (the app ignores them unless playing).
+/// buttons always (the app ignores them unless playing). With asking again enabled
+/// ([`Forward::new`]) it also runs the cursor-left detector while captured and decides, at the
+/// end of each pump, whether to ask for the grab again ([`Forward::grab_again`]); what reaches
+/// the app is the same either way.
 #[derive(Debug, Default)]
 pub(crate) struct Forward {
     captured: bool,
     motion: (f32, f32),
+    /// Asking for the grab again (and the cursor-left detector) is enabled.
+    enabled: bool,
+    /// What happened since the last pump.
+    pending: Again,
+    /// The cursor-left detector, active while captured and enabled.
+    leave: Leave,
 }
 
 impl Forward {
+    /// A follower that asks for the grab again when `enabled` (the window passes
+    /// `window::GRAB_AGAIN`); [`Forward::default`] never does.
+    pub(crate) fn new(enabled: bool) -> Self {
+        Self {
+            enabled,
+            ..Self::default()
+        }
+    }
+
     /// Whether the mouse is captured.
     pub(crate) fn captured(&self) -> bool {
         self.captured
@@ -38,6 +107,11 @@ impl Forward {
         self.motion = (0.0, 0.0);
         let what = if capture { "on" } else { "off" };
         let (w, h) = size();
+        if capture && self.enabled {
+            self.leave.start(w, h);
+        } else {
+            self.leave.stop();
+        }
         log.line(
             "app",
             app.tic(),
@@ -57,6 +131,7 @@ impl Forward {
             return;
         }
         log.line("raw", app.tic(), format_args!("motion dx={dx} dy={dy}"));
+        self.leave.motion(dx, dy);
         self.motion = (self.motion.0 + dx, self.motion.1 + dy);
         let (ix, iy) = (self.motion.0.trunc(), self.motion.1.trunc());
         self.motion = (self.motion.0 - ix, self.motion.1 - iy);
@@ -75,6 +150,7 @@ impl Forward {
         down: bool,
         at: (f32, f32),
     ) {
+        self.pending.button_down |= down;
         let index = match button {
             Some(MouseButton::Left) => 0,
             Some(MouseButton::Middle) => 1,
@@ -95,6 +171,47 @@ impl Forward {
             );
             app.mouse_button(b, down);
         }
+    }
+
+    /// A cursor event from the window library: logged (never forwarded) and given to the
+    /// cursor-left detector.
+    pub(crate) fn cursor(&mut self, app: &App, log: &mut InputLog, x: f32, y: f32) {
+        log.line("raw", app.tic(), format_args!("cursor x={x:.1} y={y:.1}"));
+        self.leave.cursor(x, y);
+    }
+
+    /// The window gained focus.
+    pub(crate) fn focus_gained(&mut self) {
+        self.pending.focus_gained = true;
+    }
+
+    /// The end of a pump, after the capture change ([`Forward::sync_capture`]): the cursor-left
+    /// check (an `app ... cursor-left` line when it reports), then whether to ask for the grab
+    /// again ([`grab_again`]; an `app ... capture again (REASONS)` line when it does). The
+    /// caller makes the request.
+    pub(crate) fn grab_again(&mut self, app: &App, log: &mut InputLog) -> bool {
+        if let Some(left) = self.leave.pump_end() {
+            let ((x, y), (dx, dy)) = (left.at, left.net);
+            log.line(
+                "app",
+                app.tic(),
+                format_args!(
+                    "cursor-left from x={x:.1} y={y:.1} dx={dx} dy={dy} pumps={}",
+                    left.pumps
+                ),
+            );
+            self.pending.cursor_left = true;
+        }
+        let why = std::mem::take(&mut self.pending);
+        let again = grab_again(self.enabled, self.captured, why);
+        if again {
+            log.line(
+                "app",
+                app.tic(),
+                format_args!("capture again ({})", why.names()),
+            );
+        }
+        again
     }
 }
 
