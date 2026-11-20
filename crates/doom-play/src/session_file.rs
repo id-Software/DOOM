@@ -181,3 +181,124 @@ pub(crate) fn append(dir: &Path, name: &str, at: u64, tail: &[u8; 5]) -> Result<
         )),
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn scratch(tag: &str) -> PathBuf {
+        let dir = std::env::temp_dir().join(format!(
+            "doom-play-session-file-{tag}-{}",
+            std::process::id()
+        ));
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(&dir).unwrap();
+        dir
+    }
+
+    fn names(dir: &Path) -> Vec<String> {
+        let mut n: Vec<_> = std::fs::read_dir(dir)
+            .unwrap()
+            .map(|e| e.unwrap().file_name().into_string().unwrap())
+            .collect();
+        n.sort();
+        n
+    }
+
+    /// The page rule: inside one 4096-byte block or not, and for the demo's offsets 13 + 4·N
+    /// exactly the offsets 4093 mod 4096, once every 1,024 tics (the first after 1,020 tics).
+    #[test]
+    fn the_append_straddles_a_page_exactly_at_offsets_4093_mod_4096() {
+        assert!(append_fits_one_page(0, 5));
+        assert!(append_fits_one_page(4091, 5));
+        assert!(!append_fits_one_page(4092, 5));
+        assert!(!append_fits_one_page(4095, 5));
+        assert!(append_fits_one_page(4096, 5));
+        assert!(append_fits_one_page(4095, 1));
+        assert!(!append_fits_one_page(4095, 2));
+        assert!(append_fits_one_page(123, 0));
+        let straddling: Vec<u64> = (0..5000u64)
+            .filter(|n| !append_fits_one_page(13 + 4 * n, TAIL))
+            .collect();
+        assert_eq!(straddling, [1020, 2044, 3068, 4092]);
+        assert!(straddling.iter().all(|n| (13 + 4 * n) % PAGE == 4093));
+    }
+
+    /// The claim makes the name appear with its content through a hard link of a flushed
+    /// temporary file, leaves no temporary file, keeps a taken name's file, and a failed write
+    /// creates nothing.
+    #[test]
+    fn a_claim_appears_whole_and_never_replaces_a_file() {
+        let dir = scratch("claim");
+        let sync = |f: &mut std::fs::File, b: &[u8]| f.write_all(b).and_then(|()| f.sync_all());
+        assert_eq!(claim_new(&dir, "a.lmp", b"header+marker", sync), Ok(true));
+        assert_eq!(std::fs::read(dir.join("a.lmp")).unwrap(), b"header+marker");
+        assert_eq!(claim_new(&dir, "a.lmp", b"other", sync), Ok(false));
+        assert_eq!(std::fs::read(dir.join("a.lmp")).unwrap(), b"header+marker");
+        // the content is visible under the name the moment the name exists: the write sees no
+        // file of that name yet
+        let probe = dir.join("b.lmp");
+        let r = claim_new(&dir, "b.lmp", b"xyz", |f, b| {
+            assert!(!probe.exists(), "the name appears only after the write");
+            f.write_all(b)
+        });
+        assert_eq!(r, Ok(true));
+        let full = |f: &mut std::fs::File, b: &[u8]| {
+            f.write_all(&b[..1])?;
+            Err(std::io::Error::other("disk full"))
+        };
+        let r = claim_new(&dir, "c.lmp", b"demo", full);
+        assert!(r.as_ref().is_err_and(|e| e.ends_with("disk full")), "{r:?}");
+        assert_eq!(names(&dir), ["a.lmp", "b.lmp"], "no temporary file is left");
+        // the hard link is what the claim used: the file has one link once the temporary is gone
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::MetadataExt;
+            assert_eq!(std::fs::metadata(dir.join("a.lmp")).unwrap().nlink(), 1);
+        }
+        std::fs::remove_dir_all(&dir).unwrap();
+    }
+
+    /// M5b's fallback claim: exclusive, keeps a taken name, writes the content.
+    #[test]
+    fn the_fallback_claim_is_exclusive() {
+        let dir = scratch("fallback");
+        let path = dir.join("a.lmp");
+        assert_eq!(claim_create_new(&path, b"one"), Ok(true));
+        assert_eq!(claim_create_new(&path, b"two"), Ok(false));
+        assert_eq!(std::fs::read(&path).unwrap(), b"one");
+        assert!(claim_create_new(&dir.join("no/such/dir.lmp"), b"x").is_err());
+        std::fs::remove_dir_all(&dir).unwrap();
+    }
+
+    /// An append overwrites the marker and extends the file by four bytes; it declines at a page
+    /// boundary and when the file is not the length the app expects (both leave the file
+    /// unchanged); a missing file is an error.
+    #[test]
+    fn an_append_overwrites_the_marker_or_declines_without_writing() {
+        let dir = scratch("append");
+        let mut demo = vec![110, 2, 1, 1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0x80];
+        std::fs::write(dir.join("a.lmp"), &demo).unwrap();
+        assert_eq!(append(&dir, "a.lmp", 13, &[25, 0, 3, 1, 0x80]), Ok(true));
+        demo.truncate(13);
+        demo.extend([25, 0, 3, 1, 0x80]);
+        assert_eq!(std::fs::read(dir.join("a.lmp")).unwrap(), demo);
+        // the app's idea of the length is wrong: declined, nothing written
+        assert_eq!(append(&dir, "a.lmp", 13, &[1, 2, 3, 4, 0x80]), Ok(false));
+        assert_eq!(std::fs::read(dir.join("a.lmp")).unwrap(), demo);
+        // a file of 1,020 tics: its marker at 4093, the append straddles 4096: declined
+        let mut long = demo[..13].to_vec();
+        long.extend(std::iter::repeat_n([0u8, 0, 0, 0], 1020).flatten());
+        long.push(0x80);
+        assert_eq!(long.len(), 4094);
+        std::fs::write(dir.join("b.lmp"), &long).unwrap();
+        assert_eq!(append(&dir, "b.lmp", 4093, &[1, 0, 0, 0, 0x80]), Ok(false));
+        assert_eq!(std::fs::read(dir.join("b.lmp")).unwrap(), long);
+        assert!(append(&dir, "missing.lmp", 13, &[0, 0, 0, 0, 0x80]).is_err());
+        assert!(
+            !dir.join("missing.lmp").exists(),
+            "an append never creates a file"
+        );
+        std::fs::remove_dir_all(&dir).unwrap();
+    }
+}

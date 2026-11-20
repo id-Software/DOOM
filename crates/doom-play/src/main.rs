@@ -9,6 +9,8 @@
 mod audio;
 mod input_log;
 mod keys;
+#[cfg(all(test, unix))]
+mod kill_tests;
 mod mouse_forward;
 mod session_file;
 #[cfg(test)]
