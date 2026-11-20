@@ -1927,8 +1927,8 @@ idle demo written into scratch, the genuine run and the comparison:
 ```sh
 target/release/examples/player_level_run --write-idle 2100 --demo /mnt/d/scratch/m4b/M5IDLE.lmp --policy episode1v2 --map E1M5
 DOOM_IWAD_DIR=/mnt/d/DoomIWADs python3 tools/local/episode1_reference.py --work /mnt/d/scratch/m4b/real --lmp /mnt/d/scratch/m4b/M5IDLE.lmp --keep-dumps
-target/release/examples/player_level_run --wad /mnt/d/DoomIWADs/DOOM.WAD --map E1M5 --demo /mnt/d/scratch/m4b/M5IDLE.lmp --out /mnt/d/scratch/m4b/rust --captures --policy episode1v2
-python3 tools/reference/level_compare_m4b.py /mnt/d/scratch/m4b/real/runs/strict_E1M5_M5IDLE /mnt/d/scratch/m4b/rust --wad /mnt/d/DoomIWADs/DOOM.WAD --demo /mnt/d/scratch/m4b/M5IDLE.lmp --json OUT
+target/release/examples/player_level_run --wad /path/to/DOOM.WAD --map E1M5 --demo /mnt/d/scratch/m4b/M5IDLE.lmp --out /mnt/d/scratch/m4b/rust --captures --policy episode1v2
+python3 tools/reference/level_compare_m4b.py /mnt/d/scratch/m4b/real/runs/strict_E1M5_M5IDLE /mnt/d/scratch/m4b/rust --wad /path/to/DOOM.WAD --demo /mnt/d/scratch/m4b/M5IDLE.lmp --json OUT
 ```
 
 A demo's base name becomes a WAD lump name in the genuine runner, so it must have at most eight
@@ -2761,6 +2761,72 @@ repository's release profile (set no `CARGO_PROFILE_RELEASE_*` variable). No IWA
 # under the M5b contract (count, total, mean, median, p95, max in microseconds, and a workload line); run three times
 cargo run -p doom-game --release --example m5c_bench -- [--rooms SNDBUSY,SNDMONST,SNDBTN2,SLIDEB,M5AMP,M5STDIG] [--screenblocks 10,11] [--warmup 1]
 ```
+
+## M5d kill tests and trial options
+
+Observations are in the [M5d record](validation/M5D.md); this section is the commands only.
+
+### The kill test (Unix; runs in the Linux and macOS jobs of the Stable workflow)
+
+```sh
+cargo test --release -p doom-play kill_tests::sigkill_at_random_points_leaves_valid_demos -- --nocapture   # 50 kills
+DOOM_PLAY_KILLS=2000 DOOM_PLAY_KILL_SEED=1000 TMPDIR=~/scratch/kills cargo test --release -p doom-play \
+  kill_tests::sigkill_at_random_points_leaves_valid_demos -- --nocapture
+DOOM_PLAY_KILL_AT_TIC=1021 DOOM_PLAY_KILLS=200 cargo test --release -p doom-play kill_tests::sigkill -- --nocapture
+```
+
+The test spawns its own executable (the ignored `kill_tests::child_session`, which `cargo test` does not run by itself),
+plays the real `App` with the real `FsHost` on the synthetic session set, SIGKILLs it at a random moment and checks every
+surviving `.lmp` (parses, replays with no refusal, digest and tic count against what the child printed). Environment
+variables, all optional (the module comment in `crates/doom-play/src/kill_tests.rs` is the full list):
+`DOOM_PLAY_KILLS` (default 50), `DOOM_PLAY_KILL_SEED` (first seed, default 1), `DOOM_PLAY_KILL_MAX_MS` (default 400) and
+`DOOM_PLAY_KILL_LONG_MS` (default 1600) for the delays, `DOOM_PLAY_KILL_AT_TIC` with `DOOM_PLAY_KILL_AT_US` (default
+3000) to aim at a tic (1021 is the first page-boundary rewrite, 1050 the first periodic one),
+`DOOM_PLAY_KILL_WADS` (newline-separated WAD paths; local use only, never in CI) with `DOOM_PLAY_KILL_MAP`, and
+`DOOM_PLAY_KILL_KEEP` (a directory that keeps each kill's files). `DOOM_PLAY_KILL_CHILD_DIR` is set by the parent for
+the child; do not set it. The test writes under the system temporary directory (`TMPDIR`); a real disk there makes more
+kills land before the session file's first write than tmpfs does.
+
+### The session check on the survivors (`tools/reference/m5d_kill_check.py`)
+
+```sh
+python3 tools/reference/m5d_kill_check.py --work ~/scratch/m5d-kills --kills 200 --seed 100 --jobs 2 --selftest   # synthetic
+python3 tools/reference/m5d_kill_check.py --work ~/scratch/m5d-kills --iwad /path/to/DOOM.WAD --kills 50 --selftest   # local only
+```
+
+It builds the `doom-play` test executable in release, runs the kill test with the files kept, and puts every surviving
+`.lmp` through the M5c session check (the genuine engine in its strict, overflow and address variants and the genuine
+mixer, against the Rust replay; the address runs have leak detection disabled). Options: `--work DIR` (required, outside
+the repository), `--kills K` (default 200), `--seed S`, `--iwad PATH` (local only: plays E1M1 of a scratch copy; the
+original is never touched and nothing from it is committed), `--jobs N` (demos checked at once, default 2), `--selftest`
+(plants three malformed demos that must each fail), `--keep`, `--cc`, `--cargo`. Output: one VERDICT line per demo and a
+summary; counts and verdicts only. The synthetic run is not yet a CI step.
+
+### The lost-display check (`tools/local/m5d_lost_display.py`, local only)
+
+```sh
+python3 tools/local/m5d_lost_display.py --iwad /path/to/DOOM.WAD --work ~/scratch/m5d-display --mode display --runs 20
+```
+
+Runs the real `doom-play` windowed (an X server is needed, WSLg works) with `--no-sound` and ends it without its own quit:
+`--mode display` shuts an X proxy (the lost display connection), `--mode int` sends SIGINT, `--mode kill` SIGKILL. Options:
+`--runs N` (default 20), `--min-ms` and `--max-ms` (the delay after the session file appears, default 500 to 8000),
+`--seed`, `--jobs`, `--cc`, `--cargo`. Every surviving `.lmp` must PASS the session check. It opens a window and reads the
+IWAD, so it never runs in CI.
+
+### The sound trial options and exit lines (`doom-play`)
+
+```sh
+doom-play --audio-probe                                   # silence for about 1 s; prints the device lines (see the audio probe above)
+doom-play --iwad DOOM.WAD --experimental-audio-start-buffers 1 --experimental-audio-period-frames 256
+```
+
+`--experimental-audio-start-buffers N` takes 1 or 2 (default 2) and `--experimental-audio-period-frames N` takes 128, 256
+or 512 (default 512); any other value exits 2 with a message. They change only how mixed sound reaches the device, and do
+nothing with `--no-sound`. With a device open, four lines (`audio device`, `audio settings`, `audio callbacks`, `audio
+queue`) are printed on exit; a setting away from its default is marked `EXPERIMENTAL` on the `audio settings` line. The
+unit tests for the lines and the options run in `cargo test -p doom-play` and open no device. What the options are
+expected to change is arithmetic in the [M5d record](validation/M5D.md#b-the-trial-options); no run on Windows exists yet.
 
 ## Mutation testing
 

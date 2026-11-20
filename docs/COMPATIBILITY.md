@@ -3348,18 +3348,33 @@ person's observations on one evening; no test, recording or measurement stands b
   was on his screen or in his ears ([counts](validation/M5C.md#the-owners-playtest-2026-11-18)).
 - **A fault was reported on Windows:** [stuck fire](#known-fault-on-windows-fire-sticks-when-a-release-is-lost-at-the-windows-edge).
 
-### A session is safe only when doom-play ends it
+### A session is safe on Windows and macOS only when doom-play ends it (a limit, not yet lifted there)
 
-**A session is safe only when doom-play ends it.** The demo is written when a session starts, every 30 seconds of play, when the
-session ends, and when you restart or quit (Esc, then R or Q; R, Q or Esc on an end screen) or close the window with its
-close button; pausing does not write it. If the program is ended any other way, the demo keeps only its last write, so up to
-the last 30 seconds of play are lost and a session shorter than that is left as an empty demo of 14 bytes. Under WSLg, when the
-window's display connection is lost, Xlib prints "X connection to :0 broken (explicit kill or server shutdown)." and ends
-the process before any of doom-play's code runs, so no exit line is printed (the window library installs no handler for it, and
-installing one needs unsafe code, which the workspace forbids); the owner saw exactly that terminal output. The same happens if the
-process is interrupted or killed (Ctrl+C in its terminal, closing its console window on Windows, shutting WSL or the
-computer down). **To keep a session, end it with Esc then Q before closing anything.** Nothing changed in the
-behaviour (the owner ruled so); what a fix would take is in the [evidence record](validation/M5C.md#the-lost-display-connection-under-wslg-what-is-saved).
+**Since M5d the session file is kept current tic by tic, shown on Linux; on Windows and macOS this stays listed as a limit
+until the owner confirms it by hand.** The demo is created whole when a session starts and then extended by one 5-byte write
+after every tic, so at every instant it is a valid demo of every tic run so far, or of every tic but the last
+([the write schedule](validation/M5D.md#when-the-demo-is-written-fshost-as-doom-play-runs-it)). It is also rewritten whole
+every 30 seconds of play, when the session ends, and when you restart or quit (Esc, then R or Q; R, Q or Esc on an end screen)
+or close the window with its close button; pausing writes nothing.
+
+- **Shown, on Linux (this machine, under WSL2):** SIGKILL at random points (a test that runs in CI on Linux and macOS, and
+  2,000 kills locally), SIGINT (what Ctrl+C sends) and a lost display connection under WSLg (reproduced through a proxy,
+  with the same "X connection to ... broken" message the owner saw). Every surviving file passed the genuine-engine session
+  check ([counts](validation/M5D.md#evidence-release-builds-unless-stated)). That the single write cannot be cut short
+  rests on how the Linux kernel writes to a file; the tests are the evidence, not a guarantee for every file system.
+- **Not shown: Ctrl+C in a Windows console, closing a Windows console window, End task, and anything on macOS.** For these
+  the limit stays as it was: **a session ended any other way than by doom-play may lose its last tics, and a session may be
+  left as an empty demo of 14 bytes**, until the owner has tried them. On Windows the design is expected to hold
+  (inference from the system's documented behaviour, untested). **To keep a session, end it with Esc then Q before closing
+  anything.**
+- Two caveats that remain even where it is shown: on a file system without hard links (FAT, exFAT, some network shares)
+  the new file's creation falls back to M5b's way, and a kill between its creation and first write can leave an empty
+  `.lmp`; and a kill can leave a harmless `<name>.<pid>.tmp` file in the sessions directory.
+- Unchanged: under WSLg, when the display connection is lost, Xlib prints "X connection to :0 broken (explicit kill or
+  server shutdown)." and ends the process before any of doom-play's code runs, so no exit line is printed (the window
+  library installs no handler, and installing one needs unsafe code, which the workspace forbids); the demo is now
+  already current when that happens. Earlier history of this limit is in the
+  [M5c record](validation/M5C.md#the-lost-display-connection-under-wslg-what-is-saved).
 
 ### Sound latency (arithmetic, not measured)
 
@@ -3387,6 +3402,13 @@ on one evening; the arithmetic says the Windows range lies above the original's.
 **Latency is presentation and outside every claim** (above). The tables, the sources, the links that could be shortened
 later and the unknowns are in the [evidence record](validation/M5C.md#sound-latency-the-arithmetic-in-full).
 
+**M5d added measurements of the device, not a fix.** On exit `doom-play` prints the audio backend, device, callback counts and
+queue depth, and offers two experimental trial options, `--experimental-audio-start-buffers` and
+`--experimental-audio-period-frames`, which change only how finished sound reaches the device (presentation only; the defaults
+are unchanged and nothing is promised to be shorter). The WASAPI period count is not offered: the audio library's safe API
+cannot set it. Their arithmetic and the one run on this machine are in the [M5d record](validation/M5D.md#a2-sound-latency-on-windows-statistics-and-trial-options);
+no run on Windows exists yet.
+
 ### Known fault on Windows: fire sticks when a release is lost at the window's edge
 
 **The owner's report (2026-11-18):** on Windows, with the native artifact and `--bindings modern`, firing with the left mouse
@@ -3405,8 +3427,10 @@ library stopped reporting cursor positions while raw motion continued, and in on
 border; the window library never captures the mouse, so a release made there goes to the window's frame, which the library does not
 handle ([evidence record](validation/M5C.md#the-owners-windows-retest-with-the-input-log-2026-11-19)).
 
-**Status: a known Windows limit of M5c, not fixed, by the owner's ruling; the fix is the first item of the next milestone**
-([ROADMAP](ROADMAP.md)). It is not promised to work: it is proposed and untested. Meanwhile, a click with the
+**Status: a known Windows limit, not fixed.** M5d asks for DPI awareness on Windows as the proposed fix (`Conf::high_dpi` in
+`crates/doom-play/src/window.rs`); it is **untested on Windows until the owner's session**, and it does not provide a mouse
+capture, so a release can still be lost in the cases listed in the [M5d record](validation/M5D.md#a1-stuck-fire-on-windows-the-dpi-request)
+([ROADMAP](ROADMAP.md)). It is not promised to work. Meanwhile, a click with the
 mouse still and the cursor inside the window clears the stuck fire, and right Ctrl fires without the fault. **Sessions recorded with
 the fault are still valid demos:** the demo records the commands the game executed, and the game was told the button was still
 down, so a replay shows the stuck fire as it was played (a valid record of what happened in the game, not of what the hand did); the

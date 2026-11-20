@@ -1,10 +1,10 @@
 # M5d evidence record
 
-**Status (2026-11-20 00:30 PST):** in progress on branch `feat/m5d-play-fixes`. Done: the DPI request on
-Windows (A1, untested on Windows), the mouse forwarding moved into its own file and the input log's review points
-M1 to M3 closed, the CI job renamed (A4). In progress: the sound statistics and trial options (A2), the session
-file that cannot be lost (A3). To come: the gates (A5) and the owner's Windows session (A6). Nothing in this
-milestone has been run on Windows or macOS.
+**Status (2026-11-20 01:55 PST):** in progress on branch `feat/m5d-play-fixes`. Code done: the DPI request on
+Windows (A1, untested on Windows), the sound statistics and trial options (A2), the session file kept current tic by tic
+(A3), the mouse forwarding moved into its own file with the input log's review points M1 to M3 closed, and the CI job
+renamed (A4). The gates (A5) are running: CI, the mutation workflow, a local `doom-play` mutation run and the independent
+review. The owner's Windows session (A6) is pending. Nothing in this milestone has been run on Windows or macOS.
 
 Observed results of milestone M5d (play fixes from the owner's playtest of M5c). Only observations and the
 library-source readings behind each change appear here. The facts this milestone starts from are in the
@@ -193,7 +193,186 @@ whether to pursue the WASAPI period count by any of the three routes above.
 
 ## A3. A session that cannot be lost
 
-To come (agent running).
+**The change.** Commits on the branch: `1727f91` (doom-game: opt-in per-tic append of the session demo), `364290e`
+(its test), `4274723` (doom-play `session_file.rs`: the session demo kept valid at every instant), `0d250a5` (the kill
+test and the unit tests of the session file), `eceb6f6` (aimed kills in the kill test), `e25388d` (the two tools,
+`tools/reference/m5d_kill_check.py` and `tools/local/m5d_lost_display.py`). Nothing in `doom-sim`, `doom-render` or
+`doom-sound` changed, and no existing test line, wire, schema or golden. Every figure below was observed on this machine
+(Linux 6.18 under WSL2, x86-64) unless it is marked as inference.
+
+### The C citations for the marker (linuxdoom-1.10)
+
+- `#define DEMOMARKER 0x80`: `g_game.c:1488`. `G_ReadDemoTiccmd` (`g_game.c:1491-1503`) tests only the byte at the start of
+  a tic for the marker (1493), then calls `G_CheckDemoStatus` (1496), which ends the playback (1647-1673); otherwise it
+  reads four bytes (1499-1502).
+- The recording engine writes the marker once, when recording ends (`*demo_p++ = DEMOMARKER;` and `M_WriteFile`,
+  `g_game.c:1679-1680`).
+- Without the marker the original cannot replay the file safely: `G_DoPlayDemo` takes the lump from `W_CacheLumpName`
+  (`g_game.c:1588`) and never checks a length, and `W_CacheLumpNum` allocates exactly `W_LumpLength (lump)` bytes
+  (`w_wad.c:490`), so the reader would run past the lump's allocation.
+- The header is 13 bytes (`G_BeginRecording`, `g_game.c:1555-1566`), so tic N's command starts at 13 + 4N and the
+  marker of a file of N tics is at 13 + 4N. A tic's first byte is `forwardmove`, and wire 24 refuses forward -128
+  (`wire24_admits`), so no recorded tic starts with 0x80 and the reader never stops early.
+- doom-sim's frozen reader (`parse_demo_episode1_v2`, `crates/doom-sim/src/demo.rs:179-233`, unchanged) refuses a missing
+  marker and any byte after it, so the file must be a complete demo at every instant, not only at the end.
+
+### The design
+
+- **One 5-byte write per tic.** After each committed, recorded tic the file is extended by one `write` of five bytes at
+  the old marker's offset: the tic's four command bytes and a new marker. The bytes come from doom-sim's own writer
+  (`Recorder::last_tic_tail`), so they equal what the whole writer would produce. The file grows by 4 bytes per tic and
+  is a valid demo before and after the write.
+- **Page-boundary rule.** Five bytes that would straddle a 4,096-byte boundary are not appended: `append` declines
+  (`append_fits_one_page`) and the app rewrites the whole file through a synced temporary file and a rename. The marker
+  offset 13 + 4N is 1 modulo 4, so this happens exactly after 1,020 + 1,024k tics.
+- **A claim that appears whole.** A new session's file (14 bytes: header and marker) is written to `<name>.<pid>.tmp`,
+  synced, and hard-linked to the name (`std::fs::hard_link` fails if the name exists, so an existing file is never
+  replaced); the temporary is then removed. **The fallback window:** if the link fails for any reason but the name
+  existing (no hard links: FAT, exFAT, some network shares), the claim falls back to M5b's `create_new`, write and sync,
+  and a kill between the create and the write can leave an empty `.lmp`.
+- **Hosts that do not opt in are unchanged.** `Host::appends` defaults to false and `Host::append` is never called for such
+  a host; the test hosts and every example keep M5b's cadence exactly. `FsHost` opts in; `LoggedHost` delegates.
+  The whole synced rewrite stays every `SAVE_INTERVAL` (1,050) tics, at the session's end, and on restart or quit when
+  the file is behind. A declined or failed append is repaired by a whole rewrite on the next tic.
+
+### The atomicity argument (it rests on the kernel's behaviour; the kill tests are the evidence)
+
+The agent read Linux v6.18's source (not committed): a buffered write to a regular file on ext4 or tmpfs goes through
+`generic_perform_write` (`mm/filemap.c:4227-4318`), which checks for a fatal signal only at the top of each folio
+iteration, before the copy; the copy and the size update finish before the next check. Folios are page-aligned and at
+least one page, so five bytes inside one aligned 4,096-byte block are one iteration: SIGKILL either prevents the write
+or lets it finish. That is why the page-boundary rule exists. **A residual case:** a short copy from the five source
+bytes (a fault on the caller's buffer, just written and resident) could stop inside a folio; it is not expected and was
+not observed. This is an argument about one kernel's implementation, not a guarantee of every file system.
+
+**Windows and macOS (inference, not tested).** On Windows, Ctrl+C and the console's close button reach a process with no
+console handler as `CTRL_C_EVENT` and `CTRL_CLOSE_EVENT`, whose default handler calls `ExitProcess`; End task calls
+`TerminateProcess`. A thread inside a synchronous, cached `WriteFile` of five bytes on NTFS is expected to finish the
+copy into the cache before it is terminated, so the five bytes should land whole; the page rule and the whole-rewrite
+path are the same there. On macOS only the CI run of the kill test (`#[cfg(unix)]`) speaks for it; it had not run when
+this was written.
+
+### When the demo is written (FsHost, as `doom-play` runs it)
+
+| Moment | Write |
+| --- | --- |
+| Session start | The file appears with its content (14 bytes): a synced temporary file hard-linked to the name (fallback without hard links: `create_new`, then the write) |
+| Every committed, recorded tic | One write of 5 bytes at the old marker's offset; the file grows by 4 |
+| A tic whose 5 bytes would straddle a 4,096-byte boundary (the tic after 1,020, 2,044, 3,068, ... tics) | Rewritten whole through a synced temporary file and a rename |
+| Every 1,050 recorded tics | Rewritten whole the same way (unchanged) |
+| The tic after a failed write | Rewritten whole (repairs the file) |
+| Session end (exit, death, a refusal, the tic cap) | Rewritten whole (unchanged) |
+| Restart, quit | Nothing when the file is current (the normal case); rewritten whole when behind |
+| Pause (Esc, Pause, focus loss, minimise) | Nothing (no tic runs) |
+| Ctrl+C, SIGKILL, a lost X connection, a closed console window | Nothing at that moment, but the file already holds every tic run, or every tic but the last |
+
+### Evidence (release builds unless stated)
+
+**A. The cargo kill test** (`kill_tests::sigkill_at_random_points_leaves_valid_demos`, `crates/doom-play/src/kill_tests.rs`,
+Unix only, so it runs in CI on Linux and macOS; commands in [Testing](../TESTING.md#m5d-kill-tests-and-trial-options)).
+The parent spawns its own executable, which plays the real `App` with the real `FsHost` (sound discarded) on the M5c
+session-check synthetic set with seeded keys, mouse motion, buttons, pauses and restarts on a fake clock, and SIGKILLs it
+after a random delay. A checker requires of every `.lmp`: not empty, parses, replays with no refusal, its command digest
+equal to the child's printed one at its tic count, and M - 1 or M tics for the current session (earlier sessions exactly
+their last count), with at most one file whose claim was never printed, holding 0 tics. The default run is 50 kills: 15.0
+to 15.3 s for the whole `doom-play` test binary in debug (31 passed, 1 ignored), 14.6 s in release with 3 sessions past
+the first page-boundary rewrite. Two planted faults were caught (a two-step append, at kill 8 of 30; a claim with no
+content, at kill 7 of 50). On this machine's tmpfs `/tmp` no kill landed before a claim line; with `TMPDIR` on ext4, 8 of
+50 did.
+
+**B. Many kills locally** (`DOOM_PLAY_KILLS=2000`, seeds 1000 to 2999, ext4): pass; 2,000 kills, 2,126 files holding
+819,826 tics (longest 3,315; 206 files past the first page-boundary rewrite); 414 kills landed before a claim line, 4 after
+a whole-rewrite tic, 1,582 mid-session; 0 failures. Aimed runs, 0 failures in all:
+
+| Aim | Kills | Window after the tic's print | Files / tics | Current file 1 behind / even | `.tmp` |
+| --- | --- | --- | --- | --- | --- |
+| tic 1,021 (first page-boundary rewrite) | 200 | 0 to 3 ms | 411 / 306,048 | 200 / 0 | 200 |
+| tic 1,050 (first periodic rewrite) | 200 | 0 to 3 ms | 424 / 319,597 | 200 / 0 | 200 |
+| tic 1 (first append) | 200 | 0 to 3 ms | 201 / 486 | 18 / 182 | 0 |
+| tic 1,021 | 150 | 0 to 60 ms | 294 / 220,796 | 38 / 112 | 33 |
+| tic 1,050 | 150 | 0 to 60 ms | 299 / 227,759 | 33 / 117 | 24 |
+
+Every kill within 3 ms of tic 1,021 or 1,050 found the synced whole rewrite unfinished and the old file whole; with a 60 ms
+window both states occur and pass.
+
+**C. The session check against the genuine engine** (`tools/reference/m5d_kill_check.py`): every surviving `.lmp` goes
+through the M5c session check (`m5c_session_real.py`'s `verify`: linuxdoom-1.10 built with its in-process sound code in
+the strict, overflow and address variants, and the genuine mixer, against the Rust replay; every frame, sound row, mixer
+buffer and the tic count compared). **The address variant ran with `ASAN_OPTIONS=detect_leaks=0`: leak detection was
+disabled, so it is not LeakSanitizer coverage.** The strict32 variant was not needed in any run.
+
+| Run | Kills | Surviving demos | Tics | Verdicts |
+| --- | --- | --- | --- | --- |
+| synthetic, 200 kills, seed 100, `--selftest` | 200 | 195 | 66,633 | 195 PASS, 0 FAIL |
+| synthetic, aimed tic 1,021 (0 to 60 ms), seed 900 | 30 | 63 | 46,373 | 63 PASS, 0 FAIL |
+| IWAD E1M1 (scratch copy), 50 kills, seed 300, `--selftest` | 50 | 46 | 6,176 | 46 PASS, 0 FAIL |
+| IWAD, 200 kills, seed 400, longer delays | 200 | 242 | 106,093 | 242 PASS, 0 FAIL |
+| IWAD, aimed tic 1,021, seed 700 | 30 | 55 | 40,632 | 55 PASS, 0 FAIL |
+| IWAD, aimed tic 1,050, seed 800 | 30 | 55 | 42,112 | 55 PASS, 0 FAIL |
+
+Totals: synthetic 230 kills, 258 surviving demos, 113,006 tics; IWAD 310 kills, 398 surviving demos, 195,013 tics; all
+PASS. In the first synthetic run the frames compared were 66,633 (0 masked, 0 not comparable) and 43 kills left no `.lmp`
+(they came before the claim). `--selftest` plants a truncated last tic with no marker, a missing marker and a byte after
+the marker: each failed the session check, and the self-check passed both times. A 0-tic file (header and marker only)
+also passed by hand. Only counts and verdicts are recorded; the IWAD was a scratch copy.
+
+**D. The real binary under WSLg** (`tools/local/m5d_lost_display.py`, IWAD scratch copy, `--no-sound`, nothing pressed):
+
+| Mode | Runs | Exit | Surviving demos | Tics | Verdicts |
+| --- | --- | --- | --- | --- | --- |
+| lost display connection (X proxy shut), 0.5 to 8 s | 20 | 1 in all 20, each with "X connection to :42 broken (explicit kill or server shutdown)." | 20 | 3,109 | 20 PASS |
+| lost display connection, 32 to 75 s | 5 | 1, same message | 5 | 8,878 (all past tics 1,021 and 1,050) | 5 PASS |
+| SIGINT (what Ctrl+C sends), 0.5 to 8 s | 20 | killed by signal 2 in all 20 | 20 | 3,116 | 20 PASS |
+| SIGKILL, 0.5 to 8 s | 20 | killed by signal 9 in all 20 | 20 | 3,117 | 20 PASS |
+
+The proxy: WSLg mounts `/tmp/.X11-unix` read-only, so the proxy listens on the abstract socket `@/tmp/.X11-unix/X42`,
+which libxcb tries first for `DISPLAY=:42`, and forwards byte for byte to the real socket; shutting it reproduces the
+owner's message. A manual SIGINT run with `--input-log` left a file holding exactly the 135 tics the log listed.
+
+### Which of the owner's three cases were run here
+
+| Case | Run here? |
+| --- | --- |
+| Lost display connection under WSLg | **Yes, through a proxy** (table D), not by the owner's own session losing its display |
+| Ctrl+C | **SIGINT on Linux: yes** (table D). **Ctrl+C in a Windows console: no** |
+| Closed console window on Windows | **No; only the owner can** (End task was not run either) |
+
+The kill test on macOS was not run (CI's job), and nothing was run on Windows. The Windows steps for the owner's session
+belong to A6.
+
+### What a player could notice
+
+- Disk activity: 35 small writes a second while playing (open, seek, 5-byte write, close), instead of one rewrite every 30 s.
+- One more synced whole rewrite every 1,024 tics (about every 29 s), beside the existing one every 1,050. On this
+  machine's ext4 it took longer than 3 ms in all 200 aimed kills at tic 1,021 and 1,050 (the kills found it unfinished); an
+  fsync stall of that size already happened every 1,050 tics before. Not measured as a frame-time effect.
+- After a failed write the app retries with a whole rewrite at every tic, where M5b retried at 1,050 tics, the end, restart
+  and quit.
+- Leftover `<name>.<pid>.tmp` files can appear in the sessions directory after a kill, never a `.lmp` that fails.
+- The game, the frames, the sound and the demo bytes do not change: the existing session and input-log tests, which compare
+  demo bytes and frames, pass unchanged.
+
+### Checks the agent ran (Linux)
+
+Format (workspace and fuzz) clean; Clippy with warnings denied on `doom-game` and `doom-play`, debug and release, clean;
+`cargo test -p doom-game -p doom-play` 165 passed, 0 failed, 1 ignored, in debug and in release; `cargo +1.85.0 check` on the
+two crates passes; rustdoc with warnings denied (with and without private items) clean. Fault plants: 11 of 11 caught (the
+two above and nine more: page rule always true, append without the length check, a claim by `create_new` then write, a claim
+leaving its temporary, always rewriting whole, an append offered to a host that did not opt in, an append while behind, the
+offset of n tics instead of n - 1, a declined append marked saved). **Not run in that step:** the workspace-wide gates, the
+fuzz builds, sanitizer campaigns of Rust code, CI on any operating system, Windows and native macOS. Those are A5.
+
+### Open questions for the owner
+
+1. **Retry after a failure.** The app retries a whole rewrite at every tic after a failed write. Under a persistent
+   failure (read-only directory, full disk) that is up to 35 failed attempts a second (and a claim with every name taken
+   walks up to 9,999 names per tic). Keep it, or retry whole only at `SAVE_INTERVAL` and the end once a write has failed?
+2. **Fallback claim.** A hard-link error other than "exists" falls back to `create_new`, whose kill window can leave an
+   empty `.lmp`. NTFS supports hard links (inference); FAT and exFAT do not.
+3. **Leftover temporary files** accumulate after kills and no later run removes them. Should a later run remove stale
+   `*.<pid>.tmp` files it did not create?
+4. **The residual short-copy case** above, and the kernel-dependence of the whole argument, stay open until Windows and
+   macOS are shown by hand.
 
 ## A4. Leftovers by the owner's earlier rulings
 
