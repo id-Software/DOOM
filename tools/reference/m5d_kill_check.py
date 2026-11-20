@@ -26,8 +26,12 @@ status bar, sound and music WADs; E1M1 skill 2; the mixer loads tests/reference/
 only, never in CI) the IWAD is copied into <work>/iwad (the original stays read-only) and the child plays its E1M1; the
 check then loads only that copy, as m5c_session_real.py does for a real map.
 
---selftest: before the kills, plants bad files made from a valid demo (a truncated last tic with no marker, a missing
-marker, a byte after the marker) and requires each to FAIL the session check.
+--selftest: after the kills, plants faults made from the longest surviving demo and requires each to FAIL the session
+check: three bad files (a truncated last tic with no marker, a missing marker, a byte after the marker), which the
+header check refuses before the genuine engine runs, and one command byte changed (the turn of the middle tic,
+angleturn, the third byte of a tic's command, g_game.c:1501) in the demo fed to the Rust side only, as
+tools/local/m5c_session_real.py --synthetic plants it: that demo passes the header check, the genuine engine replays
+the unchanged demo, and the comparison must fail, at the planted tic or later (never before it).
 
 The output is one VERDICT line per demo (from m5c_session_real.show) and a summary. Counts, verdicts and digests only:
 no lump content, no coordinate. Every stream stays in --work (outside the repository).
@@ -76,7 +80,8 @@ def run_kills(exe, kills, seed, keep_dir, wads):
 
 
 def selftest(tools, rust, wads, mixer_wads, demo, work):
-    """Plants bad files from a valid demo; each must FAIL (refused by the header check or by verify)."""
+    """Plants faults from a valid demo; each must FAIL: three bad files refused by the header check, and one command
+    byte changed in the Rust side's demo only, which passes the header check and must fail the genuine comparison."""
     good = demo.read_bytes()
     if len(good) < 18: sys.exit(f'selftest: {demo.name} holds no tic to cut')
     plants = [('truncated last tic, no marker', good[:-3]),
@@ -86,14 +91,29 @@ def selftest(tools, rust, wads, mixer_wads, demo, work):
     for i, (what, data) in enumerate(plants):
         h, err = SR.header(data)
         if err:
-            verdict = f'FAIL (refused: {err})'
+            verdict = f'FAIL (refused by the header check: {err})'
         else:
             rec, *_ = SR.verify(tools, rust, wads, mixer_wads, data, 10, work / f'plant{i}', 1)
             verdict = 'PASS' if rec['ok'] else f'FAIL (first difference {rec["failures"][0][:2]})'
         caught = verdict.startswith('FAIL')
         ok &= caught
         print(f'planted {what} ({len(data)} bytes from {demo.name}): {verdict}: {"caught" if caught else "NOT CAUGHT"}')
-    print(f'SELF-CHECK: {"PASS" if ok else "FAIL"}: {len(plants)} planted files')
+    # the genuine comparison: the turn (angleturn, g_game.c:1501) of the middle tic, changed in the Rust side's demo
+    h, err = SR.header(good)
+    if err: sys.exit(f'selftest: {demo.name} fails the header check: {err}')
+    k = h['commands'] // 2
+    planted = bytearray(good); planted[13 + 4 * k + 2] = (planted[13 + 4 * k + 2] + 16) & 0xff
+    _, perr = SR.header(bytes(planted))
+    rec, *_ = SR.verify(tools, rust, wads, mixer_wads, good, 10, work / 'plant-command', 1, rust_lmp=bytes(planted))
+    first = rec['failures'][0][:2] if rec['failures'] else None
+    caught = perr is None and not rec['ok'] and first is not None and first[0] >= k
+    ok &= caught
+    print(f'planted command byte: the turn of tic {k} of {h["commands"]} changed in the Rust side\'s demo only '
+          f'(header check {"passed" if perr is None else "REFUSED: " + perr}): verdict {"PASS" if rec["ok"] else "FAIL"}, '
+          f'first difference {first}{" (at the planted tic)" if first and first[0] == k else ""}: '
+          f'{"caught by the genuine comparison" if caught else "NOT CAUGHT"}')
+    print(f'SELF-CHECK: {"PASS" if ok else "FAIL"}: {len(plants)} planted files refused by the header check, '
+          f'1 planted command byte {"caught" if caught else "NOT CAUGHT"} by the genuine comparison')
     return ok
 
 
@@ -135,8 +155,8 @@ def main():
     print(f'{len(demos)} surviving .lmp files in {len(list(kills_dir.glob("k*")))} kill directories; {tmp} leftover .tmp')
     good = True
     if a.selftest:
-        base = next((d for d in demos if d.stat().st_size >= 18), None)
-        if base is None: sys.exit('selftest: no surviving demo holds a tic')
+        base = max(demos, key=lambda d: d.stat().st_size, default=None)
+        if base is None or base.stat().st_size < 18: sys.exit('selftest: no surviving demo holds a tic')
         good &= selftest(tools, rust, wads, mixer_wads, base, work / 'selftest')
     t2 = time.monotonic()
 
