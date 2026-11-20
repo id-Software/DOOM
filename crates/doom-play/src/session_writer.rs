@@ -43,11 +43,16 @@
 //! follow the truth (review 3, M1).
 //!
 //! **A session the writer moves on from** (the next claim) whose file does not hold its copy is
-//! rewritten whole from that copy once more first, unless that last failure was itself the
-//! app's whole demo (the app's retry at restart). If that fails too, the session is kept, copy
-//! and failure, and rewritten whole once more when the writer stops ([`WriterHost::close`]); the
-//! outcome is in the [`Report`] ([`Earlier`]), so an earlier session's file is never left behind
-//! without an exit line saying so. A session whose name another file took is never written.
+//! rewritten whole from that copy once more first, unless its last write was already a retry of
+//! that same copy: a whole demo written after an earlier failure of the session (such as the
+//! app's retry at restart) that failed too, with no tic added to the copy since (review 4, R2).
+//! So a session whose last write was its first failure (an append, a periodic, catch-up or end
+//! save, the claim) is rewritten once at the next claim whether or not the app heard of the
+//! failure, and one the app has just retried is not rewritten again at once. If that fails too,
+//! the session is kept, copy and failure, and rewritten whole once more when the writer stops
+//! ([`WriterHost::close`]); the outcome is in the [`Report`] ([`Earlier`]), so an earlier
+//! session's file is never left behind without an exit line saying so. A session whose name
+//! another file took is never written.
 //!
 //! **The atomicity argument** is unchanged in kind: every write the writer makes is one of the
 //! all-or-nothing operations of [`crate::session_file`] (a five-byte write inside one page, or a
@@ -564,8 +569,10 @@ struct Session {
     name: String,
     model: Vec<u8>,
     disk: Disk,
-    /// The last write attempted was a whole demo the app handed over (its save or retry), and it
-    /// failed: moving on to the next session does not rewrite it once more at once.
+    /// The last write attempted was a retry of the copy as it stands: a whole demo the app
+    /// handed over, written while the file did not hold the copy (an earlier write had failed),
+    /// that failed too, and no tic was added to the copy since. Moving on to the next session
+    /// then does not rewrite it once more at once (review 4, R2).
     retried: bool,
 }
 
@@ -667,8 +674,9 @@ impl Writer {
     }
 
     /// The writer moves on from the current session (a new claim): if its file does not hold its
-    /// copy, it is rewritten whole once more (claimed, if it never was), unless its last failed
-    /// write was already the app's whole demo; if it still does not, the session is kept for
+    /// copy, it is rewritten whole once more (claimed, if it never was), unless its last write
+    /// was already a failed retry of that same copy ([`Session::retried`]); if it still does not,
+    /// the session is kept for
     /// [`Writer::rewrite_left`], with its failure, which leaves the shared state.
     fn retire(&mut self) {
         let Some(s) = self.session.as_ref() else {
@@ -755,6 +763,7 @@ impl Writer {
         }
         s.model.truncate(at as usize);
         s.model.extend_from_slice(&tail);
+        s.retried = false; // the copy changed: no write has tried it yet
         if !p.whole && s.disk == Disk::Current {
             if p.tails.is_empty() {
                 p.first_at = at;
@@ -773,6 +782,8 @@ impl Writer {
         if !p.whole && p.tails.is_empty() {
             return;
         }
+        // a whole demo written while the file does not hold the copy is a retry
+        let retry = p.whole && matches!(s.disk, Disk::Unclaimed | Disk::Stale);
         match s.disk {
             Disk::Lost => {
                 let name = s.name.clone();
@@ -795,7 +806,7 @@ impl Writer {
             Disk::Current | Disk::Stale => self.rewrite(p.synced),
         }
         if let Some(s) = self.session.as_mut() {
-            s.retried = p.whole && s.disk != Disk::Current;
+            s.retried = retry && s.disk != Disk::Current;
         }
     }
 
