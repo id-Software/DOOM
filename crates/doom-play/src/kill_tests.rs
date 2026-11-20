@@ -28,7 +28,10 @@
 //! delay, default 400), `DOOM_PLAY_KILL_LONG_MS` (a tenth of the kills wait 1 s plus up to this,
 //! default 1600), `DOOM_PLAY_KILL_SEED` (the first seed, default 1; kill k uses seed + k),
 //! `DOOM_PLAY_KILL_WADS` (newline-separated WAD paths, the first decides the game mode as
-//! doom-play's `--iwad` does; default the synthetic set), `DOOM_PLAY_KILL_MAP` (default 1) and
+//! doom-play's `--iwad` does; default the synthetic set), `DOOM_PLAY_KILL_MAP` (default 1),
+//! `DOOM_PLAY_KILL_AT_TIC` (aimed kills: wait for the first `@tic` line of this count, in any
+//! session, then up to `DOOM_PLAY_KILL_AT_US` microseconds, default 3000; for example 1021, the
+//! first page-boundary rewrite, or 1050, the first periodic rewrite) and
 //! `DOOM_PLAY_KILL_KEEP` (a directory: each kill's files are kept under it as `kNNNN/`, for
 //! `tools/reference/m5d_kill_check.py`; by default they are deleted). One summary line goes to
 //! standard output (seen with `--nocapture`).
@@ -485,8 +488,15 @@ fn check(dir: &Path, lines: &[String], data: &GameData, stats: &mut Stats) -> Re
     Ok(())
 }
 
-/// One kill: spawns the child, waits for `@start`, sleeps `delay`, kills it and returns its lines.
-fn kill_one(exe: &Path, dir: &Path, seed: u64, delay: Duration) -> Result<Vec<String>, String> {
+/// One kill: spawns the child, waits for `@start` (and, with `at_tic`, then for the first `@tic`
+/// line of that count), sleeps `delay`, kills it and returns its lines.
+fn kill_one(
+    exe: &Path,
+    dir: &Path,
+    seed: u64,
+    at_tic: Option<u64>,
+    delay: Duration,
+) -> Result<Vec<String>, String> {
     let mut child = Command::new(exe)
         .args([
             CHILD_TEST,
@@ -515,12 +525,19 @@ fn kill_one(exe: &Path, dir: &Path, seed: u64, delay: Duration) -> Result<Vec<St
     });
     let mut lines = Vec::new();
     let deadline = Instant::now() + Duration::from_secs(120);
+    let mut seen_start = false;
     let started = loop {
         match rx.recv_timeout(deadline.saturating_duration_since(Instant::now())) {
             Ok(l) => {
-                let start = l == "@start";
+                seen_start |= l == "@start";
+                let due = match at_tic {
+                    None => l == "@start",
+                    Some(n) => {
+                        l.starts_with("@tic ") && l.split(' ').nth(2) == Some(&n.to_string())
+                    }
+                };
                 lines.push(l);
-                if start {
+                if due {
                     break true;
                 }
             }
@@ -535,7 +552,10 @@ fn kill_one(exe: &Path, dir: &Path, seed: u64, delay: Duration) -> Result<Vec<St
     reader.join().map_err(|_| "the reader panicked")?;
     lines.extend(rx.try_iter());
     if !started {
-        return Err("the child never started".into());
+        return Err(match (seen_start, at_tic) {
+            (true, Some(n)) => format!("the child never printed tic {n} within 120 s"),
+            _ => "the child never started".into(),
+        });
     }
     if status.success() {
         return Err(format!("the child exited by itself ({status}), not killed"));
@@ -551,6 +571,10 @@ fn sigkill_at_random_points_leaves_valid_demos() {
     let kills = env_u64("DOOM_PLAY_KILLS", 50);
     let max_ms = env_u64("DOOM_PLAY_KILL_MAX_MS", 400).max(1);
     let long_ms = env_u64("DOOM_PLAY_KILL_LONG_MS", 1600).max(1);
+    let at_tic = std::env::var("DOOM_PLAY_KILL_AT_TIC")
+        .ok()
+        .and_then(|v| v.parse::<u64>().ok());
+    let at_us = env_u64("DOOM_PLAY_KILL_AT_US", 3_000).max(1);
     let seed0 = env_u64(SEED, 1);
     let keep = std::env::var_os("DOOM_PLAY_KILL_KEEP").map(PathBuf::from);
     let base = keep.clone().unwrap_or_else(|| {
@@ -583,12 +607,13 @@ fn sigkill_at_random_points_leaves_valid_demos() {
             // claim), a tenth late (past the first page-boundary rewrite in an optimised build),
             // the rest anywhere up to `max_ms`
             let delay = match rng.below(10) {
+                _ if at_tic.is_some() => Duration::from_micros(rng.below(at_us)),
                 0 => Duration::from_micros(rng.below(300)),
                 1 => Duration::from_micros(rng.below(3_000)),
                 2 => Duration::from_millis(1_000 + rng.below(long_ms)),
                 _ => Duration::from_micros(rng.below(max_ms * 1_000)),
             };
-            let lines = kill_one(&exe, &dir, seed, delay)
+            let lines = kill_one(&exe, &dir, seed, at_tic, delay)
                 .unwrap_or_else(|e| panic!("kill {k} (seed {seed}): {e}"));
             if jobs.send((seed, dir, lines)).is_err() {
                 break; // the checker stopped at a failure
