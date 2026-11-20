@@ -5,7 +5,7 @@ use super::*;
 use crate::audio::{Discard, Output};
 use doom_game::app::{App, GameData, SaveStatus, SessionConfig};
 use doom_render::GameMode;
-use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 use std::time::Duration;
 
 pub(crate) fn load() -> GameData {
@@ -41,6 +41,9 @@ pub(crate) fn fs(dir: &Path) -> FsHost {
 pub(crate) struct Gate {
     open: Mutex<bool>,
     changed: Condvar,
+    /// How many callers wait at the closed gate now ([`Gate::await_waiter`]).
+    waiting: Mutex<usize>,
+    arrived: Condvar,
 }
 
 impl Gate {
@@ -58,9 +61,25 @@ impl Gate {
     }
     pub(crate) fn pass(&self) {
         let mut open = self.open.lock().unwrap();
+        if *open {
+            return;
+        }
+        *self.waiting.lock().unwrap() += 1;
+        self.arrived.notify_all();
         while !*open {
             open = self.changed.wait(open).unwrap();
         }
+        *self.waiting.lock().unwrap() -= 1;
+    }
+    /// Waits (at most 10 s) until a caller waits at the closed gate: the writer has taken an
+    /// operation and is held in it.
+    pub(crate) fn await_waiter(&self) {
+        let waiting = self.waiting.lock().unwrap();
+        let (_waiting, wait) = self
+            .arrived
+            .wait_timeout_while(waiting, Duration::from_secs(10), |n| *n == 0)
+            .unwrap();
+        assert!(!wait.timed_out(), "nothing came to the closed gate in 10 s");
     }
 }
 
@@ -90,6 +109,8 @@ pub(crate) struct TestIo {
     pub(crate) ops: Arc<Mutex<Vec<Op>>>,
     pub(crate) fail_appends: Arc<AtomicBool>,
     pub(crate) fail_rewrites: Arc<AtomicBool>,
+    /// The next this many whole rewrites fail; later ones succeed (unless `fail_rewrites`).
+    pub(crate) fail_next_rewrites: Arc<AtomicUsize>,
     /// A whole rewrite panics (the writer thread dies).
     pub(crate) panic_rewrites: Arc<AtomicBool>,
     pub(crate) race: bool,
@@ -130,7 +151,22 @@ impl SessionIo for TestIo {
             synced,
             tics: tics_in(bytes.len()),
         });
-        if self.fail_rewrites.load(Ordering::SeqCst) {
+        let next = || {
+            let mut n = self.fail_next_rewrites.load(Ordering::SeqCst);
+            while n > 0 {
+                match self.fail_next_rewrites.compare_exchange(
+                    n,
+                    n - 1,
+                    Ordering::SeqCst,
+                    Ordering::SeqCst,
+                ) {
+                    Ok(_) => return true,
+                    Err(now) => n = now,
+                }
+            }
+            false
+        };
+        if self.fail_rewrites.load(Ordering::SeqCst) || next() {
             return Err("planted: disk full".into());
         }
         assert!(

@@ -8,7 +8,7 @@ use crate::session_writer::tests::{Gate, Op, TestIo, at, load, scratch, writer};
 use doom_game::app::{PICTURE_BYTES, SAVE_FAILED_LABEL, Screen, SessionConfig};
 use doom_game::input::keys::KEY_ESCAPE;
 use std::path::PathBuf;
-use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex};
 use std::time::Instant;
 
@@ -42,6 +42,7 @@ struct Disk {
     ops: Arc<Mutex<Vec<Op>>>,
     fail_appends: Arc<AtomicBool>,
     fail_rewrites: Arc<AtomicBool>,
+    fail_next_rewrites: Arc<AtomicUsize>,
     gate: Option<Arc<Gate>>,
 }
 
@@ -59,6 +60,7 @@ impl Disk {
             ops: Arc::clone(&self.ops),
             fail_appends: Arc::clone(&self.fail_appends),
             fail_rewrites: Arc::clone(&self.fail_rewrites),
+            fail_next_rewrites: Arc::clone(&self.fail_next_rewrites),
             gate: self.gate.clone(),
             ..TestIo::default()
         }
@@ -67,11 +69,18 @@ impl Disk {
         self.fail_appends.store(appends, Ordering::SeqCst);
         self.fail_rewrites.store(rewrites, Ordering::SeqCst);
     }
+    /// The next `n` whole rewrites fail, later ones succeed.
+    fn fail_next_rewrites(&self, n: usize) {
+        self.fail_next_rewrites.store(n, Ordering::SeqCst);
+    }
     fn gate(&self, open: bool) {
         self.gate.as_ref().expect("a gated disk").set(open);
     }
     fn synced_rewrites_of(&self, tics: u64) -> usize {
-        let want = Op::Rewrite { synced: true, tics };
+        self.rewrites_of(true, tics)
+    }
+    fn rewrites_of(&self, synced: bool, tics: u64) -> usize {
+        let want = Op::Rewrite { synced, tics };
         self.ops
             .lock()
             .unwrap()
@@ -327,6 +336,152 @@ fn a_failure_after_the_pause_shows_on_the_pause_box_or_is_retried_by_the_writer(
         );
         std::fs::remove_dir_all(&dir).unwrap();
     }
+}
+
+/// Review 4, R2 (the reviewer's probe C): the disk stalls (the writer is held in tic 21's
+/// append), the queue fills at [`crate::session_writer::QUEUE_TICS`] tics and the app falls back
+/// to a catch-up snapshot, answered `Ok` (its status says Saved(260)). The player pauses and
+/// presses R in the same pump, so no poll runs between and the app does not save again; the
+/// catch-up rewrite then fails, a first failure the app never hears of. The writer rewrites the
+/// first session whole once more before it claims the next file: with the disk working again
+/// ("claim"), the first file then holds all 260 tics and nothing is said about it at exit; with
+/// that rewrite failing too ("exit"), the session is kept and rewritten at exit, and the one line
+/// about it says it was saved then (no second line about the same file).
+#[test]
+fn a_first_failure_after_the_restart_is_rewritten_at_the_next_claim() {
+    for case in ["claim", "exit"] {
+        let dir = scratch(&format!("close-catch-up-{case}"));
+        let disk = Disk::gated();
+        let mut p = play(&dir, &disk, 1_000);
+        let _open = disk.gate.as_ref().unwrap().opens_on_drop();
+        steady(&mut p, 1, 20);
+        disk.gate(false);
+        assert!(step(&mut p, 21).is_empty());
+        disk.gate.as_ref().unwrap().await_waiter(); // the writer holds tic 21's append
+        for k in 22..=260 {
+            assert!(step(&mut p, k).is_empty());
+        }
+        let (queued, snapshots, most, _) = p.host.host.queue_depth();
+        let bound = crate::session_writer::QUEUE_TICS;
+        assert_eq!((queued, snapshots, most), (bound, 1, bound), "{case}");
+        assert_eq!(p.app.save_status(), &SaveStatus::Saved(260), "{case}");
+        disk.fail_next_rewrites(if case == "claim" { 1 } else { 2 });
+        p.app.key(KEY_ESCAPE, true, &mut p.host);
+        let (path, want) = session(&p, &dir);
+        let name = p.app.session_name().to_string();
+        p.app.key(b'r', true, &mut p.host);
+        assert_ne!(p.app.session_name(), name, "{case}: restarted");
+        disk.gate(true);
+        p.host.host.wait_idle();
+        assert_eq!(disk.rewrites_of(false, 260), 1, "{case}: the failed catch-up");
+        assert_eq!(disk.synced_rewrites_of(260), 1, "{case}: the writer's rewrite");
+        if case == "claim" {
+            assert_eq!(std::fs::read(&path).unwrap(), want, "{case}");
+        } else {
+            assert_ne!(std::fs::read(&path).unwrap(), want, "{case}");
+        }
+        p.quit();
+        let lines = p.conclude();
+        let about: Vec<&String> = lines.iter().filter(|l| l.contains(&name)).collect();
+        if case == "claim" {
+            assert!(about.is_empty(), "{lines:#?}");
+        } else {
+            assert_eq!(
+                about,
+                [&format!(
+                    "an earlier session was saved at exit: {} (260 tics), rewritten whole after \
+                     its last write failed (planted: disk full)",
+                    path.display()
+                )],
+                "{lines:#?}"
+            );
+            assert_eq!(disk.synced_rewrites_of(260), 2, "{case}: and at exit");
+        }
+        assert_eq!(std::fs::read(&path).unwrap(), want, "{case}");
+        std::fs::remove_dir_all(&dir).unwrap();
+    }
+}
+
+/// Review 4, R3 (plant C1; the reviewer's probe B2): one append fails (tic 13), the app hears
+/// of it at tic 14 and retries at tic 15, which the writer makes (the file then holds 15 tics);
+/// the app's next retry falls 35 tics later, so tics 16 to 30 are not handed over and its status
+/// stays Failed. Paused at tic 30, the poll finds every write handed over made, the file holding
+/// 15 tics: the status stays Failed (the pause box says so), never Saved(30). The quit then
+/// rewrites the file whole, and the exit line says it was saved with its 30 tics, which the file
+/// holds.
+#[test]
+fn a_file_behind_the_recorder_is_never_called_saved() {
+    let dir = scratch("close-behind");
+    let disk = Disk::default();
+    let mut p = play(&dir, &disk, 1_000);
+    steady(&mut p, 1, 12);
+    disk.fail(true, false);
+    steady(&mut p, 13, 13);
+    disk.fail(false, false);
+    steady(&mut p, 14, 30);
+    assert_eq!(p.host.host.written(p.app.session_name()), Some(15));
+    p.app.key(KEY_ESCAPE, true, &mut p.host);
+    assert!(step(&mut p, 31).is_empty());
+    assert_eq!(p.app.mode(), &Mode::Paused);
+    assert_eq!(
+        p.app.save_status(),
+        &SaveStatus::Failed("planted: disk full".into())
+    );
+    assert!(shows(&picture(&p.app), SAVE_FAILED_LABEL));
+    let (path, want) = session(&p, &dir);
+    assert_eq!(p.app.recorder().len(), 30);
+    p.quit();
+    let lines = p.conclude();
+    let about: Vec<&String> = lines
+        .iter()
+        .filter(|l| l.contains("saved") || l.contains("written"))
+        .collect();
+    assert_eq!(
+        about,
+        [&format!("saved {} (30 tics)", path.display())],
+        "{lines:#?}"
+    );
+    assert_eq!(std::fs::read(&path).unwrap(), want);
+    std::fs::remove_dir_all(&dir).unwrap();
+}
+
+/// Review 4, R3 (plant D): a poll while paused does not wait, so a write still being made is
+/// not a failure. The disk stalls at tic 20 (the writer is held in its append) and the player
+/// pauses: the poll leaves the status Saved(20) and the pause box does not say the save failed
+/// (only the poll at a session's end, after its wait, says the demo is not written yet). When
+/// the disk answers, the next poll finds the file holding the 20 tics.
+#[test]
+fn a_paused_poll_with_a_write_in_flight_is_not_a_failure() {
+    let dir = scratch("close-pause-pending");
+    let disk = Disk::gated();
+    let mut p = play(&dir, &disk, 1_000);
+    let _open = disk.gate.as_ref().unwrap().opens_on_drop();
+    steady(&mut p, 1, 19);
+    disk.gate(false);
+    assert!(step(&mut p, 20).is_empty());
+    disk.gate.as_ref().unwrap().await_waiter(); // the writer holds tic 20's append
+    p.app.key(KEY_ESCAPE, true, &mut p.host);
+    let t0 = Instant::now();
+    assert!(step(&mut p, 21).is_empty());
+    assert!(
+        t0.elapsed() < Duration::from_millis(500),
+        "the poll did not wait"
+    );
+    assert_eq!(p.app.mode(), &Mode::Paused);
+    assert_eq!(p.app.save_status(), &SaveStatus::Saved(20));
+    assert!(!shows(&picture(&p.app), SAVE_FAILED_LABEL));
+    assert_eq!(
+        p.host.host.settle(p.app.session_name(), Duration::ZERO),
+        Settled::Pending
+    );
+    disk.gate(true);
+    p.host.host.wait_idle();
+    assert!(step(&mut p, 22).is_empty());
+    assert_eq!(p.app.save_status(), &SaveStatus::Saved(20));
+    let (path, want) = session(&p, &dir);
+    assert_eq!(std::fs::read(path).unwrap(), want);
+    p.quit();
+    std::fs::remove_dir_all(&dir).unwrap();
 }
 
 /// Review 3, m2: the exit report says one thing about the current session. Appends fail from
