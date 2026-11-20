@@ -2994,10 +2994,13 @@ fault ([evidence](validation/M5B.md#step-7b-full-resolution-unrecorded-turning))
   at the first pause. An existing file is **never replaced**: the file is created exclusively, and a collision
   appends `-2`, `-3` and so on up to `-9999`, after which the save fails visibly. The demo is rewritten whole
   every 30 seconds of play (1,050 tics) and when the session ends, through a temporary file
-  `<name>.<pid>.tmp` that is synced and renamed, so a process crash loses at most 30 seconds (the directory
-  itself is not synced, so an operating-system crash or power loss is not covered). If a write fails, the
+  `<name>.<pid>.tmp` (created new) that is synced and renamed; the new file itself appears through
+  `<name>.<pid>.claim.tmp`. Since M5d the file is also extended after every tic, so a process crash loses at most the last
+  tic (see the session-limit section below), but the directory itself is not synced, so an operating-system crash or
+  power loss is not covered. If a write fails, the
   pause box says "LAST DEMO SAVE FAILED", the end screen and the exit message give the reason, and the write is
-  tried again on quit and on restart. The save runs on the loop thread (up to 4 MiB at the cap), so on a slow
+  tried again on quit and on restart; with the per-tic file (`doom-play`), also at the next tic and then at most once
+  every 35 tics (`FAILED_WRITE_RETRY_TICS`, a changeable choice awaiting the owner) while it keeps failing. The save runs on the loop thread (up to 4 MiB at the cap), so on a slow
   disk or network path it can stall the loop; after a stall at most 5 tics run and the rest are dropped. That
   was not measured. The session ends at the **tic cap of 1,048,576 tics** (about 8 hours 19 minutes), a bound
   that keeps a demo within a bounded size. A demo holds only the player's tic commands and a 13-byte header,
@@ -3361,7 +3364,8 @@ or close the window with its close button; pausing writes nothing.
   2,000 kills locally), SIGINT (what Ctrl+C sends) and a lost display connection under WSLg (reproduced through a proxy,
   with the same "X connection to ... broken" message the owner saw). Every surviving file passed the genuine-engine session
   check ([counts](validation/M5D.md#evidence-release-builds-unless-stated)). That the single write cannot be cut short
-  rests on how the Linux kernel writes to a file; the tests are the evidence, not a guarantee for every file system.
+  rests on a reading of how the Linux kernel writes to a file, not on a test: deterministic tests pin that the code makes one
+  five-byte write, and the kill tests are evidence for the steady state; neither is a guarantee for every file system.
 - **Not shown: Ctrl+C in a Windows console, closing a Windows console window, End task, and anything on macOS.** For these
   the limit stays as it was: **a session ended any other way than by doom-play may lose its last tics, and a session may be
   left as an empty demo of 14 bytes**, until the owner has tried them. On Windows the design is expected to hold
@@ -3369,7 +3373,8 @@ or close the window with its close button; pausing writes nothing.
   anything.**
 - Two caveats that remain even where it is shown: on a file system without hard links (FAT, exFAT, some network shares)
   the new file's creation falls back to M5b's way, and a kill between its creation and first write can leave an empty
-  `.lmp`; and a kill can leave a harmless `<name>.<pid>.tmp` file in the sessions directory.
+  `.lmp`; and a kill can leave a harmless `<name>.<pid>.claim.tmp` (during a claim) or `<name>.<pid>.tmp` (during a whole rewrite)
+  file in the sessions directory, which nothing removes.
 - Unchanged: under WSLg, when the display connection is lost, Xlib prints "X connection to :0 broken (explicit kill or
   server shutdown)." and ends the process before any of doom-play's code runs, so no exit line is printed (the window
   library installs no handler, and installing one needs unsafe code, which the workspace forbids); the demo is now

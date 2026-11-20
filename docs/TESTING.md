@@ -2784,8 +2784,17 @@ variables, all optional (the module comment in `crates/doom-play/src/kill_tests.
 3000) to aim at a tic (1021 is the first page-boundary rewrite, 1050 the first periodic one),
 `DOOM_PLAY_KILL_WADS` (newline-separated WAD paths; local use only, never in CI) with `DOOM_PLAY_KILL_MAP`, and
 `DOOM_PLAY_KILL_KEEP` (a directory that keeps each kill's files). `DOOM_PLAY_KILL_CHILD_DIR` is set by the parent for
-the child; do not set it. The test writes under the system temporary directory (`TMPDIR`); a real disk there makes more
+the child; do not set it. `DOOM_PLAY_KILL_PLANT` is for the self-test only (the test child then appends in two writes 1 ms
+apart; any other value makes the child panic); do not set it for a real run. The parent requires that the child died by
+`SIGKILL` and reports the tail of its standard error when it did not. The test writes under the system temporary directory (`TMPDIR`); a real disk there makes more
 kills land before the session file's first write than tmpfs does.
+
+The self-test `kill_tests::a_torn_append_fails_the_kill_test` runs by default in `cargo test -p doom-play`: it plants the
+torn append and requires the kill test to fail with "is not a valid demo". The other new tests are unit tests in
+`crates/doom-play/src/session_file.rs` (one five-byte write call, a rewrite that replaces the file, the claimed name,
+a failed removal of the claim's temporary) and `crates/doom-game/tests/app_retry.rs` (`cargo test -p doom-game --test app_retry`:
+the retry cadence after a failed write, `FAILED_WRITE_RETRY_TICS`); `window.rs` has a test of the window configuration's DPI
+flag.
 
 ### The session check on the survivors (`tools/reference/m5d_kill_check.py`)
 
@@ -2799,7 +2808,7 @@ It builds the `doom-play` test executable in release, runs the kill test with th
 mixer, against the Rust replay; the address runs have leak detection disabled). Options: `--work DIR` (required, outside
 the repository), `--kills K` (default 200), `--seed S`, `--iwad PATH` (local only: plays E1M1 of a scratch copy; the
 original is never touched and nothing from it is committed), `--jobs N` (demos checked at once, default 2), `--selftest`
-(plants three malformed demos that must each fail), `--keep`, `--cc`, `--cargo`. Output: one VERDICT line per demo and a
+(plants four faults that must each fail: three malformed demos, refused by the header check, and one changed command byte that passes the header and must fail the genuine comparison), `--keep`, `--cc`, `--cargo`. Output: one VERDICT line per demo and a
 summary; counts and verdicts only. The synthetic run is not yet a CI step.
 
 ### The lost-display check (`tools/local/m5d_lost_display.py`, local only)
