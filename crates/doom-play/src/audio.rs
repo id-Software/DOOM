@@ -598,7 +598,8 @@ mod tests {
         assert_eq!(BUFFER_FRAMES * 10_000 / 11_025, 464);
         // the declared schedule hands buffer k over after tic floor(512k/315), never after the
         // device needs it (512k/315 tics at 11,025 Hz), with no slack at k = 315: one buffer of
-        // threshold leaves no margin there, two leave one whole buffer
+        // threshold leaves no margin there, two leave at least one tic, 315 frames (28.6 ms; see
+        // START_FRAMES)
         for k in 0..=630u64 {
             let handed = (512 * k / 315) * 11_025; // in units of 1/(35 x 11,025) s
             let needed = 512 * k * 35;

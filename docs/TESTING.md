@@ -1995,7 +1995,7 @@ session SNDDIST (our own generated test sounds in `m5c_sfx.wad`, no IWAD) under 
 draw unless the genuine rows equal the committed golden, and it stops on the first sample where the two streams
 differ; the differing-sample count in the picture comes from that comparison. `--check` regenerates the SVG and the
 WAV and compares them with the committed files byte for byte, `--selftest` plants four faults that must be caught,
-and the CI job `M5c genuine sound (not required)` runs both. Nothing is played. An MP4 is written only if `ffmpeg` is
+and the CI job `M5c genuine sound` runs both. Nothing is played. An MP4 is written only if `ffmpeg` is
 already installed, and it is never checked.
 
 ## M5a synthetic renderer rooms
@@ -2432,7 +2432,7 @@ the genuine-engine tools (Phase 2 steps 1 and 2), wire 25 and its comparisons, t
 contract with sound and the game loop (`doom-render`, `doom-game`), the real-run and session tools, the device in
 `doom-play`, the fuzz targets and the audio probe. Everything committed is synthetic and runs on a clean checkout, except the commands marked local
 only (they read an IWAD). The observations are in [the M5c evidence record](validation/M5C.md). **The CI job
-`M5c genuine sound (not required)` runs the genuine-engine commands, [below](#the-ci-job-and-the-mutation-workflow);
+`M5c genuine sound` runs the genuine-engine commands, [below](#the-ci-job-and-the-mutation-workflow);
 it is not a required check.** Every result is produced under the confirmed values of T2, T5 and T6 (the
 `--handle integrated`, `--update-schedule tic` and `--wipe genuine` switches of `m5c_build.py`; the tools take the
 other values as switches). "Identical to the genuine engine" means linuxdoom-1.10 built with its in-process sound code
@@ -2729,8 +2729,9 @@ BIN CORPUS -max_total_time=300 -max_len=70000 -seed=1 -timeout=60 -rss_limit_mb=
 
 ### The CI job and the mutation workflow
 
-The Linux-only job `M5c genuine sound (not required)` (`m5c-genuine-sound` in `.github/workflows/rust.yml`; it keeps
-the documentation-only fast path and is not a required check) runs: the generator and contract checks (`m5c_sfx.py`,
+The Linux-only job `M5c genuine sound` (`m5c-genuine-sound` in `.github/workflows/rust.yml`; it keeps
+the documentation-only fast path; it is not yet a required check, and its name lost the suffix "(not required)" in M5d so that
+the owner can make it one) runs: the generator and contract checks (`m5c_sfx.py`,
 `m5c_check_sfx.py` and its self-test, `m5c_wad.py`, `m5c_build.py`, `m5c_mixer_build.py` and `m5c_sounds_table.py`
 each with `--check`, and the table's `--self-test`); `m5c_starts.py --selftest` and each of the 64 committed start lists
 against a fresh conversion of its stream; `m5c_reference.py --check --selftest --jobs 4` and

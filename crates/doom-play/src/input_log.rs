@@ -7,13 +7,23 @@
 //! Each line is `KIND PUMP TIC TEXT`. `PUMP` counts the window loop's `update` calls from 1:
 //! the window library hands over the inputs that arrived since the previous call, then calls
 //! `update`, which runs the tics that fell due (each tic first drains what the app's event
-//! layer holds). A `raw` or `app` line carries the number of the `update` call that follows
-//! it, so it shares its `PUMP` with the `game` lines of the tics that drained it. `TIC` is the
-//! app's tic count when the line is written; on a `game` line it is the number of the tic whose
-//! command was built after those events.
+//! layer holds). A `raw` or `app` line written while inputs arrive carries the number of the
+//! `update` call that follows it, so it usually shares its `PUMP` with the `game` lines of the
+//! tics that drained it. The exceptions: a `capture` line is written inside an `update` call,
+//! after its tics, so it carries that call's number; a button release that decision S6 holds
+//! back reaches the game in a later tic, so its `game` line carries a later `PUMP` than its
+//! `raw` and `app` lines; and inputs that arrive before an `update` call that runs no tic (the
+//! game paused or ended, or no tic yet due) have no `game` line in their pump. `TIC` is the
+//! app's tic count when the line is written; on a `game` or `tic` line it is the number of the
+//! tic whose command was built after those events.
 //!
+//! - `session`: the session's demo file, named when the file is created (a restart begins a new
+//!   session and a new file, and the tic count starts again from 0); an unrecorded session
+//!   (`--unrecorded-full-turning`) creates no file and has no `session` line.
 //! - `raw`: what the window library delivered: `button-down` / `button-up` (with the cursor
-//!   position it reported), `motion` (raw device motion, `ignored` while the mouse is not
+//!   position it reported; on Windows this is the position of the last cursor-motion message,
+//!   not of the click itself, because miniquad 0.4.11 passes the last `WM_MOUSEMOVE` position
+//!   with every button message), `motion` (raw device motion, `ignored` while the mouse is not
 //!   captured), `cursor` (the window-relative cursor position, logged only, never forwarded;
 //!   the library reports it only while the cursor is over the window's client area),
 //!   `key-down` / `key-up`, `focus-lost` (minimised or unfocused), `restored`, `resize`.
@@ -23,6 +33,10 @@
 //! - `game`: an event the app posted before a tic's command was built: `keydown 0xNN`,
 //!   `keyup 0xNN`, `mouse buttons=B dx=X dy=Y` (`ev_mouse`'s `data1`, `data2`, `data3`). Only
 //!   committed and drawn tics report their events.
+//! - `tic`: one per committed and drawn tic, after its `game` lines: the command the game
+//!   executed (the demo's re-read copy) as `forward`, `side`, `turn` and `buttons`, and its
+//!   fire bit (`BT_ATTACK`) as `fire=0` or `fire=1`, so a game that was told of a release and
+//!   kept firing shows in the log itself.
 //! - `pump`: the end of an `update` call in which something was logged or a tic ran: the tics
 //!   run and dropped, the app's mode and whether the mouse is captured. The file is flushed
 //!   here, so a crash loses at most the current pump.
@@ -31,10 +45,16 @@
 use crate::FsHost;
 use crate::keys::Mute;
 use doom_game::app::{App, AudioSink, Host, Mode, TicReport, Timestamp};
-use doom_game::input::{Event, MouseButton};
+use doom_game::input::Event;
 use std::fmt;
 use std::io::Write;
 use std::path::Path;
+
+// The window and this module's test share the mouse forwarding, which lives in its own module.
+#[cfg(test)]
+use crate::mouse_forward::Forward;
+#[cfg(test)]
+use doom_game::input::MouseButton;
 
 /// The log: off, or a buffered writer and the counters.
 pub(crate) struct InputLog {
@@ -45,7 +65,11 @@ pub(crate) struct InputLog {
     ups: [u64; 3],
 }
 
-const BUTTONS: [&str; 3] = ["Left", "Middle", "Right"];
+/// `BT_ATTACK`, the fire bit of a command's buttons (d_event.h:75), for the `tic` lines.
+const BT_ATTACK: u8 = 1;
+
+/// The button names of the log, by the game's button index (left, middle, right).
+pub(crate) const BUTTONS: [&str; 3] = ["Left", "Middle", "Right"];
 
 impl InputLog {
     /// No log: every call does nothing.
@@ -143,6 +167,24 @@ impl InputLog {
         }
     }
 
+    /// The command a committed tic executed and its fire bit.
+    pub(crate) fn executed(&mut self, report: &TicReport<'_>) {
+        if !self.is_on() {
+            return;
+        }
+        self.busy = true;
+        let c = report.executed;
+        let fire = u8::from(c.buttons & BT_ATTACK != 0);
+        self.write(
+            "tic",
+            report.tic,
+            format_args!(
+                "cmd forward={} side={} turn={} buttons={} fire={fire}",
+                c.forward, c.side, c.angle_turn, c.buttons
+            ),
+        );
+    }
+
     /// The end of an `update` call: a `pump` line when anything happened, a flush, and the
     /// next pump number.
     pub(crate) fn pump_end(&mut self, app: &App, ran: u64, dropped: u64, captured: bool) {
@@ -205,13 +247,18 @@ impl Host for LoggedHost {
         self.host.exists(name)
     }
     fn claim(&mut self, name: &str, bytes: &[u8]) -> Result<bool, String> {
-        self.host.claim(name, bytes)
+        let claimed = self.host.claim(name, bytes);
+        if matches!(claimed, Ok(true)) {
+            self.log.line("session", 0, format_args!("{name}"));
+        }
+        claimed
     }
     fn save(&mut self, name: &str, bytes: &[u8]) -> Result<(), String> {
         self.host.save(name, bytes)
     }
     fn tic(&mut self, report: &TicReport<'_>) {
         self.log.game_events(report);
+        self.log.executed(report);
         self.host.tic(report);
     }
     fn audio(&mut self) -> Option<&mut dyn AudioSink> {
@@ -222,97 +269,6 @@ impl Host for LoggedHost {
 impl Mute for LoggedHost {
     fn toggle_mute(&mut self) {
         self.host.toggle_mute();
-    }
-}
-
-/// doom-play's forwarding of the mouse to the app, shared by the window and the test: whole
-/// units of raw motion while captured (the fraction waits for the next motion), and the
-/// buttons always (the app ignores them unless playing).
-#[derive(Debug, Default)]
-pub(crate) struct Forward {
-    captured: bool,
-    motion: (f32, f32),
-}
-
-impl Forward {
-    /// Whether the mouse is captured.
-    pub(crate) fn captured(&self) -> bool {
-        self.captured
-    }
-
-    /// Follows the app's wish for the capture: `Some(new)` when it changed (the caller grabs
-    /// or frees the cursor), with the fraction of motion dropped.
-    pub(crate) fn sync_capture(
-        &mut self,
-        app: &App,
-        log: &mut InputLog,
-        size: impl FnOnce() -> (f32, f32),
-    ) -> Option<bool> {
-        let capture = app.wants_mouse_capture();
-        if capture == self.captured {
-            return None;
-        }
-        self.captured = capture;
-        self.motion = (0.0, 0.0);
-        let what = if capture { "on" } else { "off" };
-        let (w, h) = size();
-        log.line(
-            "app",
-            app.tic(),
-            format_args!("capture {what} window {w}x{h}"),
-        );
-        Some(capture)
-    }
-
-    /// Raw device motion from the window library.
-    pub(crate) fn raw_motion(&mut self, app: &mut App, log: &mut InputLog, dx: f32, dy: f32) {
-        if !self.captured {
-            log.line(
-                "raw",
-                app.tic(),
-                format_args!("motion dx={dx} dy={dy} ignored"),
-            );
-            return;
-        }
-        log.line("raw", app.tic(), format_args!("motion dx={dx} dy={dy}"));
-        self.motion = (self.motion.0 + dx, self.motion.1 + dy);
-        let (ix, iy) = (self.motion.0.trunc(), self.motion.1.trunc());
-        self.motion = (self.motion.0 - ix, self.motion.1 - iy);
-        let (ix, iy) = (ix as i32, iy as i32);
-        log.line("app", app.tic(), format_args!("mouse-motion {ix} {iy}"));
-        app.mouse_motion(ix, iy);
-    }
-
-    /// A button change from the window library (`index` 0, 1, 2 for left, middle, right;
-    /// `None` for a button the game has no bit for).
-    pub(crate) fn button(
-        &mut self,
-        app: &mut App,
-        log: &mut InputLog,
-        button: Option<MouseButton>,
-        down: bool,
-        at: (f32, f32),
-    ) {
-        let index = match button {
-            Some(MouseButton::Left) => 0,
-            Some(MouseButton::Middle) => 1,
-            Some(MouseButton::Right) => 2,
-            None => {
-                let what = if down { "button-down" } else { "button-up" };
-                log.line("raw", app.tic(), format_args!("{what} Unknown"));
-                return;
-            }
-        };
-        log.raw_button(app.tic(), index, down, at.0, at.1);
-        if let Some(b) = button {
-            let what = if down { "down" } else { "up" };
-            log.line(
-                "app",
-                app.tic(),
-                format_args!("mouse-button {} {what}", BUTTONS[index]),
-            );
-            app.mouse_button(b, down);
-        }
     }
 }
 
@@ -524,6 +480,50 @@ mod tests {
             script().len() + 1,
             "one pump line per update that did anything"
         );
+    }
+
+    /// Review finding M1 (2026-11-18): the log names the session's file and gives every
+    /// committed tic's executed command with its fire bit, in the same order as the demo.
+    #[test]
+    fn the_log_names_the_session_and_gives_each_tic_command_and_fire_bit() {
+        let dir =
+            std::env::temp_dir().join(format!("doom-play-input-log-m1-{}", std::process::id()));
+        let text = Shared::default();
+        let (frames, demo, _) = run(InputLog::to_writer(Box::new(text.clone())), &dir);
+        let text = String::from_utf8(text.0.borrow().clone()).unwrap();
+        let sessions: Vec<&str> = text.lines().filter(|l| l.starts_with("session ")).collect();
+        assert_eq!(sessions.len(), 1, "{sessions:?}");
+        let name = sessions[0].rsplit(' ').next().unwrap();
+        assert!(dir.join(name).is_file(), "{name}");
+        std::fs::remove_dir_all(&dir).unwrap();
+        let tics: Vec<&str> = text.lines().filter(|l| l.starts_with("tic ")).collect();
+        assert_eq!(tics.len(), frames.len());
+        // the demo's command bytes: forward, side, turn (high byte), buttons
+        for (k, (line, cmd)) in tics
+            .iter()
+            .zip(demo[13..demo.len() - 1].chunks_exact(4))
+            .enumerate()
+        {
+            let (f, sd, t, b) = (
+                cmd[0] as i8,
+                cmd[1] as i8,
+                i16::from(cmd[2] as i8) << 8,
+                cmd[3],
+            );
+            let want = format!(
+                "cmd forward={f} side={sd} turn={t} buttons={b} fire={}",
+                b & 1
+            );
+            assert_eq!(
+                line.split(' ').nth(2),
+                Some(k.to_string().as_str()),
+                "{line}"
+            );
+            assert!(line.ends_with(&want), "{line} vs {want}");
+        }
+        // the drag's press sets the fire bit and its release clears it
+        assert!(tics.iter().any(|l| l.ends_with("fire=1")));
+        assert!(tics.iter().any(|l| l.ends_with("fire=0")));
     }
 
     #[test]

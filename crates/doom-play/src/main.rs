@@ -9,6 +9,7 @@
 mod audio;
 mod input_log;
 mod keys;
+mod mouse_forward;
 #[cfg(test)]
 mod session_tests;
 mod tic_stats;
