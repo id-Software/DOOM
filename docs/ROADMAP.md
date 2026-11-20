@@ -595,7 +595,7 @@ monster/player behavior. Further stages require separate owner direction.
     minutes (the follow-up is below). Support is in [COMPATIBILITY](COMPATIBILITY.md#sound-effects-m5c). See the
     [investigation note](M5C_REFERENCE_INVESTIGATION.md) and its
     [owner decisions](M5C_REFERENCE_INVESTIGATION.md#5-owner-decisions-t1t16-with-recommendations).
-  - **M5d (play fixes), in progress on the branch `feat/m5d-play-fixes` ([evidence record](validation/M5D.md)); the first item of the next milestone, by the owner's ruling of 2026-11-19.** In this order: (a) **the stuck-fire fix** (proposed, untested):
+  - **M5d (play fixes), in progress on the branch `feat/m5d-play-fixes` ([evidence record](validation/M5D.md)); the first item of the next milestone, by the owner's ruling of 2026-11-19.** *Status 2026-11-20: code complete; after the owner's Windows session a second round (re-grab and cursor-left report, writer threads, settle at a session's end) awaits his retest ([record](validation/M5D.md#a7-the-owners-windows-session-of-2026-11-20-and-the-second-round), [plan](validation/M5D.md#a8-the-owners-retest)); nothing is marked fixed.* In this order: (a) **the stuck-fire fix** (proposed, untested):
     ask the window library for DPI awareness (`Conf { high_dpi: true, .. }` in `crates/doom-play/src/window.rs`) so that the client rectangle, the clip
     rectangle and the cursor share physical pixels and the clip holds the cursor inside the window; the requested size and the picture's fit are then in
     physical pixels and must be checked. Acceptance: on Windows at 100%, 125% and 150% scaling, a session of drag-firing against every edge with

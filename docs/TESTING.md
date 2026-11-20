@@ -2776,25 +2776,56 @@ DOOM_PLAY_KILL_AT_TIC=1021 DOOM_PLAY_KILLS=200 cargo test --release -p doom-play
 ```
 
 The test spawns its own executable (the ignored `kill_tests::child_session`, which `cargo test` does not run by itself),
-plays the real `App` with the real `FsHost` on the synthetic session set, SIGKILLs it at a random moment and checks every
-surviving `.lmp` (parses, replays with no refusal, digest and tic count against what the child printed). Environment
+plays the real `App` with the real `WriterHost` (the writer thread `doom-play` runs; `FsHost` underneath) on the synthetic session set,
+SIGKILLs it at a random moment and checks every surviving `.lmp`: it parses, replays with no refusal, its digest matches what the
+child printed at its tic count, and its tic count lies between **W** (the tics the file held after the writer's last completed write,
+printed by the child on each `@tic` line, `-` before the claim completed) and **M** (the tics the session had run); exactly M once a
+later session's claim completed; a missing file only before its claim completed; and the session running at the kill has lost at
+most the **lag bound** (M minus the tics in its file; default 525 tics, three times the writer's queue bound of 175). Environment
 variables, all optional (the module comment in `crates/doom-play/src/kill_tests.rs` is the full list):
 `DOOM_PLAY_KILLS` (default 50), `DOOM_PLAY_KILL_SEED` (first seed, default 1), `DOOM_PLAY_KILL_MAX_MS` (default 400) and
 `DOOM_PLAY_KILL_LONG_MS` (default 1600) for the delays, `DOOM_PLAY_KILL_AT_TIC` with `DOOM_PLAY_KILL_AT_US` (default
 3000) to aim at a tic (1021 is the first page-boundary rewrite, 1050 the first periodic one),
 `DOOM_PLAY_KILL_WADS` (newline-separated WAD paths; local use only, never in CI) with `DOOM_PLAY_KILL_MAP`, and
-`DOOM_PLAY_KILL_KEEP` (a directory that keeps each kill's files). `DOOM_PLAY_KILL_CHILD_DIR` is set by the parent for
-the child; do not set it. `DOOM_PLAY_KILL_PLANT` is for the self-test only (the test child then appends in two writes 1 ms
-apart; any other value makes the child panic); do not set it for a real run. The parent requires that the child died by
+`DOOM_PLAY_KILL_KEEP` (a directory that keeps each kill's files), `DOOM_PLAY_KILL_DIR` (a directory, for example on another disk:
+the kills' directories `kNNNN/` are made there and kept, nothing is deleted, and an existing `kNNNN/` fails the run, so give a new,
+empty directory each time; it takes precedence over `DOOM_PLAY_KILL_KEEP`; filter on the test name, as in the example below, so the
+self-tests, which use the system temporary directory, do not run there) and `DOOM_PLAY_KILL_MAX_LOST` (the lag bound in tics, or
+`none` to lift it; the summary line says which applied; give it for a slow disk such as `/mnt/d`, where the lag was observed up to
+hundreds of tics). `DOOM_PLAY_KILL_CHILD_DIR` is set by the parent for
+the child; do not set it. `DOOM_PLAY_KILL_PLANT` is for the self-tests only (`torn`: the child's appends are two writes 1 ms
+apart; `early`: every file operation is 5 ms slow and the printed W is 3 too high, capped at M - 1; `stall`: the writer stops for good
+after 40 operations; any other value makes the child panic); do not set it for a real run. The parent requires that the child died by
 `SIGKILL` and reports the tail of its standard error when it did not. The test writes under the system temporary directory (`TMPDIR`); a real disk there makes more
-kills land before the session file's first write than tmpfs does.
+kills land before the session file's first write than tmpfs does. The one summary line (seen with `--nocapture`) gives the files and
+tics checked, where the kills landed, the distribution of tics lost by the session running at each kill, the kills that left no
+`.lmp`, the leftover `.tmp` files, the aim and the lag bound applied. The child runs far faster than 35 tics a second, so the lag it
+shows is worse than play would give. On a disk outside the system temporary directory:
 
-The self-test `kill_tests::a_torn_append_fails_the_kill_test` runs by default in `cargo test -p doom-play`: it plants the
-torn append and requires the kill test to fail with "is not a valid demo". The other new tests are unit tests in
+```sh
+DOOM_PLAY_KILL_DIR=/mnt/d/new-empty-dir DOOM_PLAY_KILL_MAX_LOST=none DOOM_PLAY_KILLS=300 cargo test --release -p doom-play sigkill_at_random -- --nocapture
+```
+
+Three self-tests run by default in `cargo test -p doom-play`, each planting a fault in the child and requiring the kill test to fail
+at its first failing kill: `kill_tests::a_torn_append_fails_the_kill_test` (the torn append; "is not a valid demo"),
+`kill_tests::a_w_printed_too_high_fails_the_kill_test` (the `early` plant; the W rule) and
+`kill_tests::a_stopped_writer_fails_the_lag_bound` (the `stall` plant; the lag bound). The other new tests are unit tests in
 `crates/doom-play/src/session_file.rs` (one five-byte write call, a rewrite that replaces the file, the claimed name,
-a failed removal of the claim's temporary) and `crates/doom-game/tests/app_retry.rs` (`cargo test -p doom-game --test app_retry`:
+a failed removal of the claim's temporary; the clean-up of leftover temporary files), `crates/doom-play/src/session_writer_tests.rs` and
+`closing_tests.rs` (the writer thread's order, bound, errors and drain, and the settle at a session's end, with a real `App` over a test
+disk), `crates/doom-game/tests/app_settle.rs` (`App::settle_save`) and `crates/doom-game/tests/app_retry.rs` (`cargo test -p doom-game --test app_retry`:
 the retry cadence after a failed write, `FAILED_WRITE_RETRY_TICS`); `window.rs` has a test of the window configuration's DPI
 flag.
+
+### The cursor-left detector's replay test (local only)
+
+The detector that infers on Windows that the cursor left the window (`crates/doom-play/src/cursor_leave.rs`) has unit tests that run
+by default, and one **ignored** test that replays `--input-log` files and prints, per file, the reports and the pumps of left
+presses without a release. It reads the owner's logs, which never enter the repository, so it runs locally only:
+
+```sh
+DOOM_PLAY_INPUT_LOGS=/path/one.txt:/path/two.txt cargo test -q -p doom-play replay_local_input_logs -- --ignored --nocapture
+```
 
 ### The session check on the survivors (`tools/reference/m5d_kill_check.py`)
 

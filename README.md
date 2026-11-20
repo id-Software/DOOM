@@ -121,8 +121,8 @@ cargo run --release -p doom-play -- --iwad /path/to/DOOM.WAD --map 1 --skill hmp
 - **Controls.** The original's defaults: arrows move and turn, right Ctrl fires, Space uses, right Shift runs, `1`-`8` pick weapons,
   mouse left fires (`--bindings modern` gives WASD). Esc pauses (R restarts, Q quits), End mutes. No cheat codes.
 - **Sessions.** Each is saved as a demo (tiny mouse turns are rounded), never over an existing file, and can be replayed in the
-  genuine engine with your IWAD ([how](docs/TESTING.md#m5c-sound-effects-the-genuine-sound-logic-and-mixer)). It is kept current tic by tic (shown on Linux only);
-  on Windows and macOS end one with Esc then Q ([limit](docs/COMPATIBILITY.md#a-session-is-safe-on-windows-and-macos-only-when-doom-play-ends-it-a-limit-not-yet-lifted-there)).
+  genuine engine with your IWAD ([how](docs/TESTING.md#m5c-sound-effects-the-genuine-sound-logic-and-mixer)). It is kept current tic by tic (shown on Linux only; if killed it may lack the last tics
+  the disk had not yet taken, more on a slow disk, so keep sessions on an SSD); on Windows and macOS end one with Esc then Q ([limit](docs/COMPATIBILITY.md#a-session-is-safe-on-windows-and-macos-only-when-doom-play-ends-it-a-limit-not-yet-lifted-there)).
 - **Sound.** Under Linux or WSLg install the PulseAudio client library once (`sudo apt install libpulse0`); Windows needs nothing.
   `doom-play --audio-probe` checks the device with silence ([options](docs/COMPATIBILITY.md#sound-effects-m5c)).
 - **Limits.** No music, menus, automap, saving, intermission, next level, other skills, multiplayer or menu-key sounds. **An OpenGL

@@ -1,11 +1,14 @@
 # M5d evidence record
 
-**Status (2026-11-20 05:23 PST):** **stopped at the owner's Windows session (A6); the pull request stays a draft.** Code
-complete: the DPI request on Windows (A1), the sound statistics and trial options (A2), the session file kept current tic by
-tic (A3), the mouse forwarding moved into its own file with the input log's review points M1 to M3 closed, and the CI job
-renamed (A4). The gates passed (A5: two independent reviews, three mutation runs, the full gates from a clean clone, CI green
-on all nine jobs at the last code head). CI built and tested the code on Windows and macOS; nobody has run it by hand there.
-Next: the owner's session with the Windows artifact (A6), then his rulings.
+**Status (2026-11-20 09:52 PST):** **second round done after the owner's Windows session; the pull request stays a draft and waits for his retest
+([A8](#a8-the-owners-retest)).** The first round (A1 to A5; the owner's session plan is A6) is unchanged below. On 2026-11-20 the owner ran the
+`b374aaa` artifact on Windows ([A7](#a7-the-owners-windows-session-of-2026-11-20-and-the-second-round)): the launch capture failed in two of five
+launches, the 100% run lost three releases, and every stall in his logs came from file writes on a slow disk. In answer the code gained a
+re-grab of the cursor and a cursor-left report on Windows, writer threads for the session file and the input log (with a declared weakening of
+the kill guarantee), a settle step at a session's end, and a bound on the log's queue; a third independent review found one major defect,
+fixed. **Nothing is marked fixed: stuck fire stays a known fault, and the hitch and sound dropouts on a slow disk stay open, until the owner
+rules on his retest.** Placeholders for the final-head kill evidence, review 4, the gates and CI are marked `ORCH` in A7 and are filled by the
+orchestrator.
 
 Observed results of milestone M5d (play fixes from the owner's playtest of M5c). Only observations and the
 library-source readings behind each change appear here. The facts this milestone starts from are in the
@@ -15,7 +18,8 @@ instruction. [Testing](../TESTING.md) owns the commands, [COMPATIBILITY](../COMP
 statement and [ROADMAP](../ROADMAP.md) the milestone status. Exact review state and CI belong to GitHub.
 
 Scope, by the owner's brief: app and presentation work only. Nothing in `doom-sim`, `doom-render` or
-`doom-sound` changes, and no wire, schema, golden or existing test changes.
+`doom-sound` changes, and no wire, schema, golden or existing test changes. *(Note, 2026-11-20: the second round added one public
+method to `doom-game`, `App::settle_save`, with its own new test file; no existing test of any crate changed. See [A7](#a7-the-owners-windows-session-of-2026-11-20-and-the-second-round).)*
 
 ## A1. Stuck fire on Windows: the DPI request
 
@@ -201,6 +205,12 @@ whether to pursue the WASAPI period count by any of the three routes above.
 
 ## A3. A session that cannot be lost
 
+> **Note, 2026-11-20 (second round).** This section is the record of the first build, in which the loop thread wrote the file
+> itself (`FsHost`) and a kill left M or M - 1 tics. The owner's Windows session led to writer threads, which weakened that
+> guarantee on stated conditions; the design, the guarantee and the evidence now are in [A7](#a7-the-owners-windows-session-of-2026-11-20-and-the-second-round). Statements below that
+> are in the present tense (the design, the write schedule, the kill test's rule, "what a player could notice") describe
+> the first build and are kept as the record of it; where they differ, A7 is current.
+
 **The change.** Commits on the branch: `1727f91` (doom-game: opt-in per-tic append of the session demo), `364290e`
 (its test), `4274723` (doom-play `session_file.rs`: the session demo kept valid at every instant), `0d250a5` (the kill
 test and the unit tests of the session file), `eceb6f6` (aimed kills in the kill test), `e25388d` (the two tools,
@@ -281,6 +291,8 @@ this was written.
 
 ### When the demo is written (FsHost, as `doom-play` runs it)
 
+*(First build. Since 2026-11-20 `doom-play` runs `WriterHost`: the same operations are made in order on a writer thread, and the page-boundary rewrite is unsynced; see [A7](#the-writer-threads).)*
+
 | Moment | Write |
 | --- | --- |
 | Session start | The file appears with its content (14 bytes): a synced temporary file hard-linked to the name (fallback without hard links: `create_new`, then the write) |
@@ -291,13 +303,13 @@ this was written.
 | Session end (exit, death, a refusal, the tic cap) | Rewritten whole (unchanged) |
 | Restart, quit | Nothing when the file is current (the normal case); rewritten whole when behind |
 | Pause (Esc, Pause, focus loss, minimise) | Nothing (no tic runs) |
-| Ctrl+C, SIGKILL, a lost X connection, a closed console window | Nothing at that moment, but the file already holds every tic run, or every tic but the last |
+| Ctrl+C, SIGKILL, a lost X connection, a closed console window | Nothing at that moment, but the file already holds every tic run, or every tic but the last *(first build only; since the writer threads the file holds every tic the writer had finished, which can be fewer: [A7](#the-kill-guarantee-old-and-new))* |
 
 ### Evidence (release builds unless stated)
 
 **A. The cargo kill test** (`kill_tests::sigkill_at_random_points_leaves_valid_demos`, `crates/doom-play/src/kill_tests.rs`,
 Unix only, so it runs in CI on Linux and macOS; commands in [Testing](../TESTING.md#m5d-kill-tests-and-trial-options)).
-The parent spawns its own executable, which plays the real `App` with the real `FsHost` (sound discarded) on the M5c
+*(First build; since 2026-11-20 the child plays the real `WriterHost` and the tic rule is between W and M with a lag bound, [A7](#kill-evidence). The next sentences and tables describe the first build.)* The parent spawns its own executable, which plays the real `App` with the real `FsHost` (sound discarded) on the M5c
 session-check synthetic set with seeded keys, mouse motion, buttons, pauses and restarts on a fake clock, and SIGKILLs it
 after a random delay. The parent requires that the child died by `SIGKILL` itself (`ExitStatusExt::signal() == Some(9)`; a child that exits or
 panics by itself is a harness failure carrying the tail of its standard error, review MIN-2). A checker requires of every `.lmp`: not empty, parses, replays with no refusal, its command digest
@@ -384,6 +396,8 @@ belong to A6.
 
 ### What a player could notice
 
+*(First build. The notes of 2026-11-20 are in [A7](#the-writer-threads): the writes no longer run on the game thread, and leftover temporary files older than an hour are removed at the next start.)*
+
 - Disk activity: 35 small writes a second while playing (open, seek, 5-byte write, close), instead of one rewrite every 30 s.
 - One more synced whole rewrite every 1,024 tics (about every 29 s), beside the existing one every 1,050. On this
   machine's ext4 it took longer than 3 ms in all 200 aimed kills at tic 1,021 and 1,050 (the kills found it unfinished); an
@@ -408,16 +422,16 @@ fuzz builds, sanitizer campaigns of Rust code, CI on any operating system, Windo
 
 ### Open questions for the owner
 
-1. **Retry after a failure (the orchestrator chose; the owner to rule).** After a failed write the app retries a whole
+1. **Retry after a failure (the orchestrator chose; the owner ruled on 2026-11-20: once a second is accepted).** After a failed write the app retries a whole
    rewrite at the next tic, then at most once every 35 tics (`FAILED_WRITE_RETRY_TICS`) while it keeps failing, in place of
    the first version's every tic (review MIN-1: up to 35 synced rewrites a second under a persistent failure). The first
    retry is immediate because the existing `app_append` test pins an immediate retry, and no existing test may change in this
    milestone. Is one second right, should even the first retry wait, or should a failure retry only at `SAVE_INTERVAL` and the end?
-2. **Fallback claim.** A hard-link error other than "exists" falls back to `create_new`, whose kill window can leave an
+2. **Fallback claim** *(ruled 2026-11-20: keep it, say so in COMPATIBILITY and print one line on standard error when it is taken)*. A hard-link error other than "exists" falls back to `create_new`, whose kill window can leave an
    empty `.lmp`. NTFS supports hard links (inference); FAT and exFAT do not.
 3. **Leftover temporary files** (`*.claim.tmp` and `*.tmp`) accumulate after kills or a failed removal, and no later run
    removes them (review N8). Should a later run remove stale ones it did not create? A failed removal of the claim's
-   temporary is still ignored, now harmless to the rewrite (MIN-5).
+   temporary is still ignored, now harmless to the rewrite (MIN-5). *(Ruled 2026-11-20: remove them at the next start; done, [A7](#the-owners-rulings-and-what-was-done).)*
 4. **The residual short-copy case** above, and the kernel-dependence of the whole argument, stay open until Windows and
    macOS are shown by hand.
 
@@ -709,3 +723,484 @@ orchestrator will then:
 
 **Until the owner has ruled, nothing is marked fixed.** README and COMPATIBILITY keep the stuck fire as a known fault and the
 lost session as a limit on Windows. The pull request stays a draft.
+
+## A7. The owner's Windows session of 2026-11-20 and the second round
+
+**Scope of this section.** It records what the owner saw and ruled on the `b374aaa` artifact, and what was built and checked in
+answer (`b374aaa..f7b45a2`, 17 commits). It supersedes the present-tense statements about the
+session file in A3 (see the note at A3's head). Observations come from the owner's report and from the orchestrator's reading of
+his files at `/mnt/d/DoomSessions/m5d` (read only; counts and verdicts only are recorded). Everything built was tested on Linux only;
+**nothing from this round has run on Windows.**
+
+### The session
+
+- **When and on what.** 2026-11-20, 06:36 to 07:06 PST, Windows, the `doom-play-windows-x86_64` artifact built at `b374aaa`
+  (the code of A1 to A5, before any writer thread). Sessions and logs went to `D:` (an HDD), as A6 asked. An addendum run at 07:11
+  PST used `C:` (an SSD) instead.
+- **A1, stuck fire** (`--input-log`; the summary line's `raw downs/ups: Left D/U`):
+
+| Scale | Log | Left downs/ups | What the log shows |
+| --- | --- | --- | --- |
+| 125% | `dpi125/input-log.txt`, `launch1.txt`, `launch2.txt` | 46/46, 12/12, 12/12 | Pass; no `resize` line. The cursor rested at x=959 from the first drag in all three (first drags at pumps 439, 37 and 28) |
+| 150% | `dpi150/input-log.txt` | 34/34 | No `resize` line. Capture went off at pump 118 and on at 182, before the first drag. The first reading said the launch capture was not exercised here; **that was wrong, see [the second round](#stuck-fire-the-second-round)** |
+| 100% | `dpi100/input-log.txt` | **41/38 (fail)** | `capture on` was logged at pump 1, yet the cursor was not confined: after the down at pump 42 it ran to x=936 at pump 47, with no cursor event until pump 87 at x=950. Downs at pumps 42, 148 and 283 have no up. Esc at pump 389 (capture off) and Esc at pump 840 (capture on); from there every up lands at an edge (x=0, x=959, y=0 or y=719) and 38 of 38 match. No focus-lost or `resize` line in that window |
+
+- **A2, sound trials.** All on "Headphones (JBL TUNE670NC)", Bluetooth, WASAPI, stream 11,025 Hz. Windows granted period times three
+  exactly as asked in every run. One run each, by ear; lengths differ and pauses are not counted. **All were recorded to `D:` (the
+  HDD), so the underrun figures are contaminated by disk stalls and are not evidence that a period of 128 drops out less.** **The
+  trial was by ear on Bluetooth headphones and is not a latency measurement.** The figures, as reported:
+
+| Run | Options | Tics | Underruns (frames) | Queue depth, frames (mean, max) | By ear |
+| --- | --- | ---: | --- | --- | --- |
+| a | default | 3,435 | 5 (2,560) | 1,443.4, 2,048 | |
+| b | start buffers 1 | 3,425 | 9 (4,608) | 1,360.2, 2,048 | gaps after unpausing |
+| c | period 256 | 2,308 | 8 (2,048), overruns 1 (256) | 1,157.7, 2,048 | shorter delay than a |
+| d | period 128 | 1,917 | 3 (384) | 1,108.5, 1,920 | best |
+| e | period 128, start buffers 1 | 3,556 | 22 (2,816) | 1,033.9, 1,920 | |
+
+- **A3, kills.** Ctrl+C left 3 files (682, 1,130 and 4,766 bytes) and closing the console 4 files (378, 1,106, 3,694 and
+  7,946 bytes). Every size is 14 + 4n (a header, n commands and the marker). No `.tmp` file was left. **End task was not run.**
+  The report does not state how long each run lasted against its file's tic count, so whether each file held every tic run is not
+  recorded here.
+- **The hitch.** About every 30 s the pump lines show `ran=4` or `ran=5` right after the synced whole rewrites: at tics 1,025 and
+  1,026, 1,054 and 1,055, 2,049, 2,104 and 3,154, across `dpi100`, `dpi125`, `dpi150` and `launch2` (4 to 5 tics after tics
+  1,021, 1,050, 2,045, 2,100 and 3,150). All six 1,050-tic rewrites in the logs show it; four of seven page-boundary rewrites do.
+  About 30 further pumps with `ran` of 3 or more are not aligned with any rewrite (roughly every 250 to 350 tics), and one falls
+  near tic 58 to 73 in every run.
+- **The addendum (07:11 PST, `C:`).** The same build with the default sound and `--sessions` and `--input-log` on `C:` instead of `D:`:
+  1,754 tics, **no pump with `ran` of 2 or more** (the `D:` runs had 12 to 15 each), underruns 0, queue depth mean 848.1, max 1,024.
+  No hitch felt. **The owner's conclusion:** every stall, aligned with a rewrite or not, comes from file writes on the game thread
+  hitting a slow disk, and the same stalls cause the underruns and the deeper queue.
+- **The session check of his 17 files** (the orchestrator, 2026-11-20; a worktree at `b374aaa`, `tools/local/m5c_session_real.py`,
+  a scratch copy of the IWAD, the genuine engine in its strict, overflow and address variants and the genuine mixer): **17 of 17
+  `VERDICT: PASS`, 0 FAIL**, 29,187 tics in all (audio runs 3,435, 3,425, 2,308, 1,917 and 3,556; Ctrl+C 167, 279 and 1,188; close 91,
+  273, 920 and 1,983; `dpi100` 2,398; `dpi125` 3,574, 1,021 and 1,044; `dpi150` 1,608). **The address variant ran with
+  `ASAN_OPTIONS=detect_leaks=0`: leak detection was disabled, so it is not LeakSanitizer coverage.** The check shows the files replay
+  equal to the genuine engine; it does not show what he saw or heard. The log is in scratch (not committed).
+
+### The owner's rulings and what was done
+
+The numbers are those of the owner's messages (the brief for the writer threads numbered its own rulings 1 to 3 differently, so
+each row also says what it is about).
+
+| Ruling | What was done | Commits |
+| --- | --- | --- |
+| Stuck fire at 100% (ruling 1): ask for the grab again on Windows; report when the cursor has left the window | `Forward::grab_again`, the detector `cursor_leave.rs`, `GRAB_AGAIN` (Windows only); [below](#stuck-fire-the-second-round) | `e6b9f76`, `11ebbe0`, `b7b5ca3`, `06acf97` |
+| The two cursor-left reports in `dpi150` (pumps 94 and 117) are real exits; the threshold stays 2 pumps | Nothing changed | none |
+| The hitch: file writes off the game thread; a bounded queue (5 s of play, 175 tics); quit writes everything; the weakening of the kill guarantee accepted on stated conditions | Writer threads for the session file and the input log; [below](#the-writer-threads) and [the guarantee](#the-kill-guarantee-old-and-new) | `6899d97`, `157048a`, `47874ce`; then `dce493d`, `b073255`, `d4c4642`, `c14b3a7`, `b8bd558`, `fd87e57`, `ceec231`, `7af7799`, `f7b45a2` after review 3 |
+| Ruling 3, a default sound period of 128 | **Withdrawn for this pull request.** The default stays 512, the master test on the constants is untouched, both experimental switches stay, and the owner reruns trials a, d and e on `C:`. The orchestrator's margin and queue-depth arithmetic is kept as a report ([below](#ruling-3-withdrawn-the-arithmetic-as-a-report)) | none |
+| 4: a failed write is retried once a second | Accepted as it was (`FAILED_WRITE_RETRY_TICS` = 35); the writer thread keeps the cadence, with a test that counts the disk attempts | none new (the cadence is `a62458d`) |
+| 5: where hard links are refused, the claim falls back | Kept; COMPATIBILITY says so, and one line on standard error is printed each time the fallback is taken | `6899d97`, `157048a`; the documentation in the commit of this record |
+| 6: remove stale leftover `.tmp` files at start | At every start, files named `NAME.PID.tmp` or `NAME.PID.claim.tmp` (names of this program's own form) more than an hour old are removed from the sessions directory, and the count is printed at every launch, zero included | `6899d97`, `157048a`, `3957cf0`, `7af7799` |
+| 7: the audio library's `[INFO]` report behind an option | `--audio-report` (off by default); with it off the settings line says the granted period is not shown | `6899d97`, `157048a` |
+| 8: the one changed import line in `session_tests.rs` | Accepted as disclosed in A2 | none |
+| README and COMPATIBILITY keep stuck fire as a known fault until he confirms a retest; COMPATIBILITY says recording to a slow disk causes hitches and dropouts and to keep the sessions folder on an SSD; COMPATIBILITY states the new kill limit in one plain sentence | Done | the commit of this record |
+| The reporting corrections | [Below](#gates-ci-and-the-corrections-to-the-earlier-summary) | the commit of this record |
+
+### Stuck fire: the second round
+
+**What the five launches show.** The launch capture failed in **two of five launches**, `dpi100` and `dpi150` (not "one of four", as
+the first summary of the session said, and the note that the 150% run had not exercised the launch capture was wrong: it had, and the
+capture did not hold). Both failures were the **first launch after the owner changed the display scale**, and the three launches
+where the clip held (`dpi125/input-log`, `launch1`, `launch2`) were all at 125%. **That is an observation from five launches, not a
+cause.** In `dpi150` the focus loss at pump 118 followed the cursor leaving the window (x=889 at pump 115). The M5c retest log of
+2026-11-19 (`D:\DoomSessions\input-log.txt`, a pre-M5d build) is scored below.
+
+**The cause: read from the library's source, not reproduced.** Nothing was run on Windows and the failure was not reproduced.
+miniquad 0.4.11 (`src/native/windows.rs`; each line re-read):
+
+- `set_cursor_grab`, 124-133, sets `cursor_grabbed` (125) and then calls `update_clip_rect` (128) or `ClipCursor(NULL)` (130);
+  `process_request` calls it for `SetCursorGrab`, 1120 and 1126.
+- `update_clip_rect`, 327-353: `GetClientRect`, two `ClientToScreen`, `SetRect`, then `ClipCursor` at 352 **with its return value
+  discarded**.
+- The clip is re-applied only on `WM_SIZE` (439-442) and on `WM_MOVE` while grabbed (522-524), not on `WM_ACTIVATE` (763-769, which
+  only reports restored or minimised), `WM_SETFOCUS` (770-797, IME only) or `WM_KILLFOCUS` (799-801).
+- `run`: `ShowWindow` at 1222, raw input registered with `hwndTarget = NULL` and no flags at 1225-1237, the event handler set at
+  1239 and the window's user data at 1242. `win32_wndproc` returns `DefWindowProcW` while the user data is 0 (392-394), so the
+  activation `ShowWindow` causes at launch cannot reach doom-play.
+- The loop drains requests at the top of each iteration (1248-1250), then dispatches messages, then runs `update` and `draw`; a
+  grab asked for in `update` is made at the top of the next iteration.
+- There is no leave event: the `TrackMouseEvent` block in `WM_MOUSEMOVE` is commented out (497-520, block 500-514) and
+  `WM_MOUSELEAVE` (558-565) is empty. `WM_INPUT` (526-556) posts raw motion wherever the cursor is. There is no call to read the
+  cursor position or the clip rectangle.
+- Other systems, which is why the new code is gated to Windows: X11 ungrabs and grabs on every call (`linux_x11.rs` 345-370); macOS
+  returns early on a repeated request and freezes the cursor with `CGAssociateMouseAndMouseCursorPosition(false)` (`macos.rs` 51-65),
+  which the detector's silence rule would misread.
+
+So the library applies the clip once per `set_cursor_grab(true)`, ignores the result, and nothing re-applies it if Windows or another
+program clears or replaces it after pump 1 without a size or move message; its own flag and doom-play's `captured` stay true, so
+doom-play believes the grab holds. **What cleared or prevented the clip on the owner's machine cannot be shown from this source**
+(Windows' own behaviour is not readable here). One observation bears on it, and its link to the foreground state is an inference, not
+shown: in `dpi100` and `dpi150` no raw motion arrived before the first click (the first raw motion was at pump 42, the first down, in
+`dpi100`; at pump 55, first down 52, in `dpi150`) while cursor events did; in all three `dpi125` logs raw motion came before any click.
+Raw input registered with a null target follows the keyboard focus by Windows' documentation, which suggests the window was not
+foreground at launch in those two runs. No log has a `restored` line at launch (0 of 5).
+
+**The fix** (Windows only: `GRAB_AGAIN = cfg!(target_os = "windows")` gates the detector and the request, so Linux and macOS get no
+call, no detector and no new log line, by construction; no unsafe code, no library patch, no forced button release; what reaches the
+game is identical, tested). The grab is asked for again, at the end of a pump and after that pump's capture change, when any of
+three reasons holds while the app holds the capture: a mouse button went down, focus was gained, or the detector reports the cursor
+left. Each request logs `app P T capture again (REASONS)` under `--input-log`. The first click therefore asks for the clip again; that
+covers a clip that never took hold or was lost before the first click. A grab asked for in `update` is made at the top of the next
+loop iteration, so one more message batch is handled first.
+
+**The cursor-left detector is an inference.** The library cannot say where the cursor is, so `cursor_leave.rs` infers an exit: while
+captured, after a cursor event at (x, y), it sums raw motion per axis; a pump is silent if raw motion arrived and no cursor event did;
+once **2 silent pumps** have passed and the summed motion on some axis points at an edge more than **2.0 px** away and is at least
+that distance (factor 1), it logs `app P T cursor-left from x=X y=Y dx=DX dy=DY pumps=N` once and asks for the grab; the next cursor
+event re-arms it. It reports nothing before the first cursor event of a grab. Basis: healthy logs rest the cursor at x=0, x=w-1,
+y=0 or y=h-1 (largest x 959 and y 719 in every log, at 960 by 720) and post no cursor event while pinned. Silence is counted over
+whole pumps because a pump's raw lines precede its cursor event: a prototype that counted the pump in progress gave false reports in
+all three `dpi125` logs at 2 pumps, and the pump-end version gave none at any count. A sweep of silent counts 1 to 4 and distance
+factors 0.5 to 3 reported the same episodes with none in the `dpi125` logs; factor 0.1 or 0.25 at count 1 gave one in
+`dpi125/input-log`, so the margin on the factor is about 4. **Blind spots, documented in the module:** a cursor resting at an edge
+whose clip is then cleared, or one leaving through an edge it already rested on, is not reported.
+
+**Its score on the owner's logs** (the Rust replay `replay_local_input_logs`, debug build; counts only):
+
+| Log | Reports | At pumps | Left downs without an up |
+| --- | --- | --- | --- |
+| `dpi100/input-log.txt` | 3 | 49, 151, 291 | 42, 148, 283 |
+| `dpi125/input-log.txt` | 0 | none | none |
+| `dpi125/launch1.txt` | 0 | none | none |
+| `dpi125/launch2.txt` | 0 | none | none |
+| `dpi150/input-log.txt` | 2 | 94, 117 | none |
+| M5c retest log, 2026-11-19 (pre-M5d build; scored apart) | 4 | 323, 801, 1264, 1770 | 234, 1303, 1763 |
+
+- `dpi100`: one report after each lost release and before the next down (42 to 49, 148 to 151, 283 to 291), all between 42 and 389;
+  none after the second Esc at pump 840 to the end of the log (pump 2,829).
+- `dpi150`: the two reports are before the focus loss at 118; none after the capture came back at 182. The first acceptance bar
+  ("none at 150%") was not met, and the thresholds were not tuned to meet it. By the log itself they are real exits: after a cursor
+  event 90 px from the left edge at pump 92, about 210 raw units of leftward motion over pumps 93 to 97 with no cursor event, then a
+  cursor event 7 px from the left edge at pump 108; and after an event 70 px from the right edge at pump 115, about 190 raw units
+  rightward with no cursor event until the focus loss at 118. **The owner accepted both as real exits; the threshold stays 2 pumps.**
+  (For information only: 8 or more silent pumps would give none in `dpi150` and still flag all three `dpi100` lost releases, at the
+  cost of reports about 6 pumps, about 170 ms, later; not chosen.)
+- M5c retest log: **4 reports, covering 2 of the 3 lost releases** (234 then 323; 1763 then 1770). The third, at 1303, has the
+  cursor resting on the border at x=959 with cursor events along y (pumps 1306 to 1337): pinned with the clip holding. The detector
+  does not report that case by design; it is the case the DPI request and the re-grab on button-down address, and whether they do is
+  untested. Reports 801 and 1264 have no lost release beside them.
+
+**Tests and plants.** `cursor_leave` has 6 tests and one ignored local replay; `mouse_forward` 7 tests of the decision (a 32-case
+truth table), the reasons and the lines; `window` one test pinning `GRAB_AGAIN`. 19 planted faults, each applied alone, 19 caught at
+`06acf97`; one (a pump with a cursor event counted silent) survived at `b7b5ca3` and led to `06acf97`. Not covered by a test: the
+window glue in `Stage` (the `set_cursor_grab(true)` call and the calls that feed the follower), which needs a miniquad display; it
+is compile-checked only. Review 3 later added one test (idle pumps do not count as silent). **Not run:** anything on Windows or macOS.
+
+**Status.** Stuck fire remains a **known fault** until the owner confirms a retest ([A8](#a8-the-owners-retest)). A release can still be
+lost in the four cases listed under A1; the re-grab narrows the window in which the clip is missing, it is not a capture.
+
+### The writer threads
+
+**What the owner found.** Every stall came from file writes on the game thread on a slow disk. **Which writer caused which stall is
+not yet measured.** The stalls that follow the synced rewrites coincide with them; the unaligned ones were not attributed to a
+write; and the local runs below on an SSD show no stall before or after the change, so they can attribute nothing. The new exit lines
+and the `--tic-stats` list exist so that his retest on `D:` measures it ([A8](#a8-the-owners-retest)).
+
+**The design** (`crates/doom-play/src/session_writer.rs`, `input_log.rs`, `write_stats.rs`, `closing.rs`). `FsHost` stays synchronous
+(master tests build it by a struct literal and read the file while it is alive); `WriterHost` wraps it and sends every write to one
+writer thread, which makes the same operations of `session_file.rs` in order. `LoggedHost` became generic over its inner host.
+
+- **Claim.** Answered at once (`Ok(false)` if the name exists, a stat on the loop thread, or this process already handed it out);
+  otherwise queued and `Ok(true)`. The writer then runs the unchanged claim (synced temporary file, hard link, fallback). If another
+  process took the name in between, the session is marked lost and never written; every later call about it returns the error and
+  the pause box and exit line show a failed save (the earlier synchronous claim would have moved to `-2`; a lost race of two
+  instances starting in the same second in the same directory costs the session visibly).
+- **A tic.** Queued as its five bytes. The writer keeps its own copy of the demo. For the tics waiting when it takes a batch it makes
+  one open and one five-byte write per tic, each inside one 4,096-byte page; if one would straddle a boundary it rewrites whole,
+  **unsynced**, through `NAME.PID.tmp` and a rename. (Several in-page appends cost the number of tics waiting; a whole rewrite per
+  batch could itself take longer than a tic on a slow disk.)
+- **A whole demo.** The app's every-1,050-tic, end, restart and quit saves, its retries, and the hand-over after a decline at the
+  bound are kept as the session's newest snapshot (a newer one replaces the pending one in place); the writer rewrites whole from it,
+  **synced** for the app's own saves and unsynced for a catch-up snapshot. Queued appends a later snapshot already holds are skipped.
+- **Where `sync_all` remains:** the claim's temporary file and the app's own whole saves. Not the page-boundary or catch-up
+  rewrites, which were synced before.
+- **The bound.** `QUEUE_TICS` = 175 queued tics (5 s of play). At the bound `append` returns `Ok(false)` and the app (unchanged)
+  hands the whole demo over, which replaces the pending snapshot in place. With the disk stalled the loop goes on at full speed;
+  memory is at most 175 queued tics plus one demo-sized snapshot per session whose snapshot is pending (one, unless the player
+  restarts during the stall); no tic is dropped, because the app's recorder holds every tic; the file stops growing, so **its lag
+  in tics grows without bound while the disk is stalled; only memory is bounded**. When the disk answers, the writer finishes the
+  queued appends and writes the newest snapshot as one unsynced rewrite holding every tic.
+- **Errors return.** A failed write is recorded per session and returned by the next call about that session; after a failure the
+  writer writes nothing for that session until the app hands a whole demo over (its retry at the 35-tic cadence), so a failing disk
+  sees one attempt per retry (a test counts 4 rewrites in 110 tics with the real app).
+- **Where the loop thread still touches the disk or waits:** the `Path::exists` stat at each claim (a read; on a stalled network
+  share it could block), `eprintln!` lines, the settle wait at a session's end (next item), and quit.
+- **The input log** is formatted on the loop thread, handed over at each pump's end in a bounded queue (`LOG_QUEUE_PUMPS` = 1,024
+  pumps, `try_send`) and written and flushed by a log-writer thread. When the queue is full, a pump's lines are dropped whole and
+  counted, and the next accepted hand-over starts with `dropped PUMP TIC N lines of P pumps were not written: the log's writer was
+  behind`; after the summary line, hand-overs block instead. The header is unchanged, so the bytes equal the earlier log's while the
+  disk keeps up (a test writes one session through both writers).
+- **The end of a session (the settle).** Review 3 found that a failure of a session's last writes never reached the app (it said
+  DEMO SAVED). Now, after every update in which the app is not playing, the window asks the writer about the current session's file
+  and tells the app (`App::settle_save`, the one new `doom-game` method). A failure makes the status Failed; a file holding every
+  recorded tic makes it Saved; a still-pending write after a wait turns Saved into Failed with "not written yet". **At the update in
+  which a session ends, the wait is up to 2 s** (`END_WAIT`; no tic runs then). **What the player sees with a stalled disk at a
+  session's end:** (1) for up to 2 s the last game frame stays on screen and the window does not respond (there is no draw and no
+  event handling in that update); (2) if the disk answers in time, the end screen shows DEMO SAVED or DEMO NOT SAVED with the reason
+  at once; (3) if not, it shows "DEMO NOT SAVED: NOT WRITTEN YET: THE DISK HAS NOT ANSWERED IN 2 S; STILL TRYING"; (4) the writer goes
+  on and at the first update after it finishes (they come every 1/35 s on an end screen) the screen changes to DEMO SAVED or to the
+  error; (5) pressing R starts the next session at once, with no wait; the earlier session is written when the disk answers,
+  rewritten again at exit if that failed, and named in an exit line; (6) pressing Q or closing the window waits for the disk
+  without a bound, as M5b's synchronous quit did.
+- **Quit drains.** At quit the log's summary is written, `finish` drains every write handed over (no time bound), the settle runs,
+  the app's own `quit` rewrites whole and synchronously if the file is behind or failed, and the writer closes. The exit report
+  gives one true line per session (earlier sessions one line each: saved at exit, not saved, or not written).
+- **At restart** the window does not wait (it cannot see the restart coming without duplicating the app's key map, and a 2 s wait on
+  every key press while paused would freeze resuming); when the writer moves to the next claim it rewrites the previous session
+  whole once more if its file does not hold its copy, unless the last failure was already the app's own whole demo.
+
+**Exact new texts** (each after `doom-play: `). On exit: `session file writes: N (claims C, appends A of T tics[, D appends declined],
+whole rewrites S synced and U unsynced), F failed; longest X.Y ms (KIND at tic K); at most W tics waiting`; with `--input-log`:
+`input log writes: N, F failed; longest X.Y ms (input log at tic K)`; with `--tic-stats`: `writes over 20 ms: KIND at tic K X.Y ms; ...` or
+`writes over 20 ms: none` (at most 40 listed). At start: `removed N leftover temporary file(s) more than an hour old from DIR`
+(every launch) and, per failure, `a leftover temporary file could not be removed: E`. When the fallback claim is taken:
+`PATH: the file system refused a hard link, so the session file was created by the fallback claim (created empty, then written)`.
+
+### The kill guarantee, old and new
+
+| | The statement |
+| --- | --- |
+| **Old** (first build, A3; M5b before it had none between writes) | At every instant the session's file is a valid demo and holds M or M - 1 tics of the M the session has run |
+| **New** (since the writer threads, `6899d97`) | At every instant the file is a valid demo holding **at least every tic the writer had finished writing (W) and at most M**. A kill (Ctrl+C, a closed console, a lost display connection, End task, SIGKILL) loses the tics still queued: normally none or a few, at most 175 queued appends, and while the disk is stalled **the lag in tics is not bounded** (past the queue bound the app hands whole demos over and the file stops growing; only memory is bounded) |
+
+**This is a weakening, and the owner accepted it** on stated conditions, each met as follows:
+
+| Condition | How it is met |
+| --- | --- |
+| The old and the new statement side by side | The table above, and COMPATIBILITY's one sentence |
+| The lag distribution measured: ext4, and `/mnt/d` random and aimed | [Kill evidence](#kill-evidence) below (preliminary at `3957cf0`; the final head is an `ORCH` placeholder) |
+| A visible exit line | `session file writes: ... at most W tics waiting`, and the `--tic-stats` list of writes over 20 ms |
+| Quit drains | `finish` drains every write handed over; the session-end settle and quit are tested with a real `App` |
+| A bounded queue | 175 tics for the session file, 1,024 pumps for the log; a test with the disk stalled checks the queue and the one snapshot |
+| COMPATIBILITY states the limit plainly | Done in the commit of this record |
+
+**The atomicity argument, new.** Every write is still one of the same all-or-nothing operations (a five-byte write inside one page,
+by the reading of Linux's `generic_perform_write` in A3, or a new temporary file and a rename), now made in order on one thread; a
+multi-tic append is a sequence of such writes. So at every instant the name holds a valid demo that is a prefix of the session. The
+queue can only make that prefix shorter. A kill before the claim completes leaves no file for that session (and perhaps a
+`NAME.PID.claim.tmp`), never an empty or partial `.lmp`, except in the no-hard-link fallback window.
+
+**What an OS crash or power loss can lose.** It was never covered (the directory is never synced), and it covers less now: the
+page-boundary and catch-up rewrites are **unsynced**, where the page-boundary rewrite was synced before. Only the claim's temporary
+file and the app's own whole saves are synced. A crash can lose any tics not yet on the disk.
+
+### Ruling 3 withdrawn: the arithmetic as a report
+
+The owner's default of 128 was withdrawn for this pull request; the figures stay as a report, and nothing changed on their basis. The
+model: buffer k is handed over at tic floor(512k/315); the device pulls P frames per callback at 11,025 Hz from the instant the start
+threshold is met plus a phase of 0 to P-1; it ignores any pre-fill of the three-period device buffer.
+
+| Period P | Hand-over slack before a pull finds too few frames, two-buffer start | One-buffer start | Model queue depth at a callback, two-buffer start (min, mean, max) | One-buffer start |
+| --- | --- | --- | --- | --- |
+| 512 | 315 to 826 frames (28.6 to 74.9 ms) | 0 to 511 | 512, 980.5, 1,536 | 512, 665.5, 1,024 |
+| 256 | 315 to 570 (28.6 to 51.7 ms) | 0 to 255 | 512, 854.5, 1,280 | 256, 539.5, 1,024 |
+| 128 | 315 to 442 (28.6 to 40.1 ms) | 0 to 127 | 384, 791.5 (71.8 ms), 1,152 | 128, 476.5, 896 |
+
+The worst case is equal at every period (one tic). **Reconciliation with the owner's runs:** on `D:` run d (period 128) had mean 1,108.5
+and max 1,920, above the model's maximum of 1,152, so the 63.4 to 121.3 ms total did not hold in that run; his `C:` run at the default
+(mean 848.1, max 1,024) lies inside the model's 512 to 1,536. That is consistent with stalls inflating the `D:` depths (each underrun's
+silence leaves that many more frames queued, up to the 2,048 cap) but is not a full account (384 frames of silence in d does not reach
+1,920). The `C:` reruns of a, d and e are to settle it ([A8](#a8-the-owners-retest)).
+
+### Kill evidence
+
+**What this tests.** `kill_tests::sigkill_at_random_points_leaves_valid_demos`, now playing the real `WriterHost`, SIGKILLs the child
+and checks every `.lmp`: it parses, replays with no refusal, its digest equals the child's printed digest at its tic count, and its
+tic count lies **between W and M** (exactly M once a later session's claim completed; a missing file only before its claim
+completed); and the session running at the kill has lost at most the **lag bound** of 525 tics (3 times the queue bound, once its
+claim completed; `DOOM_PLAY_KILL_MAX_LOST` sets or lifts it). The summary prints the distribution of tics lost (M minus the tics in
+the file) of the session running at each kill and the bound applied. Three self-tests must each fail their plant: `torn` (a torn
+append), `early` (W printed 3 too high; the W rule) and `stall` (a writer that stops; the lag bound). **The test child runs far faster
+than 35 tics a second, so the lag it shows is worse than play would give.** Commands are in [Testing](../TESTING.md#m5d-kill-tests-and-trial-options).
+
+**Preliminary runs at `3957cf0`** (before the fixes of review 3; release build, `--nocapture`, one machine, run in sequence, 2026-11-20
+08:29 to 09:03 PST). **These went through the Rust checker (the kill test) only; none went through the genuine engine.** "Lost" is M
+minus the tics in the file for the session running at each kill. The `/mnt/d` directories were kept (`DOOM_PLAY_KILL_DIR` under
+`/mnt/d/DoomSessions/m5d-kills`; nothing is deleted under `/mnt`). `/mnt/d` is this machine's view of the Windows `D:` drive through
+WSL; the owner calls `D:` an HDD; this record does not state what it is.
+
+| File system | Aim | Kills | Files / tics | Lost 0 | 1 | 2 to 5 | 6 to 20 | More | Max | Kills with no `.lmp` |
+| --- | --- | ---: | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| ext4 | none (random) | 2,000 | 2,154 / 869,273 | 1,711 | 259 | 23 | 4 | 3 | 77 | 416 |
+| ext4 | tic 1,021, 0 to 3 ms | 200 | 397 / 298,970 | 179 | 21 | 0 | 0 | 0 | 1 | 0 |
+| ext4 | tic 1,050, 0 to 3 ms | 200 | 409 / 314,428 | 0 | 33 | 167 | 0 | 0 | 5 | 0 |
+| ext4 | tic 1, 0 to 3 ms | 200 | 2 / 2 | 2 | 61 | 137 | 0 | 0 | 5 | 198 |
+| ext4 | tic 1,021, 0 to 60 ms | 150 | 297 / 221,961 | 107 | 19 | 16 | 4 | 4 | 54 | 0 |
+| ext4 | tic 1,050, 0 to 60 ms | 150 | 303 / 233,781 | 112 | 18 | 9 | 7 | 4 | 63 | 0 |
+| `/mnt/d` | none (random) | 300 | 249 / 89,556 | 13 | 1 | 16 | 124 | 101 | 424 | 97 |
+| `/mnt/d` | tic 1,021, 0 to 60 ms | 100 | 188 / 144,877 | 0 | 0 | 4 | 56 | 40 | 89 | 0 |
+| `/mnt/d` | tic 1,050, 0 to 60 ms | 100 | 196 / 152,628 | 0 | 0 | 2 | 19 | 79 | 174 | 0 |
+
+- All nine runs passed. In the `/mnt/d` random run the lost counts add up to 255, not 300: the other 45 kills landed in a claim
+  (before any file existed), where no tic count applies. The 3 ms aims at tics 1,021 and 1,050 on ext4 also left 0 and 200
+  leftover `.tmp` files; the aim at tic 1 left 198 kills with no `.lmp` (the claim had not finished, so nothing was lost that existed).
+- **Reading.** On this machine's ext4 the file was within 0 or 1 tic of the last printed tic in most kills (1,970 of 2,000 random kills
+  within 1) and at most 77 behind. Through `/mnt/d` it was typically 6 to 20 tics behind and up to 424 (random) or 174 (aimed): the
+  lag the owner accepted is of that order for a slow disk. The lag bound of 525 tics did not exist at `3957cf0`; the largest of these, 424, is under it by 101 tics, so a `/mnt/d` run needs `DOOM_PLAY_KILL_MAX_LOST` set or lifted if it is to pass on a slower moment. Measured here only for the test child, not for play.
+
+<!-- ORCH: kill evidence at the final head -->
+
+### Review 3
+
+- **Reviewer:** Claude Opus 5.5 (`claude-opus-5-5`), effort **xhigh** (set by the orchestrator at spawn), a fresh agent that wrote none
+  of the code. **Range:** `b374aaa..3957cf0` (`crates/doom-play`), in a scratch worktree, planted faults in the scratch copy only (all
+  reverted). Another kill-test job ran on the machine throughout, so its lag figures were measured under load.
+- **Verdict:** **not ready as it stands: one major finding, no blocker.** The writer's ordering, atomicity, queue bound and draining
+  on quit held up under every check.
+- **What it ran:** doom-play tests in debug and release and on 1.85.0 (85 passed, 2 ignored each), format, Clippy and rustdoc on
+  doom-play, 23 planted faults, scratch probes, a comparison of 1,792 master test bodies (none changed within the range). **Not run:**
+  the other crates' tests, anything on Windows or macOS, the window code paths (read only), a real audio device, the genuine-engine
+  kill check, sanitizers, fuzzing, mutation testing, CI, any timing.
+
+| Finding | What it said | What was done (commits) |
+| --- | --- | --- |
+| M1 (major) | A failure of a session's last writes never reached the app: the end screen said DEMO SAVED and a restart did not retry (probe: 29 of 30 tics in the first file) | `App::settle_save` and the settle step in the window (`dce493d`, `b073255`, `c14b3a7`); the writer re-tries an earlier session once at the next claim and again at exit; tests with a real `App` (`d4c4642`, `fd87e57`) |
+| m1 | The kill test could not detect a writer that stops; the W lower bound was nearly vacuous on a healthy disk (plants: W+3 capped at M-1 passed; a writer sleeping forever passed) | The lag bound of 525 tics, `DOOM_PLAY_KILL_MAX_LOST`, and the `early` and `stall` self-tests (`ceec231`); the stale sentence in `session_file.rs` (`f7b45a2`) |
+| m2 | The exit lines could contradict each other ("saved" followed by "failed again") | One true line per session, built after the settle; earlier sessions one line each (`c14b3a7`) |
+| m3 | The input log's last pump line was lost, and its queue had no bound | The log is ended after the last pump line (`c14b3a7`); a bounded queue that drops whole pumps and says how many (`b8bd558`); tests (`fd87e57`) |
+| m4 | Stale lines: `session_file.rs` 54-58, `session_writer.rs` 33; COMPATIBILITY "loses at most the last tic"; this record's "every tic run, or every tic but the last"; the kill checker's docstring | Code and tool comments in `f7b45a2`; the documentation lines in the commit of this record |
+| m5 | Plants that survived: 10 of 23 | Tests added (table below) |
+| n1 to n11 | Notes (a stat on the loop thread, weaker OS-crash durability, Windows clip timing, detector window size, an unreachable reason, a lost claim race loses the session, synchronous claim after `finish`, write counts, the log's session line, the fallback line on Windows, the master-test rule) | n8 done (write counts, `c14b3a7`); n7 left (a case that does not occur); n1 to n6 and n9 to n11 left as they were, and n1, n2 and n6 are stated in this section |
+
+**Plants:** 23 planted, **13 killed, 10 survived** at `3957cf0` (killed: P3, P4, P5, P6, P9, P10, P12, P13, P17, P26, P28, P29,
+P30; survived: P1, P7, P8, P14, P19, P21, P23, P24, P25, P27). P7 and P8 belonged to M1; P14 is equivalent under the current call
+patterns; P1 (a skip rule `<=` against `<`) is close to an equivalent mutant and was left.
+
+| Plant | Test added | Result |
+| --- | --- | --- |
+| P19 (the `is_file` guard of the clean-up) | `the_start_removes_regular_files_only_whatever_their_age` (a directory and a symlink of leftover names stay) | caught |
+| P21 (a foreign snapshot dropped) | `a_demo_of_another_session_is_not_written_and_is_reported` | caught |
+| P23 (an in-place replacement drops a synced flag) | `a_synced_snapshot_replaced_in_place_stays_synced` | caught |
+| P24 (a length mismatch not marked stale) | `a_tic_out_of_step_marks_the_file_stale` | caught |
+| P25 (`finish` neither drains nor goes synchronous) | `after_finish_every_call_waits_and_returns_its_real_outcome` | caught |
+| P27 (idle pumps counted as silent) | `idle_pumps_do_not_count_as_silent` | caught |
+| P8 (`close` drops a failure the app never heard of) | `a_failure_the_app_never_heard_of_is_in_the_report` | caught |
+| P7 (a superseded failure) | the path no longer exists; its two successors (a stray failure dropped, an earlier session left behind dropped) were planted | both caught |
+| the writer-died check in `outcome` | `a_writer_that_died_is_never_reported_as_having_written` | caught |
+
+The window's own call of the settle step survived a plant (removing it): `Stage` needs a GL context, so no test drives it; the logic it
+calls is tested through `Play`. In `doom-game`, plants of no redraw, `retry_from` kept, and the claimed guard dropped were each caught
+by the five tests of `app_settle.rs`; a guard on the recorded demo proved redundant and was removed.
+
+<!-- ORCH: review 4 -->
+
+### Local timing
+
+Linux (WSL2, kernel 6.18, WSLg), release binaries built on and run from ext4 under `~/scratch/m5d` (the `before` build is `b374aaa`
+extracted with `git archive`; the `after` build is the writer code at `26de27d`, without the cursor commits). `--no-sound --tic-stats
+--quit-after-tics 2200` on the synthetic set with nothing pressed. The machine was idle apart from the run: no build was running and
+the load average at each start was 0.10 to 0.96 (the first `before` run began at 1.83 just after a build and opened paused, and is not
+counted). It is not claimed to be a controlled benchmark.
+
+| Run | Tics | Dropped | Largest interval (us) | Intervals more than 1 ms from 1/35 s | Pumps with `ran` of 2 or more (log) |
+| --- | ---: | ---: | --- | ---: | --- |
+| before, no log | 2,200 | 0 | 28,827 | 0 | n/a |
+| after, no log (2 runs) | 2,200, 2,200 | 0, 0 | 28,853, 28,984 | 0, 0 | n/a |
+| before, `--input-log` (2 runs) | 2,200, 2,200 | 0, 0 | 28,766, 28,861 | 0, 0 | 0, 0 |
+| after, `--input-log` (2 runs) | 2,200, 2,200 | 0, 0 | 28,813, 28,852 | 0, 0 | 0, 0 |
+
+The four `after` exit lines read `session file writes: 2201 (claims 1, appends 2196 of 2196 tics, whole rewrites 2 synced and 2
+unsynced), 0 failed; longest 6.8 to 7.0 ms (synced rewrite at tic 1050 or 2100); at most 1 tics waiting`, and with the log `input log
+writes: 2201, 0 failed; longest 0.1 ms`, `writes over 20 ms: none`. **Reading:** on this SSD neither build stalls, so these runs cannot
+show an improvement; they show that the change costs nothing here and that the exit lines work. The seam tests (host calls under 50 ms
+with every operation 200 ms slow; a loop that stays prompt with the disk stalled) are the evidence that the loop no longer waits. The
+owner's retest on `D:` measures his case. These figures predate the review-3 fixes and were not repeated at `f7b45a2`.
+
+<!-- ORCH: gates -->
+
+### Gates, CI and the corrections to the earlier summary
+
+The full gates of A5 ran at `6e61fc8`; the second round's code (`b374aaa..f7b45a2`) has its own gates and CI, recorded below by the
+orchestrator when they have run. Until then no sentence of A5 is a claim about this round's code. The author-side checks the writer
+and fix agents ran (format, Clippy, doom-play and doom-game tests, MSRV `cargo check`, rustdoc, plants) were run on `doom-play` and
+`doom-game` only; the other crates are untouched by the round.
+
+**Corrections to the earlier summary, stated here by the owner's demand:**
+
+- **The genuine engine checked 540 kills, plus the 150 in the gates** (A5, table C: 230 synthetic and 310 IWAD kills; the gates'
+  100 synthetic and 50 IWAD kills). **Every other kill went through the Rust checker only** (the kill test's own check: parse,
+  replay, digest, tic count). An earlier summary's larger figure of kills checked implied more than that.
+- **Fuzzing:** 60 targets built (AddressSanitizer, compiled only for 53 of them), 7 seed-replayed and 7 run as 300 s AddressSanitizer
+  campaigns, 53 compiled only; no fuzz target exists for `doom-play`. This is A5's table; it ran at `6e61fc8`.
+- **The CI mutation workflow** (`mutants.yml`) ran on `e25388d` and `cdb11cc` (A5), and on no later head; it does not mutate
+  `doom-play`. Nothing in this record claims a mutation run at any later head.
+
+<!-- ORCH: CI and artifact -->
+
+## A8. The owner's retest
+
+Nothing is marked fixed until the owner rules. This is the plan for one sitting with the artifact built on the final head of pull
+request [#64](https://github.com/Copgunn/DOOM/pull/64) (the run is linked in the PR). Use **Command Prompt** (`cmd.exe`). Replace
+`C:\path\to\DOOM.WAD` with the IWAD's path and run from the folder the artifact is unzipped into. Make the folders first:
+
+```
+mkdir D:\DoomSessions\m5d-retest\launch D:\DoomSessions\m5d-retest\run2min D:\DoomSessions\m5d-retest\kills
+mkdir C:\DoomSessions\m5d-retest\audio
+```
+
+Do not open, rename or delete files in them. The orchestrator reads `D:` at `/mnt/d/DoomSessions/m5d-retest`; `C:` files are to be
+copied there afterwards or sent as named.
+
+### (i) Launch capture (A1)
+
+Change the display scale (Settings, System, Display, Scale) **immediately before each launch**, then launch, and from the first
+second hold the left button and drag hard towards each edge in turn (at least ten drags to each edge, releasing while moving) for
+about a minute. Do not resize, maximise or move the window. Quit with Esc, then Q. Run `NAME` and the scale in this order, with the
+scale set just before the run:
+
+1. `ch100`: set 100%, launch.
+2. `ch150`: set 150%, launch.
+3. `ch125`: set 125%, launch.
+4. `r100-1`, `r100-2`, `r100-3`: set 100% once, then launch three times without changing it.
+5. `r125-1`, `r125-2`, `r125-3`: set 125% once, then launch three times.
+
+```
+doom-play.exe --iwad C:\path\to\DOOM.WAD --bindings modern --sessions D:\DoomSessions\m5d-retest\launch --input-log D:\DoomSessions\m5d-retest\launch\NAME.txt 2> D:\DoomSessions\m5d-retest\launch\NAME-terminal.txt
+```
+
+**Accepted for a run when** the last line of its log, `summary ... raw downs/ups: Left D/U`, has D equal to U **and** the log has no
+line containing ` resize `. Also report, per run, any line containing `capture again` or `cursor-left`, and if fire sticks, the time
+and what you did to clear it.
+
+### (ii) One two-minute run on D: on purpose (the hitch, A7)
+
+Recording to `D:` is the point; leave the sessions folder and the log on the slow disk. Play for two minutes without pausing (about
+4,200 tics), then quit with Esc, then Q:
+
+```
+doom-play.exe --iwad C:\path\to\DOOM.WAD --bindings modern --sessions D:\DoomSessions\m5d-retest\run2min --input-log D:\DoomSessions\m5d-retest\run2min\input-log.txt --tic-stats 2> D:\DoomSessions\m5d-retest\run2min\terminal.txt
+```
+
+Looked for in the log: **no pump with `ran` of 3 or more at a rewrite tic** (tics 1,021, 1,050, 2,045 and 2,100). **Send back, from
+`terminal.txt`, the exit lines** starting `doom-play: session file writes` and `doom-play: input log writes` (the number of writes, the
+longest write in milliseconds, the deepest queue as "at most W tics waiting") and the line starting `doom-play: writes over 20 ms`.
+
+### (iii) Sound runs a, d and e again, sessions on C:
+
+By ear, about a minute each with plenty of shooting, door and switch sounds; quit with Esc, then Q. Sessions and logs on `C:`
+(an SSD), so that disk stalls do not contaminate the underruns:
+
+```
+doom-play.exe --iwad C:\path\to\DOOM.WAD --bindings modern --sessions C:\DoomSessions\m5d-retest\audio 2> C:\DoomSessions\m5d-retest\audio\a-default.txt
+doom-play.exe --iwad C:\path\to\DOOM.WAD --bindings modern --sessions C:\DoomSessions\m5d-retest\audio --experimental-audio-period-frames 128 2> C:\DoomSessions\m5d-retest\audio\d-period128.txt
+doom-play.exe --iwad C:\path\to\DOOM.WAD --bindings modern --sessions C:\DoomSessions\m5d-retest\audio --experimental-audio-period-frames 128 --experimental-audio-start-buffers 1 2> C:\DoomSessions\m5d-retest\audio\e-period128-start1.txt
+```
+
+One line per run in a `notes.txt` (the letter, the delay against `a`: shorter, same or longer, and any crackle or gaps). **Send back
+the `audio` exit lines** (`audio device`, `audio settings`, `audio callbacks`, `audio queue`) of each. The default period stays 512
+whatever the result; the result only informs a later choice.
+
+### (iv) Optional: Ctrl+C and console close again
+
+As in A6, part 3, with the console visible (no `2>`), three runs each of about 2 s, 10 s and 40 s or more, into
+`D:\DoomSessions\m5d-retest\kills`. Expect a file that may lack the last tics the disk had not yet taken (the
+[new limit](../COMPATIBILITY.md#a-session-is-safe-on-windows-and-macos-only-when-doom-play-ends-it-a-limit-not-yet-lifted-there));
+the files are checked with the session check, each must replay.
+
+### What the orchestrator does with it
+
+Reads each launch log for downs and ups, `resize`, `capture again` and `cursor-left` lines; reads the `ran` column at the four rewrite
+tics; reads the exit lines; runs every `.lmp` through the session check. **Until the owner has ruled, nothing is marked fixed:**
+stuck fire stays a known fault, recording to a slow disk stays documented as causing hitches and dropouts, and the pull request stays
+a draft.
