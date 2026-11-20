@@ -572,3 +572,39 @@ mod tests {
         assert!(InputLog::create(Path::new("/nonexistent-dir/x/log.txt")).is_err());
     }
 }
+
+/// Review survivors of M5d: [`LoggedHost`] must pass `append` to the host proper.
+#[cfg(test)]
+mod logged_host_tests {
+    use super::*;
+    use crate::audio::{Discard, Output};
+
+    /// Kills `<LoggedHost as Host>::append` returning `Ok(false)`: through the wrapper, a
+    /// five-byte append at the marker of a claimed file is written (`Ok(true)`), exactly as the
+    /// host proper writes it. The public API cannot reach it: the window's whole-file fallback
+    /// would hide a decline (the file is the same after the next whole write).
+    #[test]
+    fn the_wrapper_delegates_append_to_the_host() {
+        let dir =
+            std::env::temp_dir().join(format!("doom-play-logged-append-{}", std::process::id()));
+        let host = FsHost {
+            dir: dir.clone(),
+            audio: Output::Discard(Discard::default()),
+        };
+        let mut h = LoggedHost {
+            host,
+            log: InputLog::off(),
+        };
+        std::fs::create_dir_all(&dir).unwrap();
+        let mut file = vec![7u8; 13];
+        file.push(0x80);
+        assert_eq!(h.claim("a.lmp", &file), Ok(true));
+        assert!(h.appends());
+        let tail = [1, 2, 3, 4, 0x80];
+        assert_eq!(h.append("a.lmp", 13, &tail), Ok(true));
+        let mut want = vec![7u8; 13];
+        want.extend_from_slice(&tail);
+        assert_eq!(std::fs::read(dir.join("a.lmp")).unwrap(), want);
+        std::fs::remove_dir_all(&dir).unwrap();
+    }
+}

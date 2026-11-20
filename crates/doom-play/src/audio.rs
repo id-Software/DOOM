@@ -1518,3 +1518,24 @@ mod tests {
         );
     }
 }
+
+/// Review survivors of M5d: the `--audio-probe` result.
+#[cfg(test)]
+mod probe_tests {
+    /// Kills `probe` returning `Ok(String::new())` and `Ok("xyzzy")`: whatever the machine has
+    /// (a device: the report line; none: the error naming what was tried), an `Ok` is the
+    /// report and an `Err` is not empty. Plays digital silence only. The `/` to `*` mutant on
+    /// the frame count inside the device callback is not killable here: the callback runs only
+    /// with a real device, and the count is part of the printed text, not asserted by a value
+    /// the test can know (UNREACHABLE-IN-TESTS without a device).
+    #[test]
+    fn the_probe_reports_a_line_or_an_error() {
+        match super::probe() {
+            Ok(line) => {
+                assert!(line.starts_with("audio probe: backend "), "{line}");
+                assert!(line.contains("frames of silence requested"), "{line}");
+            }
+            Err(e) => assert!(!e.is_empty()),
+        }
+    }
+}
