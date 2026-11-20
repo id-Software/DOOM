@@ -320,3 +320,269 @@ mod tests {
         assert!(text.contains("motion dx=5 dy=5 ignored"), "{text}");
     }
 }
+
+/// Owner ruling 1 of the M5d Windows session (2026-11-20): when doom-play asks for the cursor
+/// grab again. The decision and the detector are the same on every system; only the window's
+/// `GRAB_AGAIN` constant turns them on (Windows).
+#[cfg(test)]
+mod grab_again_tests {
+    use super::*;
+    use doom_game::app::{GameData, SessionConfig};
+    use doom_render::GameMode;
+    use std::io::Write;
+    use std::path::Path;
+
+    #[derive(Clone, Default)]
+    struct Shared(std::rc::Rc<std::cell::RefCell<Vec<u8>>>);
+
+    impl Write for Shared {
+        fn write(&mut self, b: &[u8]) -> std::io::Result<usize> {
+            self.0.borrow_mut().extend_from_slice(b);
+            Ok(b.len())
+        }
+        fn flush(&mut self) -> std::io::Result<()> {
+            Ok(())
+        }
+    }
+
+    impl Shared {
+        /// The text of the lines whose `TEXT` starts with `capture again` or `cursor-left`.
+        fn again_lines(&self) -> Vec<String> {
+            let text = String::from_utf8(self.0.borrow().clone()).unwrap();
+            text.lines()
+                .filter_map(|l| l.splitn(4, ' ').nth(3))
+                .filter(|t| t.starts_with("capture again") || t.starts_with("cursor-left"))
+                .map(String::from)
+                .collect()
+        }
+
+        /// The lines of what reached the app (`mouse-motion` and `mouse-button`).
+        fn app_lines(&self) -> Vec<String> {
+            let text = String::from_utf8(self.0.borrow().clone()).unwrap();
+            text.lines()
+                .filter(|l| l.contains("mouse-motion") || l.contains("mouse-button"))
+                .map(String::from)
+                .collect()
+        }
+    }
+
+    struct Quiet;
+    impl doom_game::app::Host for Quiet {
+        fn timestamp(&mut self) -> doom_game::app::Timestamp {
+            doom_game::app::Timestamp::default()
+        }
+        fn exists(&mut self, _: &str) -> bool {
+            false
+        }
+        fn save(&mut self, _: &str, _: &[u8]) -> Result<(), String> {
+            Ok(())
+        }
+    }
+
+    fn app() -> App {
+        let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../tests/reference");
+        let wad = std::fs::read(root.join("m5a_wads/amp.wad")).expect("map WAD");
+        let gfx = std::fs::read(root.join("m5b_gfx.wad")).expect("gfx WAD");
+        let data = GameData::load(&[&wad, &gfx], GameMode::Registered, 1, 2).expect("game data");
+        App::new(data, SessionConfig::default(), &mut Quiet)
+    }
+
+    /// An app, a log read back and a follower (`enabled` as given) holding the grab of a
+    /// 960x720 window.
+    fn captured(enabled: bool) -> (App, Shared, InputLog, Forward) {
+        let app = app();
+        let text = Shared::default();
+        let mut log = InputLog::to_writer(Box::new(text.clone()));
+        let mut fwd = Forward::new(enabled);
+        assert_eq!(
+            fwd.sync_capture(&app, &mut log, || (960.0, 720.0)),
+            Some(true)
+        );
+        (app, text, log, fwd)
+    }
+
+    const LEFT: Option<MouseButton> = Some(MouseButton::Left);
+
+    /// The decision's truth table: asked again only when enabled, captured and with a reason.
+    #[test]
+    fn the_decision_needs_enabled_captured_and_a_reason() {
+        for bits in 0..32u8 {
+            let [enabled, captured, b, f, c] = [0, 1, 2, 3, 4].map(|k| bits & (1 << k) != 0);
+            let why = Again {
+                button_down: b,
+                focus_gained: f,
+                cursor_left: c,
+            };
+            assert_eq!(why.any(), b || f || c);
+            assert_eq!(
+                grab_again(enabled, captured, why),
+                enabled && captured && (b || f || c),
+                "{bits:05b}"
+            );
+        }
+        let all = Again {
+            button_down: true,
+            focus_gained: true,
+            cursor_left: true,
+        };
+        assert_eq!(all.names(), "button-down focus-gained cursor-left");
+        assert_eq!(Again::default().names(), "");
+    }
+
+    /// Every button-down while the grab is held asks again, once, at the end of its pump: the
+    /// left, the right and a button the game has no bit for; a release alone does not.
+    #[test]
+    fn a_button_down_asks_again_while_captured() {
+        let (mut app, text, mut log, mut fwd) = captured(true);
+        assert!(!fwd.grab_again(&app, &mut log), "nothing happened yet");
+        for b in [LEFT, Some(MouseButton::Right), None] {
+            fwd.button(&mut app, &mut log, b, true, (480.0, 360.0));
+            assert!(fwd.grab_again(&app, &mut log), "{b:?}");
+            assert!(!fwd.grab_again(&app, &mut log), "once per pump: {b:?}");
+            fwd.button(&mut app, &mut log, b, false, (480.0, 360.0));
+            assert!(!fwd.grab_again(&app, &mut log), "a release: {b:?}");
+        }
+        assert_eq!(text.again_lines(), vec!["capture again (button-down)"; 3]);
+    }
+
+    /// Focus gained while the grab is held asks again; with a press in the same pump the one
+    /// request names both.
+    #[test]
+    fn focus_gained_asks_again_while_captured() {
+        let (mut app, text, mut log, mut fwd) = captured(true);
+        fwd.focus_gained();
+        assert!(fwd.grab_again(&app, &mut log));
+        assert!(!fwd.grab_again(&app, &mut log));
+        fwd.focus_gained();
+        fwd.button(&mut app, &mut log, LEFT, true, (480.0, 360.0));
+        assert!(fwd.grab_again(&app, &mut log));
+        assert_eq!(
+            text.again_lines(),
+            [
+                "capture again (focus-gained)",
+                "capture again (button-down focus-gained)"
+            ]
+        );
+    }
+
+    /// The cursor-left detector, fed by the follower's cursor and motion, reports the 100%
+    /// pattern at the end of the second silent pump, logs it and asks again; the next cursor
+    /// event re-arms it.
+    #[test]
+    fn the_cursor_leaving_asks_again_while_captured() {
+        let (mut app, text, mut log, mut fwd) = captured(true);
+        fwd.cursor(&app, &mut log, 936.0, 490.0);
+        assert!(!fwd.grab_again(&app, &mut log));
+        fwd.raw_motion(&mut app, &mut log, 60.0, -3.0);
+        assert!(!fwd.grab_again(&app, &mut log), "one silent pump");
+        fwd.raw_motion(&mut app, &mut log, 60.0, -3.0);
+        assert!(fwd.grab_again(&app, &mut log), "two silent pumps");
+        fwd.raw_motion(&mut app, &mut log, 60.0, -3.0);
+        assert!(!fwd.grab_again(&app, &mut log), "once until a cursor event");
+        fwd.cursor(&app, &mut log, 950.0, 423.0);
+        assert!(!fwd.grab_again(&app, &mut log));
+        for _ in 0..2 {
+            fwd.raw_motion(&mut app, &mut log, 30.0, 0.0);
+        }
+        assert!(!fwd.grab_again(&app, &mut log), "one silent pump");
+        fwd.raw_motion(&mut app, &mut log, 30.0, 0.0);
+        assert!(fwd.grab_again(&app, &mut log), "re-armed");
+        assert_eq!(
+            text.again_lines(),
+            [
+                "cursor-left from x=936.0 y=490.0 dx=120 dy=-6 pumps=2",
+                "capture again (cursor-left)",
+                "cursor-left from x=950.0 y=423.0 dx=90 dy=0 pumps=2",
+                "capture again (cursor-left)"
+            ]
+        );
+    }
+
+    /// Feeds every reason in one pump and the detector's pattern over the next three.
+    fn every_reason(app: &mut App, log: &mut InputLog, fwd: &mut Forward) -> Vec<bool> {
+        let mut asked = Vec::new();
+        fwd.button(app, log, LEFT, true, (480.0, 360.0));
+        fwd.focus_gained();
+        fwd.cursor(app, log, 936.0, 490.0);
+        asked.push(fwd.grab_again(app, log));
+        for _ in 0..3 {
+            fwd.raw_motion(app, log, 60.0, -3.0);
+            asked.push(fwd.grab_again(app, log));
+        }
+        asked
+    }
+
+    /// Nothing is asked and no cursor-left is reported while the grab is not held: before the
+    /// first capture and after the capture is released (the app paused on focus loss).
+    #[test]
+    fn nothing_is_asked_while_not_captured() {
+        let mut app = app();
+        let text = Shared::default();
+        let mut log = InputLog::to_writer(Box::new(text.clone()));
+        let mut fwd = Forward::new(true);
+        assert!(!fwd.captured());
+        assert!(
+            every_reason(&mut app, &mut log, &mut fwd)
+                .iter()
+                .all(|a| !a)
+        );
+        assert_eq!(
+            fwd.sync_capture(&app, &mut log, || (960.0, 720.0)),
+            Some(true)
+        );
+        app.focus_lost();
+        assert_eq!(
+            fwd.sync_capture(&app, &mut log, || (960.0, 720.0)),
+            Some(false)
+        );
+        assert!(
+            every_reason(&mut app, &mut log, &mut fwd)
+                .iter()
+                .all(|a| !a)
+        );
+        assert!(text.again_lines().is_empty(), "{:?}", text.again_lines());
+    }
+
+    /// With asking again not enabled (Linux and macOS; [`Forward::default`]) nothing is asked
+    /// and no cursor-left is reported, though the grab is held.
+    #[test]
+    fn nothing_is_asked_when_not_enabled() {
+        let (mut app, text, mut log, mut fwd) = captured(false);
+        assert!(
+            every_reason(&mut app, &mut log, &mut fwd)
+                .iter()
+                .all(|a| !a)
+        );
+        assert!(text.again_lines().is_empty(), "{:?}", text.again_lines());
+        let mut fwd = Forward::default();
+        assert_eq!(
+            fwd.sync_capture(&app, &mut log, || (960.0, 720.0)),
+            Some(true)
+        );
+        assert!(
+            every_reason(&mut app, &mut log, &mut fwd)
+                .iter()
+                .all(|a| !a)
+        );
+        assert!(text.again_lines().is_empty(), "{:?}", text.again_lines());
+    }
+
+    /// What reaches the app is the same with asking again enabled or not: only the log's
+    /// `capture again` and `cursor-left` lines differ.
+    #[test]
+    fn asking_again_changes_nothing_the_app_receives() {
+        let run = |enabled: bool| {
+            let (mut app, text, mut log, mut fwd) = captured(enabled);
+            let asked = every_reason(&mut app, &mut log, &mut fwd);
+            fwd.button(&mut app, &mut log, LEFT, false, (480.0, 360.0));
+            fwd.raw_motion(&mut app, &mut log, -0.5, 0.75);
+            (asked, text.app_lines())
+        };
+        let (on, on_lines) = run(true);
+        let (off, off_lines) = run(false);
+        assert_eq!(on, [true, false, true, false]);
+        assert_eq!(off, [false; 4]);
+        assert_eq!(on_lines, off_lines);
+        assert_eq!(on_lines.len(), 6, "{on_lines:?}");
+    }
+}

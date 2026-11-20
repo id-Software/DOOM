@@ -442,6 +442,12 @@ mod tests {
         assert_eq!(HIGH_DPI, cfg!(target_os = "windows"));
     }
 
+    /// Owner ruling 1 of the M5d Windows session: the grab is asked for again on Windows only.
+    #[test]
+    fn the_grab_is_asked_for_again_on_windows_only() {
+        assert_eq!(GRAB_AGAIN, cfg!(target_os = "windows"));
+    }
+
     /// Review note N2: the window's configuration itself asks for DPI awareness on Windows only
     /// (not just the constant), with the window size and backend as before.
     #[test]
