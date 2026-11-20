@@ -509,18 +509,31 @@ mod tests {
     fn a_claimed_name_is_the_temporary_file_or_the_fallback_says_so() {
         use std::os::unix::fs::MetadataExt;
         let dir = scratch("claim-inode");
-        fn write(
-            seen: &std::cell::Cell<u64>,
-        ) -> impl FnOnce(&mut std::fs::File, &[u8]) -> std::io::Result<()> + '_ {
+        // Each claim's temporary file is kept open (a second handle) until the end of the test,
+        // so its inode stays allocated and cannot be handed to the next file created (ext4 reuses
+        // a freed inode number at once, which made the fallback's comparison below flaky).
+        let kept: std::cell::RefCell<Vec<std::fs::File>> = std::cell::RefCell::new(Vec::new());
+        fn write<'a>(
+            seen: &'a std::cell::Cell<u64>,
+            kept: &'a std::cell::RefCell<Vec<std::fs::File>>,
+        ) -> impl FnOnce(&mut std::fs::File, &[u8]) -> std::io::Result<()> + 'a {
             move |f, b| {
                 seen.set(f.metadata()?.ino());
+                kept.borrow_mut().push(f.try_clone()?);
                 f.write_all(b).and_then(|()| f.sync_all())
             }
         }
         let link = |tmp: &Path, path: &Path| std::fs::hard_link(tmp, path);
         let remove = |tmp: &Path| std::fs::remove_file(tmp);
         let seen = std::cell::Cell::new(0);
-        let linked = claim_with(&dir, "a.lmp", b"header+marker", write(&seen), link, remove);
+        let linked = claim_with(
+            &dir,
+            "a.lmp",
+            b"header+marker",
+            write(&seen, &kept),
+            link,
+            remove,
+        );
         assert_eq!(linked, Ok(Claim::Linked));
         assert_eq!(
             ino(&dir.join("a.lmp")),
@@ -539,7 +552,7 @@ mod tests {
             &dir,
             "b.lmp",
             b"demo",
-            write(&tmp_seen),
+            write(&tmp_seen, &kept),
             unsupported,
             remove,
         );
@@ -553,9 +566,36 @@ mod tests {
         // the name is taken between the check and the link: nothing created
         let taken =
             |_: &Path, _: &Path| Err(std::io::Error::from(std::io::ErrorKind::AlreadyExists));
-        let r = claim_with(&dir, "c.lmp", b"demo", write(&seen), taken, remove);
+        let r = claim_with(&dir, "c.lmp", b"demo", write(&seen, &kept), taken, remove);
         assert_eq!(r, Ok(Claim::Taken));
         assert_eq!(names(&dir), ["a.lmp", "b.lmp"], "no temporary file is left");
+        std::fs::remove_dir_all(&dir).unwrap();
+    }
+
+    /// Second review M-1: the real [`claim_new`] makes the name by hard-linking the temporary file
+    /// (the name's inode is the one the write saw, kept allocated by a second handle so that a
+    /// fallback file could not reuse its number).
+    #[cfg(unix)]
+    #[test]
+    fn the_real_claim_hard_links_the_temporary_file() {
+        use std::os::unix::fs::MetadataExt;
+        let dir = scratch("claim-real-link");
+        let seen = std::cell::Cell::new(0);
+        let mut kept = None;
+        let write = |f: &mut std::fs::File, b: &[u8]| -> std::io::Result<()> {
+            seen.set(f.metadata()?.ino());
+            kept = Some(f.try_clone()?);
+            f.write_all(b).and_then(|()| f.sync_all())
+        };
+        assert_eq!(claim_new(&dir, "a.lmp", b"header+marker", write), Ok(true));
+        assert_eq!(
+            ino(&dir.join("a.lmp")),
+            seen.get(),
+            "the name is the temporary file"
+        );
+        assert_eq!(std::fs::metadata(dir.join("a.lmp")).unwrap().nlink(), 1);
+        drop(kept);
+        assert_eq!(names(&dir), ["a.lmp"], "no temporary file is left");
         std::fs::remove_dir_all(&dir).unwrap();
     }
 
