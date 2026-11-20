@@ -87,9 +87,12 @@ pub fn linux_backend(display: bool) -> LinuxBackend {
 /// lost (no `SetCapture` in the library). The requested 960×720 (or 960×600) is then taken as
 /// physical pixels (`create_window`, 894-964, does not scale it), so at 125% or 150% the window
 /// is smaller on screen than before (about 768×576 or 640×480 in Windows' scaled units, where
-/// it was 960×720 scaled up); `screen_size` is the physical client size after a truncation
-/// through the scale (`update_dimensions`), at most a pixel short, and the picture is fitted to
-/// it at every draw. Raw mouse motion is scaled by 1 either way (`init_dpi`, 1093-1116), so
+/// it was 960×720 scaled up); `screen_size` is the physical client size after two truncations
+/// through the scale (`update_dimensions`, 1059-1066, with both scales the monitor's DPI / 96,
+/// `init_dpi`, 1109 and 1112), so it can be short of the client by less than the scale plus one
+/// pixel: worked through in `f32` for client widths up to 8,000, none at 100%, at most one pixel
+/// at 125%, 150% and 200%, at most two at 175%, 225%, 250% and 300% (three at 275%); the picture
+/// is fitted to it at every draw. Raw mouse motion is scaled by 1 either way (`init_dpi`, 1093-1116), so
 /// turning speed does not change. On Linux and macOS nothing is asked: there the flag would
 /// change only what the library reports (X11), or render at the backing resolution (Wayland
 /// with a scale, macOS Retina), and no fault was seen there.
@@ -98,22 +101,32 @@ const HIGH_DPI: bool = cfg!(target_os = "windows");
 /// Opens the window and runs the app until it quits, writing `log` (`--input-log`, or off).
 /// Returns when the window is closed.
 pub(crate) fn play(app: App, host: FsHost, log: InputLog, title: String, p: Presentation) {
-    let height = if p.square { 600 } else { 720 };
-    let conf = Conf {
+    let conf = window_conf(
+        title,
+        p.square,
+        p.fullscreen,
+        std::env::var_os("DISPLAY").is_some(),
+    );
+    let host = LoggedHost { host, log };
+    miniquad::start(conf, move || Box::new(Stage::new(app, host, p)));
+}
+
+/// The window library's configuration: 960×720 (960×600 with `square`), resizable, DPI awareness
+/// as [`HIGH_DPI`] says, the Linux backend from whether `DISPLAY` is set ([`linux_backend`]).
+fn window_conf(title: String, square: bool, fullscreen: bool, display: bool) -> Conf {
+    Conf {
         window_title: title,
         window_width: 960,
-        window_height: height,
-        fullscreen: p.fullscreen,
+        window_height: if square { 600 } else { 720 },
+        fullscreen,
         window_resizable: true,
         high_dpi: HIGH_DPI,
         platform: Platform {
-            linux_backend: linux_backend(std::env::var_os("DISPLAY").is_some()),
+            linux_backend: linux_backend(display),
             ..Platform::default()
         },
         ..Conf::default()
-    };
-    let host = LoggedHost { host, log };
-    miniquad::start(conf, move || Box::new(Stage::new(app, host, p)));
+    }
 }
 
 struct Stage {
@@ -411,5 +424,27 @@ mod tests {
     #[test]
     fn dpi_awareness_is_asked_for_on_windows_only() {
         assert_eq!(HIGH_DPI, cfg!(target_os = "windows"));
+    }
+
+    /// Review note N2: the window's configuration itself asks for DPI awareness on Windows only
+    /// (not just the constant), with the window size and backend as before.
+    #[test]
+    fn the_window_configuration_asks_for_dpi_awareness_on_windows_only() {
+        for (square, fullscreen, display) in [(false, false, true), (true, true, false)] {
+            let conf = window_conf("t".into(), square, fullscreen, display);
+            assert_eq!(conf.high_dpi, cfg!(target_os = "windows"));
+            assert_eq!(conf.window_title, "t");
+            assert_eq!(
+                (conf.window_width, conf.window_height),
+                (960, if square { 600 } else { 720 })
+            );
+            assert_eq!(conf.fullscreen, fullscreen);
+            assert!(conf.window_resizable);
+            let want = linux_backend(display);
+            assert_eq!(
+                std::mem::discriminant(&conf.platform.linux_backend),
+                std::mem::discriminant(&want)
+            );
+        }
     }
 }
