@@ -349,21 +349,18 @@ impl EventHandler for Stage {
 }
 
 /// The lines printed on standard error at exit, each after `doom-play: `: with `--tic-stats`
-/// the tic interval summary and the device's counters; the run's layout-dependence line when a
-/// session of the run was labelled by the detector of decision T12 (always, with or without
-/// `--tic-stats`); then where the session's demo went.
+/// the tic interval summary; whenever a device is open (with or without `--tic-stats`;
+/// milestone M5d) the device's lines ([`crate::audio::DeviceSink::exit_lines`]: what it
+/// reported, the settings asked for, the callbacks' sizes, the queue's depth, underruns and
+/// overruns), which replace the counters line `--tic-stats` printed before; the run's
+/// layout-dependence line when a session of the run was labelled by the detector of decision
+/// T12 (always, with or without `--tic-stats`); then where the session's demo went.
 pub(crate) fn exit_lines(app: &App, host: &FsHost, stats: Option<&TicStats>) -> Vec<String> {
     let mut lines = Vec::new();
     if let Some(s) = stats {
         lines.push(s.summary());
-        if let Some((backend, c)) = host.audio.device_counters() {
-            lines.push(format!(
-                "audio ({backend}): {} underruns ({} frames of silence), {} overruns ({} frames \
-                 dropped)",
-                c.underruns, c.underrun_frames, c.overruns, c.dropped_frames
-            ));
-        }
     }
+    lines.extend(host.audio.device_exit_lines());
     lines.extend(app.layout_dependent_line());
     let path = host.dir.join(app.session_name());
     lines.push(match app.save_status() {

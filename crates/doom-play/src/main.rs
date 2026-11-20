@@ -15,7 +15,7 @@ mod session_tests;
 mod tic_stats;
 mod window;
 
-use audio::{Output, Volume};
+use audio::{Output, Trial, Volume};
 use doom_game::app::{App, AudioSink, GameData, Host, SessionConfig, Timestamp, UNRECORDED_LABEL};
 use doom_game::input::Preset;
 use doom_render::GameMode;
@@ -73,6 +73,22 @@ usage: doom-play --iwad PATH [options]
                        one second, print which backend opened and exit 0; or print why
                        none opened and exit 1.
 
+Experimental options, for the owner's M5d sound-latency trials. Presentation only: they
+change how the finished sound reaches the audio device, never the game, the sound logic,
+the mixer, the picture or the demo. They do nothing without an audio device (or with
+--no-sound). Leaving them out keeps the defaults, which are unchanged.
+  --experimental-audio-start-buffers N
+                       1 or 2 (default 2): how many 512-frame buffers of mixed sound
+                       are queued before output starts, and starts again after every
+                       gap (underrun) and every resume. 1 starts one tic (about
+                       28.6 ms) sooner but leaves no margin, so gaps are likely.
+  --experimental-audio-period-frames N
+                       128, 256 or 512 (default 512): the device period asked for, in
+                       frames at 11,025 Hz; the sound is taken from the queue in
+                       blocks of exactly this size. Smaller can be sooner, with more
+                       callbacks and more risk of gaps; the backend may not grant it.
+  On exit, the lines starting \"audio\" echo a setting that is not at its default.
+
 Keys: Esc or Pause pauses (then Esc or Pause resumes, R restarts, Q quits); on an end screen
 R restarts and Q or Esc quits. End mutes and unmutes the sound (the player's own key, never
 seen by the game); pausing also silences it. When the window library reports that the window
@@ -92,6 +108,11 @@ the backends tried, and the game runs exactly the same without sound output. The
 and mixer are matched to linuxdoom-1.10 built with its in-process sound code (one define
 removed), under the declared schedule; what reaches the speakers after that (the device,
 resampling, latency and volume) is presentation and is not part of any claim.
+When a device opens, the audio library's own device report (lines starting [INFO]: the
+backend, the device, its sample rate, and the period and buffer it granted) is printed on
+standard error; on exit, lines starting \"audio\" give the device's name and native sample
+rates, the settings asked for, the sizes of the device's callbacks, how full the sound
+queue was when they came, and the gaps (underruns) and overruns counted.
 
 Limits: an OpenGL 2.1 (or OpenGL ES 2) driver is required. There is no music, menu,
 automap, intermission or next level; the session ends at the level's exit, or when the
@@ -120,6 +141,9 @@ struct Options {
     volume: Volume,
     no_sound: bool,
     input_log: Option<PathBuf>,
+    /// The experimental device settings (presentation only; they reach the device sink and
+    /// nothing else).
+    trial: Trial,
 }
 
 fn number<T: std::str::FromStr>(
@@ -154,6 +178,7 @@ fn parse(args: impl IntoIterator<Item = String>) -> Result<Option<Options>, Stri
         volume: Volume::FULL,
         no_sound: false,
         input_log: None,
+        trial: Trial::DEFAULT,
     };
     let mut it = args.into_iter();
     while let Some(flag) = it.next() {
@@ -201,6 +226,22 @@ fn parse(args: impl IntoIterator<Item = String>) -> Result<Option<Options>, Stri
             "--volume" => {
                 let percent = number(&flag, &value()?, |v: &u8| *v <= 100)?;
                 o.volume = Volume::new(percent).ok_or("--volume: above 100")?;
+            }
+            "--experimental-audio-start-buffers" => {
+                let v = value()?;
+                o.trial = v
+                    .parse()
+                    .ok()
+                    .and_then(|n| o.trial.with_start_buffers(n))
+                    .ok_or_else(|| format!("{flag}: {v:?} is not 1 or 2 (see --help)"))?;
+            }
+            "--experimental-audio-period-frames" => {
+                let v = value()?;
+                o.trial = v
+                    .parse()
+                    .ok()
+                    .and_then(|n| o.trial.with_period_frames(n))
+                    .ok_or_else(|| format!("{flag}: {v:?} is not 128, 256 or 512 (see --help)"))?;
             }
             "--screenblocks" => {
                 o.screenblocks = number(&flag, &value()?, |s| (10..=11).contains(s))?;
@@ -389,7 +430,7 @@ fn run(o: Options) -> Result<(), String> {
     };
     // after the checks that can still refuse the launch; during play the loop never waits for
     // the device: it takes the queue's lock, which the callback holds only to copy one period
-    let (audio, line) = Output::for_launch(o.no_sound, o.volume);
+    let (audio, line) = Output::for_launch_with(o.no_sound, o.volume, o.trial);
     if let Some(line) = line {
         eprintln!("{line}");
     }
