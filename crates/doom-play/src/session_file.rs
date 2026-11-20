@@ -928,6 +928,8 @@ mod tests {
         let later = std::time::SystemTime::now() + std::time::Duration::from_secs(2 * 3_600);
         std::fs::File::create(dir.join("E1M1-skill2-20261120-123456.lmp.41.tmp")).unwrap();
         std::fs::create_dir(dir.join("E1M1-skill2-20261120-123456.lmp.43.tmp")).unwrap();
+        // off Unix nothing is added below
+        #[cfg_attr(not(unix), allow(unused_mut))]
         let mut want = vec!["E1M1-skill2-20261120-123456.lmp.43.tmp".to_string()];
         #[cfg(unix)]
         {
