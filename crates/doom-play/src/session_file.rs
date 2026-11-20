@@ -1,16 +1,21 @@
-//! The session demo on disk (M5d): created only with its content, kept current tic by tic, and a
-//! valid demo at every instant, so a session killed at any point (Ctrl+C, a closed console
-//! window, a lost display connection, `SIGKILL`) leaves a file that replays every tic it ran, or
-//! every tic but the last.
+//! The session demo on disk (M5d): created only with its content, kept current tic by tic, and
+//! meant to be a valid demo at every instant, so a session killed at any point (Ctrl+C, a closed
+//! console window, a lost display connection, `SIGKILL`) leaves a file that replays every tic it
+//! ran, or every tic but the last. The argument below covers local file systems whose buffered
+//! writes go through the page cache (ext4, tmpfs on Linux); it does not cover FUSE, NFS or 9p
+//! (WSL's `/mnt/c`), the fallback claim's window on file systems without hard links, or a write
+//! that keeps failing (the file then stays at its last good state and falls behind).
 //!
 //! - **Creation** ([`claim_new`]): the first content (the 13-byte header and the end marker) is
-//!   written to a temporary file, flushed, and hard-linked to the session's name, which fails if
-//!   the name exists (so no file is ever replaced); then the temporary name is removed. The name
-//!   therefore never appears empty or partial. A kill between the link and the removal leaves a
-//!   `*.tmp` file beside the demo (never a `.lmp`). Where the file system refuses the hard link
-//!   (FAT, exFAT, some network shares), the claim falls back to M5b's exclusive create
-//!   (`create_new`) and a write, which leaves one window: a kill between the create and the write
-//!   leaves an empty `.lmp`.
+//!   written to a new temporary file (`NAME.PID.claim.tmp`), flushed, and hard-linked to the
+//!   session's name, which fails if the name exists (so no file is ever replaced); then the
+//!   temporary name is removed. The name therefore never appears empty or partial. A kill between
+//!   the link and the removal leaves a `*.claim.tmp` file beside the demo (never a `.lmp`); so
+//!   does a removal that fails, and that second name of the session's file is never written
+//!   again, because the whole rewrite uses its own temporary name (`NAME.PID.tmp`) and creates
+//!   it new. Where the file system refuses the hard link (FAT, exFAT, some network shares), the
+//!   claim falls back to M5b's exclusive create (`create_new`) and a write, which leaves one
+//!   window: a kill between the create and the write leaves an empty `.lmp`.
 //! - **Every tic** ([`append`]): the tic's four demo bytes and a new marker, `DEMOMARKER` (0x80,
 //!   linuxdoom-1.10 g_game.c:1488), go at the old marker's offset in **one** `write` of five
 //!   bytes, overwriting the old marker and extending the file by four bytes. The original needs
@@ -23,12 +28,12 @@
 //!   tic) each leaves an instant at which the file is not a valid demo; only one write that lands
 //!   all or nothing keeps it valid at every instant. A recorded tic's forward byte is never 0x80
 //!   (wire 24 refuses forward −128), so the reader never stops early.
-//! - **Why one five-byte write lands all or nothing under `SIGKILL` on Linux** (this rests on the
-//!   kernel's behaviour, not on any promise of POSIX; the evidence is the kill test,
-//!   `kill_tests`, and `tools/reference/m5d_kill_check.py`): a buffered write to a regular file
-//!   on ext4 or tmpfs goes through `generic_perform_write` (Linux v6.18 mm/filemap.c:4227-4318;
-//!   ext4 fs/ext4/file.c:299, tmpfs mm/shmem.c:3466), which copies the data one page-cache folio
-//!   at a time and checks for a pending fatal signal only at the top of each folio's iteration
+//! - **Why one five-byte write lands all or nothing under `SIGKILL` on Linux** (this rests on a
+//!   reading of the kernel's source, not on any promise of POSIX and not on a test): a buffered
+//!   write to a regular file on ext4 or tmpfs goes through `generic_perform_write` (Linux v6.18
+//!   mm/filemap.c:4227-4318; ext4 fs/ext4/file.c:299, tmpfs mm/shmem.c:3466), which copies the
+//!   data one page-cache folio at a time and checks for a pending fatal signal only at the top of
+//!   each folio's iteration
 //!   (mm/filemap.c:4250-4253), before the folio is touched; the copy into the folio and the size
 //!   update (`write_end`) of that iteration complete before the next check. Folios are at least
 //!   one page and naturally aligned, so a write that stays inside one 4096-byte-aligned block
@@ -40,8 +45,17 @@
 //!   rewrites the file whole through [`save`] (a synced temporary and a rename, atomic by the
 //!   rename). The one remaining way the kernel loop can stop inside a folio is a short copy from
 //!   the caller's buffer (a fault on the five source bytes, which the app has just written and
-//!   which are resident): not expected, and the kill test is the evidence that it does not occur
-//!   in practice.
+//!   which are resident): not expected.
+//! - **What the tests show.** Deterministic unit tests pin what the code does: one `write` call
+//!   of the five bytes per append ([`write_tail`]), a whole rewrite that replaces the file (a new
+//!   file renamed over it, never the old one written), and a claim whose name appears as the
+//!   temporary file (the hard link) or, where the link fails, through the fallback. The kill test
+//!   (`kill_tests`) and `tools/reference/m5d_kill_check.py` are evidence for the steady state: no
+//!   gross fault (a file that falls behind, loses its marker or replays differently) in the
+//!   kills they make. The kill test's self-test shows that it catches a torn append whose two
+//!   writes are a millisecond apart; a kill cannot be aimed inside a window of microseconds, so
+//!   neither is evidence for the all-or-nothing property itself, which rests on the kernel as
+//!   above.
 //! - **Elsewhere** (inference, untested here): macOS's kernel is not Linux, and the macOS CI run
 //!   of the kill test is its only evidence. On Windows, a cached `WriteFile` of five bytes within
 //!   one page is expected to be copied into the cache in one piece before `TerminateProcess` (or
@@ -71,9 +85,29 @@ pub(crate) fn append_fits_one_page(at: u64, len: u64) -> bool {
     len == 0 || at / PAGE == (at + len - 1) / PAGE
 }
 
-/// The temporary name beside `name` for this process (two processes never share it).
+/// The whole rewrite's temporary name beside `name` for this process (two processes never share
+/// it): `NAME.PID.tmp`.
 fn temporary(dir: &Path, name: &str) -> PathBuf {
     dir.join(format!("{name}.{}.tmp", std::process::id()))
+}
+
+/// The claim's temporary name beside `name` for this process: `NAME.PID.claim.tmp`, never the
+/// whole rewrite's ([`temporary`]). After the hard link it is a second name of the session's file
+/// until it is removed; if that removal fails, a later [`save`] still writes its own temporary
+/// file and never this one.
+fn claim_temporary(dir: &Path, name: &str) -> PathBuf {
+    dir.join(format!("{name}.{}.claim.tmp", std::process::id()))
+}
+
+/// Opens a new, empty file at the temporary name `tmp`: any stale file of that name is removed
+/// first and the file is created exclusively (`create_new`), so a write never goes through an
+/// existing file or a second link to one (a removal that failed makes the create fail instead).
+fn fresh(tmp: &Path) -> std::io::Result<std::fs::File> {
+    let _ = std::fs::remove_file(tmp);
+    std::fs::OpenOptions::new()
+        .write(true)
+        .create_new(true)
+        .open(tmp)
 }
 
 /// Creates `dir/name` holding `bytes`, never replacing an existing file: `Ok(false)` when the
@@ -90,28 +124,69 @@ pub(crate) fn claim_new(
     bytes: &[u8],
     write: impl FnOnce(&mut std::fs::File, &[u8]) -> std::io::Result<()>,
 ) -> Result<bool, String> {
+    claim_with(
+        dir,
+        name,
+        bytes,
+        write,
+        |tmp, path| std::fs::hard_link(tmp, path),
+        |tmp| std::fs::remove_file(tmp),
+    )
+    .map(|c| c != Claim::Taken)
+}
+
+/// How [`claim_with`] ended.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(crate) enum Claim {
+    /// The temporary file was hard-linked to the name: the name appeared with its content.
+    Linked,
+    /// The hard link failed (not for a taken name) and M5b's exclusive create made the file
+    /// ([`claim_create_new`]).
+    Created,
+    /// The name was taken; nothing was replaced.
+    Taken,
+}
+
+/// [`claim_new`] with the hard link (`link(tmp, path)`) and the removal of the temporary name
+/// after it (`remove_tmp(tmp)`) passed in, so that tests can make either fail.
+fn claim_with(
+    dir: &Path,
+    name: &str,
+    bytes: &[u8],
+    write: impl FnOnce(&mut std::fs::File, &[u8]) -> std::io::Result<()>,
+    link: impl FnOnce(&Path, &Path) -> std::io::Result<()>,
+    remove_tmp: impl FnOnce(&Path) -> std::io::Result<()>,
+) -> Result<Claim, String> {
     let path = dir.join(name);
     let fail = |e: std::io::Error| format!("{}: {e}", path.display());
     std::fs::create_dir_all(dir).map_err(fail)?;
     // a name already taken is left alone before anything is written (the link below checks it
     // again, atomically, for a name taken meanwhile)
     if std::fs::symlink_metadata(&path).is_ok() {
-        return Ok(false);
+        return Ok(Claim::Taken);
     }
-    let tmp = temporary(dir, name);
-    let written = std::fs::File::create(&tmp).and_then(|mut f| write(&mut f, bytes));
+    let tmp = claim_temporary(dir, name);
+    let written = fresh(&tmp).and_then(|mut f| write(&mut f, bytes));
     if let Err(e) = written {
         let _ = std::fs::remove_file(&tmp);
         return Err(fail(e));
     }
-    let linked = std::fs::hard_link(&tmp, &path);
-    let _ = std::fs::remove_file(&tmp);
+    let linked = link(&tmp, &path);
+    // a failed removal leaves a `*.claim.tmp` name (after a link, a second name of the session's
+    // file), which no later write opens: `save` uses its own temporary name
+    let _ = remove_tmp(&tmp);
     match linked {
-        Ok(()) => Ok(true),
-        Err(e) if e.kind() == std::io::ErrorKind::AlreadyExists => Ok(false),
+        Ok(()) => Ok(Claim::Linked),
+        Err(e) if e.kind() == std::io::ErrorKind::AlreadyExists => Ok(Claim::Taken),
         // no hard links here: M5b's exclusive create, with its window (see the module
         // documentation); the content is written again from `bytes`
-        Err(_) => claim_create_new(&path, bytes),
+        Err(_) => claim_create_new(&path, bytes).map(|created| {
+            if created {
+                Claim::Created
+            } else {
+                Claim::Taken
+            }
+        }),
     }
 }
 
@@ -138,13 +213,14 @@ fn claim_create_new(path: &Path, bytes: &[u8]) -> Result<bool, String> {
     }
 }
 
-/// Rewrites `dir/name` whole: writes a temporary file, flushes it to the disk and renames it over
-/// the session's file (atomic: the name holds the old or the new content); a failed write removes
-/// the temporary file.
+/// Rewrites `dir/name` whole: writes a new temporary file ([`fresh`], under the rewrite's own
+/// name, [`temporary`]), flushes it to the disk and renames it over the session's file (atomic:
+/// the name holds the old or the new content, and the old file is never written); a failed write
+/// removes the temporary file.
 pub(crate) fn save(dir: &Path, name: &str, bytes: &[u8]) -> Result<(), String> {
     let path = dir.join(name);
     let tmp = temporary(dir, name);
-    let written = std::fs::File::create(&tmp)
+    let written = fresh(&tmp)
         .and_then(|mut f| f.write_all(bytes).and_then(|()| f.sync_all()))
         .and_then(|()| std::fs::rename(&tmp, &path));
     if written.is_err() {
@@ -154,11 +230,11 @@ pub(crate) fn save(dir: &Path, name: &str, bytes: &[u8]) -> Result<(), String> {
 }
 
 /// Extends `dir/name` by one tic: writes the five bytes of `tail` at byte `at` in one `write`
-/// (see the module documentation). Declines (`Ok(false)`, and the app rewrites the file whole)
-/// when the five bytes would straddle a [`PAGE`] boundary, or when the file does not hold exactly
-/// `at + 1` bytes (it is not the file the app last wrote; the whole rewrite repairs it). A write
-/// that the system shortens is an error: the file may then lack its marker, and the app's next
-/// write is the whole rewrite.
+/// ([`write_tail`]; see the module documentation). Declines (`Ok(false)`, and the app rewrites the
+/// file whole) when the five bytes would straddle a [`PAGE`] boundary, or when the file does not
+/// hold exactly `at + 1` bytes (it is not the file the app last wrote; the whole rewrite repairs
+/// it). A write that the system shortens is an error: the file may then lack its marker, and the
+/// app's next write is the whole rewrite.
 pub(crate) fn append(dir: &Path, name: &str, at: u64, tail: &[u8; 5]) -> Result<bool, String> {
     if !append_fits_one_page(at, TAIL) {
         return Ok(false);
@@ -169,17 +245,32 @@ pub(crate) fn append(dir: &Path, name: &str, at: u64, tail: &[u8; 5]) -> Result<
         .write(true)
         .open(&path)
         .map_err(fail)?;
-    if f.metadata().map_err(fail)?.len() != at + 1 {
-        return Ok(false);
-    }
-    f.seek(SeekFrom::Start(at)).map_err(fail)?;
-    match f.write(tail).map_err(fail)? {
-        5 => Ok(true),
-        n => Err(format!(
+    let len = f.metadata().map_err(fail)?.len();
+    match write_tail(&mut f, len, at, tail).map_err(fail)? {
+        None => Ok(false),
+        Some(5) => Ok(true),
+        Some(n) => Err(format!(
             "{}: {n} of 5 bytes written; the file is rewritten whole next",
             path.display()
         )),
     }
+}
+
+/// The write of [`append`] on the open session file `f`, which holds `len` bytes: `None` (nothing
+/// written) unless `len` is `at + 1`; otherwise a seek to `at` and exactly **one** `write` call of
+/// the five bytes, whose count is returned as the system gave it (a short count is not retried:
+/// a second call would be a second write, which a kill can separate from the first).
+fn write_tail<F: Write + Seek>(
+    f: &mut F,
+    len: u64,
+    at: u64,
+    tail: &[u8; 5],
+) -> std::io::Result<Option<usize>> {
+    if len != at + 1 {
+        return Ok(None);
+    }
+    f.seek(SeekFrom::Start(at))?;
+    f.write(tail).map(Some)
 }
 
 #[cfg(test)]
