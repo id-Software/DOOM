@@ -848,16 +848,20 @@ fn each_earlier_session_left_behind_gets_one_line() {
         error: "e1".into(),
         retry,
     };
+    // the separator is the platform's (a backslash on Windows)
+    let path = dir.join("a.lmp").display().to_string();
     assert_eq!(
         earlier_lines(&[e(None), e(Some(Ok(7))), e(Some(Err("e2".into())))], dir),
         [
             "an earlier session was not written: e1".to_string(),
-            "an earlier session was saved at exit: /s/a.lmp (7 tics), rewritten whole after its \
-             last write failed (e1)"
-                .to_string(),
-            "an earlier session was not saved: its last write to /s/a.lmp failed (e1), and the \
-             rewrite at exit failed too (e2)"
-                .to_string(),
+            format!(
+                "an earlier session was saved at exit: {path} (7 tics), rewritten whole after \
+                 its last write failed (e1)"
+            ),
+            format!(
+                "an earlier session was not saved: its last write to {path} failed (e1), and \
+                 the rewrite at exit failed too (e2)"
+            ),
         ]
     );
 }
