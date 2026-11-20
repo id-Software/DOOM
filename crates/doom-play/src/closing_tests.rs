@@ -742,18 +742,24 @@ fn a_stalled_log_drops_whole_pumps_and_says_how_many() {
         log.line("raw", k, format_args!("line {k}"));
         log.pump_end(&p.app, 1, 0, false);
         longest = longest.max(t0.elapsed());
+        if k == 0 {
+            // the thread has taken pump 0 and is held in its write: pumps 1 to 4 wait, the
+            // other 15 are dropped (review 4, N5: no dependence on scheduling)
+            gate.await_waiter();
+        }
     }
     assert!(longest < Duration::from_millis(100), "{longest:?}");
     gate.set(true);
-    // the thread empties the queue: wait until the file stops growing (at most 5 s)
-    let mut seen = 0;
-    for _ in 0..100 {
-        std::thread::sleep(Duration::from_millis(50));
-        let now = text.bytes.lock().unwrap().len();
-        if now > 0 && now == seen {
-            break;
-        }
-        seen = now;
+    // the thread empties the queue: it has taken the last waiting pump once it has written the
+    // fifth (at most 10 s)
+    let pumps_written = || {
+        let bytes = text.bytes.lock().unwrap();
+        bytes.split(|&b| b == b'\n').filter(|l| l.starts_with(b"pump ")).count()
+    };
+    let t0 = Instant::now();
+    while pumps_written() < 5 {
+        assert!(t0.elapsed() < Duration::from_secs(10), "the log's thread did not drain");
+        std::thread::sleep(Duration::from_millis(1));
     }
     log.line("raw", 20, format_args!("line 20"));
     log.pump_end(&p.app, 1, 0, false);
@@ -778,8 +784,9 @@ fn a_stalled_log_drops_whole_pumps_and_says_how_many() {
     let lines: Vec<&str> = got.lines().collect();
     // Read in order: each pump kept is whole (its raw line, then its pump line); each `dropped`
     // line stands where its pumps are missing and counts them right (two lines a pump); pumps
-    // 1 to 20 went over with the file stalled (the thread holds at most one, four wait), so at
-    // least 15 of them are dropped and said so; line 20, after the file answered, is kept.
+    // 0 to 19 went over with the file stalled (the thread held pump 0, pumps 1 to 4 waited), so
+    // pumps 5 to 19 are dropped and said so in one line; line 20, after the file answered and
+    // the queue emptied, is kept.
     let mut next = 0u64;
     let mut said = Vec::new();
     let mut k = 0;
@@ -805,12 +812,7 @@ fn a_stalled_log_drops_whole_pumps_and_says_how_many() {
         k += 2;
     }
     assert_eq!(next, 30, "every pump kept or counted: {got}");
-    let before_20: u64 = said
-        .iter()
-        .filter(|(from, _)| *from < 20)
-        .map(|(_, n)| n)
-        .sum();
-    assert!(before_20 >= 15, "{said:?}");
+    assert_eq!(said.first(), Some(&(5, 15)), "{said:?}");
     assert!(got.contains("raw 21 20 line 20\n"));
     let tail = &lines[lines.len() - 2..];
     assert!(
