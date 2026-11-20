@@ -300,7 +300,7 @@ mod tests {
     }
 
     /// Motion short of the distance to the edge, motion in a pump that also brings a cursor
-    /// event, and no motion at all are not reported.
+    /// event (before it or after it), and no motion at all are not reported.
     #[test]
     fn short_motion_or_a_cursor_event_is_not_reported() {
         let mut l = started_at(500.0, 360.0);
@@ -315,6 +315,18 @@ mod tests {
         for _ in 0..20 {
             assert_eq!(l.pump_end(), None);
         }
+        // motion after the cursor event of its pump does not make that pump silent: one whole
+        // silent pump follows, not two
+        let mut l = Leave::default();
+        l.start(960.0, 720.0);
+        l.cursor(936.0, 490.0);
+        l.motion(60.0, 0.0);
+        assert_eq!(l.pump_end(), None);
+        assert_eq!(silent(&mut l, 1, 60.0, 0.0), [None]);
+        assert!(
+            silent(&mut l, 1, 60.0, 0.0)[0].is_some(),
+            "the second whole one"
+        );
     }
 
     /// The next cursor event re-arms the detector: a second run off an edge is reported again.
