@@ -119,7 +119,14 @@ impl Play {
     }
 
     /// The player quits (or the window closes): the app's save on quit, then the run's end.
+    /// Nothing once the run has ended (review 4, R1): the writer is closed then, so a second
+    /// save on quit (the window's Drop after its quit event, or `--quit-after` in a later
+    /// update) could only fail with "the session writer was closed" and replace the outcome
+    /// the run's end settled into the app.
     pub(crate) fn quit(&mut self) {
+        if self.closed.is_some() {
+            return;
+        }
         self.app.quit(&mut self.host);
         self.end_run();
     }
