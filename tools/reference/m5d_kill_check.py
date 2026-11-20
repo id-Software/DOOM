@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """M5d: kill doom-play's real session code at random points and check every surviving demo against the genuine engine.
 
-The owner's requirement (M5d step A3): at every instant the session file on disk is a valid demo of every tic executed
-so far, or of every tic but the last, with the end marker the original needs to replay it safely (DEMOMARKER 0x80,
+The owner's requirement (M5d step A3): at every instant the session file on disk is a valid demo of a prefix of the
+session, with the end marker the original needs to replay it safely (DEMOMARKER 0x80,
 linuxdoom-1.10/g_game.c:1488, which G_ReadDemoTiccmd tests at the start of each tic, g_game.c:1493; without it the
 playback reads past the demo lump, which W_CacheLumpNum allocated at exactly the lump's length, w_wad.c:490).
 
@@ -11,9 +11,13 @@ The tool
   1. builds doom-play's test executable in release (cargo test --release --no-run) and runs its kill test,
      crates/doom-play/src/kill_tests.rs `sigkill_at_random_points_leaves_valid_demos`, with DOOM_PLAY_KILLS=K and
      DOOM_PLAY_KILL_KEEP=<work>/kills, so every kill's surviving files are kept (kNNNN/). That test spawns its own
-     executable playing the real App with the real FsHost (sound discarded) on a seeded input script with restarts,
-     SIGKILLs it after a random delay and already requires every surviving .lmp to parse, to replay headless with no
-     refusal, to match the child's command digests and to hold M-1 or M tics (M the last tic count the child printed);
+     executable playing the real App with doom-play's real session writer (WriterHost: the writer thread over FsHost's
+     directory; sound discarded) on a seeded input script with restarts, SIGKILLs it after a random delay and already
+     requires every surviving .lmp to parse, to replay headless with no refusal, to match the child's command digests
+     and to hold between W and M tics (M the last tic count the child printed, W the tics of the writer's last
+     completed write it printed; exactly M once a later session's claim completed), with the session running at the
+     kill at most the kill test's lag bound behind (DOOM_PLAY_KILL_MAX_LOST, passed through from this tool's
+     environment, sets or lifts it);
   2. runs the M5c session check on every surviving .lmp: tools/local/m5c_session_real.py's `verify` (imported, not
      copied), called the way its --synthetic path calls it: the demo replayed by linuxdoom-1.10 built with its
      in-process sound code (one define removed) in the strict, overflow and address variants (address runs use

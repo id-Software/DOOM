@@ -130,7 +130,10 @@ how full the sound queue was when they came, and the gaps (underruns) and overru
 Session files: the demo is written by a thread of its own, so a slow disk never holds up
 the game; a session ended without its quit (Ctrl+C, a closed window or console, a lost
 display connection) leaves a valid demo of every tic but those still waiting to be written.
-On a normal quit everything is written first. On exit, a line starting \"session file
+On a normal quit everything is written first. When a session ends, the game waits up to 2 s
+for its demo to be written before the end screen appears; if the disk has not answered, the
+end screen says the demo is not written yet until it is. A failed last write shows there
+and on the pause box, and R and Q write it again. On exit, a line starting \"session file
 writes\" counts the writes, gives the longest in milliseconds and the most tics that waited,
 and with --input-log a line starting \"input log writes\" does the same for the log; with
 --tic-stats a line lists every write that took more than 20 ms. At start, temporary files

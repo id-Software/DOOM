@@ -53,9 +53,11 @@
 //!   `SIGKILL` either prevents it or lets it finish. A write that straddles a 4096-byte boundary
 //!   can be cut between its two folios. The marker's offset is 13 + 4·N, which is 1 mod 4, so
 //!   the five bytes straddle a boundary exactly when the offset is 4093 mod 4096 (once every
-//!   1,024 tics): there [`append_fits_one_page`] says no and [`append`] declines, and the app
-//!   rewrites the file whole through [`save`] (a synced temporary and a rename, atomic by the
-//!   rename). The one remaining way the kernel loop can stop inside a folio is a short copy from
+//!   1,024 tics): there [`append_fits_one_page`] says no. In play the session writer then
+//!   rewrites the file whole itself, unsynced, through [`save_with`] (a new temporary file and a
+//!   rename, atomic by the rename); the synchronous [`crate::FsHost`]'s [`append`] declines and the
+//!   app rewrites the file whole through [`save`] (the same, synced). The one remaining way the
+//!   kernel loop can stop inside a folio is a short copy from
 //!   the caller's buffer (a fault on the five source bytes, which the app has just written and
 //!   which are resident): not expected.
 //! - **What the tests show.** Deterministic unit tests pin what the code does: one `write` call
@@ -63,8 +65,10 @@
 //!   file renamed over it, never the old one written), and a claim whose name appears as the
 //!   temporary file (the hard link) or, where the link fails, through the fallback. The kill test
 //!   (`kill_tests`) and `tools/reference/m5d_kill_check.py` are evidence for the steady state: no
-//!   gross fault (a file that falls behind, loses its marker or replays differently) in the
-//!   kills they make. The kill test's self-test shows that it catches a torn append whose two
+//!   gross fault (a file that loses its marker, replays differently, holds fewer tics than the
+//!   writer had reported written or more than were run, or lags the game by more than the kill
+//!   test's lag bound, three times the writer's queue bound, which a slow disk can exceed without
+//!   a fault) in the kills they make. The kill test's self-test shows that it catches a torn append whose two
 //!   writes are a millisecond apart; a kill cannot be aimed inside a window of microseconds, so
 //!   neither is evidence for the all-or-nothing property itself, which rests on the kernel as
 //!   above.
