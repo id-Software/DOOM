@@ -27,11 +27,28 @@
 //! headless by [`replay`] to its last command with no refusal; its commands' digest equal to the
 //! one printed at its tic count; between the last W and the last M printed for its session
 //! (exactly M once a later session's claim completed); missing only before its claim completed;
-//! a file whose claim line was not printed holds 0 tics and is the only such file. Leftover
-//! `*.tmp` files are counted (they are not demos); any other file fails the test. The summary
-//! gives the tics lost by the session running at each kill (M minus the tics in its file) as a
-//! distribution. The child runs far faster than 35 tics a second, so its lag is larger than in
-//! play: the distribution is the worst case of this machine's disk, not the player's.
+//! a file whose claim line was not printed holds 0 tics and is the only such file; and the **lag
+//! bound** (review 3, m1): the session running at the kill, once its claim completed, has lost at
+//! most [`MAX_LOST`] tics (M minus the tics in its file). Leftover `*.tmp` files are counted
+//! (they are not demos); any other file fails the test. The summary gives the tics lost by the
+//! session running at each kill as a distribution, and the bound applied. The child runs far
+//! faster than 35 tics a second, so its lag is larger than in play: the distribution is the worst
+//! case of this machine's disk, not the player's.
+//!
+//! **The lag bound.** [`MAX_LOST`] is three times the writer's queue bound
+//! ([`crate::session_writer::QUEUE_TICS`], 175 tics). While the writer keeps up, M minus the tics
+//! in the file is at most the tics queued, so at most 176 (the queue's 175 and the tic printed
+//! before the app hands it over); the bound is reached only after the queue has filled and the app
+//! has fallen back to whole demos for 350 more tics, that is when the writer has made no progress
+//! for as long as the child takes to play 525 tics (about 0.75 s for this machine's debug child,
+//! about 0.2 to 0.3 s for its release child). Observed at `3957cf0` on this machine's ext4, in
+//! release: at most 77 tics lost over 2,000 random kills and at most 63 in kills aimed within
+//! 60 ms of the first page-boundary or periodic rewrite, so a healthy temporary directory meets it
+//! more than six times over; a writer that has stopped exceeds it as soon as the child has played
+//! 525 tics past the stop (the `stall` self-test). Kills before the session's claim completed are
+//! not bound by it (the claim's flushed temporary file can take long on a slow disk, and the file
+//! does not exist yet). On a slow disk (WSL's `/mnt/d` over 9p, observed up to hundreds of tics)
+//! give `DOOM_PLAY_KILL_MAX_LOST`.
 //!
 //! Environment: `DOOM_PLAY_KILLS` (default 50), `DOOM_PLAY_KILL_MAX_MS` (the longest ordinary
 //! delay, default 400), `DOOM_PLAY_KILL_LONG_MS` (a tenth of the kills wait 1 s plus up to this,
@@ -47,17 +64,27 @@
 //! directory, for example on another disk: the kills' directories `kNNNN/` are made there and
 //! kept, and the test deletes nothing; a `kNNNN/` that already exists fails the run, so give it a
 //! new, empty directory each time; it takes precedence over `DOOM_PLAY_KILL_KEEP`) and
-//! `DOOM_PLAY_KILL_PLANT` (a planted fault in the child, for the self-test only: `torn` makes the
-//! writer's appends two writes per tic, the tic's four bytes and then the marker, [`TORN_GAP`]
-//! apart, instead of doom-play's one write; the test must then fail). One summary line goes to
-//! standard output (seen with `--nocapture`).
+//! `DOOM_PLAY_KILL_MAX_LOST` (the lag bound in tics, default [`MAX_LOST`], or `none` to lift it;
+//! the summary line says which) and `DOOM_PLAY_KILL_PLANT` (a planted fault in the child, for the
+//! self-tests only, after which the test must fail: `torn` makes the writer's appends two writes
+//! per tic, the tic's four bytes and then the marker, [`TORN_GAP`] apart, instead of doom-play's
+//! one write; `early` makes every file operation [`EARLY_DELAY`] slow and the child print W
+//! [`EARLY_BY`] tics too high, capped at M − 1; `stall` makes the writer stop for good after
+//! [`STALL_AFTER`] file operations). One summary line goes to standard output (seen with
+//! `--nocapture`).
 //!
-//! **Self-test** ([`a_torn_append_fails_the_kill_test`]): the parent runs aimed kills with the
-//! `torn` plant and requires a failure of the file check (a `.lmp` that is not a valid demo), so
-//! the harness is shown to fail when the file can be torn. It shows that the checks catch a torn
-//! file when a kill lands in a gap of a millisecond; a kill cannot be aimed inside the
-//! microseconds of a real two-write append, which is why the one write is pinned by the
-//! deterministic tests in `session_file` instead.
+//! **Self-tests** (each run by default; each stops at its first failure, which it requires):
+//! - [`a_torn_append_fails_the_kill_test`]: aimed kills with the `torn` plant must leave a `.lmp`
+//!   that is not a valid demo, so the harness is shown to fail when the file can be torn. It shows
+//!   that the checks catch a torn file when a kill lands in a gap of a millisecond; a kill cannot
+//!   be aimed inside the microseconds of a real two-write append, which is why the one write is
+//!   pinned by the deterministic tests in `session_file` instead.
+//! - [`a_w_printed_too_high_fails_the_kill_test`]: with the `early` plant a file must hold fewer
+//!   tics than the W printed for it (the W rule; on a healthy disk the writer keeps up so closely
+//!   that a W a few tics too high, capped below M, is rarely contradicted, hence the slow
+//!   operations).
+//! - [`a_stopped_writer_fails_the_lag_bound`]: with the `stall` plant, kills aimed at tic 1,000
+//!   must exceed the lag bound.
 //!
 //! **What a run reaches depends on where and how it runs.** Whether kills land inside the claim
 //! of a session's file or inside a whole rewrite depends on the temporary directory's file system
@@ -91,9 +118,18 @@ const SEED: &str = "DOOM_PLAY_KILL_SEED";
 const WADS: &str = "DOOM_PLAY_KILL_WADS";
 const MAP: &str = "DOOM_PLAY_KILL_MAP";
 const PLANT: &str = "DOOM_PLAY_KILL_PLANT";
+const MAX_LOST_VAR: &str = "DOOM_PLAY_KILL_MAX_LOST";
 /// The pause between the two writes of the `torn` plant's append: wide enough that aimed kills
 /// land in it.
 const TORN_GAP: Duration = Duration::from_millis(1);
+/// The `early` plant's delay before each file operation, so that the writer lags by a few tics.
+const EARLY_DELAY: Duration = Duration::from_millis(5);
+/// How many tics too high the `early` plant prints W (capped at M − 1).
+const EARLY_BY: u64 = 3;
+/// The file operations the `stall` plant's writer makes before it stops for good.
+const STALL_AFTER: u64 = 40;
+/// The lag bound by default (see the module documentation): three times the writer's queue bound.
+const MAX_LOST: u64 = 3 * crate::session_writer::QUEUE_TICS;
 /// The signal `Child::kill` sends on Unix (`SIGKILL`, 9 on Linux and macOS).
 const SIGKILL: i32 = 9;
 /// The child's name as the test harness selects it.
@@ -186,6 +222,55 @@ struct ChildHost {
     out: std::io::Stdout,
     name: String,
     hash: u64,
+    /// The `early` plant: W printed [`EARLY_BY`] too high, capped at M − 1.
+    early: bool,
+}
+
+/// The `early` and `stall` plants' file operations (the self-tests only, never doom-play's):
+/// doom-play's own, each after `delay`; after `stall_after` operations the writer stops for good.
+struct PlantIo {
+    delay: Duration,
+    stall_after: Option<u64>,
+    made: u64,
+}
+
+impl PlantIo {
+    fn before(&mut self) {
+        if self.stall_after.is_some_and(|n| self.made >= n) {
+            loop {
+                std::thread::sleep(Duration::from_secs(3_600));
+            }
+        }
+        self.made += 1;
+        std::thread::sleep(self.delay);
+    }
+}
+
+impl SessionIo for PlantIo {
+    fn claim(&mut self, dir: &Path, name: &str, bytes: &[u8]) -> Result<Claim, String> {
+        self.before();
+        RealIo.claim(dir, name, bytes)
+    }
+    fn rewrite(
+        &mut self,
+        dir: &Path,
+        name: &str,
+        bytes: &[u8],
+        synced: bool,
+    ) -> Result<(), String> {
+        self.before();
+        RealIo.rewrite(dir, name, bytes, synced)
+    }
+    fn append(
+        &mut self,
+        dir: &Path,
+        name: &str,
+        at: u64,
+        tails: &[[u8; 5]],
+    ) -> Result<bool, String> {
+        self.before();
+        RealIo.append(dir, name, at, tails)
+    }
 }
 
 /// The `torn` plant's file operations (the self-test only, never doom-play's): the claim and the
@@ -283,11 +368,14 @@ impl Host for ChildHost {
     /// `-` before its claim completed. Printed before the app hands tic M to the writer.
     fn tic(&mut self, r: &TicReport<'_>) {
         self.hash = fnv_step(self.hash, &write_ticcmd_bytes(&r.executed));
+        let m = r.tic + 1;
+        let early = self.early;
         let w = self
             .fs
             .written(&self.name)
+            .map(|w| if early { (w + EARLY_BY).min(m - 1) } else { w })
             .map_or_else(|| "-".to_string(), |w| w.to_string());
-        let line = format!("@tic {} {} {:016x} {w}\n", self.name, r.tic + 1, self.hash);
+        let line = format!("@tic {} {m} {:016x} {w}\n", self.name, self.hash);
         self.line(line);
     }
     fn audio(&mut self) -> Option<&mut dyn AudioSink> {
@@ -325,10 +413,21 @@ fn child_session() {
         .ok()
         .and_then(|s| s.parse().ok())
         .unwrap_or(1);
-    let torn = match std::env::var(PLANT) {
-        Err(_) => false,
-        Ok(p) if p == "torn" => true,
-        Ok(p) => panic!("{PLANT}={p}: the only plant is torn"),
+    let plant = std::env::var(PLANT).ok();
+    let io: Box<dyn SessionIo> = match plant.as_deref() {
+        None => Box::new(RealIo),
+        Some("torn") => Box::new(TornIo),
+        Some("early") => Box::new(PlantIo {
+            delay: EARLY_DELAY,
+            stall_after: None,
+            made: 0,
+        }),
+        Some("stall") => Box::new(PlantIo {
+            delay: Duration::ZERO,
+            stall_after: Some(STALL_AFTER),
+            made: 0,
+        }),
+        Some(p) => panic!("{PLANT}={p}: the plants are torn, early and stall"),
     };
     let mut rng = Rng(seed);
     let data = load();
@@ -336,16 +435,12 @@ fn child_session() {
         dir: PathBuf::from(dir),
         audio: Output::Discard(Discard::default()),
     };
-    let io: Box<dyn SessionIo> = if torn {
-        Box::new(TornIo)
-    } else {
-        Box::new(RealIo)
-    };
     let mut host = ChildHost {
         fs: WriterHost::with_io(fs, io, Box::new(|line| eprintln!("{line}"))).expect("the writer"),
         out: std::io::stdout(),
         name: String::new(),
         hash: FNV0,
+        early: plant.as_deref() == Some("early"),
     };
     // after a newline: the harness has printed "test kill_tests::child_session ... " unended
     host.line("\n@start\n".into());
@@ -444,6 +539,19 @@ struct Stats {
     past_page_rewrite: u64,
 }
 
+/// The lag bound: `DOOM_PLAY_KILL_MAX_LOST` (tics, or `none` to lift it), else [`MAX_LOST`].
+fn max_lost() -> Option<u64> {
+    match std::env::var(MAX_LOST_VAR) {
+        Err(_) => Some(MAX_LOST),
+        Ok(v) if v.trim() == "none" => None,
+        Ok(v) => Some(
+            v.trim()
+                .parse()
+                .unwrap_or_else(|_| panic!("{MAX_LOST_VAR}={v}: give a number of tics, or none")),
+        ),
+    }
+}
+
 fn env_u64(name: &str, default: u64) -> u64 {
     std::env::var(name)
         .ok()
@@ -484,8 +592,16 @@ impl Host for Quiet {
 /// claim completed, so the writer, which works in order, had finished every write of the earlier
 /// sessions), exactly M. A session's file may be missing only while no W was printed for it or
 /// for a later session (its claim had not completed). A file whose claim line was not printed
-/// holds 0 tics and is the only one.
-fn check(dir: &Path, lines: &[String], data: &GameData, stats: &mut Stats) -> Result<(), String> {
+/// holds 0 tics and is the only one. The session running at the kill, if its claim completed
+/// (a W was printed for it) and it had not ended, has lost at most `max_lost` tics (its last
+/// printed count minus the tics in its file), unless the bound is lifted (`None`).
+fn check(
+    dir: &Path,
+    lines: &[String],
+    data: &GameData,
+    max_lost: Option<u64>,
+    stats: &mut Stats,
+) -> Result<(), String> {
     let mut sessions: Vec<(String, Logged)> = Vec::new();
     let mut last_event = "";
     let mut claim_pending = false;
@@ -592,10 +708,18 @@ fn check(dir: &Path, lines: &[String], data: &GameData, stats: &mut Stats) -> Re
         } else {
             s.written.unwrap_or(0)
         };
-        if !(least..=most).contains(&tics) {
+        if tics < least {
             return Err(format!(
-                "{name}: {tics} tics, allowed {least} to {most} (last printed {}, W {:?}, ended \
-                 {:?}, a later claim completed {})",
+                "{name}: {tics} tics, fewer than the {least} the child reported written (the W \
+                 rule; allowed {least} to {most}; last printed {}, W {:?}, ended {:?}, a later \
+                 claim completed {})",
+                s.last, s.written, s.ended, completed[i]
+            ));
+        }
+        if tics > most {
+            return Err(format!(
+                "{name}: {tics} tics, more than the {most} the child ran (allowed {least} to \
+                 {most}; last printed {}, W {:?}, ended {:?}, a later claim completed {})",
                 s.last, s.written, s.ended, completed[i]
             ));
         }
@@ -621,7 +745,16 @@ fn check(dir: &Path, lines: &[String], data: &GameData, stats: &mut Stats) -> Re
             let held = lmps
                 .get(name)
                 .map_or(0, |b| (b.len() as u64).saturating_sub(14) / 4);
-            *stats.lost.entry(s.last.saturating_sub(held)).or_default() += 1;
+            let lost = s.last.saturating_sub(held);
+            *stats.lost.entry(lost).or_default() += 1;
+            if let Some(bound) = max_lost.filter(|&b| s.written.is_some() && lost > b) {
+                return Err(format!(
+                    "{name}: {lost} tics lost at the kill (last printed tic {}, {held} in its \
+                     file), more than the lag bound of {bound} (DOOM_PLAY_KILL_MAX_LOST sets it \
+                     or lifts it with none)",
+                    s.last
+                ));
+            }
         }
     }
     Ok(())
@@ -757,6 +890,8 @@ struct Kills {
     never_delete: bool,
     base: PathBuf,
     plant: Option<String>,
+    /// The lag bound in tics, `None` when lifted.
+    max_lost: Option<u64>,
 }
 
 /// How a run of kills failed.
@@ -782,7 +917,7 @@ fn run_kills(k: &Kills, data: &GameData) -> Result<Stats, Failure> {
             let mut stats = Stats::default();
             for (seed, dir, killed) in queue {
                 stats.kills += 1;
-                check(&dir, &killed.lines, data, &mut stats).map_err(|e| {
+                check(&dir, &killed.lines, data, k.max_lost, &mut stats).map_err(|e| {
                     Failure::Check(format!(
                         "seed {seed} (files kept in {}): {e}; {}",
                         dir.display(),
@@ -868,6 +1003,12 @@ fn sigkill_at_random_points_leaves_valid_demos() {
         never_delete: fixed.is_some(),
         base: std::env::temp_dir().join(format!("doom-play-kill-{}", std::process::id())),
         plant: std::env::var(PLANT).ok(),
+        max_lost: max_lost(),
+    };
+    let bound = match (k.max_lost, std::env::var_os(MAX_LOST_VAR).is_some()) {
+        (None, _) => "lifted (DOOM_PLAY_KILL_MAX_LOST=none)".to_string(),
+        (Some(b), true) => format!("{b} tics (DOOM_PLAY_KILL_MAX_LOST)"),
+        (Some(b), false) => format!("{b} tics (the default)"),
     };
     let data = load();
     let clock = Instant::now();
@@ -876,8 +1017,8 @@ fn sigkill_at_random_points_leaves_valid_demos() {
     println!(
         "kill test: {} kills (seeds {}..{}), {} files checked holding {} tics (longest {}, \
          {} past the first page-boundary rewrite), landed {:?}, tics lost by the session running \
-         at the kill (M minus the tics in its file: kills) {:?}, kills that left no .lmp {}, \
-         leftover .tmp {}, aimed at {}, {:.1} s",
+         at the kill (M minus the tics in its file: kills) {:?}, lag bound {bound}, kills that \
+         left no .lmp {}, leftover .tmp {}, aimed at {}, {:.1} s",
         stats.kills,
         k.seed0,
         k.seed0 + k.kills,
@@ -915,6 +1056,7 @@ fn a_torn_append_fails_the_kill_test() {
         never_delete: false,
         base: base.clone(),
         plant: Some("torn".into()),
+        max_lost: Some(MAX_LOST),
     };
     let data = load();
     match run_kills(&k, &data) {
@@ -930,6 +1072,84 @@ fn a_torn_append_fails_the_kill_test() {
         Ok(stats) => panic!(
             "the torn append was not caught in {} kills ({} files checked, landed {:?})",
             stats.kills, stats.files, stats.landed
+        ),
+    }
+}
+
+/// The second self-test (review 3, m1): with the `early` plant every file operation is
+/// [`EARLY_DELAY`] slow, so the writer lags by a few tics, and the child prints W [`EARLY_BY`]
+/// tics too high (capped at M − 1). Kills aimed just after the print of tic 300 must find a file
+/// holding fewer tics than the W printed for it. Up to 40 kills; the run stops at the first
+/// failure, which must be the W rule's.
+#[test]
+fn a_w_printed_too_high_fails_the_kill_test() {
+    let base = std::env::temp_dir().join(format!("doom-play-kill-early-{}", std::process::id()));
+    let k = Kills {
+        kills: 40,
+        max_ms: 1,
+        long_ms: 1,
+        at_tic: Some(300),
+        at_us: 500,
+        seed0: 1,
+        keep: None,
+        never_delete: false,
+        base: base.clone(),
+        plant: Some("early".into()),
+        max_lost: Some(MAX_LOST),
+    };
+    let data = load();
+    match run_kills(&k, &data) {
+        Err(Failure::Check(e)) => {
+            assert!(
+                e.contains("the child reported written (the W rule"),
+                "the early W was refused for another reason: {e}"
+            );
+            println!("kill test self-test: the early W was caught: {e}");
+            std::fs::remove_dir_all(&base).expect("the self-test's files");
+        }
+        Err(Failure::Harness(e)) => panic!("the self-test could not run its kills: {e}"),
+        Ok(stats) => panic!(
+            "the early W was not caught in {} kills ({} files checked, lost {:?})",
+            stats.kills, stats.files, stats.lost
+        ),
+    }
+}
+
+/// The third self-test (review 3, m1): with the `stall` plant the writer stops for good after
+/// [`STALL_AFTER`] file operations while the child plays on; kills aimed just after the print of
+/// tic 1,000 must exceed the lag bound ([`MAX_LOST`]). Up to 10 kills (a kill can land in a
+/// session begun after the stall, whose claim never completes and which the bound does not
+/// cover); the run stops at the first failure, which must be the lag bound's.
+#[test]
+fn a_stopped_writer_fails_the_lag_bound() {
+    let base = std::env::temp_dir().join(format!("doom-play-kill-stall-{}", std::process::id()));
+    let k = Kills {
+        kills: 10,
+        max_ms: 1,
+        long_ms: 1,
+        at_tic: Some(1_000),
+        at_us: 500,
+        seed0: 1,
+        keep: None,
+        never_delete: false,
+        base: base.clone(),
+        plant: Some("stall".into()),
+        max_lost: Some(MAX_LOST),
+    };
+    let data = load();
+    match run_kills(&k, &data) {
+        Err(Failure::Check(e)) => {
+            assert!(
+                e.contains("more than the lag bound of 525"),
+                "the stopped writer was refused for another reason: {e}"
+            );
+            println!("kill test self-test: the stopped writer was caught: {e}");
+            std::fs::remove_dir_all(&base).expect("the self-test's files");
+        }
+        Err(Failure::Harness(e)) => panic!("the self-test could not run its kills: {e}"),
+        Ok(stats) => panic!(
+            "the stopped writer was not caught in {} kills ({} files checked, lost {:?})",
+            stats.kills, stats.files, stats.lost
         ),
     }
 }
