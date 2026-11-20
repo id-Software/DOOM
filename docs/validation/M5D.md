@@ -1,14 +1,14 @@
 # M5d evidence record
 
-**Status (2026-11-20 09:52 PST):** **second round done after the owner's Windows session; the pull request stays a draft and waits for his retest
+**Status (2026-11-20 15:36 PST):** **second round done after the owner's Windows session; the pull request stays a draft and waits for his retest
 ([A8](#a8-the-owners-retest)).** The first round (A1 to A5; the owner's session plan is A6) is unchanged below. On 2026-11-20 the owner ran the
 `b374aaa` artifact on Windows ([A7](#a7-the-owners-windows-session-of-2026-11-20-and-the-second-round)): the launch capture failed in two of five
 launches, the 100% run lost three releases, and every stall in his logs came from file writes on a slow disk. In answer the code gained a
 re-grab of the cursor and a cursor-left report on Windows, writer threads for the session file and the input log (with a declared weakening of
-the kill guarantee), a settle step at a session's end, and a bound on the log's queue; a third independent review found one major defect,
-fixed. **Nothing is marked fixed: stuck fire stays a known fault, and the hitch and sound dropouts on a slow disk stay open, until the owner
-rules on his retest.** Placeholders for the final-head kill evidence, review 4, the gates and CI are marked `ORCH` in A7 and are filled by the
-orchestrator.
+the kill guarantee), a settle step at a session's end, and a bound on the log's queue. Three more independent reviews followed (3, 4 and 5):
+one major defect in the code, fixed, and one failing test on Windows, fixed; four notes are left open and listed. The final code head is
+`47cdd02`; the full gates ran at `d9cd771`, two test-only commits before it. **Nothing is marked fixed: stuck fire stays a known fault, and
+the hitch and sound dropouts on a slow disk stay open, until the owner rules on his retest.**
 
 Observed results of milestone M5d (play fixes from the owner's playtest of M5c). Only observations and the
 library-source readings behind each change appear here. The facts this milestone starts from are in the
@@ -948,7 +948,8 @@ writer thread, which makes the same operations of `session_file.rs` in order. `L
   gives one true line per session (earlier sessions one line each: saved at exit, not saved, or not written).
 - **At restart** the window does not wait (it cannot see the restart coming without duplicating the app's key map, and a 2 s wait on
   every key press while paused would freeze resuming); when the writer moves to the next claim it rewrites the previous session
-  whole once more if its file does not hold its copy, unless the last failure was already the app's own whole demo.
+  whole once more if its file does not hold its copy, unless its last write was already a failed retry of that same copy (a whole
+  demo written after an earlier failure, with no tic added since; review 4, R2).
 
 **Exact new texts** (each after `doom-play: `). On exit: `session file writes: N (claims C, appends A of T tics[, D appends declined],
 whole rewrites S synced and U unsynced), F failed; longest X.Y ms (KIND at tic K); at most W tics waiting`; with `--input-log`:
@@ -969,7 +970,7 @@ whole rewrites S synced and U unsynced), F failed; longest X.Y ms (KIND at tic K
 | Condition | How it is met |
 | --- | --- |
 | The old and the new statement side by side | The table above, and COMPATIBILITY's one sentence |
-| The lag distribution measured: ext4, and `/mnt/d` random and aimed | [Kill evidence](#kill-evidence) below (preliminary at `3957cf0`; the final head is an `ORCH` placeholder) |
+| The lag distribution measured: ext4, and `/mnt/d` random and aimed | [Kill evidence](#kill-evidence) below (at `3957cf0`, `f7b45a2` and the final code head `d9cd771`) |
 | A visible exit line | `session file writes: ... at most W tics waiting`, and the `--tic-stats` list of writes over 20 ms |
 | Quit drains | `finish` drains every write handed over; the session-end settle and quit are tested with a real `App` |
 | A bounded queue | 175 tics for the session file, 1,024 pumps for the log; a test with the disk stalled checks the queue and the one snapshot |
@@ -1039,7 +1040,69 @@ WSL; the owner calls `D:` an HDD; this record does not state what it is.
   within 1) and at most 77 behind. Through `/mnt/d` it was typically 6 to 20 tics behind and up to 424 (random) or 174 (aimed): the
   lag the owner accepted is of that order for a slow disk. The lag bound of 525 tics did not exist at `3957cf0`; the largest of these, 424, is under it by 101 tics, so a `/mnt/d` run needs `DOOM_PLAY_KILL_MAX_LOST` set or lifted if it is to pass on a slower moment. Measured here only for the test child, not for play.
 
-<!-- ORCH: kill evidence at the final head -->
+**Runs on the code of `f7b45a2`** (after the fixes of review 3; the tree was at `489f912`, which adds documentation only; release build,
+one machine, in sequence, 2026-11-20 09:49 to 11:36 PST; the fix and review agents were building and testing on the machine during
+it). First the kill test (the Rust checker), with the same seeds and aims as the preliminary runs; `/mnt/d` under
+`/mnt/d/DoomSessions/m5d-kills2`, with the lag bound lifted (`DOOM_PLAY_KILL_MAX_LOST=none`); the ext4 runs kept the default bound of
+525 tics. All nine passed.
+
+| File system | Aim | Kills | Files / tics | Lost 0 | 1 | 2 to 5 | 6 to 20 | More | Max | Kills with no `.lmp` |
+| --- | --- | ---: | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| ext4 | none (random) | 2,000 | 2,096 / 798,593 | 1,683 | 278 | 22 | 1 | 12 | 244 | 421 |
+| ext4 | tic 1,021, 0 to 3 ms | 200 | 397 / 299,019 | 178 | 22 | 0 | 0 | 0 | 1 | 0 |
+| ext4 | tic 1,050, 0 to 3 ms | 200 | 409 / 314,426 | 0 | 36 | 164 | 0 | 0 | 5 | 0 |
+| ext4 | tic 1, 0 to 3 ms | 200 | 51 / 182 | 36 | 54 | 110 | 0 | 0 | 5 | 149 |
+| ext4 | tic 1,021, 0 to 60 ms | 150 | 297 / 223,120 | 109 | 29 | 6 | 4 | 2 | 55 | 0 |
+| ext4 | tic 1,050, 0 to 60 ms | 150 | 305 / 234,854 | 120 | 19 | 9 | 2 | 0 | 7 | 0 |
+| `/mnt/d` | none (random) | 300 | 250 / 90,066 | 9 | 1 | 16 | 113 | 113 | **620** | 98 |
+| `/mnt/d` | tic 1,021, 0 to 60 ms | 100 | 188 / 144,692 | 0 | 0 | 4 | 49 | 47 | 128 | 0 |
+| `/mnt/d` | tic 1,050, 0 to 60 ms | 100 | 196 / 152,738 | 0 | 0 | 2 | 18 | 80 | 121 | 0 |
+
+Then **the genuine engine** (`tools/reference/m5d_kill_check.py`, two jobs, ext4): every demo that survived a kill went through the
+session check (the genuine engine against Rust, tic for tic; strict, overflow and address variants, the last with leak detection
+disabled, so it is not LeakSanitizer coverage).
+
+| Set | Kills | Surviving demos / tics | Genuine session check |
+| --- | ---: | --- | --- |
+| Synthetic, random, with the self-check | 200 | 221 / 101,156 | 221 PASS, 0 FAIL; `SELF-CHECK: PASS` |
+| Synthetic, aimed at tic 1,021 (0 to 60 ms) | 30 | 63 / 46,958 | 63 PASS, 0 FAIL |
+| IWAD copy, random, with the self-check | 50 | 49 / 10,356 | 49 PASS, 0 FAIL; `SELF-CHECK: PASS` |
+| IWAD copy, random, sessions up to 8 s | 200 | 250 / 120,539 | 250 PASS, 0 FAIL |
+| IWAD copy, aimed at tic 1,021 (0 to 60 ms) | 30 | 55 / 40,813 | 55 PASS, 0 FAIL |
+| IWAD copy, aimed at tic 1,050 (0 to 60 ms) | 30 | 55 / 42,171 | 55 PASS, 0 FAIL |
+| **Total** | **540** | **693 / 361,993** | **693 PASS, 0 FAIL** |
+
+**Runs on the final code head, `d9cd771`** (after the follow-ups of review 4; the kill test only, the Rust checker; release build, in
+sequence, alone on the machine apart from the orchestrator's own light work, 2026-11-20 11:37 to 12:08 PST; `/mnt/d` under
+`/mnt/d/DoomSessions/m5d-kills3`, bound lifted). All nine passed. **The genuine-engine sets above were not repeated on this head**;
+the genuine-engine kill check on this head is the gates' own (100 synthetic and 50 IWAD kills, in the gates table).
+
+| File system | Aim | Kills | Files / tics | Lost 0 | 1 | 2 to 5 | 6 to 20 | More | Max | Kills with no `.lmp` |
+| --- | --- | ---: | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| ext4 | none (random) | 2,000 | 2,196 / 919,679 | 1,692 | 282 | 24 | 1 | 1 | 117 | 412 |
+| ext4 | tic 1,021, 0 to 3 ms | 200 | 397 / 299,052 | 174 | 26 | 0 | 0 | 0 | 1 | 0 |
+| ext4 | tic 1,050, 0 to 3 ms | 200 | 409 / 314,428 | 0 | 30 | 170 | 0 | 0 | 5 | 0 |
+| ext4 | tic 1, 0 to 3 ms | 200 | 53 / 203 | 39 | 60 | 101 | 0 | 0 | 4 | 147 |
+| ext4 | tic 1,021, 0 to 60 ms | 150 | 299 / 223,602 | 121 | 20 | 7 | 2 | 0 | 6 | 0 |
+| ext4 | tic 1,050, 0 to 60 ms | 150 | 305 / 234,944 | 118 | 22 | 9 | 1 | 0 | 7 | 0 |
+| `/mnt/d` | none (random) | 300 | 262 / 97,059 | 10 | 2 | 7 | 125 | 109 | 206 | 94 |
+| `/mnt/d` | tic 1,021, 0 to 60 ms | 100 | 188 / 144,508 | 0 | 0 | 1 | 53 | 46 | 197 | 0 |
+| `/mnt/d` | tic 1,050, 0 to 60 ms | 100 | 196 / 152,448 | 0 | 0 | 2 | 19 | 79 | 211 | 0 |
+
+- Where a row's lost counts add up to fewer than its kills, the rest landed in a claim, before any file existed (4 of the ext4
+  random kills at `f7b45a2`; 48 and 47 of the `/mnt/d` random kills).
+- **Reading.** On ext4 the file was within one tic of the last printed tic in 1,974 of 2,000 random kills at the final head (1,961
+  at `f7b45a2`), and at most 117 behind (244 at `f7b45a2`, measured while other jobs loaded the machine). Aimed inside the synced
+  whole save at tic 1,050 the file is 1 to 5 tics behind: the appends wait behind that save on the writer thread, which is the
+  weakening in a small form. Through `/mnt/d` the file was typically 6 to 20 tics behind and up to 211 at the final head.
+- **One `/mnt/d` kill at `f7b45a2` found the file 620 tics behind, past the kill test's default lag bound of 525.** That run had the
+  bound lifted, so it passed; with the default bound it would have failed. It is the unbounded lag the new statement declares, seen
+  once in the 1,500 `/mnt/d` kills of the three runs (500 at each head): on a slow disk the bound of 525 is a test default,
+  not a guarantee. The file was still a valid demo and a prefix of the session.
+- The test child runs far faster than 35 tics a second, so every lag here is worse than play would give at the same disk speed;
+  **no lag was measured in play.** The owner's retest exit line (`at most W tics waiting`) gives the figure for his disk.
+- The `/mnt/d` directories `m5d-kills`, `m5d-kills2` and `m5d-kills3` under `/mnt/d/DoomSessions` were kept (nothing is deleted
+  under `/mnt`); they are the owner's to delete.
 
 ### Review 3
 
@@ -1083,7 +1146,57 @@ The window's own call of the settle step survived a plant (removing it): `Stage`
 calls is tested through `Play`. In `doom-game`, plants of no redraw, `retry_from` kept, and the claimed guard dropped were each caught
 by the five tests of `app_settle.rs`; a guard on the recorded demo proved redundant and was removed.
 
-<!-- ORCH: review 4 -->
+### Review 4 and its follow-ups
+
+- **Reviewer:** Claude Opus 5.5 (`claude-opus-5-5`), effort **xhigh** (set by the orchestrator at spawn), a fresh agent that wrote none
+  of the code. **Range:** `3957cf0..f7b45a2` (`crates/doom-play`, `App::settle_save`, the kill checker's docstring), in a scratch
+  worktree; probes and plants reverted. A kill-test job ran on the machine throughout, so nothing it timed is a measurement.
+- **Verdict:** **ready, with minor follow-ups; no blocker and no major finding.** Review 3's M1 is resolved: a failure of a session's
+  last writes reaches the app at the session's end, after a pause and at quit; no path blocks the loop while tics run; the reviewer
+  found no way to show DEMO SAVED for a file that does not hold every tic; no write goes over a name the process did not claim, and
+  no older demo over a newer one.
+- **What it ran:** format, Clippy, rustdoc and the 1.85.0 check on `doom-play` and `doom-game`; their tests in debug and release
+  (`doom-play` 105 passed, 2 ignored; `doom-game` 146 passed); the three self-tests, each failing its plant; three scratch probes;
+  plants; a comparison of 1,793 master test bodies (one differs, the comment change of A4, outside this range). **Not run:** the
+  other crates, Windows, macOS, the window code paths (read only), the genuine-engine kill check, sanitizers, fuzzing, mutation
+  testing, CI, any timing.
+
+| Finding | What it said | What was done (commits) |
+| --- | --- | --- |
+| R1 (minor) | A quit after the run had ended (the window's drop path) replaced the real failure reason in the exit line with "the session writer was closed" | `Play::quit` returns at once after the run's end (`b5c2b5f`); the reviewer's probe as a test (`c8b6edd`) |
+| R2 (minor) | The writer skipped its rewrite at the next claim after any failed whole demo, not only after the app's retry: a catch-up that failed after R with no poll between left the earlier file at 21 of 260 tics until exit | After a first failure the writer makes one more whole write of that session at the next claim; only a failed retry of the same copy is not repeated (`a81636b`). Review 5 found the limit: when two whole writes are already in flight and both fail, the second counts as that one write (N-a below); the probe as a test, both outcomes (`af1c359`) |
+| R3 (minor) | Three guards survived plants: the check that keeps a short file from being called saved, the zero-wait check of a paused poll, and the hand-over of an earlier session's failure | Three tests (`af1c359`); each plant again: 104 passed, 1 failed |
+| R4 (minor) | Two documentation lines stale at `f7b45a2` | Both reworded in `489f912` |
+| N2 (note) | The `stall` self-test's margin narrowed when the first write was slow | The plant now stops before the file would hold more than 200 tics, whatever the operations cost (`90f4710`) |
+| N5 (note) | A 50 ms wait in the log-bound test could flake | The test waits on a gate and asserts the dropped count exactly (`31f3706`) |
+| N4 (note) | After a retry whose later tics were not handed over, the pause box says LAST DEMO SAVE FAILED while the last write succeeded; the file is behind, and quit or restart writes it all | Left; the new R3 test pins it |
+| N6 (note) | If the writer thread panics, earlier sessions left behind are not rewritten at exit | **Not fixed** |
+
+### Review 5 (the follow-ups)
+
+- **Reviewer:** Claude Opus 5.5 (`claude-opus-5-5`), effort **xhigh** (set by the orchestrator at spawn), a fresh agent that wrote none
+  of the code. **Range:** `f7b45a2..d9cd771`, `crates/doom-play`, in a scratch worktree; plants reverted. The gates ran on the machine
+  at the same time; nothing was timed.
+- **Verdict:** **the code in the range is ready, with notes only; the head was not**, because the Windows leg of CI failed on
+  `d9cd771` in a test from before the range (W1). R1 and R2 are fixed; review 4's invariants still hold (the loop never waits on the
+  disk, no DEMO SAVED for a short file, no rename over a name not claimed, no older demo over a newer one, the queue bound).
+- **What it ran:** format (both workspaces) and Clippy; `doom-play` (109 passed, 2 ignored) and `doom-game` (146 passed) in debug and
+  release; the three self-tests, each failing its plant; plants C1, D, K, R1, four on R2, the revert of both fixes and N5, **each
+  killed by its test**; the five changed tests 100 times each (500 passes, 0 failures); 1,795 master test bodies compared (the one
+  known difference). **Not run:** the other crates, rustdoc, the 1.85.0 check, Windows or macOS locally, the window code, sanitizers,
+  fuzzing, mutation testing, the C generators.
+
+| Finding | What it said | What was done |
+| --- | --- | --- |
+| W1 (major, outside the range) | `each_earlier_session_left_behind_gets_one_line` (from `fd87e57`) expected `/s/a.lmp`; on Windows the joined path has a backslash, so the Windows test step failed on `d9cd771` (`doom-play` 100 passed, 1 failed) and every later Windows step did not run. The product code was right | The test builds its expected path from the platform's join (`7431dd2`) |
+| N-a | The rewrite at the next claim is one write, not a guarantee: with two whole writes in flight that both fail before the app hears of either, the earlier session's file stayed short (21 of 210 tics in a probe) through the next session and was saved only at exit | **Left as it is**; stated here and in the R2 row above. A kill during that next session would leave the earlier file short, still a valid demo |
+| N-b | Three plants of the new retry bookkeeping survive; they change how many write attempts are made, never the data. "Not rewritten again at once" has no test in the claim case | Left |
+| N-c | One wall-clock assertion in a new test (under 500 ms); it does not decide the outcome | Left |
+| N-d | The `stall` self-test would miss if the first claim took longer than the child's run to tic 1,000 (missed all 10 kills in release with a planted 1.5 s claim; caught in debug). Not a regression | Left |
+
+**`7431dd2` itself (one test's expected strings) was read by no reviewer.** Before it, Windows Clippy had stopped CI on `5855b36`
+(an unused `mut` off Unix in a test, `d9cd771`). **So no test of the second round's code had run on Windows until the CI run on
+`7431dd2`.**
 
 ### Local timing
 
@@ -1107,12 +1220,53 @@ show an improvement; they show that the change costs nothing here and that the e
 with every operation 200 ms slow; a loop that stays prompt with the disk stalled) are the evidence that the loop no longer waits. The
 owner's retest on `D:` measures his case. These figures predate the review-3 fixes and were not repeated at `f7b45a2`.
 
-<!-- ORCH: gates -->
+### Gates of the second round
+
+**Full workspace gates at `d9cd77194c5bcd2a6479f9ba95dd124a62795481`**, from a clean clone under `~/scratch/m5d/gates2` (ext4), by a
+gates agent (Claude Sonnet, effort medium; the docs-tools role), 2026-11-20 12:09 to 14:28 PST, with the commands of
+[A5](#full-workspace-gates). `HEAD` and a clean `git status` were checked at the start and end of every phase. Build jobs capped at 4
+and C reference jobs at 2; review 5 ran on the machine for the first part. `/mnt/c` showed 29 GB free at every check. The
+address-sanitized genuine C runs used `detect_leaks=0` (**not LeakSanitizer coverage**); the fuzz replays and campaigns used
+`detect_leaks=1`. **Every gate that ran passed.** No timing is claimed.
+
+| Gate | Result |
+| --- | --- |
+| Build, format (both workspaces), Clippy and rustdoc with warnings denied | passed, 0 warnings |
+| `cargo test --workspace --locked` | **1,976 passed, 0 failed, 6 ignored** (139 result lines) |
+| Release `doom-sim`, `doom-types` | **1,393 passed, 0 failed, 2 ignored** |
+| Release `doom-render`, `doom-sound`, `doom-game`, `doom-play` | **550 passed, 0 failed, 2 ignored** |
+| Rust 1.85.0, `cargo +1.85.0 test --workspace --locked` | **1,976 passed, 0 failed, 6 ignored**; the known dead-code warning only |
+| Job `stable`, Linux steps after the Rust gates | 64 steps passed; 3 non-Linux steps skipped as on CI |
+| Jobs `M5a genuine renderer`, `M5b genuine status bar, HUD and input`, `M5c genuine sound` | all steps passed, self-tests included |
+| README animations, `--check`; synthetic local tools; fuzz seed tools | identical; self-checks pass, planted faults caught |
+| Fuzz build, AddressSanitizer, target compiled only | 60 of 60 built |
+| Fuzz seed replays | 7 targets, all exit 0 |
+| Fuzz AddressSanitizer campaigns, 300 s each | 7 targets, no findings, 0 artifact files; **the other 53 targets were compiled only**; no fuzz target exists for `doom-play` |
+| Kill check through the genuine engine, synthetic (100 kills) | 122 files, 57,494 tics, **122 PASS, 0 FAIL**; `SELF-CHECK: PASS` |
+| Kill check through the genuine engine, IWAD copy (50 kills) | 48 files, 6,913 tics, **48 PASS, 0 FAIL**; `SELF-CHECK: PASS` |
+| Lost display, windowed `doom-play --no-sound` (display, SIGINT, SIGKILL; 4, 3 and 3 runs) | 10 of 10 PASS, no run without a demo |
+| Kill test, 500 kills, release, ext4 (the Rust checker) | passed; 501 files, 202,160 tics; lost 0 in 436 kills, 1 in 58, 2 or 3 in 5, 40 in 1; 120 kills left no `.lmp`; the three self-tests each failed their plant in the debug and release test runs |
+| The owner's 13 earlier session demos through the genuine engine | **13 of 13 `VERDICT: PASS`**, 27,146 tics |
+
+**After the gates, two commits changed test code only** (`7431dd2`, a path separator in one test's expected strings; `47cdd02`, a gate
+in place of a sleep in one test; see CI below). **The full gates were not repeated on them.** At the final code head
+`47cdd02df6dead5fe63b58c3b698cf787d2e10d9`, from a clean clone on ext4 (`~/scratch/m5d/gates2/ir`), the orchestrator ran:
+
+- **Instruction counts** (job `Simulation instruction counts`; the gates agent had left it for an idle machine): alone, load average
+  0.84 at the start, 14:30 PST: `threshold 3.0%: ok`, 9 workloads, largest increase +0.92%, malloc and realloc counts equal to the
+  baseline. It counts instructions, not time.
+- `cargo test --locked -p doom-play -p doom-game`, debug and release: **255 passed, 0 failed, 2 ignored** each; Clippy on the
+  workspace with warnings denied, format, and the 1.85.0 check of the two crates: clean. The changed test, 60 runs: 60 passed.
+
+**Not run in this round:** Windows and macOS locally (CI below is the only evidence); any audio device or played sound; any timing or
+benchmark of play (the Local timing table above predates the review fixes); local mutation testing at any head of this round (CI's workflow ran, below); LeakSanitizer
+coverage of the genuine C runs; `DOOM2.WAD`; the real-IWAD M5c tools beyond the 13 demos. Slips of the gates agent's harness (a wrong
+path for four fuzz seed-tool commands, re-run and passed) were not product failures.
 
 ### Gates, CI and the corrections to the earlier summary
 
-The full gates of A5 ran at `6e61fc8`; the second round's code (`b374aaa..f7b45a2`) has its own gates and CI, recorded below by the
-orchestrator when they have run. Until then no sentence of A5 is a claim about this round's code. The author-side checks the writer
+The full gates of A5 ran at `6e61fc8`; the second round's code has its own gates ([above](#gates-of-the-second-round)) and CI
+(below). No sentence of A5 is a claim about this round's code. The author-side checks the writer
 and fix agents ran (format, Clippy, doom-play and doom-game tests, MSRV `cargo check`, rustdoc, plants) were run on `doom-play` and
 `doom-game` only; the other crates are untouched by the round.
 
@@ -1123,10 +1277,36 @@ and fix agents ran (format, Clippy, doom-play and doom-game tests, MSRV `cargo c
   replay, digest, tic count). An earlier summary's larger figure of kills checked implied more than that.
 - **Fuzzing:** 60 targets built (AddressSanitizer, compiled only for 53 of them), 7 seed-replayed and 7 run as 300 s AddressSanitizer
   campaigns, 53 compiled only; no fuzz target exists for `doom-play`. This is A5's table; it ran at `6e61fc8`.
-- **The CI mutation workflow** (`mutants.yml`) ran on `e25388d` and `cdb11cc` (A5), and on no later head; it does not mutate
-  `doom-play`. Nothing in this record claims a mutation run at any later head.
+- **The CI mutation workflow** (`mutants.yml`) ran on `e25388d` and `cdb11cc` (A5) and, in this round, on `47cdd02` (below); it does
+  not mutate `doom-play`.
 
-<!-- ORCH: CI and artifact -->
+### CI, the mutation workflow and the Windows artifact of the second round
+
+**CI on the final code head, `47cdd02df6dead5fe63b58c3b698cf787d2e10d9`:** all nine jobs of
+[run 44829468285](https://github.com/Copgunn/DOOM/actions/runs/44829468285) passed: Detect changes, Stable on ubuntu-latest,
+windows-latest and macos-latest, Minimum Rust 1.85.0, Simulation instruction counts, and the M5a, M5b and M5c genuine-engine jobs.
+**It is the first run in which the second round's tests ran to the end on Windows.** The three runs before it failed, each on test code:
+
+| Head | What failed | Fix |
+| --- | --- | --- |
+| `5855b36` | Windows, Clippy: an unused `mut` off Unix in a test; the Windows build and tests did not run | `d9cd771` |
+| `d9cd771` | Windows, tests: a test expected `/s/a.lmp` where Windows joins with a backslash (`doom-play` 100 passed, 1 failed); later Windows steps did not run | `7431dd2` |
+| `7431dd2` | macOS, tests: `tics_queued_behind_a_failure_wait_for_the_retry` slept 15 ms to land inside a planted 60 ms delay, and the runner was slower than that (`doom-play` 108 passed, 1 failed). The test dated from the writer commits and had passed on macOS at `5855b36` and `d9cd771` | `47cdd02`: the writer is held at a gate instead |
+
+Runs on the heads between `b374aaa` and `5855b36` were cancelled by later pushes. Commits after `47cdd02` change documentation only and
+take CI's documentation fast path; the run on the final head is GitHub's record, linked from the pull request. **Other sleeps remain in
+the new tests** (review 5's N-c, and the timed opener in the quit tests of `closing_tests.rs`); none failed in these runs, and none was
+run as a flake campaign.
+
+**The CI mutation workflow** ran on `47cdd02` ([run 44830321031](https://github.com/Copgunn/DOOM/actions/runs/44830321031), started by
+re-adding the label): 24 shards, **37 mutants on the changed lines of `doom-game` (the workflow does not mutate `doom-play`): 36 caught,
+1 missed, 0 timed out, 0 unviable.** The missed one is `App::append`'s `n > 0` to `n >= 0`, the equivalent mutant of A5. Before this it
+had run on `e25388d` and `cdb11cc` only. **No mutation run of any kind covered `doom-play`'s second-round code** (the writer threads,
+the cursor code, the settle step); the reviewers' hand plants are the only fault-injection evidence for it.
+
+**The Windows artifact** for the owner's retest is built by the `Windows artifact` workflow on the final head of the pull request,
+after this record's commit; the run and the artifact are GitHub's record, linked from pull request
+[#64](https://github.com/Copgunn/DOOM/pull/64).
 
 ## A8. The owner's retest
 

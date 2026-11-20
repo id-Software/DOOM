@@ -2795,7 +2795,7 @@ self-tests, which use the system temporary directory, do not run there) and `DOO
 hundreds of tics). `DOOM_PLAY_KILL_CHILD_DIR` is set by the parent for
 the child; do not set it. `DOOM_PLAY_KILL_PLANT` is for the self-tests only (`torn`: the child's appends are two writes 1 ms
 apart; `early`: every file operation is 5 ms slow and the printed W is 3 too high, capped at M - 1; `stall`: the writer stops for good
-after 40 operations; any other value makes the child panic); do not set it for a real run. The parent requires that the child died by
+before the first file operation that would leave the file holding more than 200 tics; any other value makes the child panic); do not set it for a real run. The parent requires that the child died by
 `SIGKILL` and reports the tail of its standard error when it did not. The test writes under the system temporary directory (`TMPDIR`); a real disk there makes more
 kills land before the session file's first write than tmpfs does. The one summary line (seen with `--nocapture`) gives the files and
 tics checked, where the kills landed, the distribution of tics lost by the session running at each kill, the kills that left no
