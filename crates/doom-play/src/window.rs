@@ -8,8 +8,10 @@ use crate::FsHost;
 use crate::input_log::{InputLog, LoggedHost};
 use crate::keys::key_event;
 use crate::mouse_forward::Forward;
+use crate::session_writer::{Report, WriterHost};
 use crate::tic_stats::TicStats;
-use doom_game::app::{App, Mode, PICTURE_BYTES, SaveStatus, TICRATE, UNRECORDED_LABEL};
+use crate::write_stats::{self, WriteTimes};
+use doom_game::app::{App, Host, Mode, PICTURE_BYTES, SaveStatus, TICRATE, UNRECORDED_LABEL};
 use doom_game::input::MouseButton;
 use doom_render::{SCREENHEIGHT, SCREENWIDTH};
 use miniquad::conf::{Conf, LinuxBackend, Platform};
@@ -113,9 +115,10 @@ const HIGH_DPI: bool = cfg!(target_os = "windows");
 /// misread it), no fault was seen there and nothing changes, by construction.
 const GRAB_AGAIN: bool = cfg!(target_os = "windows");
 
-/// Opens the window and runs the app until it quits, writing `log` (`--input-log`, or off).
+/// Opens the window and runs the app until it quits, writing the session through `host`'s writer
+/// thread and `log` (`--input-log`, or off) through its own.
 /// Returns when the window is closed.
-pub(crate) fn play(app: App, host: FsHost, log: InputLog, title: String, p: Presentation) {
+pub(crate) fn play(app: App, host: WriterHost, log: InputLog, title: String, p: Presentation) {
     let conf = window_conf(
         title,
         p.square,
@@ -150,7 +153,7 @@ struct Stage {
     bindings: Bindings,
     rgba: Vec<u8>,
     app: App,
-    host: LoggedHost,
+    host: LoggedHost<WriterHost>,
     p: Presentation,
     start: Instant,
     fwd: Forward,
@@ -159,7 +162,7 @@ struct Stage {
 }
 
 impl Stage {
-    fn new(app: App, host: LoggedHost, p: Presentation) -> Self {
+    fn new(app: App, host: LoggedHost<WriterHost>, p: Presentation) -> Self {
         let mut ctx = window::new_rendering_backend();
         let quad = [
             ([-1.0, -1.0], [0.0, 1.0]),
@@ -234,16 +237,51 @@ impl Stage {
         u64::try_from(self.start.elapsed().as_micros()).unwrap_or(u64::MAX)
     }
 
-    /// Prints where the session went, once ([`exit_lines`]).
+    /// Prints where the session went, once ([`exit_lines`]), after both writer threads have
+    /// written everything handed to them: the log is ended, the session writer drained, the
+    /// app's save on quit made again with the writer waiting (it writes only when the file is
+    /// behind or its last write failed, and so reports the real outcome), and the writer stopped.
+    /// Then the writers' own lines ([`writer_lines`]).
     fn report(&mut self) {
         if self.reported {
             return;
         }
         self.reported = true;
         self.host.log.summary(self.app.tic());
-        for line in exit_lines(&self.app, &self.host.host, self.stats.as_ref()) {
+        let log_times = self.host.log.finish();
+        self.host.host.finish();
+        self.app.quit(&mut self.host);
+        let late = self.late_failures();
+        let writes = self.host.host.close();
+        let mut lines = exit_lines(&self.app, &self.host.host.fs, self.stats.as_ref());
+        lines.extend(late);
+        lines.extend(writer_lines(&writes, log_times.as_ref(), self.p.tic_stats));
+        for line in lines {
             eprintln!("doom-play: {line}");
         }
+    }
+
+    /// The writes that failed after the app last heard from the writer: for the current
+    /// session, rewritten whole once more (the writer waits now) from the app's own demo.
+    fn late_failures(&mut self) -> Vec<String> {
+        let mut lines = Vec::new();
+        for (name, error) in self.host.host.take_unreported() {
+            if name != self.app.session_name() {
+                lines.push(format!(
+                    "an earlier session's file {name} was not fully written: {error}"
+                ));
+                continue;
+            }
+            let again = match self.app.recorder().bytes() {
+                Ok(bytes) => self.host.host.save(&name, &bytes),
+                Err(e) => Err(format!("the demo writer refused: {e:?}")),
+            };
+            lines.push(match again {
+                Ok(()) => format!("the session file's last write failed at exit ({error}); rewritten whole: saved"),
+                Err(e) => format!("the session file's last write failed at exit ({error}); rewritten whole: failed again: {e}"),
+            });
+        }
+        lines
     }
 
     fn quit(&mut self) {
@@ -398,6 +436,25 @@ pub(crate) fn exit_lines(app: &App, host: &FsHost, stats: Option<&TicStats>) -> 
         SaveStatus::Failed(e) => format!("the session was not saved: {e}"),
         SaveStatus::NotSaved => "the session was not saved".to_string(),
     });
+    lines
+}
+
+/// The writers' lines at exit, after [`exit_lines`] ([`write_stats::exit_lines`]), and one line
+/// if the session writer's thread panicked.
+fn writer_lines(w: &Report, log: Option<&WriteTimes>, tic_stats: bool) -> Vec<String> {
+    let mut lines = write_stats::exit_lines(Some((&w.counts, &w.times)), log, tic_stats);
+    for (name, error) in &w.unreported {
+        lines.push(format!(
+            "the session file {name} was not fully written: {error}"
+        ));
+    }
+    if w.panicked {
+        lines.push(
+            "the session writer stopped unexpectedly (a panic); the session file holds its last \
+             completed write"
+                .to_string(),
+        );
+    }
     lines
 }
 

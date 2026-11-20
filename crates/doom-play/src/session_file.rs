@@ -1,12 +1,24 @@
 //! The session demo on disk (M5d): created only with its content, kept current tic by tic, and
 //! meant to be a valid demo at every instant, so a session killed at any point (Ctrl+C, a closed
-//! console window, a lost display connection, `SIGKILL`) leaves a file that replays every tic it
-//! ran, or every tic but the last. The argument below covers local file systems whose buffered
-//! writes go through the page cache (ext4, tmpfs on Linux); it does not cover FUSE, NFS or 9p
-//! (WSL's `/mnt/c`), the fallback claim's window on file systems without hard links, or a write
-//! that keeps failing (the file then stays at its last good state and falls behind).
+//! console window, a lost display connection, `SIGKILL`) leaves a file that replays a prefix of
+//! the session. The argument below covers local file systems whose buffered writes go through the
+//! page cache (ext4, tmpfs on Linux); it does not cover FUSE, NFS or 9p (WSL's `/mnt/c`), the
+//! fallback claim's window on file systems without hard links, or a write that keeps failing (the
+//! file then stays at its last good state and falls behind).
 //!
-//! - **Creation** ([`claim_new`]): the first content (the 13-byte header and the end marker) is
+//! **Who calls these operations.** In play every one of them is made by the session writer's
+//! thread ([`crate::session_writer`]), in the order the app asked for them, so the loop never waits
+//! for the disk (the owner's ruling of 2026-11-20); the synchronous [`crate::FsHost`] makes them on
+//! the caller's thread (tests). Each operation is the same all-or-nothing operation either way;
+//! what the thread changes is the lag: the file holds at least every tic of the writer's last
+//! completed write and at most every tic run, and a kill loses the tics still queued (before, the
+//! file held every tic run or every tic but the last). The writer appends several waiting tics
+//! through one open ([`append_tics`]: still one five-byte write per tic, each inside one page). The
+//! flush to the disk before a rename stays where M5b had it (the app's own whole saves, and the
+//! claim); the writer's own catch-up and page-boundary rewrites are not flushed ([`save_with`]),
+//! because a kill of the process never loses what reached the page cache.
+//!
+//! - **Creation** ([`claim_kind`]): the first content (the 13-byte header and the end marker) is
 //!   written to a new temporary file (`NAME.PID.claim.tmp`), flushed, and hard-linked to the
 //!   session's name, which fails if the name exists (so no file is ever replaced); then the
 //!   temporary name is removed. The name therefore never appears empty or partial. A kill between
@@ -63,9 +75,13 @@
 //!   take effect, but this is not verified; the page rule and the whole-rewrite path are the same
 //!   there.
 //!
-//! The file is opened for each append and closed after it (no handle is kept): 35 opens a second
-//! cost nothing next to a tic, no handle can be left open across the rename of a whole rewrite
-//! (Windows refuses to rename over an open file), and [`crate::FsHost`] keeps its fields.
+//! The file is opened for each append and closed after it (no handle is kept): at most 35 opens a
+//! second, on the writer's thread; no handle can be left open across the rename of a whole
+//! rewrite (Windows refuses to rename over an open file), and [`crate::FsHost`] keeps its fields.
+//!
+//! **Leftovers** (the owner's ruling 6): a kill during a claim or a whole rewrite can leave
+//! `NAME.PID.claim.tmp` or `NAME.PID.tmp`; at start, doom-play removes the files of exactly those
+//! two name patterns that are more than an hour old ([`remove_leftovers`]) and prints the count.
 
 use std::io::{Seek, SeekFrom, Write};
 use std::path::{Path, PathBuf};
@@ -117,7 +133,8 @@ fn fresh(tmp: &Path) -> std::io::Result<std::fs::File> {
 /// write fails, the temporary file is removed and the error returned (no file is created, so the
 /// retry can take the same name). When the hard link fails for any reason other than a taken
 /// name (a file system without hard links), the claim falls back to the exclusive create of M5b
-/// ([`claim_create_new`]).
+/// ([`claim_create_new`]). doom-play's hosts claim through [`claim_kind`].
+#[cfg(test)]
 pub(crate) fn claim_new(
     dir: &Path,
     name: &str,
@@ -135,6 +152,29 @@ pub(crate) fn claim_new(
     .map(|c| c != Claim::Taken)
 }
 
+/// `claim_new` as doom-play makes it (the temporary file written and flushed to the disk, the
+/// real hard link), saying how it ended.
+pub(crate) fn claim_kind(dir: &Path, name: &str, bytes: &[u8]) -> Result<Claim, String> {
+    claim_with(
+        dir,
+        name,
+        bytes,
+        |f, b| f.write_all(b).and_then(|()| f.sync_all()),
+        |tmp, path| std::fs::hard_link(tmp, path),
+        |tmp| std::fs::remove_file(tmp),
+    )
+}
+
+/// The one line printed on standard error when a claim took the fallback (the owner's ruling 5 of
+/// 2026-11-20); `path` is the session's file.
+pub(crate) fn fallback_line(path: &Path) -> String {
+    format!(
+        "doom-play: {}: the file system refused a hard link, so the session file was created by \
+         the fallback claim (created empty, then written)",
+        path.display()
+    )
+}
+
 /// How [`claim_with`] ended.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(crate) enum Claim {
@@ -147,8 +187,8 @@ pub(crate) enum Claim {
     Taken,
 }
 
-/// [`claim_new`] with the hard link (`link(tmp, path)`) and the removal of the temporary name
-/// after it (`remove_tmp(tmp)`) passed in, so that tests can make either fail.
+/// [`claim_kind`] with the write, the hard link (`link(tmp, path)`) and the removal of the
+/// temporary name after it (`remove_tmp(tmp)`) passed in, so that tests can make either fail.
 fn claim_with(
     dir: &Path,
     name: &str,
@@ -190,7 +230,7 @@ fn claim_with(
     }
 }
 
-/// M5b's claim, the fallback of [`claim_new`]: creates `path` exclusively (`create_new`) and
+/// M5b's claim, the fallback of [`claim_kind`]: creates `path` exclusively (`create_new`) and
 /// writes and flushes `bytes`; `Ok(false)` when the name is taken. A failed write removes the file
 /// this call created. A kill between the create and the write leaves an empty file.
 fn claim_create_new(path: &Path, bytes: &[u8]) -> Result<bool, String> {
@@ -218,10 +258,22 @@ fn claim_create_new(path: &Path, bytes: &[u8]) -> Result<bool, String> {
 /// the name holds the old or the new content, and the old file is never written); a failed write
 /// removes the temporary file.
 pub(crate) fn save(dir: &Path, name: &str, bytes: &[u8]) -> Result<(), String> {
+    save_with(dir, name, bytes, true)
+}
+
+/// [`save`], with the flush to the disk before the rename only when `synced`. The session writer
+/// ([`crate::session_writer`]) makes its own catch-up and page-boundary rewrites unsynced: a kill
+/// of the process never loses what reached the page cache, so the rename's atomicity is all the
+/// kill guarantee needs; a flush only matters for an operating-system crash or a power loss,
+/// which this design never covered (the directory is not flushed either).
+pub(crate) fn save_with(dir: &Path, name: &str, bytes: &[u8], synced: bool) -> Result<(), String> {
     let path = dir.join(name);
     let tmp = temporary(dir, name);
     let written = fresh(&tmp)
-        .and_then(|mut f| f.write_all(bytes).and_then(|()| f.sync_all()))
+        .and_then(|mut f| {
+            f.write_all(bytes)
+                .and_then(|()| if synced { f.sync_all() } else { Ok(()) })
+        })
         .and_then(|()| std::fs::rename(&tmp, &path));
     if written.is_err() {
         let _ = std::fs::remove_file(&tmp);
@@ -236,7 +288,24 @@ pub(crate) fn save(dir: &Path, name: &str, bytes: &[u8]) -> Result<(), String> {
 /// it). A write that the system shortens is an error: the file may then lack its marker, and the
 /// app's next write is the whole rewrite.
 pub(crate) fn append(dir: &Path, name: &str, at: u64, tail: &[u8; 5]) -> Result<bool, String> {
-    if !append_fits_one_page(at, TAIL) {
+    append_tics(dir, name, at, std::slice::from_ref(tail))
+}
+
+/// Extends `dir/name` by `tails.len()` tics, the first at byte `at`: [`append`]'s write once per
+/// tic, in order, through one open of the file. Each tic is still exactly **one** `write` call of
+/// its five bytes at the marker the previous call left ([`write_tail`]), so after each call the
+/// file is a valid demo, and a kill between two calls leaves the earlier tics. Declines
+/// (`Ok(false)`, nothing written) when any of the writes would straddle a [`PAGE`] boundary
+/// (checked before anything is written) or when the file does not hold exactly `at + 1` bytes; a
+/// shortened write is an error (the later tics are then not written).
+pub(crate) fn append_tics(
+    dir: &Path,
+    name: &str,
+    at: u64,
+    tails: &[[u8; 5]],
+) -> Result<bool, String> {
+    let offsets = (0..tails.len() as u64).map(|i| at + 4 * i);
+    if offsets.clone().any(|o| !append_fits_one_page(o, TAIL)) {
         return Ok(false);
     }
     let path = dir.join(name);
@@ -245,15 +314,21 @@ pub(crate) fn append(dir: &Path, name: &str, at: u64, tail: &[u8; 5]) -> Result<
         .write(true)
         .open(&path)
         .map_err(fail)?;
-    let len = f.metadata().map_err(fail)?.len();
-    match write_tail(&mut f, len, at, tail).map_err(fail)? {
-        None => Ok(false),
-        Some(5) => Ok(true),
-        Some(n) => Err(format!(
-            "{}: {n} of 5 bytes written; the file is rewritten whole next",
-            path.display()
-        )),
+    let mut len = f.metadata().map_err(fail)?.len();
+    for (o, tail) in offsets.zip(tails) {
+        match write_tail(&mut f, len, o, tail).map_err(fail)? {
+            // only the first write can find another length: `len` follows each write
+            None => return Ok(false),
+            Some(5) => len = o + TAIL,
+            Some(n) => {
+                return Err(format!(
+                    "{}: {n} of 5 bytes written; the file is rewritten whole next",
+                    path.display()
+                ));
+            }
+        }
     }
+    Ok(true)
 }
 
 /// The write of [`append`] on the open session file `f`, which holds `len` bytes: `None` (nothing
@@ -271,6 +346,104 @@ fn write_tail<F: Write + Seek>(
     }
     f.seek(SeekFrom::Start(at))?;
     f.write(tail).map(Some)
+}
+
+/// How old a leftover temporary file must be before a later run removes it (the owner's ruling 6
+/// of 2026-11-20: more than an hour, by its modification time).
+pub(crate) const LEFTOVER_AGE: std::time::Duration = std::time::Duration::from_secs(3_600);
+
+/// Whether `name` is one of this module's own temporary names, matched strictly (ruling 6):
+/// `NAME.PID.tmp` ([`temporary`]) or `NAME.PID.claim.tmp` ([`claim_temporary`]), where `NAME` is
+/// a session demo's name as doom-game builds it (`E1M<1-9>-skill<digit>-<8 digits>-<6
+/// digits>.lmp`, or with a suffix `-2` to `-9999` before `.lmp`) and `PID` a process id (decimal
+/// digits, no leading zero, at most `u32::MAX`). Nothing else matches.
+pub(crate) fn is_leftover_name(name: &str) -> bool {
+    let Some(rest) = name.strip_suffix(".tmp") else {
+        return false;
+    };
+    let rest = rest.strip_suffix(".claim").unwrap_or(rest);
+    let Some((session, pid)) = rest.rsplit_once('.') else {
+        return false;
+    };
+    let pid_ok = !pid.is_empty()
+        && pid.bytes().all(|b| b.is_ascii_digit())
+        && !pid.starts_with('0')
+        && pid.parse::<u32>().is_ok();
+    pid_ok && is_session_name(session)
+}
+
+/// Whether `name` is a session demo's name (see [`is_leftover_name`]).
+fn is_session_name(name: &str) -> bool {
+    let digits = |s: &str, n: usize| s.len() == n && s.bytes().all(|b| b.is_ascii_digit());
+    let Some(stem) = name.strip_suffix(".lmp") else {
+        return false;
+    };
+    let Some(rest) = stem.strip_prefix("E1M") else {
+        return false;
+    };
+    let mut parts = rest.split('-');
+    let (Some(map), Some(skill), Some(date), Some(time)) =
+        (parts.next(), parts.next(), parts.next(), parts.next())
+    else {
+        return false;
+    };
+    let suffix_ok = match parts.next() {
+        None => true,
+        Some(n) => {
+            !n.is_empty()
+                && n.bytes().all(|b| b.is_ascii_digit())
+                && !n.starts_with('0')
+                && n.parse::<u32>().is_ok_and(|n| (2..=9_999).contains(&n))
+        }
+    };
+    let map_ok = map.len() == 1 && (b'1'..=b'9').contains(&map.as_bytes()[0]);
+    let skill_ok = skill.strip_prefix("skill").is_some_and(|s| digits(s, 1));
+    parts.next().is_none() && suffix_ok && map_ok && skill_ok && digits(date, 8) && digits(time, 6)
+}
+
+/// Whether a file last modified at `modified` is more than [`LEFTOVER_AGE`] old at `now` (a
+/// modification time in the future is not old).
+pub(crate) fn is_stale(modified: std::time::SystemTime, now: std::time::SystemTime) -> bool {
+    now.duration_since(modified)
+        .is_ok_and(|age| age > LEFTOVER_AGE)
+}
+
+/// Removes the leftover temporary files in `dir` (ruling 6): only regular files whose names
+/// [`is_leftover_name`] matches and that [`is_stale`] at `now`. Returns how many were removed and
+/// the errors met (a missing directory is neither). Run once at start, before the session's
+/// first file.
+pub(crate) fn remove_leftovers(dir: &Path, now: std::time::SystemTime) -> (u64, Vec<String>) {
+    let mut removed = 0;
+    let mut errors = Vec::new();
+    let Ok(entries) = std::fs::read_dir(dir) else {
+        return (0, errors);
+    };
+    for entry in entries {
+        let entry = match entry {
+            Ok(e) => e,
+            Err(e) => {
+                errors.push(format!("{}: {e}", dir.display()));
+                continue;
+            }
+        };
+        let name = entry.file_name();
+        let Some(name) = name.to_str() else { continue };
+        if !is_leftover_name(name) {
+            continue;
+        }
+        let path = entry.path();
+        let stale = std::fs::symlink_metadata(&path)
+            .and_then(|m| Ok(m.is_file() && is_stale(m.modified()?, now)));
+        match stale {
+            Ok(false) => {}
+            Ok(true) => match std::fs::remove_file(&path) {
+                Ok(()) => removed += 1,
+                Err(e) => errors.push(format!("{}: {e}", path.display())),
+            },
+            Err(e) => errors.push(format!("{}: {e}", path.display())),
+        }
+    }
+    (removed, errors)
 }
 
 #[cfg(test)]

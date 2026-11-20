@@ -16,14 +16,18 @@ mod mouse_forward;
 mod session_file;
 #[cfg(test)]
 mod session_tests;
+mod session_writer;
 mod tic_stats;
 mod window;
+mod write_stats;
 
 use audio::{Output, Trial, Volume};
 use doom_game::app::{App, AudioSink, GameData, Host, SessionConfig, Timestamp, UNRECORDED_LABEL};
 use doom_game::input::Preset;
 use doom_render::GameMode;
+#[cfg(test)]
 use session_file::claim_new;
+#[cfg(test)]
 use std::io::Write as _;
 use std::path::{Path, PathBuf};
 use std::time::{SystemTime, UNIX_EPOCH};
@@ -72,6 +76,9 @@ usage: doom-play --iwad PATH [options]
                        the status bar face and the demo do not depend on this setting.
   --no-sound           open no audio device. The sound logic and the mixer still run, so
                        the picture, the face and the demo are the same as with sound.
+  --audio-report       diagnostic: when a device opens, print the audio library's own
+                       device report (lines starting [INFO]) on standard error; off by
+                       default
   --help               this text
   --audio-probe        diagnostic, taking no other option: open the audio device from the
                        listed real backends only, play digital silence (no sound) for about
@@ -113,11 +120,21 @@ the backends tried, and the game runs exactly the same without sound output. The
 and mixer are matched to linuxdoom-1.10 built with its in-process sound code (one define
 removed), under the declared schedule; what reaches the speakers after that (the device,
 resampling, latency and volume) is presentation and is not part of any claim.
-When a device opens, the audio library's own device report (lines starting [INFO]: the
-backend, the device, its sample rate, and the period and buffer it granted) is printed on
-standard error; on exit, lines starting \"audio\" give the device's name and native sample
-rates, the settings asked for, the sizes of the device's callbacks, how full the sound
-queue was when they came, and the gaps (underruns) and overruns counted.
+With --audio-report, when a device opens, the audio library's own device report (lines
+starting [INFO]: the backend, the device, its sample rate, and the period and buffer it
+granted) is printed on standard error. On exit, lines starting \"audio\" give the device's
+name and native sample rates, the settings asked for, the sizes of the device's callbacks,
+how full the sound queue was when they came, and the gaps (underruns) and overruns counted.
+
+Session files: the demo is written by a thread of its own, so a slow disk never holds up
+the game; a session ended without its quit (Ctrl+C, a closed window or console, a lost
+display connection) leaves a valid demo of every tic but those still waiting to be written.
+On a normal quit everything is written first. On exit, a line starting \"session file
+writes\" counts the writes, gives the longest in milliseconds and the most tics that waited,
+and with --input-log a line starting \"input log writes\" does the same for the log; with
+--tic-stats a line lists every write that took more than 20 ms. At start, temporary files
+that an earlier run left in the sessions directory (NAME.PID.tmp, NAME.PID.claim.tmp) and
+that are more than an hour old are removed, and their count is printed.
 
 Limits: an OpenGL 2.1 (or OpenGL ES 2) driver is required. There is no music, menu,
 automap, intermission or next level; the session ends at the level's exit, or when the
@@ -146,6 +163,8 @@ struct Options {
     volume: Volume,
     no_sound: bool,
     input_log: Option<PathBuf>,
+    /// `--audio-report`: miniaudio's own device report printed when a device opens.
+    audio_report: bool,
     /// The experimental device settings (presentation only; they reach the device sink and
     /// nothing else).
     trial: Trial,
@@ -183,6 +202,7 @@ fn parse(args: impl IntoIterator<Item = String>) -> Result<Option<Options>, Stri
         volume: Volume::FULL,
         no_sound: false,
         input_log: None,
+        audio_report: false,
         trial: Trial::DEFAULT,
     };
     let mut it = args.into_iter();
@@ -228,6 +248,7 @@ fn parse(args: impl IntoIterator<Item = String>) -> Result<Option<Options>, Stri
             "--input-log" => o.input_log = Some(PathBuf::from(value()?)),
             "--unrecorded-full-turning" => o.unrecorded = true,
             "--no-sound" => o.no_sound = true,
+            "--audio-report" => o.audio_report = true,
             "--volume" => {
                 let percent = number(&flag, &value()?, |v: &u8| *v <= 100)?;
                 o.volume = Volume::new(percent).ok_or("--volume: above 100")?;
@@ -294,7 +315,11 @@ fn game_mode(iwad: &Path) -> GameMode {
     }
 }
 
-/// The sessions directory on disk and the sound output.
+/// The sessions directory on disk and the sound output, writing on the caller's thread. In play
+/// it sits inside [`session_writer::WriterHost`], which uses it for the clock, the directory and
+/// the sound and makes every write of the session file on its writer thread with the same
+/// operations ([`session_file`]), so that no write blocks the tic loop (M5d, the owner's ruling
+/// of 2026-11-20). Its own writes (claim, save, append) are synchronous; its tests pin them.
 struct FsHost {
     dir: PathBuf,
     audio: Output,
@@ -312,11 +337,13 @@ impl Host for FsHost {
     }
     /// Creates the file with its content (a flushed temporary file hard-linked to the name), so
     /// a name another session (or process) took is never replaced and the name never appears
-    /// empty; see [`claim_new`].
+    /// empty; see [`session_file::claim_kind`].
     fn claim(&mut self, name: &str, bytes: &[u8]) -> Result<bool, String> {
-        claim_new(&self.dir, name, bytes, |f, b| {
-            f.write_all(b).and_then(|()| f.sync_all())
-        })
+        let claimed = session_file::claim_kind(&self.dir, name, bytes)?;
+        if claimed == session_file::Claim::Created {
+            eprintln!("{}", session_file::fallback_line(&self.dir.join(name)));
+        }
+        Ok(claimed != session_file::Claim::Taken)
     }
     /// The device sink, or the sink that discards (no device, or `--no-sound`).
     fn audio(&mut self) -> Option<&mut dyn AudioSink> {
@@ -405,14 +432,27 @@ fn run(o: Options) -> Result<(), String> {
     };
     // after the checks that can still refuse the launch; during play the loop never waits for
     // the device: it takes the queue's lock, which the callback holds only to copy one period
-    let (audio, line) = Output::for_launch_with(o.no_sound, o.volume, o.trial);
+    let (audio, line) = Output::for_launch_reporting(o.no_sound, o.volume, o.trial, o.audio_report);
     if let Some(line) = line {
         eprintln!("{line}");
     }
-    let mut host = FsHost {
+    // ruling 6: our own stale temporary files, before the session's first file
+    let (removed, errors) = session_file::remove_leftovers(&o.sessions, SystemTime::now());
+    if removed > 0 {
+        eprintln!(
+            "doom-play: removed {removed} leftover temporary file{} more than an hour old from {}",
+            if removed == 1 { "" } else { "s" },
+            o.sessions.display()
+        );
+    }
+    for e in errors {
+        eprintln!("doom-play: a leftover temporary file could not be removed: {e}");
+    }
+    // every session-file write is made by the writer thread (session_writer.rs)
+    let mut host = session_writer::WriterHost::new(FsHost {
         dir: o.sessions,
         audio,
-    };
+    })?;
     let app = App::new(data, cfg, &mut host);
     window::play(
         app,

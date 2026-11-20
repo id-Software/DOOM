@@ -45,17 +45,23 @@
 //!   fire bit (`BT_ATTACK`) as `fire=0` or `fire=1`, so a game that was told of a release and
 //!   kept firing shows in the log itself.
 //! - `pump`: the end of an `update` call in which something was logged or a tic ran: the tics
-//!   run and dropped, the app's mode and whether the mouse is captured. The file is flushed
-//!   here, so a crash loses at most the current pump.
-//! - `summary`: written on quit: the raw downs and ups counted per button.
+//!   run and dropped, the app's mode and whether the mouse is captured. The pump's lines are
+//!   handed to the log's writer thread here (M5d, the owner's ruling of 2026-11-20 that no file
+//!   write may block the tic loop), which writes and flushes each pump's lines in order; so a
+//!   crash loses the current pump and the pumps the thread had not written yet. The lines are
+//!   formatted on the loop's thread exactly as before, so the file's bytes are the same.
+//! - `summary`: written on quit: the raw downs and ups counted per button; the window then ends
+//!   the log ([`InputLog::finish`]), which waits for the thread to write everything.
 
 use crate::FsHost;
 use crate::keys::Mute;
+use crate::write_stats::{Kind, Timed, WriteTimes};
 use doom_game::app::{App, AudioSink, Host, Mode, TicReport, Timestamp};
 use doom_game::input::Event;
 use std::fmt;
 use std::io::Write;
 use std::path::Path;
+use std::time::Instant;
 
 // The window and this module's test share the mouse forwarding, which lives in its own module.
 #[cfg(test)]
@@ -63,14 +69,123 @@ use crate::mouse_forward::Forward;
 #[cfg(test)]
 use doom_game::input::MouseButton;
 
-/// The log: off, or a buffered writer and the counters.
+/// The log: off, or its output and the counters.
 pub(crate) struct InputLog {
-    out: Option<Box<dyn Write>>,
+    out: Option<Out>,
     pump: u64,
     busy: bool,
     downs: [u64; 3],
     ups: [u64; 3],
 }
+
+/// Where the lines go: a writer written on the loop's thread (`InputLog::to_writer`, for
+/// tests), or the log's writer thread ([`InputLog::create`]; M5d, the owner's ruling of 2026-11-20
+/// that no file write may block the tic loop).
+enum Out {
+    #[cfg(test)]
+    Direct(Box<dyn Write>),
+    Thread(LogThread),
+}
+
+/// The log's writer thread: the loop formats the lines into `buf` (the same bytes the direct
+/// writer gets) and hands them over at the end of each pump; the thread writes and flushes each
+/// hand-over in order and times it. A failure stops the thread's writing and is reported on the
+/// loop's next line or hand-over, as the direct writer's failure is.
+struct LogThread {
+    buf: Vec<u8>,
+    tx: Option<std::sync::mpsc::Sender<(Vec<u8>, u64)>>,
+    shared: std::sync::Arc<std::sync::Mutex<LogState>>,
+    thread: Option<std::thread::JoinHandle<()>>,
+}
+
+#[derive(Default)]
+struct LogState {
+    error: Option<String>,
+    times: WriteTimes,
+}
+
+impl LogThread {
+    fn spawn(mut w: Box<dyn Write + Send>) -> Result<Self, String> {
+        let shared = std::sync::Arc::new(std::sync::Mutex::new(LogState::default()));
+        let state = std::sync::Arc::clone(&shared);
+        let (tx, rx) = std::sync::mpsc::channel::<(Vec<u8>, u64)>();
+        let thread = std::thread::Builder::new()
+            .name("input-log-writer".into())
+            .spawn(move || {
+                for (bytes, tic) in rx {
+                    if lock(&state).error.is_some() {
+                        continue;
+                    }
+                    let began = Instant::now();
+                    let r = w.write_all(&bytes).and_then(|()| w.flush());
+                    let mut st = lock(&state);
+                    st.times.record(
+                        Timed {
+                            kind: Kind::Log,
+                            tic,
+                            took: began.elapsed(),
+                            began,
+                        },
+                        r.is_ok(),
+                    );
+                    if let Err(e) = r {
+                        st.error = Some(e.to_string());
+                    }
+                }
+            })
+            .map_err(|e| format!("the input log's writer could not start: {e}"))?;
+        Ok(Self {
+            buf: Vec::new(),
+            tx: Some(tx),
+            shared,
+            thread: Some(thread),
+        })
+    }
+
+    /// The thread's failure, if any.
+    fn error(&self) -> Option<String> {
+        lock(&self.shared).error.clone()
+    }
+
+    /// Hands the lines formatted so far over to the thread.
+    fn hand_over(&mut self, tic: u64) {
+        if self.buf.is_empty() {
+            return;
+        }
+        let bytes = std::mem::take(&mut self.buf);
+        if let Some(tx) = &self.tx {
+            if tx.send((bytes, tic)).is_err() {
+                lock(&self.shared).error = Some("the input log's writer stopped".into());
+            }
+        }
+    }
+
+    /// Hands the rest over, waits for the thread to write everything and returns its timing.
+    fn close(&mut self, tic: u64) -> WriteTimes {
+        self.hand_over(tic);
+        self.tx = None;
+        if let Some(t) = self.thread.take() {
+            if t.join().is_err() {
+                lock(&self.shared).error = Some("the input log's writer panicked".into());
+            }
+        }
+        lock(&self.shared).times.clone()
+    }
+}
+
+impl Drop for LogThread {
+    /// Writes what is left (as a dropped buffered writer would) and joins the thread.
+    fn drop(&mut self) {
+        self.close(0);
+    }
+}
+
+fn lock(m: &std::sync::Mutex<LogState>) -> std::sync::MutexGuard<'_, LogState> {
+    m.lock().unwrap_or_else(std::sync::PoisonError::into_inner)
+}
+
+/// The header line's text (written as `# 1 0 HEADER`, pump 1 and tic 0).
+const HEADER: &str = "doom-play input log 1: KIND PUMP TIC TEXT";
 
 /// `BT_ATTACK`, the fire bit of a command's buttons (d_event.h:75), for the `tic` lines.
 const BT_ATTACK: u8 = 1;
@@ -90,29 +205,34 @@ impl InputLog {
         }
     }
 
-    /// Creates (or truncates) `path` and writes the header line.
+    /// Creates (or truncates) `path` and writes the header line (before play, on the caller's
+    /// thread, so the file holds it at once); every later line goes through the log's writer
+    /// thread.
     pub(crate) fn create(path: &Path) -> Result<Self, String> {
-        let file = std::fs::File::create(path).map_err(|e| format!("{}: {e}", path.display()))?;
-        let mut log = Self::to_writer(Box::new(std::io::BufWriter::new(file)));
-        log.flush();
-        if log.out.is_none() {
-            return Err(format!(
-                "{}: the header could not be written",
-                path.display()
-            ));
-        }
+        let header_failed = |e: std::io::Error| {
+            format!("{}: the header could not be written ({e})", path.display())
+        };
+        let mut file =
+            std::fs::File::create(path).map_err(|e| format!("{}: {e}", path.display()))?;
+        writeln!(file, "# 1 0 {HEADER}")
+            .and_then(|()| file.flush())
+            .map_err(header_failed)?;
+        Self::threaded(Box::new(file))
+    }
+
+    /// A log whose lines go to `w` through the log's writer thread, with no header line.
+    pub(crate) fn threaded(w: Box<dyn Write + Send>) -> Result<Self, String> {
+        let mut log = Self::off();
+        log.out = Some(Out::Thread(LogThread::spawn(w)?));
         Ok(log)
     }
 
-    /// A log written to `w`, starting with the header line.
+    /// A log written to `w` on the caller's thread, starting with the header line (tests).
+    #[cfg(test)]
     pub(crate) fn to_writer(w: Box<dyn Write>) -> Self {
         let mut log = Self::off();
-        log.out = Some(w);
-        log.write(
-            "#",
-            0,
-            format_args!("doom-play input log 1: KIND PUMP TIC TEXT"),
-        );
+        log.out = Some(Out::Direct(w));
+        log.write("#", 0, format_args!("{HEADER}"));
         log
     }
 
@@ -121,13 +241,42 @@ impl InputLog {
         self.out.is_some()
     }
 
+    /// Ends the log: the writer thread writes everything handed over and stops. Returns its
+    /// timing (`None` for a log that is off or written directly). A failure found at the end is
+    /// printed as during play.
+    pub(crate) fn finish(&mut self) -> Option<WriteTimes> {
+        let Some(Out::Thread(t)) = self.out.as_mut() else {
+            return None;
+        };
+        let times = t.close(0);
+        if let Some(e) = t.error() {
+            eprintln!("doom-play: the input log stopped: {e}");
+        }
+        self.out = None;
+        Some(times)
+    }
+
+    fn stop(&mut self, e: impl fmt::Display) {
+        eprintln!("doom-play: the input log stopped: {e}");
+        self.out = None;
+    }
+
     fn write(&mut self, kind: &str, tic: u64, text: fmt::Arguments<'_>) {
         let pump = self.pump;
-        if let Some(w) = self.out.as_mut() {
-            if let Err(e) = writeln!(w, "{kind} {pump} {tic} {text}") {
-                eprintln!("doom-play: the input log stopped: {e}");
-                self.out = None;
-            }
+        let failed = match self.out.as_mut() {
+            None => None,
+            #[cfg(test)]
+            Some(Out::Direct(w)) => writeln!(w, "{kind} {pump} {tic} {text}")
+                .err()
+                .map(|e| e.to_string()),
+            Some(Out::Thread(t)) => t.error().or_else(|| {
+                writeln!(t.buf, "{kind} {pump} {tic} {text}")
+                    .err()
+                    .map(|e| e.to_string())
+            }),
+        };
+        if let Some(e) = failed {
+            self.stop(e);
         }
     }
 
@@ -207,7 +356,7 @@ impl InputLog {
                 app.tic(),
                 format_args!("ran={ran} dropped={dropped} mode={mode} capture={capture}"),
             );
-            self.flush();
+            self.flush(app.tic());
         }
         self.busy = false;
         self.pump += 1;
@@ -224,29 +373,38 @@ impl InputLog {
                 d[0], u[0], d[1], u[1], d[2], u[2]
             ),
         );
-        self.flush();
+        self.flush(tic);
     }
 
-    fn flush(&mut self) {
-        if let Some(w) = self.out.as_mut() {
-            if let Err(e) = w.flush() {
-                eprintln!("doom-play: the input log stopped: {e}");
-                self.out = None;
-            }
+    /// Flushes the direct writer, or hands the pump's lines over to the writer thread (`tic`
+    /// is the app's tic, for the timing).
+    fn flush(&mut self, tic: u64) {
+        let failed = match self.out.as_mut() {
+            None => None,
+            #[cfg(test)]
+            Some(Out::Direct(w)) => w.flush().err().map(|e| e.to_string()),
+            Some(Out::Thread(t)) => t.error().or_else(|| {
+                t.hand_over(tic);
+                None
+            }),
+        };
+        if let Some(e) = failed {
+            self.stop(e);
         }
     }
 }
 
-/// The host of the window: the sessions directory and sound output ([`FsHost`]) and the log,
-/// which hears every committed tic's events and changes nothing else.
-pub(crate) struct LoggedHost {
+/// The host of the window: the host proper (the window runs
+/// [`crate::session_writer::WriterHost`]; tests use [`FsHost`]) and the log, which hears every
+/// committed tic's events and changes nothing else.
+pub(crate) struct LoggedHost<H = FsHost> {
     /// The host proper.
-    pub(crate) host: FsHost,
+    pub(crate) host: H,
     /// The input log.
     pub(crate) log: InputLog,
 }
 
-impl Host for LoggedHost {
+impl<H: Host> Host for LoggedHost<H> {
     fn timestamp(&mut self) -> Timestamp {
         self.host.timestamp()
     }
@@ -279,7 +437,7 @@ impl Host for LoggedHost {
     }
 }
 
-impl Mute for LoggedHost {
+impl<H: Mute> Mute for LoggedHost<H> {
     fn toggle_mute(&mut self) {
         self.host.toggle_mute();
     }

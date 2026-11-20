@@ -118,9 +118,21 @@ pub struct DeviceFacts {
     /// number of reported formats whose rate could not be read; or why none could be read.
     pub native_rates: Result<(Vec<u32>, usize), String>,
     /// Whether miniaudio's own INFO messages are printed on standard error (its device
-    /// report at open, `miniaudio.h:43887-43937`, gives the granted period and buffer), or why
-    /// they could not be turned on.
-    pub info_report: Result<(), String>,
+    /// report at open, `miniaudio.h:43887-43937`, gives the granted period and buffer): on, off
+    /// (the default; `--audio-report` turns it on, the owner's ruling 7 of 2026-11-20), or why
+    /// it could not be turned on.
+    pub info_report: InfoReport,
+}
+
+/// Whether miniaudio's INFO report is printed (see [`DeviceFacts::info_report`]).
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub enum InfoReport {
+    /// Printed (`--audio-report`).
+    On,
+    /// Not asked for (the default).
+    Off,
+    /// Asked for, but miniaudio refused: why.
+    Unavailable(String),
 }
 
 impl DeviceFacts {
@@ -128,7 +140,7 @@ impl DeviceFacts {
     pub fn read(
         name: Result<String, String>,
         info: Result<DeviceInfo, String>,
-        info_report: Result<(), String>,
+        info_report: InfoReport,
     ) -> Self {
         Self {
             name,
@@ -181,7 +193,8 @@ pub fn native_rates(info: &DeviceInfo) -> (Vec<u32>, usize) {
 /// client frames (`miniaudio.h:43798-43836`) and fires the callback only to refill it
 /// (`miniaudio.h:20271-20302`).
 ///
-/// Before each device is built, miniaudio's INFO messages are printed on standard error
+/// With `report` (`--audio-report`; off by default, the owner's ruling 7 of 2026-11-20), before
+/// each device is built, miniaudio's INFO messages are printed on standard error
 /// (`LogOps::print_level`, maudio `src/logging.rs:151-188`, registered on the context's log,
 /// which the device uses: `miniaudio.h:43129-43138`, `44119-44122`), so the device report
 /// miniaudio posts at the end of a successful init (`miniaudio.h:43887-43937`: the backend,
@@ -189,6 +202,7 @@ pub fn native_rates(info: &DeviceInfo) -> (Vec<u32>, usize) {
 /// (<buffer>)`, the granted internal values) appears once per open.
 pub fn open_playback<C>(
     period_frames: u32,
+    report: bool,
     mut callback: impl FnMut() -> C,
 ) -> Result<Opened, OpenError>
 where
@@ -205,10 +219,14 @@ where
                 continue;
             }
         };
-        let info_report = context
-            .log()
-            .print_level(LogLevel::Info)
-            .map_err(|e| e.to_string());
+        let info_report = if report {
+            match context.log().print_level(LogLevel::Info) {
+                Ok(()) => InfoReport::On,
+                Err(e) => InfoReport::Unavailable(e.to_string()),
+            }
+        } else {
+            InfoReport::Off
+        };
         let mut fill = callback();
         let device = DeviceBuilder::playback()
             .i16()
@@ -252,7 +270,7 @@ pub fn probe() -> Result<String, String> {
     let counter = Arc::clone(&frames);
     let pulls = Arc::new(Mutex::new(PullStats::default()));
     let seen = Arc::clone(&pulls);
-    let mut opened = open_playback(PERIOD_FRAMES, || {
+    let mut opened = open_playback(PERIOD_FRAMES, false, || {
         let counter = Arc::clone(&counter);
         let seen = Arc::clone(&seen);
         move |out: &mut [i16]| {
@@ -657,11 +675,11 @@ pub struct DeviceSink {
 impl DeviceSink {
     /// Opens and starts a device from [`BACKENDS`] with its callback pulling from a new queue,
     /// with the settings of `trial` ([`Trial::DEFAULT`] unless the experimental options say
-    /// otherwise).
-    pub fn open(volume: Volume, trial: Trial) -> Result<Self, OpenError> {
+    /// otherwise) and miniaudio's INFO report printed when `report` ([`open_playback`]).
+    pub fn open(volume: Volume, trial: Trial, report: bool) -> Result<Self, OpenError> {
         let queue = Queue::new(volume).with_start_frames(trial.start_frames());
         let queue = Arc::new(Mutex::new(queue));
-        let opened = open_playback(trial.period_frames(), || {
+        let opened = open_playback(trial.period_frames(), report, || {
             let queue = Arc::clone(&queue);
             move |out: &mut [i16]| lock(&queue).pull(out)
         })?;
@@ -694,7 +712,7 @@ impl DeviceSink {
             facts: DeviceFacts {
                 name: Err(no_device.clone()),
                 native_rates: Err(no_device.clone()),
-                info_report: Err(no_device),
+                info_report: InfoReport::Unavailable(no_device),
             },
             trial,
         }
@@ -774,8 +792,13 @@ pub fn device_lines(
     };
     let rates = rates_text(&facts.native_rates);
     let report = match &facts.info_report {
-        Ok(()) => "granted period and buffer in miniaudio's [INFO] report at open".to_string(),
-        Err(e) => format!("miniaudio's [INFO] report unavailable ({e})"),
+        InfoReport::On => {
+            "granted period and buffer in miniaudio's [INFO] report at open".to_string()
+        }
+        InfoReport::Off => "granted period and buffer not shown (miniaudio's [INFO] report is \
+                            off; --audio-report turns it on)"
+            .to_string(),
+        InfoReport::Unavailable(e) => format!("miniaudio's [INFO] report unavailable ({e})"),
     };
     let stream: u32 = RATE.into();
     let callbacks = if pulls.pulls == 0 {
@@ -843,20 +866,33 @@ pub enum Output {
 }
 
 impl Output {
-    /// [`Output::for_launch_with`] with the default device settings ([`Trial::DEFAULT`]).
+    /// [`Output::for_launch_reporting`] with the default device settings ([`Trial::DEFAULT`])
+    /// and no report.
     #[cfg(test)]
     pub fn for_launch(no_sound: bool, volume: Volume) -> (Self, Option<String>) {
         Self::for_launch_with(no_sound, volume, Trial::DEFAULT)
     }
 
-    /// The output for the launch options: with `no_sound`, [`Output::Discard`] and no device is
-    /// opened (`trial` is then unused); otherwise the result of [`DeviceSink::open`], see
-    /// [`Output::from_open`].
+    /// [`Output::for_launch_reporting`] without miniaudio's INFO report.
+    #[cfg(test)]
     pub fn for_launch_with(no_sound: bool, volume: Volume, trial: Trial) -> (Self, Option<String>) {
+        Self::for_launch_reporting(no_sound, volume, trial, false)
+    }
+
+    /// The output for the launch options: with `no_sound`, [`Output::Discard`] and no device is
+    /// opened (`trial` and `report` are then unused); otherwise the result of
+    /// [`DeviceSink::open`] (miniaudio's INFO report printed at open when `report`,
+    /// `--audio-report`), see [`Output::from_open`].
+    pub fn for_launch_reporting(
+        no_sound: bool,
+        volume: Volume,
+        trial: Trial,
+        report: bool,
+    ) -> (Self, Option<String>) {
         if no_sound {
             return (Self::Discard(Discard::default()), None);
         }
-        Self::from_open(DeviceSink::open(volume, trial))
+        Self::from_open(DeviceSink::open(volume, trial, report))
     }
 
     /// The output for an attempt to open the device, and the single line to print on standard
@@ -1431,7 +1467,7 @@ mod tests {
         let facts = DeviceFacts {
             name: Ok("Speakers (Test)".into()),
             native_rates: Ok((vec![44_100, 48_000], 0)),
-            info_report: Ok(()),
+            info_report: InfoReport::On,
         };
         let pulls = PullStats {
             pulls: 40,
@@ -1465,7 +1501,7 @@ mod tests {
         let facts = DeviceFacts {
             name: Err("MA_ERROR".into()),
             native_rates: Ok((vec![], 2)),
-            info_report: Err("MA_INVALID_ARGS".into()),
+            info_report: InfoReport::Unavailable("MA_INVALID_ARGS".into()),
         };
         let trial = Trial::DEFAULT.with_start_buffers(1).unwrap();
         let lines = device_lines("ALSA", &facts, trial, &PullStats::default(), &c);
