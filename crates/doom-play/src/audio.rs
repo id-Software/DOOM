@@ -1435,7 +1435,7 @@ mod tests {
         };
         let pulls = PullStats {
             pulls: 40,
-            min_frames: 512,
+            min_frames: 441,
             max_frames: 512,
             depth_samples: 38,
             depth_min: 0,
@@ -1455,7 +1455,7 @@ mod tests {
                  44100 Hz, 48000 Hz; stream 11025 Hz",
                 "audio settings: period asked 512 frames; start threshold 1024 frames (2 \
                  buffers); granted period and buffer in miniaudio's [INFO] report at open",
-                "audio callbacks: 40 calls; frames per call min 512, max 512",
+                "audio callbacks: 40 calls; frames per call min 441, max 512",
                 "audio queue: depth in frames when a callback arrived (not paused) min 0, mean \
                  825.2, max 1536 (38 samples); underruns 2 (99 frames of silence); overruns 1 \
                  (512 frames dropped)",
