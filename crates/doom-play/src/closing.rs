@@ -207,3 +207,7 @@ pub(crate) fn writer_lines(w: &Report, log: Option<&WriteTimes>, tic_stats: bool
     }
     lines
 }
+
+#[cfg(test)]
+#[path = "closing_tests.rs"]
+mod tests;

@@ -8,7 +8,7 @@ use doom_render::GameMode;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::Duration;
 
-fn load() -> GameData {
+pub(crate) fn load() -> GameData {
     let dir = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../tests/reference");
     let files: Vec<Vec<u8>> = ["m5a_wads/amp.wad", "m5b_gfx.wad", "m5c_sfx.wad"]
         .iter()
@@ -18,18 +18,18 @@ fn load() -> GameData {
     GameData::load_with_sound(&refs, GameMode::Registered, 1, 2).expect("game data")
 }
 
-fn at(k: u64) -> u64 {
+pub(crate) fn at(k: u64) -> u64 {
     (k * 1_000_000).div_ceil(35)
 }
 
-fn scratch(tag: &str) -> PathBuf {
+pub(crate) fn scratch(tag: &str) -> PathBuf {
     let dir = std::env::temp_dir().join(format!("doom-play-writer-{tag}-{}", std::process::id()));
     let _ = std::fs::remove_dir_all(&dir);
     std::fs::create_dir_all(&dir).unwrap();
     dir
 }
 
-fn fs(dir: &Path) -> FsHost {
+pub(crate) fn fs(dir: &Path) -> FsHost {
     FsHost {
         dir: dir.to_path_buf(),
         audio: Output::Discard(Discard::default()),
@@ -38,25 +38,25 @@ fn fs(dir: &Path) -> FsHost {
 
 /// A gate the test opens: every file operation waits for it (a stalled disk).
 #[derive(Default)]
-struct Gate {
+pub(crate) struct Gate {
     open: Mutex<bool>,
     changed: Condvar,
 }
 
 impl Gate {
-    fn closed() -> Arc<Self> {
+    pub(crate) fn closed() -> Arc<Self> {
         Arc::new(Self::default())
     }
-    fn set(&self, open: bool) {
+    pub(crate) fn set(&self, open: bool) {
         *self.open.lock().unwrap() = open;
         self.changed.notify_all();
     }
     /// A guard that opens the gate when dropped, so that a failing assertion with the disk
     /// stalled ends the test instead of leaving the host's drain waiting on the gate.
-    fn opens_on_drop(self: &Arc<Self>) -> Opens {
+    pub(crate) fn opens_on_drop(self: &Arc<Self>) -> Opens {
         Opens(Arc::clone(self))
     }
-    fn pass(&self) {
+    pub(crate) fn pass(&self) {
         let mut open = self.open.lock().unwrap();
         while !*open {
             open = self.changed.wait(open).unwrap();
@@ -64,7 +64,7 @@ impl Gate {
     }
 }
 
-struct Opens(Arc<Gate>);
+pub(crate) struct Opens(Arc<Gate>);
 
 impl Drop for Opens {
     fn drop(&mut self) {
@@ -74,7 +74,7 @@ impl Drop for Opens {
 
 /// One file operation as the writer asked for it.
 #[derive(Clone, Debug, PartialEq)]
-enum Op {
+pub(crate) enum Op {
     Claim,
     Rewrite { synced: bool, tics: u64 },
     Append { at: u64, tics: usize },
@@ -84,14 +84,14 @@ enum Op {
 /// of the operations, planted failures, another process taking the name before the claim, and a
 /// claim reported as the fallback.
 #[derive(Default)]
-struct TestIo {
-    delay: Duration,
-    gate: Option<Arc<Gate>>,
-    ops: Arc<Mutex<Vec<Op>>>,
-    fail_appends: Arc<AtomicBool>,
-    fail_rewrites: Arc<AtomicBool>,
-    race: bool,
-    fallback: bool,
+pub(crate) struct TestIo {
+    pub(crate) delay: Duration,
+    pub(crate) gate: Option<Arc<Gate>>,
+    pub(crate) ops: Arc<Mutex<Vec<Op>>>,
+    pub(crate) fail_appends: Arc<AtomicBool>,
+    pub(crate) fail_rewrites: Arc<AtomicBool>,
+    pub(crate) race: bool,
+    pub(crate) fallback: bool,
 }
 
 impl TestIo {
@@ -189,7 +189,7 @@ impl Host for Timing<'_> {
     }
 }
 
-fn writer(dir: &Path, io: TestIo) -> WriterHost {
+pub(crate) fn writer(dir: &Path, io: TestIo) -> WriterHost {
     WriterHost::with_io(fs(dir), Box::new(io), Box::new(|_| {})).unwrap()
 }
 
@@ -343,7 +343,7 @@ fn a_stalled_disk_keeps_the_queue_bounded_and_loses_no_tic() {
 
 /// A demo of `n` tics as the app's recorder lays it out (13 header bytes, 4 per tic, the
 /// marker), with tic k's bytes `[k, k >> 8, 1, 0]`.
-fn demo(n: u64) -> Vec<u8> {
+pub(crate) fn demo(n: u64) -> Vec<u8> {
     let mut d = vec![109, 2, 1, 1, 0, 0, 0, 0, 0, 1, 0, 0, 0];
     for k in 1..=n {
         d.extend([k as u8, (k >> 8) as u8, 1, 0]);

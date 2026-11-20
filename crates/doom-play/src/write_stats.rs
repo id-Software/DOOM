@@ -236,6 +236,17 @@ mod tests {
              unsynced), 1 failed; longest 45.6 ms (synced rewrite at tic 1050); at most 3 tics \
              waiting"
         );
+        // review 3, n8: a declined append is named, and its tics are not counted
+        let declined = SessionCounts {
+            appends: 3,
+            appended_tics: 1,
+            declined_appends: 2,
+            ..c.clone()
+        };
+        assert!(
+            session_line(&declined, &s)
+                .contains("(claims 1, appends 3 of 1 tics, 2 appends declined, whole rewrites 1")
+        );
         assert_eq!(s.slow.len(), 1, "exactly 20 ms is not over 20 ms");
         let mut l = WriteTimes::default();
         assert_eq!(log_line(&l), "input log writes: 0, 0 failed; longest none");
