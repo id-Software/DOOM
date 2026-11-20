@@ -15,7 +15,9 @@
 //! session, HASH a running digest of the executed commands' demo bytes), `@end NAME LEN` after a
 //! session ended and `@restart` before a restart. The parent kills it (`Child::kill`, `SIGKILL`)
 //! after a seeded random delay counted from `@start` (a tenth of the kills within 0.3 ms and a
-//! tenth within 3 ms, which land in or near the first claim) and checks every `.lmp` left: not empty; parsed by doom-sim's
+//! tenth within 3 ms, aimed at the first claim), requires that the child died by that `SIGKILL`
+//! (any other end, such as a panic, fails the test and shows the child's standard error), and
+//! checks every `.lmp` left: not empty; parsed by doom-sim's
 //! reader through [`DemoCommands::parse`]; replayed headless by [`replay`] to its last command with
 //! no refusal; its commands' digest equal to the one printed at its tic count; the file of the
 //! session running at the kill holds M − 1 or M tics, where M is the last count printed for it
@@ -33,8 +35,28 @@
 //! session, then up to `DOOM_PLAY_KILL_AT_US` microseconds, default 3000; for example 1021, the
 //! first page-boundary rewrite, or 1050, the first periodic rewrite) and
 //! `DOOM_PLAY_KILL_KEEP` (a directory: each kill's files are kept under it as `kNNNN/`, for
-//! `tools/reference/m5d_kill_check.py`; by default they are deleted). One summary line goes to
-//! standard output (seen with `--nocapture`).
+//! `tools/reference/m5d_kill_check.py`; by default they are deleted) and `DOOM_PLAY_KILL_PLANT`
+//! (a planted fault in the child, for the self-test only: `torn` makes the child's appends two
+//! writes, the tic's four bytes and then the marker, [`TORN_GAP`] apart, instead of
+//! doom-play's one write; the test must then fail). One summary line goes to standard output
+//! (seen with `--nocapture`).
+//!
+//! **Self-test** ([`a_torn_append_fails_the_kill_test`]): the parent runs aimed kills with the
+//! `torn` plant and requires a failure of the file check (a `.lmp` that is not a valid demo), so
+//! the harness is shown to fail when the file can be torn. It shows that the checks catch a torn
+//! file when a kill lands in a gap of a millisecond; a kill cannot be aimed inside the
+//! microseconds of a real two-write append, which is why the one write is pinned by the
+//! deterministic tests in `session_file` instead.
+//!
+//! **What a run reaches depends on where and how it runs.** Whether kills land inside the claim
+//! of a session's file or inside a whole rewrite depends on the temporary directory's file system
+//! (on tmpfs a claim takes microseconds and kills rarely or never land in it; on a disk-backed
+//! file system they do) and on the build profile (a debug child runs slower, and the default
+//! delays rarely carry it past the first page-boundary rewrite at 1,021 tics or the first
+//! periodic one at 1,050). A default run in CI's configuration (debug, tmpfs) therefore exercises
+//! mainly the steady-state append. The claim and the whole rewrite are covered by runs with
+//! `TMPDIR` on a disk-backed file system and by aimed runs (`DOOM_PLAY_KILL_AT_TIC`), as the local
+//! tool and the aimed runs of the M5d record do.
 
 use crate::FsHost;
 use crate::audio::{Discard, Output};
@@ -44,7 +66,8 @@ use doom_game::app::{
 use doom_game::input::{MouseButton, keys, write_ticcmd_bytes};
 use doom_render::GameMode;
 use std::collections::BTreeMap;
-use std::io::{BufRead, Write};
+use std::io::{BufRead, Read, Seek, SeekFrom, Write};
+use std::os::unix::process::ExitStatusExt;
 use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
 use std::sync::mpsc;
@@ -54,6 +77,12 @@ const CHILD_DIR: &str = "DOOM_PLAY_KILL_CHILD_DIR";
 const SEED: &str = "DOOM_PLAY_KILL_SEED";
 const WADS: &str = "DOOM_PLAY_KILL_WADS";
 const MAP: &str = "DOOM_PLAY_KILL_MAP";
+const PLANT: &str = "DOOM_PLAY_KILL_PLANT";
+/// The pause between the two writes of the `torn` plant's append: wide enough that aimed kills
+/// land in it.
+const TORN_GAP: Duration = Duration::from_millis(1);
+/// The signal `Child::kill` sends on Unix (`SIGKILL`, 9 on Linux and macOS).
+const SIGKILL: i32 = 9;
 /// The child's name as the test harness selects it.
 const CHILD_TEST: &str = "kill_tests::child_session";
 /// The longest a child plays before it stops by itself (it is normally killed long before).
@@ -143,6 +172,31 @@ struct ChildHost {
     out: std::io::Stdout,
     name: String,
     hash: u64,
+    /// The `torn` plant: appends as two writes ([`torn_append`]).
+    torn: bool,
+}
+
+/// The `torn` plant's append (the self-test only, never doom-play's): what
+/// `session_file::append` does, but as two writes, the tic's four bytes and then the marker,
+/// [`TORN_GAP`] apart, so that a kill in the gap leaves a file with no marker.
+fn torn_append(dir: &Path, name: &str, at: u64, tail: &[u8; 5]) -> Result<bool, String> {
+    if !crate::session_file::append_fits_one_page(at, 5) {
+        return Ok(false);
+    }
+    let path = dir.join(name);
+    let fail = |e: std::io::Error| format!("{}: {e}", path.display());
+    let mut f = std::fs::OpenOptions::new()
+        .write(true)
+        .open(&path)
+        .map_err(fail)?;
+    if f.metadata().map_err(fail)?.len() != at + 1 {
+        return Ok(false);
+    }
+    f.seek(SeekFrom::Start(at)).map_err(fail)?;
+    f.write_all(&tail[..4]).map_err(fail)?;
+    std::thread::sleep(TORN_GAP);
+    f.write_all(&tail[4..]).map_err(fail)?;
+    Ok(true)
 }
 
 impl ChildHost {
@@ -182,6 +236,9 @@ impl Host for ChildHost {
         self.fs.appends()
     }
     fn append(&mut self, name: &str, at: u64, tail: &[u8; 5]) -> Result<bool, String> {
+        if self.torn {
+            return torn_append(&self.fs.dir, name, at, tail);
+        }
         self.fs.append(name, at, tail)
     }
     fn tic(&mut self, r: &TicReport<'_>) {
@@ -224,6 +281,11 @@ fn child_session() {
         .ok()
         .and_then(|s| s.parse().ok())
         .unwrap_or(1);
+    let torn = match std::env::var(PLANT) {
+        Err(_) => false,
+        Ok(p) if p == "torn" => true,
+        Ok(p) => panic!("{PLANT}={p}: the only plant is torn"),
+    };
     let mut rng = Rng(seed);
     let data = load();
     let mut host = ChildHost {
@@ -234,6 +296,7 @@ fn child_session() {
         out: std::io::stdout(),
         name: String::new(),
         hash: FNV0,
+        torn,
     };
     // after a newline: the harness has printed "test kill_tests::child_session ... " unended
     host.line("\n@start\n".into());
@@ -488,16 +551,39 @@ fn check(dir: &Path, lines: &[String], data: &GameData, stats: &mut Stats) -> Re
     Ok(())
 }
 
-/// One kill: spawns the child, waits for `@start` (and, with `at_tic`, then for the first `@tic`
-/// line of that count), sleeps `delay`, kills it and returns its lines.
+/// What one kill returns: the child's lines and its standard error.
+struct Killed {
+    lines: Vec<String>,
+    stderr: String,
+}
+
+/// The last part of a child's standard error, for a failure message.
+fn stderr_tail(stderr: &str) -> String {
+    const KEEP: usize = 4000;
+    let mut start = stderr.len().saturating_sub(KEEP);
+    while !stderr.is_char_boundary(start) {
+        start += 1;
+    }
+    if stderr[start..].trim().is_empty() {
+        "the child's standard error was empty".into()
+    } else {
+        format!("the child's standard error ends:\n{}", &stderr[start..])
+    }
+}
+
+/// One kill: spawns the child (with `plant` in its environment, or none), waits for `@start`
+/// (and, with `at_tic`, then for the first `@tic` line of that count), sleeps `delay`, kills it,
+/// requires that it died by that `SIGKILL` and returns its lines and its standard error.
 fn kill_one(
     exe: &Path,
     dir: &Path,
     seed: u64,
+    plant: Option<&str>,
     at_tic: Option<u64>,
     delay: Duration,
-) -> Result<Vec<String>, String> {
-    let mut child = Command::new(exe)
+) -> Result<Killed, String> {
+    let mut command = Command::new(exe);
+    command
         .args([
             CHILD_TEST,
             "--exact",
@@ -509,11 +595,17 @@ fn kill_one(
         .env(SEED, seed.to_string())
         .stdin(Stdio::null())
         .stdout(Stdio::piped())
-        .stderr(Stdio::null())
+        .stderr(Stdio::piped());
+    match plant {
+        Some(p) => command.env(PLANT, p),
+        None => command.env_remove(PLANT),
+    };
+    let mut child = command
         .spawn()
         .map_err(|e| format!("spawn the child: {e}"))?;
     let stdout = child.stdout.take().expect("piped");
-    // a thread drains the pipe, so the child never blocks on a full pipe while it plays
+    let mut stderr = child.stderr.take().expect("piped");
+    // a thread drains each pipe, so the child never blocks on a full pipe while it plays
     let (tx, rx) = mpsc::channel::<String>();
     let reader = std::thread::spawn(move || {
         for line in std::io::BufReader::new(stdout).lines() {
@@ -522,6 +614,11 @@ fn kill_one(
                 break;
             }
         }
+    });
+    let errors = std::thread::spawn(move || {
+        let mut text = Vec::new();
+        let _ = stderr.read_to_end(&mut text);
+        String::from_utf8_lossy(&text).into_owned()
     });
     let mut lines = Vec::new();
     let deadline = Instant::now() + Duration::from_secs(120);
@@ -550,89 +647,146 @@ fn kill_one(
     let _ = child.kill();
     let status = child.wait().map_err(|e| format!("reap the child: {e}"))?;
     reader.join().map_err(|_| "the reader panicked")?;
+    let stderr = errors
+        .join()
+        .map_err(|_| "the standard error reader panicked")?;
     lines.extend(rx.try_iter());
     if !started {
-        return Err(match (seen_start, at_tic) {
+        let what = match (seen_start, at_tic) {
             (true, Some(n)) => format!("the child never printed tic {n} within 120 s"),
             _ => "the child never started".into(),
-        });
+        };
+        return Err(format!("{what} ({status}); {}", stderr_tail(&stderr)));
     }
-    if status.success() {
-        return Err(format!("the child exited by itself ({status}), not killed"));
+    if status.signal() != Some(SIGKILL) {
+        return Err(format!(
+            "the child ended by itself ({status}), not by the SIGKILL; {}",
+            stderr_tail(&stderr)
+        ));
     }
-    Ok(lines)
+    Ok(Killed { lines, stderr })
 }
 
-/// The parent: kills the child at random points and checks what it left (see the module
-/// documentation). The check of one kill's files runs on a second thread while the next child
-/// plays.
-#[test]
-fn sigkill_at_random_points_leaves_valid_demos() {
-    let kills = env_u64("DOOM_PLAY_KILLS", 50);
-    let max_ms = env_u64("DOOM_PLAY_KILL_MAX_MS", 400).max(1);
-    let long_ms = env_u64("DOOM_PLAY_KILL_LONG_MS", 1600).max(1);
-    let at_tic = std::env::var("DOOM_PLAY_KILL_AT_TIC")
-        .ok()
-        .and_then(|v| v.parse::<u64>().ok());
-    let at_us = env_u64("DOOM_PLAY_KILL_AT_US", 3_000).max(1);
-    let seed0 = env_u64(SEED, 1);
-    let keep = std::env::var_os("DOOM_PLAY_KILL_KEEP").map(PathBuf::from);
-    let base = keep.clone().unwrap_or_else(|| {
-        std::env::temp_dir().join(format!("doom-play-kill-{}", std::process::id()))
-    });
+/// One run of kills (the parent's work, shared by the test and its self-test).
+struct Kills {
+    kills: u64,
+    max_ms: u64,
+    long_ms: u64,
+    at_tic: Option<u64>,
+    at_us: u64,
+    seed0: u64,
+    /// Keep each kill's files under this directory (else they go under `base` and are deleted).
+    keep: Option<PathBuf>,
+    base: PathBuf,
+    plant: Option<String>,
+}
+
+/// How a run of kills failed.
+#[derive(Debug)]
+enum Failure {
+    /// A kill could not be made as asked (the child did not start, did not reach the aimed tic,
+    /// or ended other than by the `SIGKILL`).
+    Harness(String),
+    /// A kill's files failed the check.
+    Check(String),
+}
+
+/// Kills the child at random points and checks what it left (see the module documentation).
+/// The check of one kill's files runs on a second thread while the next child plays; the run
+/// stops at the first failure (whose files are kept).
+fn run_kills(k: &Kills, data: &GameData) -> Result<Stats, Failure> {
     let exe = std::env::current_exe().expect("the test executable");
-    let data = load();
-    let mut rng = Rng(seed0 ^ 0x5eed);
-    let clock = Instant::now();
-    let (jobs, queue) = mpsc::channel::<(u64, PathBuf, Vec<String>)>();
+    let mut rng = Rng(k.seed0 ^ 0x5eed);
+    let base = k.keep.clone().unwrap_or_else(|| k.base.clone());
+    let (jobs, queue) = mpsc::channel::<(u64, PathBuf, Killed)>();
     let result = std::thread::scope(|scope| {
-        let checker = scope.spawn(|| -> Result<Stats, String> {
+        let checker = scope.spawn(|| -> Result<Stats, Failure> {
             let mut stats = Stats::default();
-            for (seed, dir, lines) in queue {
+            for (seed, dir, killed) in queue {
                 stats.kills += 1;
-                check(&dir, &lines, &data, &mut stats)
-                    .map_err(|e| format!("seed {seed} (files kept in {}): {e}", dir.display()))?;
-                if keep.is_none() {
-                    std::fs::remove_dir_all(&dir).map_err(|e| format!("{e}"))?;
+                check(&dir, &killed.lines, data, &mut stats).map_err(|e| {
+                    Failure::Check(format!(
+                        "seed {seed} (files kept in {}): {e}; {}",
+                        dir.display(),
+                        stderr_tail(&killed.stderr)
+                    ))
+                })?;
+                if k.keep.is_none() {
+                    std::fs::remove_dir_all(&dir)
+                        .map_err(|e| Failure::Harness(format!("{}: {e}", dir.display())))?;
                 }
             }
             Ok(stats)
         });
-        for k in 0..kills {
-            let seed = seed0 + k;
-            let dir = base.join(format!("k{k:04}"));
+        let mut made = Ok(());
+        for n in 0..k.kills {
+            let seed = k.seed0 + n;
+            let dir = base.join(format!("k{n:04}"));
             let _ = std::fs::remove_dir_all(&dir);
             std::fs::create_dir_all(&dir).expect("the kill's directory");
-            // a tenth within 0.3 ms and a tenth within 3 ms of `@start` (in or near the first
+            // a tenth within 0.3 ms and a tenth within 3 ms of `@start` (aimed at the first
             // claim), a tenth late (past the first page-boundary rewrite in an optimised build),
             // the rest anywhere up to `max_ms`
             let delay = match rng.below(10) {
-                _ if at_tic.is_some() => Duration::from_micros(rng.below(at_us)),
+                _ if k.at_tic.is_some() => Duration::from_micros(rng.below(k.at_us)),
                 0 => Duration::from_micros(rng.below(300)),
                 1 => Duration::from_micros(rng.below(3_000)),
-                2 => Duration::from_millis(1_000 + rng.below(long_ms)),
-                _ => Duration::from_micros(rng.below(max_ms * 1_000)),
+                2 => Duration::from_millis(1_000 + rng.below(k.long_ms)),
+                _ => Duration::from_micros(rng.below(k.max_ms * 1_000)),
             };
-            let lines = kill_one(&exe, &dir, seed, at_tic, delay)
-                .unwrap_or_else(|e| panic!("kill {k} (seed {seed}): {e}"));
-            if jobs.send((seed, dir, lines)).is_err() {
-                break; // the checker stopped at a failure
+            match kill_one(&exe, &dir, seed, k.plant.as_deref(), k.at_tic, delay) {
+                Ok(killed) => {
+                    if jobs.send((seed, dir, killed)).is_err() {
+                        break; // the checker stopped at a failure
+                    }
+                }
+                Err(e) => {
+                    made = Err(Failure::Harness(format!("kill {n} (seed {seed}): {e}")));
+                    break;
+                }
             }
         }
         drop(jobs);
-        checker.join().expect("the checker")
+        let checked = checker.join().expect("the checker");
+        // a check failure is reported before a harness failure that followed it
+        let stats = checked?;
+        made.map(|()| stats)
     });
-    let stats = result.unwrap_or_else(|e| panic!("{e}"));
-    assert_eq!(stats.kills, kills);
-    if keep.is_none() {
+    let stats = result?;
+    if k.keep.is_none() {
         let _ = std::fs::remove_dir(&base);
     }
+    Ok(stats)
+}
+
+/// The parent: kills the child at random points and checks what it left (see the module
+/// documentation), configured from the environment.
+#[test]
+fn sigkill_at_random_points_leaves_valid_demos() {
+    let k = Kills {
+        kills: env_u64("DOOM_PLAY_KILLS", 50),
+        max_ms: env_u64("DOOM_PLAY_KILL_MAX_MS", 400).max(1),
+        long_ms: env_u64("DOOM_PLAY_KILL_LONG_MS", 1600).max(1),
+        at_tic: std::env::var("DOOM_PLAY_KILL_AT_TIC")
+            .ok()
+            .and_then(|v| v.parse::<u64>().ok()),
+        at_us: env_u64("DOOM_PLAY_KILL_AT_US", 3_000).max(1),
+        seed0: env_u64(SEED, 1),
+        keep: std::env::var_os("DOOM_PLAY_KILL_KEEP").map(PathBuf::from),
+        base: std::env::temp_dir().join(format!("doom-play-kill-{}", std::process::id())),
+        plant: std::env::var(PLANT).ok(),
+    };
+    let data = load();
+    let clock = Instant::now();
+    let stats = run_kills(&k, &data).unwrap_or_else(|e| panic!("{e:?}"));
+    assert_eq!(stats.kills, k.kills);
     println!(
-        "kill test: {} kills (seeds {seed0}..{}), {} files checked holding {} tics (longest {}, \
+        "kill test: {} kills (seeds {}..{}), {} files checked holding {} tics (longest {}, \
          {} past the first page-boundary rewrite), landed {:?}, current file one tic behind {} \
          and even {}, kills that left no .lmp {}, leftover .tmp {}, {:.1} s",
         stats.kills,
-        seed0 + kills,
+        k.seed0,
+        k.seed0 + k.kills,
         stats.files,
         stats.tics,
         stats.longest,
@@ -644,4 +798,40 @@ fn sigkill_at_random_points_leaves_valid_demos() {
         stats.tmp,
         clock.elapsed().as_secs_f64()
     );
+}
+
+/// The kill test's self-test (review MAJ-1; AGENTS.md: "self-tests must prove the harness can
+/// fail"): with the `torn` plant, the child appends each tic as two writes [`TORN_GAP`] apart,
+/// and kills aimed just after the print of tic 30 must leave a file that the check refuses as
+/// not a valid demo. The run stops at the first such failure; up to 40 kills are made.
+#[test]
+fn a_torn_append_fails_the_kill_test() {
+    let base = std::env::temp_dir().join(format!("doom-play-kill-selftest-{}", std::process::id()));
+    let k = Kills {
+        kills: 40,
+        max_ms: 1,
+        long_ms: 1,
+        at_tic: Some(30),
+        at_us: 3_000,
+        seed0: 1,
+        keep: None,
+        base: base.clone(),
+        plant: Some("torn".into()),
+    };
+    let data = load();
+    match run_kills(&k, &data) {
+        Err(Failure::Check(e)) => {
+            assert!(
+                e.contains("is not a valid demo"),
+                "the torn file was refused for another reason: {e}"
+            );
+            println!("kill test self-test: the torn append was caught: {e}");
+            std::fs::remove_dir_all(&base).expect("the self-test's files");
+        }
+        Err(Failure::Harness(e)) => panic!("the self-test could not run its kills: {e}"),
+        Ok(stats) => panic!(
+            "the torn append was not caught in {} kills ({} files checked, landed {:?})",
+            stats.kills, stats.files, stats.landed
+        ),
+    }
 }
