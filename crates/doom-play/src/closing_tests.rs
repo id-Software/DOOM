@@ -1513,3 +1513,63 @@ impl Report {
         }
     }
 }
+
+/// `--tic-stats` ([`Play::update`]): a pause and the end screen between two sessions are not
+/// intervals between tics. Five tics, a pause of 19 s, five more, a restart after 7 s on the
+/// pause box and three more: three stretches of play and two breaks, 26 s and a little more
+/// (each break also holds the 1/35 s from the update that starts the clock again to its first
+/// tic); no interval is longer than a tic's, and a pause pressed and released between two
+/// updates (the loop never sees the app paused) is a break as well.
+#[test]
+fn a_pause_and_a_restart_are_breaks_in_the_tic_statistics_not_intervals() {
+    let dir = scratch("close-stats-breaks");
+    let panic = Arc::new(AtomicBool::new(false));
+    let mut p = play_panicking_with_stats(&dir, &panic);
+    let tic = 1_000_000 / 35 + 1;
+    let run = |p: &mut Play, now: &mut u64, tics: usize| {
+        // the update that starts the clock runs no tic; then one tic per update
+        assert_eq!(p.update(*now).ran, 0, "the clock starts");
+        for _ in 0..tics {
+            *now += tic;
+            assert_eq!(p.update(*now).ran, 1);
+            p.host.host.wait_idle();
+        }
+    };
+    let mut now = 1_000;
+    p.app.key(KEY_ESCAPE, true, &mut p.host);
+    p.app.key(KEY_ESCAPE, true, &mut p.host);
+    assert_eq!(p.app.mode(), &Mode::Playing, "paused and resumed: re-based");
+    run(&mut p, &mut now, 5);
+    let s = p.stats.as_ref().unwrap().summary();
+    assert!(
+        s.contains("executed 5, dropped 0, wall 0.114 s (first to last tic)"),
+        "{s}"
+    );
+    // a pause the loop sees: updates while paused run nothing
+    p.app.key(KEY_ESCAPE, true, &mut p.host);
+    for _ in 0..3 {
+        now += 6_000_000;
+        assert_eq!(p.update(now).ran, 0, "paused");
+    }
+    now += 1_000_000;
+    p.app.key(KEY_ESCAPE, true, &mut p.host);
+    run(&mut p, &mut now, 5);
+    // a pause the loop never sees, between two updates
+    now += 7_000_000;
+    p.app.key(KEY_ESCAPE, true, &mut p.host);
+    p.app.key(b'r', true, &mut p.host);
+    assert_eq!(p.app.mode(), &Mode::Playing, "restarted from the pause box");
+    run(&mut p, &mut now, 3);
+    let s = p.stats.as_ref().unwrap().summary();
+    for want in [
+        "executed 13, dropped 0, wall 0.286 s (3 stretches of play, each first to last tic; \
+         the 2 breaks between them, pauses and end screens, 26.057 s, not counted) against \
+         0.286 s expected",
+        "min 28572, median 28572, p95 28572, p99 28572, max 28572",
+        "more than 1 ms from 1/35 s: 0, more than 5 ms: 0",
+    ] {
+        assert!(s.contains(want), "{want} not in {s}");
+    }
+    p.quit();
+    std::fs::remove_dir_all(&dir).unwrap();
+}
