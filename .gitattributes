@@ -24,3 +24,5 @@
 /sndserv/** linguist-vendored
 /ipx/** linguist-vendored
 /sersrc/** linguist-vendored
+# The harness headers are C; GitHub's detector guesses some of them as C++.
+/tools/reference/*.h linguist-language=C
