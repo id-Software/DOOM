@@ -3354,10 +3354,10 @@ person's observations on one evening; no test, recording or measurement stands b
   was on his screen or in his ears ([counts](validation/M5C.md#the-owners-playtest-2026-11-18)).
 - **A fault was reported on Windows** (accepted as fixed in M5d): [stuck fire](#stuck-fire-on-windows-accepted-as-fixed-in-m5d-the-cause-was-never-reproduced).
 
-### A session is safe on Windows and macOS only when doom-play ends it (a limit, not yet lifted there)
+### A killed session: two kills shown on Windows, nothing shown on macOS (a limit)
 
-**Since M5d the session file is kept current tic by tic, shown on Linux; on Windows and macOS this stays listed as a limit
-until the owner confirms it by hand.** The demo is created whole when a session starts and then extended by one 5-byte write
+**Since M5d the session file is kept current tic by tic. This is shown on Linux by tests and on Windows by two kills of the final build
+made by the owner's hand (one machine); on macOS nothing is shown and the limit stays.** The demo is created whole when a session starts and then extended by one 5-byte write
 per tic, made by a writer thread. **If doom-play is killed, the file is still a valid demo but may lack the last tics the disk had not
 yet taken: normally none or one, more on a slow disk.** At every instant it is a valid demo holding at least every tic the writer had
 finished and at most every tic run; the tics still queued are lost by a kill, at most 175 of them, and while a disk is stalled the lag in
@@ -3372,15 +3372,21 @@ or close the window with its close button; pausing writes nothing.
   check ([counts](validation/M5D.md#evidence-release-builds-unless-stated)). That the single write cannot be cut short
   rests on a reading of how the Linux kernel writes to a file, not on a test: deterministic tests pin that the code makes one
   five-byte write, and the kill tests are evidence for the steady state; neither is a guarantee for every file system.
-- **Tried once on Windows, on the first build only:** on 2026-11-20 the owner ended `b374aaa` runs by Ctrl+C three times and by
+- **Tried on Windows, first on the first build:** on 2026-11-20 the owner ended `b374aaa` runs by Ctrl+C three times and by
   closing the console four times (before the writer threads existed); the seven files each had a valid size (14 + 4n bytes), no
-  temporary file was left, and all passed the genuine session check ([record](validation/M5D.md#the-session)). End task was not run.
-  The writer-thread build was played on Windows in his retest the same day, every session ended by Esc then Q; **no kill of the
-  writer-thread build has been made on Windows** ([record](validation/M5D.md#a9-the-owners-retest-of-2026-11-20-his-rulings-and-the-close)).
-- **Not shown: End task, any kill of the writer-thread build on Windows, and anything on macOS.** For these
+  temporary file was left, and all passed the genuine session check ([record](validation/M5D.md#the-session)). That is history:
+  the writer-thread build was played the same day and every session was ended by Esc then Q
+  ([record](validation/M5D.md#a9-the-owners-retest-of-2026-11-20-his-rulings-and-the-close)).
+- **Shown on Windows, on the final build (2026-11-21): two kills.** The owner killed the Windows artifact of the final head
+  (`9610b51`) twice, once with Ctrl+C in the console and once by closing the console, on one machine, with the sessions folder on a `D:` disk
+  that he states is NTFS (not checked from here). Both files are valid demos (1,461 and 1,581 tics, with the end marker, no temporary file left)
+  and both passed the genuine session check ([counts](validation/M5D.md#a10-addendum-the-session-check-of-the-owners-hand-played-demos-2026-11-21)).
+  Two kills are not a rate.
+- **Not shown: End task on Windows; any other machine, disk or file system; how many tics had been played beyond what each of those two
+  files holds (a killed process prints no exit line, and those runs have no input log); and anything on macOS.** For these
   the limit stays as it was: **a session ended any other way than by doom-play may lose its last tics, and a session may be
-  left as an empty demo of 14 bytes**, until the owner has tried them. On Windows the design is expected to hold
-  (inference from the system's documented behaviour, untested). **To keep a session, end it with Esc then Q before closing
+  left as an empty demo of 14 bytes**, until the owner has tried them. For End task the design is expected to hold
+  (inference from the system's documented behaviour, untested). **On macOS, to keep a session, end it with Esc then Q before closing
   anything.**
 - Two caveats that remain even where it is shown: **where hard links are refused** (FAT, exFAT, some network shares) the claim
   falls back to M5b's way (create, then write), a kill in that window can leave an empty `.lmp`, and one line on standard error says
