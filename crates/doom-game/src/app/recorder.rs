@@ -15,6 +15,9 @@ use std::fmt;
 
 /// The longest session, in tics (decision S21: about 8.3 hours, 4 MB of commands).
 pub const TIC_CAP: usize = 1 << 20;
+/// The bytes of a demo's header (version, skill, episode, map, the four option bytes, the console
+/// player and the four `playeringame` bytes: g_game.c:1555-1566), before the first tic's command.
+pub const DEMO_HEADER_BYTES: usize = doom_sim::demo::DEMO_HEADER.len();
 
 /// Why a tic could not be recorded. Nothing was stored.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -117,6 +120,22 @@ impl Recorder {
     /// The demo file's bytes: header, every recorded tic and the end marker.
     pub fn bytes(&self) -> Result<Vec<u8>, DemoError> {
         write_demo_episode1_v2(self.map, self.skill, &self.commands)
+    }
+
+    /// The bytes that turn the file of every tic but the last ([`Recorder::bytes`] before the
+    /// last [`Recorder::record`]) into the file of every tic: the last tic's four demo bytes and
+    /// then the end marker, written by doom-sim's own writer (the same writer and refusals as
+    /// [`Recorder::bytes`]), with the byte offset at which they go, which is that of the old
+    /// marker: [`DEMO_HEADER_BYTES`] + 4 × (tics before). `Ok(None)` when nothing is recorded.
+    pub fn last_tic_tail(&self) -> Result<Option<(u64, [u8; 5])>, DemoError> {
+        let Some(last) = self.commands.last() else {
+            return Ok(None);
+        };
+        let one = write_demo_episode1_v2(self.map, self.skill, std::slice::from_ref(last))?;
+        let mut tail = [0; 5];
+        tail.copy_from_slice(&one[DEMO_HEADER_BYTES..]);
+        let before = (self.commands.len() - 1) as u64;
+        Ok(Some((DEMO_HEADER_BYTES as u64 + 4 * before, tail)))
     }
 }
 

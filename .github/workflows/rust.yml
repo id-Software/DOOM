@@ -514,8 +514,9 @@ jobs:
     # tests of doom-sound run in the Stable job on all three operating systems and in the Minimum
     # Rust job as part of `--workspace`. The tools that read an IWAD (tools/local) and the
     # local-only --strict32 option (a 32-bit comparison needing a multilib toolchain) are never
-    # used here. No step opens an audio device. Not a required check name.
-    name: M5c genuine sound (not required)
+    # used here. No step opens an audio device. Named "M5c genuine sound (not required)" until
+    # M5d, which dropped the suffix by the owner's ruling so that he can make it a required check.
+    name: M5c genuine sound
     runs-on: ubuntu-latest
     timeout-minutes: 45
     needs: changes

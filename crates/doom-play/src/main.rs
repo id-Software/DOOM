@@ -7,17 +7,28 @@
 //! the workspace lints).
 
 mod audio;
+mod closing;
+mod cursor_leave;
 mod input_log;
 mod keys;
+#[cfg(all(test, unix))]
+mod kill_tests;
+mod mouse_forward;
+mod session_file;
 #[cfg(test)]
 mod session_tests;
+mod session_writer;
 mod tic_stats;
 mod window;
+mod write_stats;
 
-use audio::{Output, Volume};
+use audio::{Output, Trial, Volume};
 use doom_game::app::{App, AudioSink, GameData, Host, SessionConfig, Timestamp, UNRECORDED_LABEL};
 use doom_game::input::Preset;
 use doom_render::GameMode;
+#[cfg(test)]
+use session_file::claim_new;
+#[cfg(test)]
 use std::io::Write as _;
 use std::path::{Path, PathBuf};
 use std::time::{SystemTime, UNIX_EPOCH};
@@ -66,11 +77,30 @@ usage: doom-play --iwad PATH [options]
                        the status bar face and the demo do not depend on this setting.
   --no-sound           open no audio device. The sound logic and the mixer still run, so
                        the picture, the face and the demo are the same as with sound.
+  --audio-report       diagnostic: when a device opens, print the audio library's own
+                       device report (lines starting [INFO]) on standard error; off by
+                       default
   --help               this text
   --audio-probe        diagnostic, taking no other option: open the audio device from the
                        listed real backends only, play digital silence (no sound) for about
                        one second, print which backend opened and exit 0; or print why
                        none opened and exit 1.
+
+Experimental options, for the owner's M5d sound-latency trials. Presentation only: they
+change how the finished sound reaches the audio device, never the game, the sound logic,
+the mixer, the picture or the demo. They do nothing without an audio device (or with
+--no-sound). Leaving them out keeps the defaults, which are unchanged.
+  --experimental-audio-start-buffers N
+                       1 or 2 (default 2): how many 512-frame buffers of mixed sound
+                       are queued before output starts, and starts again after every
+                       gap (underrun) and every resume. 1 starts one tic (about
+                       28.6 ms) sooner but leaves no margin, so gaps are likely.
+  --experimental-audio-period-frames N
+                       128, 256 or 512 (default 512): the device period asked for, in
+                       frames at 11,025 Hz; the sound is taken from the queue in
+                       blocks of exactly this size. Smaller can be sooner, with more
+                       callbacks and more risk of gaps; the backend may not grant it.
+  On exit, the lines starting \"audio\" echo a setting that is not at its default.
 
 Keys: Esc or Pause pauses (then Esc or Pause resumes, R restarts, Q quits); on an end screen
 R restarts and Q or Esc quits. End mutes and unmutes the sound (the player's own key, never
@@ -91,6 +121,24 @@ the backends tried, and the game runs exactly the same without sound output. The
 and mixer are matched to linuxdoom-1.10 built with its in-process sound code (one define
 removed), under the declared schedule; what reaches the speakers after that (the device,
 resampling, latency and volume) is presentation and is not part of any claim.
+With --audio-report, when a device opens, the audio library's own device report (lines
+starting [INFO]: the backend, the device, its sample rate, and the period and buffer it
+granted) is printed on standard error. On exit, lines starting \"audio\" give the device's
+name and native sample rates, the settings asked for, the sizes of the device's callbacks,
+how full the sound queue was when they came, and the gaps (underruns) and overruns counted.
+
+Session files: the demo is written by a thread of its own, so a slow disk never holds up
+the game; a session ended without its quit (Ctrl+C, a closed window or console, a lost
+display connection) leaves a valid demo of every tic but those still waiting to be written.
+On a normal quit everything is written first. When a session ends, the game waits up to 2 s
+for its demo to be written before the end screen appears; if the disk has not answered, the
+end screen says the demo is not written yet until it is. A failed last write shows there
+and on the pause box, and R and Q write it again. On exit, a line starting \"session file
+writes\" counts the writes, gives the longest in milliseconds and the most tics that waited,
+and with --input-log a line starting \"input log writes\" does the same for the log; with
+--tic-stats a line lists every write that took more than 20 ms. At start, temporary files
+that an earlier run left in the sessions directory (NAME.PID.tmp, NAME.PID.claim.tmp) and
+that are more than an hour old are removed, and their count is printed.
 
 Limits: an OpenGL 2.1 (or OpenGL ES 2) driver is required. There is no music, menu,
 automap, intermission or next level; the session ends at the level's exit, or when the
@@ -119,6 +167,11 @@ struct Options {
     volume: Volume,
     no_sound: bool,
     input_log: Option<PathBuf>,
+    /// `--audio-report`: miniaudio's own device report printed when a device opens.
+    audio_report: bool,
+    /// The experimental device settings (presentation only; they reach the device sink and
+    /// nothing else).
+    trial: Trial,
 }
 
 fn number<T: std::str::FromStr>(
@@ -153,6 +206,8 @@ fn parse(args: impl IntoIterator<Item = String>) -> Result<Option<Options>, Stri
         volume: Volume::FULL,
         no_sound: false,
         input_log: None,
+        audio_report: false,
+        trial: Trial::DEFAULT,
     };
     let mut it = args.into_iter();
     while let Some(flag) = it.next() {
@@ -197,9 +252,26 @@ fn parse(args: impl IntoIterator<Item = String>) -> Result<Option<Options>, Stri
             "--input-log" => o.input_log = Some(PathBuf::from(value()?)),
             "--unrecorded-full-turning" => o.unrecorded = true,
             "--no-sound" => o.no_sound = true,
+            "--audio-report" => o.audio_report = true,
             "--volume" => {
                 let percent = number(&flag, &value()?, |v: &u8| *v <= 100)?;
                 o.volume = Volume::new(percent).ok_or("--volume: above 100")?;
+            }
+            "--experimental-audio-start-buffers" => {
+                let v = value()?;
+                o.trial = v
+                    .parse()
+                    .ok()
+                    .and_then(|n| o.trial.with_start_buffers(n))
+                    .ok_or_else(|| format!("{flag}: {v:?} is not 1 or 2 (see --help)"))?;
+            }
+            "--experimental-audio-period-frames" => {
+                let v = value()?;
+                o.trial = v
+                    .parse()
+                    .ok()
+                    .and_then(|n| o.trial.with_period_frames(n))
+                    .ok_or_else(|| format!("{flag}: {v:?} is not 128, 256 or 512 (see --help)"))?;
             }
             "--screenblocks" => {
                 o.screenblocks = number(&flag, &value()?, |s| (10..=11).contains(s))?;
@@ -247,7 +319,11 @@ fn game_mode(iwad: &Path) -> GameMode {
     }
 }
 
-/// The sessions directory on disk and the sound output.
+/// The sessions directory on disk and the sound output, writing on the caller's thread. In play
+/// it sits inside [`session_writer::WriterHost`], which uses it for the clock, the directory and
+/// the sound and makes every write of the session file on its writer thread with the same
+/// operations ([`session_file`]), so that no write blocks the tic loop (M5d, the owner's ruling
+/// of 2026-11-20). Its own writes (claim, save, append) are synchronous; its tests pin them.
 struct FsHost {
     dir: PathBuf,
     audio: Output,
@@ -263,12 +339,15 @@ impl Host for FsHost {
     fn exists(&mut self, name: &str) -> bool {
         self.dir.join(name).exists()
     }
-    /// Creates the file with `create_new`, so a name another session (or process) took is
-    /// never replaced; see [`claim_new`].
+    /// Creates the file with its content (a flushed temporary file hard-linked to the name), so
+    /// a name another session (or process) took is never replaced and the name never appears
+    /// empty; see [`session_file::claim_kind`].
     fn claim(&mut self, name: &str, bytes: &[u8]) -> Result<bool, String> {
-        claim_new(&self.dir, name, bytes, |f, b| {
-            f.write_all(b).and_then(|()| f.sync_all())
-        })
+        let claimed = session_file::claim_kind(&self.dir, name, bytes)?;
+        if claimed == session_file::Claim::Created {
+            eprintln!("{}", session_file::fallback_line(&self.dir.join(name)));
+        }
+        Ok(claimed != session_file::Claim::Taken)
     }
     /// The device sink, or the sink that discards (no device, or `--no-sound`).
     fn audio(&mut self) -> Option<&mut dyn AudioSink> {
@@ -276,55 +355,24 @@ impl Host for FsHost {
     }
     /// Writes a temporary file whose name holds the process id (two processes never share
     /// it), flushes it to the disk and renames it over the session's file; a failed write
-    /// removes the temporary file.
+    /// removes the temporary file ([`session_file::save`]).
     fn save(&mut self, name: &str, bytes: &[u8]) -> Result<(), String> {
-        let path = self.dir.join(name);
-        let tmp = self.dir.join(format!("{name}.{}.tmp", std::process::id()));
-        let written = std::fs::File::create(&tmp)
-            .and_then(|mut f| f.write_all(bytes).and_then(|()| f.sync_all()))
-            .and_then(|()| std::fs::rename(&tmp, &path));
-        if written.is_err() {
-            let _ = std::fs::remove_file(&tmp);
-        }
-        written.map_err(|e| format!("{}: {e}", path.display()))
+        session_file::save(&self.dir, name, bytes)
+    }
+    /// The file is kept current tic by tic (M5d), a valid demo at every instant.
+    fn appends(&self) -> bool {
+        true
+    }
+    /// One write of the tic's bytes and the marker, or a decline at a page boundary
+    /// ([`session_file::append`]).
+    fn append(&mut self, name: &str, at: u64, tail: &[u8; 5]) -> Result<bool, String> {
+        session_file::append(&self.dir, name, at, tail)
     }
 }
 
 impl keys::Mute for FsHost {
     fn toggle_mute(&mut self) {
         self.audio.toggle_mute();
-    }
-}
-
-/// Creates `dir/name` exclusively (`create_new`) and writes `bytes` into it with `write`:
-/// `Ok(false)` when the name is taken (that file is left alone). When the first write fails
-/// after the create (a full disk, say), the file this call created is removed before the error
-/// is returned, so no empty or partial file that looks like a session demo is left behind and
-/// the retry can take the same name.
-fn claim_new(
-    dir: &Path,
-    name: &str,
-    bytes: &[u8],
-    write: impl FnOnce(&mut std::fs::File, &[u8]) -> std::io::Result<()>,
-) -> Result<bool, String> {
-    let path = dir.join(name);
-    let fail = |e: std::io::Error| format!("{}: {e}", path.display());
-    std::fs::create_dir_all(dir).map_err(fail)?;
-    let file = std::fs::OpenOptions::new()
-        .write(true)
-        .create_new(true)
-        .open(&path);
-    match file {
-        Err(e) if e.kind() == std::io::ErrorKind::AlreadyExists => Ok(false),
-        Err(e) => Err(fail(e)),
-        Ok(mut f) => match write(&mut f, bytes) {
-            Ok(()) => Ok(true),
-            Err(e) => {
-                drop(f);
-                let _ = std::fs::remove_file(&path);
-                Err(fail(e))
-            }
-        },
     }
 }
 
@@ -388,14 +436,26 @@ fn run(o: Options) -> Result<(), String> {
     };
     // after the checks that can still refuse the launch; during play the loop never waits for
     // the device: it takes the queue's lock, which the callback holds only to copy one period
-    let (audio, line) = Output::for_launch(o.no_sound, o.volume);
+    let (audio, line) = Output::for_launch_reporting(o.no_sound, o.volume, o.trial, o.audio_report);
     if let Some(line) = line {
         eprintln!("{line}");
     }
-    let mut host = FsHost {
+    // ruling 6: our own stale temporary files, before the session's first file
+    let (removed, errors) = session_file::remove_leftovers(&o.sessions, SystemTime::now());
+    // the count is printed at every launch, zero included (the owner's ruling 6)
+    eprintln!(
+        "doom-play: removed {removed} leftover temporary file{} more than an hour old from {}",
+        if removed == 1 { "" } else { "s" },
+        o.sessions.display()
+    );
+    for e in errors {
+        eprintln!("doom-play: a leftover temporary file could not be removed: {e}");
+    }
+    // every session-file write is made by the writer thread (session_writer.rs)
+    let mut host = session_writer::WriterHost::new(FsHost {
         dir: o.sessions,
         audio,
-    };
+    })?;
     let app = App::new(data, cfg, &mut host);
     window::play(
         app,
@@ -593,6 +653,121 @@ mod tests {
         assert!(!HELP.contains("does not use the device yet"));
     }
 
+    /// Milestone M5d step A2: the experimental sound-latency options.
+    #[test]
+    fn experimental_audio_options() {
+        let o = parse(args("--iwad a.wad")).unwrap().unwrap();
+        assert_eq!(o.trial, Trial::DEFAULT, "defaults unchanged");
+        for (given, start, period) in [
+            ("--experimental-audio-start-buffers 1", 512, 512),
+            ("--experimental-audio-start-buffers 2", 1024, 512),
+            ("--experimental-audio-period-frames 128", 1024, 128),
+            ("--experimental-audio-period-frames 256", 1024, 256),
+            ("--experimental-audio-period-frames 512", 1024, 512),
+            (
+                "--experimental-audio-start-buffers 1 --experimental-audio-period-frames 128",
+                512,
+                128,
+            ),
+            (
+                "--experimental-audio-period-frames 256 --experimental-audio-start-buffers 1",
+                512,
+                256,
+            ),
+            (
+                "--experimental-audio-start-buffers 1 --experimental-audio-start-buffers 2",
+                1024,
+                512,
+            ),
+            ("--no-sound --experimental-audio-start-buffers 1", 512, 512),
+        ] {
+            let o = parse(args(&format!("--iwad a.wad {given}")))
+                .unwrap()
+                .unwrap();
+            assert_eq!(
+                (o.trial.start_frames(), o.trial.period_frames()),
+                (start, period),
+                "{given}"
+            );
+            // nothing else changes
+            assert_eq!(
+                (o.map, o.skill, o.screenblocks, o.gamma),
+                (1, 2, 10, 0),
+                "{given}"
+            );
+            assert_eq!((o.unrecorded, o.volume), (false, Volume::FULL), "{given}");
+            assert_eq!(o.no_sound, given.contains("--no-sound"), "{given}");
+        }
+        for (bad, message) in [
+            ("--experimental-audio-start-buffers 0", "is not 1 or 2"),
+            ("--experimental-audio-start-buffers 3", "is not 1 or 2"),
+            ("--experimental-audio-start-buffers two", "is not 1 or 2"),
+            ("--experimental-audio-start-buffers -1", "is not 1 or 2"),
+            ("--experimental-audio-start-buffers", "needs a value"),
+            (
+                "--experimental-audio-period-frames 0",
+                "is not 128, 256 or 512",
+            ),
+            (
+                "--experimental-audio-period-frames 64",
+                "is not 128, 256 or 512",
+            ),
+            (
+                "--experimental-audio-period-frames 100",
+                "is not 128, 256 or 512",
+            ),
+            (
+                "--experimental-audio-period-frames 511",
+                "is not 128, 256 or 512",
+            ),
+            (
+                "--experimental-audio-period-frames 1024",
+                "is not 128, 256 or 512",
+            ),
+            (
+                "--experimental-audio-period-frames 128.0",
+                "is not 128, 256 or 512",
+            ),
+            ("--experimental-audio-period-frames", "needs a value"),
+            ("--experimental-audio-periods 2", "unknown argument"),
+        ] {
+            let e = parse(args(&format!("--iwad a.wad {bad}"))).unwrap_err();
+            assert!(e.contains(message), "{bad}: {e}");
+            if !message.starts_with("unknown") {
+                assert!(e.starts_with(bad.split(' ').next().unwrap()), "{bad}: {e}");
+            }
+        }
+        // HELP: a block of its own, headed as experimental, after the other options and before
+        // the keys, naming both options, their values and defaults
+        let block = HELP
+            .find("Experimental options, for the owner's M5d sound-latency trials.")
+            .expect("the experimental block");
+        let keys = HELP.find("\nKeys:").expect("keys");
+        assert!(HELP.find("--audio-probe        diagnostic").unwrap() < block && block < keys);
+        let text = &HELP[block..keys];
+        for want in [
+            "Presentation only",
+            "never the game, the sound logic,\nthe mixer, the picture or the demo",
+            "do nothing without an audio device (or with\n--no-sound)",
+            "the defaults, which are unchanged",
+            "--experimental-audio-start-buffers N",
+            "1 or 2 (default 2)",
+            "--experimental-audio-period-frames N",
+            "128, 256 or 512 (default 512)",
+            "echo a setting that is not at its default",
+        ] {
+            assert!(text.contains(want), "{want}");
+        }
+        for name in [
+            "--experimental-audio-start-buffers",
+            "--experimental-audio-period-frames",
+        ] {
+            assert_eq!(HELP.matches(name).count(), 1, "{name} only in the block");
+        }
+        assert!(!HELP.contains("period count") && !HELP.contains("--experimental-audio-periods"));
+        assert!(HELP.contains("lines starting [INFO]"));
+    }
+
     #[test]
     fn the_audio_probe_is_asked_for_alone() {
         assert_eq!(audio_probe_requested(&args("--audio-probe")), Ok(true));
@@ -666,6 +841,42 @@ mod tests {
         std::fs::remove_dir_all(&dir).unwrap();
     }
 
+    /// Ruling 7 (2026-11-20): miniaudio's INFO report is behind `--audio-report`, off by default,
+    /// listed in the help; the option changes nothing else.
+    #[test]
+    fn the_audio_report_is_an_option_off_by_default() {
+        let o = parse(args("--iwad a.wad")).unwrap().unwrap();
+        assert!(!o.audio_report, "off by default");
+        let o = parse(args("--iwad a.wad --audio-report")).unwrap().unwrap();
+        assert!(o.audio_report);
+        assert_eq!(
+            (o.map, o.skill, o.no_sound, o.trial, o.unrecorded),
+            (1, 2, false, Trial::DEFAULT, false),
+            "nothing else"
+        );
+        assert!(parse(args("--iwad a.wad --audio-report 1")).is_err());
+        assert!(HELP.contains("--audio-report       diagnostic: when a device opens, print"));
+        assert!(HELP.contains("(lines starting [INFO]) on standard error; off by\n"));
+        assert!(HELP.contains("With --audio-report, when a device opens"));
+        assert!(!HELP.contains("\nWhen a device opens, the audio library's own device report"));
+        assert!(audio_probe_requested(&args("--audio-probe --audio-report")).is_err());
+    }
+
+    /// The session-file paragraph of the help names the exit lines and the start's clean-up.
+    #[test]
+    fn the_help_describes_the_session_writer() {
+        for want in [
+            "the demo is written by a thread of its own",
+            "line starting \"session file\nwrites\"",
+            "\"input log writes\"",
+            "every write that took more than 20 ms",
+            "(NAME.PID.tmp, NAME.PID.claim.tmp)",
+            "more than an hour old are removed",
+        ] {
+            assert!(HELP.contains(want), "{want}");
+        }
+    }
+
     #[test]
     fn game_mode_follows_identify_version() {
         assert_eq!(game_mode(Path::new("/x/DOOM1.WAD")), GameMode::Shareware);
@@ -696,5 +907,63 @@ mod tests {
             (t.year, t.month, t.day, t.hour, t.minute, t.second),
             (2024, 2, 29, 23, 59, 59)
         );
+    }
+}
+
+/// Mutation-survivor tests of M5d (mut6).
+#[cfg(test)]
+mod mut6_tests {
+    use super::*;
+
+    const CHILD: &str = "DOOM_PLAY_TEST_CLAIM_CHILD";
+    const NAME: &str = "mut6_tests::the_fallback_line_is_printed_only_for_the_fallback_claim";
+
+    /// [`FsHost::claim`] prints [`session_file::fallback_line`] on standard error when the claim
+    /// took the fallback ("the one line printed on standard error when a claim took the
+    /// fallback"), and nothing otherwise. Which one happens depends on the file system's hard
+    /// links, so the parent asks the same directory first. The child process claims a name and
+    /// the parent reads its standard error (the harness captures what a test prints).
+    #[test]
+    fn the_fallback_line_is_printed_only_for_the_fallback_claim() {
+        if let Some(dir) = std::env::var_os(CHILD) {
+            let mut host = FsHost {
+                dir: PathBuf::from(dir),
+                audio: Output::Discard(audio::Discard::default()),
+            };
+            assert_eq!(host.claim("a.lmp", b"demo"), Ok(true));
+            return;
+        }
+        let base =
+            std::env::temp_dir().join(format!("doom-play-claim-line-{}", std::process::id()));
+        let probe = session_file::claim_kind(&base.join("probe"), "a.lmp", b"demo").unwrap();
+        let child_dir = base.join("child");
+        let out = std::process::Command::new(std::env::current_exe().unwrap())
+            .args([NAME, "--exact", "--nocapture", "--test-threads=1"])
+            .env(CHILD, &child_dir)
+            .output()
+            .unwrap();
+        assert!(out.status.success(), "{out:?}");
+        let err = String::from_utf8_lossy(&out.stderr);
+        let line = session_file::fallback_line(&child_dir.join("a.lmp"));
+        assert_eq!(
+            err.contains(&line),
+            probe == session_file::Claim::Created,
+            "{err}"
+        );
+        assert_eq!(std::fs::read(child_dir.join("a.lmp")).unwrap(), b"demo");
+        std::fs::remove_dir_all(&base).unwrap();
+    }
+
+    /// [`run`] reads the IWAD first and names the file it could not read: with no such file it
+    /// returns that error (before any window or display is needed), not success.
+    #[test]
+    fn run_refuses_an_iwad_that_cannot_be_read() {
+        let missing =
+            std::env::temp_dir().join(format!("doom-play-no-such-iwad-{}.wad", std::process::id()));
+        let o = parse(vec!["--iwad".to_string(), missing.display().to_string()])
+            .unwrap()
+            .unwrap();
+        let e = run(o).unwrap_err();
+        assert!(e.starts_with(&format!("{}: ", missing.display())), "{e}");
     }
 }

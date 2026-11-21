@@ -1927,8 +1927,8 @@ idle demo written into scratch, the genuine run and the comparison:
 ```sh
 target/release/examples/player_level_run --write-idle 2100 --demo /mnt/d/scratch/m4b/M5IDLE.lmp --policy episode1v2 --map E1M5
 DOOM_IWAD_DIR=/mnt/d/DoomIWADs python3 tools/local/episode1_reference.py --work /mnt/d/scratch/m4b/real --lmp /mnt/d/scratch/m4b/M5IDLE.lmp --keep-dumps
-target/release/examples/player_level_run --wad /mnt/d/DoomIWADs/DOOM.WAD --map E1M5 --demo /mnt/d/scratch/m4b/M5IDLE.lmp --out /mnt/d/scratch/m4b/rust --captures --policy episode1v2
-python3 tools/reference/level_compare_m4b.py /mnt/d/scratch/m4b/real/runs/strict_E1M5_M5IDLE /mnt/d/scratch/m4b/rust --wad /mnt/d/DoomIWADs/DOOM.WAD --demo /mnt/d/scratch/m4b/M5IDLE.lmp --json OUT
+target/release/examples/player_level_run --wad /path/to/DOOM.WAD --map E1M5 --demo /mnt/d/scratch/m4b/M5IDLE.lmp --out /mnt/d/scratch/m4b/rust --captures --policy episode1v2
+python3 tools/reference/level_compare_m4b.py /mnt/d/scratch/m4b/real/runs/strict_E1M5_M5IDLE /mnt/d/scratch/m4b/rust --wad /path/to/DOOM.WAD --demo /mnt/d/scratch/m4b/M5IDLE.lmp --json OUT
 ```
 
 A demo's base name becomes a WAD lump name in the genuine runner, so it must have at most eight
@@ -1995,7 +1995,7 @@ session SNDDIST (our own generated test sounds in `m5c_sfx.wad`, no IWAD) under 
 draw unless the genuine rows equal the committed golden, and it stops on the first sample where the two streams
 differ; the differing-sample count in the picture comes from that comparison. `--check` regenerates the SVG and the
 WAV and compares them with the committed files byte for byte, `--selftest` plants four faults that must be caught,
-and the CI job `M5c genuine sound (not required)` runs both. Nothing is played. An MP4 is written only if `ffmpeg` is
+and the CI job `M5c genuine sound` runs both. Nothing is played. An MP4 is written only if `ffmpeg` is
 already installed, and it is never checked.
 
 ## M5a synthetic renderer rooms
@@ -2432,7 +2432,7 @@ the genuine-engine tools (Phase 2 steps 1 and 2), wire 25 and its comparisons, t
 contract with sound and the game loop (`doom-render`, `doom-game`), the real-run and session tools, the device in
 `doom-play`, the fuzz targets and the audio probe. Everything committed is synthetic and runs on a clean checkout, except the commands marked local
 only (they read an IWAD). The observations are in [the M5c evidence record](validation/M5C.md). **The CI job
-`M5c genuine sound (not required)` runs the genuine-engine commands, [below](#the-ci-job-and-the-mutation-workflow);
+`M5c genuine sound` runs the genuine-engine commands, [below](#the-ci-job-and-the-mutation-workflow);
 it is not a required check.** Every result is produced under the confirmed values of T2, T5 and T6 (the
 `--handle integrated`, `--update-schedule tic` and `--wipe genuine` switches of `m5c_build.py`; the tools take the
 other values as switches). "Identical to the genuine engine" means linuxdoom-1.10 built with its in-process sound code
@@ -2729,8 +2729,9 @@ BIN CORPUS -max_total_time=300 -max_len=70000 -seed=1 -timeout=60 -rss_limit_mb=
 
 ### The CI job and the mutation workflow
 
-The Linux-only job `M5c genuine sound (not required)` (`m5c-genuine-sound` in `.github/workflows/rust.yml`; it keeps
-the documentation-only fast path and is not a required check) runs: the generator and contract checks (`m5c_sfx.py`,
+The Linux-only job `M5c genuine sound` (`m5c-genuine-sound` in `.github/workflows/rust.yml`; it keeps
+the documentation-only fast path; it is not yet a required check, and its name lost the suffix "(not required)" in M5d so that
+the owner can make it one) runs: the generator and contract checks (`m5c_sfx.py`,
 `m5c_check_sfx.py` and its self-test, `m5c_wad.py`, `m5c_build.py`, `m5c_mixer_build.py` and `m5c_sounds_table.py`
 each with `--check`, and the table's `--self-test`); `m5c_starts.py --selftest` and each of the 64 committed start lists
 against a fresh conversion of its stream; `m5c_reference.py --check --selftest --jobs 4` and
@@ -2760,6 +2761,129 @@ repository's release profile (set no `CARGO_PROFILE_RELEASE_*` variable). No IWA
 # under the M5b contract (count, total, mean, median, p95, max in microseconds, and a workload line); run three times
 cargo run -p doom-game --release --example m5c_bench -- [--rooms SNDBUSY,SNDMONST,SNDBTN2,SLIDEB,M5AMP,M5STDIG] [--screenblocks 10,11] [--warmup 1]
 ```
+
+## M5d kill tests and trial options
+
+Observations are in the [M5d record](validation/M5D.md); this section is the commands only.
+
+### The kill test (Unix; runs in the Linux and macOS jobs of the Stable workflow)
+
+```sh
+cargo test --release -p doom-play kill_tests::sigkill_at_random_points_leaves_valid_demos -- --nocapture   # 50 kills
+DOOM_PLAY_KILLS=2000 DOOM_PLAY_KILL_SEED=1000 TMPDIR=~/scratch/kills cargo test --release -p doom-play \
+  kill_tests::sigkill_at_random_points_leaves_valid_demos -- --nocapture
+DOOM_PLAY_KILL_AT_TIC=1021 DOOM_PLAY_KILLS=200 cargo test --release -p doom-play kill_tests::sigkill -- --nocapture
+```
+
+The test spawns its own executable (the ignored `kill_tests::child_session`, which `cargo test` does not run by itself),
+plays the real `App` with the real `WriterHost` (the writer thread `doom-play` runs; `FsHost` underneath) on the synthetic session set,
+SIGKILLs it at a random moment and checks every surviving `.lmp`: it parses, replays with no refusal, its digest matches what the
+child printed at its tic count, and its tic count lies between **W** (the tics the file held after the writer's last completed write,
+printed by the child on each `@tic` line, `-` before the claim completed) and **M** (the tics the session had run); exactly M once a
+later session's claim completed; a missing file only before its claim completed; and the session running at the kill has lost at
+most the **lag bound** (M minus the tics in its file; default 525 tics, three times the writer's queue bound of 175). Environment
+variables, all optional (the module comment in `crates/doom-play/src/kill_tests.rs` is the full list):
+`DOOM_PLAY_KILLS` (default 50), `DOOM_PLAY_KILL_SEED` (first seed, default 1), `DOOM_PLAY_KILL_MAX_MS` (default 400) and
+`DOOM_PLAY_KILL_LONG_MS` (default 1600) for the delays, `DOOM_PLAY_KILL_AT_TIC` with `DOOM_PLAY_KILL_AT_US` (default
+3000) to aim at a tic (1021 is the first page-boundary rewrite, 1050 the first periodic one),
+`DOOM_PLAY_KILL_WADS` (newline-separated WAD paths; local use only, never in CI) with `DOOM_PLAY_KILL_MAP`, and
+`DOOM_PLAY_KILL_KEEP` (a directory that keeps each kill's files), `DOOM_PLAY_KILL_DIR` (a directory, for example on another disk:
+the kills' directories `kNNNN/` are made there and kept, nothing is deleted, and an existing `kNNNN/` fails the run, so give a new,
+empty directory each time; it takes precedence over `DOOM_PLAY_KILL_KEEP`; filter on the test name, as in the example below, so the
+self-tests, which use the system temporary directory, do not run there) and `DOOM_PLAY_KILL_MAX_LOST` (the lag bound in tics, or
+`none` to lift it; the summary line says which applied; give it for a slow disk such as `/mnt/d`, where the lag was observed up to
+hundreds of tics). `DOOM_PLAY_KILL_CHILD_DIR` is set by the parent for
+the child; do not set it. `DOOM_PLAY_KILL_PLANT` is for the self-tests only (`torn`: the child's appends are two writes 1 ms
+apart; `early`: every file operation is 5 ms slow and the printed W is 3 too high, capped at M - 1; `stall`: the writer stops for good
+before the first file operation that would leave the file holding more than 200 tics; any other value makes the child panic); do not set it for a real run. The parent requires that the child died by
+`SIGKILL` and reports the tail of its standard error when it did not. The test writes under the system temporary directory (`TMPDIR`); a real disk there makes more
+kills land before the session file's first write than tmpfs does. The one summary line (seen with `--nocapture`) gives the files and
+tics checked, where the kills landed, the distribution of tics lost by the session running at each kill, the kills that left no
+`.lmp`, the leftover `.tmp` files, the aim and the lag bound applied. The child runs far faster than 35 tics a second, so the lag it
+shows is worse than play would give. On a disk outside the system temporary directory:
+
+```sh
+DOOM_PLAY_KILL_DIR=/mnt/d/new-empty-dir DOOM_PLAY_KILL_MAX_LOST=none DOOM_PLAY_KILLS=300 cargo test --release -p doom-play sigkill_at_random -- --nocapture
+```
+
+Three self-tests run by default in `cargo test -p doom-play`, each planting a fault in the child and requiring the kill test to fail
+at its first failing kill: `kill_tests::a_torn_append_fails_the_kill_test` (the torn append; "is not a valid demo"),
+`kill_tests::a_w_printed_too_high_fails_the_kill_test` (the `early` plant; the W rule) and
+`kill_tests::a_stopped_writer_fails_the_lag_bound` (the `stall` plant; the lag bound). The other new tests are unit tests in
+`crates/doom-play/src/session_file.rs` (one five-byte write call, a rewrite that replaces the file, the claimed name,
+a failed removal of the claim's temporary; the clean-up of leftover temporary files), `crates/doom-play/src/session_writer_tests.rs` and
+`closing_tests.rs` (the writer thread's order, bound, errors and drain, and the settle at a session's end, with a real `App` over a test
+disk), `crates/doom-game/tests/app_settle.rs` (`App::settle_save`) and `crates/doom-game/tests/app_retry.rs` (`cargo test -p doom-game --test app_retry`:
+the retry cadence after a failed write, `FAILED_WRITE_RETRY_TICS`); `window.rs` has a test of the window configuration's DPI
+flag.
+
+### The cursor-left detector's replay test (local only)
+
+The detector that infers on Windows that the cursor left the window (`crates/doom-play/src/cursor_leave.rs`) has unit tests that run
+by default, and one **ignored** test that replays `--input-log` files and prints, per file, the reports and the pumps of left
+presses without a release. It reads the owner's logs, which never enter the repository, so it runs locally only:
+
+```sh
+DOOM_PLAY_INPUT_LOGS=/path/one.txt:/path/two.txt cargo test -q -p doom-play replay_local_input_logs -- --ignored --nocapture
+```
+
+### The session check on the survivors (`tools/reference/m5d_kill_check.py`)
+
+```sh
+python3 tools/reference/m5d_kill_check.py --work ~/scratch/m5d-kills --kills 200 --seed 100 --jobs 2 --selftest   # synthetic
+python3 tools/reference/m5d_kill_check.py --work ~/scratch/m5d-kills --iwad /path/to/DOOM.WAD --kills 50 --selftest   # local only
+```
+
+It builds the `doom-play` test executable in release, runs the kill test with the files kept, and puts every surviving
+`.lmp` through the M5c session check (the genuine engine in its strict, overflow and address variants and the genuine
+mixer, against the Rust replay; the address runs have leak detection disabled). Options: `--work DIR` (required, outside
+the repository), `--kills K` (default 200), `--seed S`, `--iwad PATH` (local only: plays E1M1 of a scratch copy; the
+original is never touched and nothing from it is committed), `--jobs N` (demos checked at once, default 2), `--selftest`
+(plants four faults that must each fail: three malformed demos, refused by the header check, and one changed command byte that passes the header and must fail the genuine comparison), `--keep`, `--cc`, `--cargo`. Output: one VERDICT line per demo and a
+summary; counts and verdicts only. The synthetic run is not yet a CI step.
+
+### The lost-display check (`tools/local/m5d_lost_display.py`, local only)
+
+```sh
+python3 tools/local/m5d_lost_display.py --iwad /path/to/DOOM.WAD --work ~/scratch/m5d-display --mode display --runs 20
+```
+
+Runs the real `doom-play` windowed (an X server is needed, WSLg works) with `--no-sound` and ends it without its own quit:
+`--mode display` shuts an X proxy (the lost display connection), `--mode int` sends SIGINT, `--mode kill` SIGKILL. Options:
+`--runs N` (default 20), `--min-ms` and `--max-ms` (the delay after the session file appears, default 500 to 8000),
+`--seed`, `--jobs`, `--cc`, `--cargo`. Every surviving `.lmp` must PASS the session check. It opens a window and reads the
+IWAD, so it never runs in CI.
+
+### The sound trial options and exit lines (`doom-play`)
+
+```sh
+doom-play --audio-probe                                   # silence for about 1 s; prints the device lines (see the audio probe above)
+doom-play --iwad DOOM.WAD --experimental-audio-start-buffers 1 --experimental-audio-period-frames 256
+```
+
+`--experimental-audio-start-buffers N` takes 1 or 2 (default 2) and `--experimental-audio-period-frames N` takes 128, 256
+or 512 (default 512); any other value exits 2 with a message. They change only how mixed sound reaches the device, and do
+nothing with `--no-sound`. With a device open, four lines (`audio device`, `audio settings`, `audio callbacks`, `audio
+queue`) are printed on exit; a setting away from its default is marked `EXPERIMENTAL` on the `audio settings` line. The
+unit tests for the lines and the options run in `cargo test -p doom-play` and open no device. What the options are
+expected to change is arithmetic in the [M5d record](validation/M5D.md#b-the-trial-options); the owner's Windows runs are in the record's
+[A7](validation/M5D.md#a7-the-owners-windows-session-of-2026-11-20-and-the-second-round) and [A9](validation/M5D.md#a9-the-owners-retest-of-2026-11-20-his-rulings-and-the-close).
+
+### Local mutation run on `doom-play` (CI's workflow does not mutate it)
+
+```sh
+git diff master...HEAD -- crates/doom-play > ~/scratch/mutants/diff.patch
+TMPDIR=~/scratch/mutants/tmp CARGO_PROFILE_DEV_DEBUG=0 \
+  CARGO_TARGET_X86_64_UNKNOWN_LINUX_GNU_RUNNER=~/scratch/mutants/runner.sh \
+  cargo mutants -p doom-play --in-diff ~/scratch/mutants/diff.patch -j 2 --timeout 300 --build-timeout 900 \
+  --exclude crates/doom-play/src/kill_tests.rs -o ~/scratch/mutants/out
+```
+
+`runner.sh` is the memory-cap wrapper described under [mutation testing](#mutation-testing) (`ulimit -v 4000000`, then `exec timeout 600 "$@"`).
+Run it from a clean checkout on the Linux disk with `TMPDIR` on ext4, and **do not set `CARGO_TARGET_DIR` with more than one job**: the jobs
+would share one target directory and a mutant could be tested with another mutant's binary. `kill_tests.rs` is excluded because it is a
+test harness. The mutants in the window's event handlers and in `audio::probe` cannot be caught without a display or a real audio device;
+the dispositions are in the [M5d record](validation/M5D.md#the-local-mutation-run-on-doom-play).
 
 ## Mutation testing
 

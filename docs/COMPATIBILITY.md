@@ -2900,7 +2900,7 @@ and keeps the genuine path from there on (decision S4).
   inputs (past that everything is released). A press is passed at most once per build (decision S6): **clicks faster than one per
   build (35 a second) are played out one per build, with fire staying on meanwhile; nothing is lost, the queue empties by itself, with
   or without motion** (the confirmed rule's behaviour, pinned by the test `clicks_faster_than_one_per_build_drain_at_one_per_build`;
-  it is not the Windows [stuck-fire report](#known-fault-on-windows-fire-sticks-when-a-release-is-lost-at-the-windows-edge)). Every stream it makes is one the genuine `G_Responder` could have
+  it is not the Windows [stuck-fire report](#stuck-fire-on-windows-accepted-as-fixed-in-m5d-the-cause-was-never-reproduced)). Every stream it makes is one the genuine `G_Responder` could have
   received. Sensitivity arithmetic, turning, strafing, forward movement, double-click use and the clamps are the
   genuine code ported.
 - **Never forwarded** (decision S5): Esc and Pause (the app's own pause), Enter, Tab, `-`, `=`, `q` and F1-F12.
@@ -2994,12 +2994,18 @@ fault ([evidence](validation/M5B.md#step-7b-full-resolution-unrecorded-turning))
   at the first pause. An existing file is **never replaced**: the file is created exclusively, and a collision
   appends `-2`, `-3` and so on up to `-9999`, after which the save fails visibly. The demo is rewritten whole
   every 30 seconds of play (1,050 tics) and when the session ends, through a temporary file
-  `<name>.<pid>.tmp` that is synced and renamed, so a process crash loses at most 30 seconds (the directory
-  itself is not synced, so an operating-system crash or power loss is not covered). If a write fails, the
+  `<name>.<pid>.tmp` (created new) that is synced and renamed; the new file itself appears through
+  `<name>.<pid>.claim.tmp`. Since M5d the file is also extended after every tic by a writer thread, so
+  **if doom-play is killed, the session file is still a valid demo but may lack the last tics the disk had not yet taken: normally none
+  or one, more on a slow disk** (see the session-limit section below). The directory itself is not synced, and the page-boundary
+  rewrites are not synced either, so an operating-system crash or power loss is not covered. If a write fails, the
   pause box says "LAST DEMO SAVE FAILED", the end screen and the exit message give the reason, and the write is
-  tried again on quit and on restart. The save runs on the loop thread (up to 4 MiB at the cap), so on a slow
-  disk or network path it can stall the loop; after a stall at most 5 tics run and the rest are dropped. That
-  was not measured. The session ends at the **tic cap of 1,048,576 tics** (about 8 hours 19 minutes), a bound
+  tried again on quit and on restart; with the per-tic file (`doom-play`), also at the next tic and then at most once
+  every 35 tics (`FAILED_WRITE_RETRY_TICS`, accepted by the owner on 2026-11-20) while it keeps failing. Since the second round of M5d every write runs on a writer thread, not on the loop thread. Before that, recording to a slow disk
+  caused hitches and sound dropouts on the owner's Windows machine (the sessions folder on an HDD); with the writer threads his retest on
+  that disk had none, and he accepted it as fixed ([record](validation/M5D.md#a9-the-owners-retest-of-2026-11-20-his-rulings-and-the-close)).
+  **What a slow disk still costs is the kill limit: a kill can lose the tics still queued for the disk** (see the session-limit section below). At a session's end the game waits up to 2 s for the file, and Q or closing the window waits
+  for the disk without a bound. A failed last write shows on the end screen and the pause box, and is written again on restart and quit. The session ends at the **tic cap of 1,048,576 tics** (about 8 hours 19 minutes), a bound
   that keeps a demo within a bounded size. A demo holds only the player's tic commands and a 13-byte header,
   nothing from the IWAD. The window's close button saves and quits, and no tic runs after a quit.
 - **Game mode comes from the IWAD file name**, as linuxdoom's `IdentifyVersion` does: `doom1.wad` is shareware,
@@ -3346,20 +3352,58 @@ person's observations on one evening; no test, recording or measurement stands b
   12 of 12 pass the genuine comparison (8 on E1M1 at `hmp`, 1 on E1M1 at `uv`, 2 on E1M2 at `uv`, 1 on E1M3 at `uv`;
   25,309 tics in all, one file holding none). This shows that the files replay equal to the genuine engine; it does not show what
   was on his screen or in his ears ([counts](validation/M5C.md#the-owners-playtest-2026-11-18)).
-- **A fault was reported on Windows:** [stuck fire](#known-fault-on-windows-fire-sticks-when-a-release-is-lost-at-the-windows-edge).
+- **A fault was reported on Windows** (accepted as fixed in M5d): [stuck fire](#stuck-fire-on-windows-accepted-as-fixed-in-m5d-the-cause-was-never-reproduced).
 
-### A session is safe only when doom-play ends it
+### A session is safe on Windows and macOS only when doom-play ends it (a limit, not yet lifted there)
 
-**A session is safe only when doom-play ends it.** The demo is written when a session starts, every 30 seconds of play, when the
-session ends, and when you restart or quit (Esc, then R or Q; R, Q or Esc on an end screen) or close the window with its
-close button; pausing does not write it. If the program is ended any other way, the demo keeps only its last write, so up to
-the last 30 seconds of play are lost and a session shorter than that is left as an empty demo of 14 bytes. Under WSLg, when the
-window's display connection is lost, Xlib prints "X connection to :0 broken (explicit kill or server shutdown)." and ends
-the process before any of doom-play's code runs, so no exit line is printed (the window library installs no handler for it, and
-installing one needs unsafe code, which the workspace forbids); the owner saw exactly that terminal output. The same happens if the
-process is interrupted or killed (Ctrl+C in its terminal, closing its console window on Windows, shutting WSL or the
-computer down). **To keep a session, end it with Esc then Q before closing anything.** Nothing changed in the
-behaviour (the owner ruled so); what a fix would take is in the [evidence record](validation/M5C.md#the-lost-display-connection-under-wslg-what-is-saved).
+**Since M5d the session file is kept current tic by tic, shown on Linux; on Windows and macOS this stays listed as a limit
+until the owner confirms it by hand.** The demo is created whole when a session starts and then extended by one 5-byte write
+per tic, made by a writer thread. **If doom-play is killed, the file is still a valid demo but may lack the last tics the disk had not
+yet taken: normally none or one, more on a slow disk.** At every instant it is a valid demo holding at least every tic the writer had
+finished and at most every tic run; the tics still queued are lost by a kill, at most 175 of them, and while a disk is stalled the lag in
+tics is not bounded (only the memory is). This weakens the first build's "every tic run, or every tic but the last"; the owner accepted
+it on stated conditions ([old and new side by side](validation/M5D.md#a7-the-owners-windows-session-of-2026-11-20-and-the-second-round), [the write schedule of the first build](validation/M5D.md#when-the-demo-is-written-fshost-as-doom-play-runs-it)). It is also rewritten whole
+every 30 seconds of play, when the session ends, and when you restart or quit (Esc, then R or Q; R, Q or Esc on an end screen)
+or close the window with its close button; pausing writes nothing.
+
+- **Shown, on Linux (this machine, under WSL2):** SIGKILL at random points (a test that runs in CI on Linux and macOS, and
+  2,000 kills locally; its lag distribution on ext4 and on `/mnt/d` is in the [record](validation/M5D.md#kill-evidence)), SIGINT (what Ctrl+C sends) and a lost display connection under WSLg (reproduced through a proxy,
+  with the same "X connection to ... broken" message the owner saw). Every surviving file passed the genuine-engine session
+  check ([counts](validation/M5D.md#evidence-release-builds-unless-stated)). That the single write cannot be cut short
+  rests on a reading of how the Linux kernel writes to a file, not on a test: deterministic tests pin that the code makes one
+  five-byte write, and the kill tests are evidence for the steady state; neither is a guarantee for every file system.
+- **Tried once on Windows, on the first build only:** on 2026-11-20 the owner ended `b374aaa` runs by Ctrl+C three times and by
+  closing the console four times (before the writer threads existed); the seven files each had a valid size (14 + 4n bytes), no
+  temporary file was left, and all passed the genuine session check ([record](validation/M5D.md#the-session)). End task was not run.
+  The writer-thread build was played on Windows in his retest the same day, every session ended by Esc then Q; **no kill of the
+  writer-thread build has been made on Windows** ([record](validation/M5D.md#a9-the-owners-retest-of-2026-11-20-his-rulings-and-the-close)).
+- **Not shown: End task, any kill of the writer-thread build on Windows, and anything on macOS.** For these
+  the limit stays as it was: **a session ended any other way than by doom-play may lose its last tics, and a session may be
+  left as an empty demo of 14 bytes**, until the owner has tried them. On Windows the design is expected to hold
+  (inference from the system's documented behaviour, untested). **To keep a session, end it with Esc then Q before closing
+  anything.**
+- Two caveats that remain even where it is shown: **where hard links are refused** (FAT, exFAT, some network shares) the claim
+  falls back to M5b's way (create, then write), a kill in that window can leave an empty `.lmp`, and one line on standard error says
+  the fallback was taken; and a kill can leave a harmless `<name>.<pid>.claim.tmp` (during a claim) or `<name>.<pid>.tmp` (during a
+  whole rewrite) file in the sessions directory. At every start doom-play removes such leftovers of its own naming that are more than an
+  hour old from the sessions directory and prints how many.
+- **Slow disks: a kill can lose the tics still queued.** Recording to a slow disk (an HDD or a network share) no longer holds the game
+  up: in the owner's retest on his HDD single writes took up to 634 ms, the game dropped no tic and no sound underrun was counted
+  ([figures](validation/M5D.md#the-retest)). What remains is that the file lags the game by the tics waiting for the disk, and a kill
+  loses them: [at most 17 tics in his ten runs on that disk](validation/M5D.md#the-retest), and
+  [620 once in the kill test through WSL's view of the same drive](validation/M5D.md#kill-evidence), where the test's child runs far
+  faster than play. Neither figure is a bound. On exit, `session file writes` and (with `--input-log`) `input log writes` lines give
+  the longest write and the deepest queue ("at most W tics waiting"), and `--tic-stats` lists every write over 20 ms.
+- **If the session writer's thread panics** (a defect in doom-play; none has been seen), the files stop at its last completed write
+  and earlier sessions it still owed a rewrite are not rewritten. On exit, standard error says that the writer stopped and names every
+  session that was not saved, with its path and at least how many of its tics the file holds (or that no file was created); a session whose
+  file is whole is reported as saved. Nothing is rewritten after the panic ([roadmap](ROADMAP.md),
+  [record](validation/M5D.md#a-writer-thread-panic-names-the-sessions-not-saved)).
+- Unchanged: under WSLg, when the display connection is lost, Xlib prints "X connection to :0 broken (explicit kill or
+  server shutdown)." and ends the process before any of doom-play's code runs, so no exit line is printed (the window
+  library installs no handler, and installing one needs unsafe code, which the workspace forbids); the demo is now
+  already current when that happens. Earlier history of this limit is in the
+  [M5c record](validation/M5C.md#the-lost-display-connection-under-wslg-what-is-saved).
 
 ### Sound latency (arithmetic, not measured)
 
@@ -3387,7 +3431,29 @@ on one evening; the arithmetic says the Windows range lies above the original's.
 **Latency is presentation and outside every claim** (above). The tables, the sources, the links that could be shortened
 later and the unknowns are in the [evidence record](validation/M5C.md#sound-latency-the-arithmetic-in-full).
 
-### Known fault on Windows: fire sticks when a release is lost at the window's edge
+**M5d added measurements of the device, not a fix.** On exit `doom-play` prints the audio backend, device, callback counts and
+queue depth, and offers two experimental trial options, `--experimental-audio-start-buffers` and
+`--experimental-audio-period-frames`, which change only how finished sound reaches the device (presentation only; the defaults
+are unchanged and nothing is promised to be shorter). The audio library's own `[INFO]` device report is printed only with `--audio-report`.
+The owner's first trial on 2026-11-20 was by ear on Bluetooth headphones with the sessions recorded to a slow disk, so its underrun counts
+are contaminated by disk stalls. He reran three trials the same day on wired output with the sessions on an SSD, one run each, by ear
+(not a latency measurement): a period of 128 frames sounded quicker than the default with no underrun, and a one-buffer start added
+nothing he could hear and gave one underrun ([figures](validation/M5D.md#the-retest)). **He chose a period of 128 frames with the
+two-buffer start as the future default; that change is not in M5d. The default here stays 512 frames**, and the change goes in its own
+pull request ([ROADMAP](ROADMAP.md)). The WASAPI period count is not offered: the audio library's safe API
+cannot set it. Their arithmetic and the one run on this machine are in the [M5d record](validation/M5D.md#a2-sound-latency-on-windows-statistics-and-trial-options);
+the Windows runs are the owner's two trials.
+
+### Windows Smart App Control blocks the unsigned build
+
+The Windows build from this repository's CI is not signed. On 2026-11-20 Smart App Control on the owner's Windows 11 machine refused
+to start one build outright ("blocked by your organization's Device Guard policy"), although the build before it had started on the
+same machine; he turned Smart App Control off to test. So on a machine with Smart App Control on, the downloaded `doom-play.exe` may
+not start, and nothing in the program can change that. Why one unsigned build was allowed and the next was not is not known. Signing
+the Windows build is on the [roadmap](ROADMAP.md) for the first release
+([record](validation/M5D.md#a9-the-owners-retest-of-2026-11-20-his-rulings-and-the-close)).
+
+### Stuck fire on Windows: accepted as fixed in M5d (the cause was never reproduced)
 
 **The owner's report (2026-11-18):** on Windows, with the native artifact and `--bindings modern`, firing with the left mouse
 button while dragging the mouse leaves fire stuck on; a click with the mouse held still clears it; firing with right Ctrl never
@@ -3405,9 +3471,23 @@ library stopped reporting cursor positions while raw motion continued, and in on
 border; the window library never captures the mouse, so a release made there goes to the window's frame, which the library does not
 handle ([evidence record](validation/M5C.md#the-owners-windows-retest-with-the-input-log-2026-11-19)).
 
-**Status: a known Windows limit of M5c, not fixed, by the owner's ruling; the fix is the first item of the next milestone**
-([ROADMAP](ROADMAP.md)). It is not promised to work: it is proposed and untested. Meanwhile, a click with the
-mouse still and the cursor inside the window clears the stuck fire, and right Ctrl fires without the fault. **Sessions recorded with
+**Second round (2026-11-20):** the owner's session on the `b374aaa` artifact showed the launch capture failing in two of five launches
+(the first launch after a change of display scale, in both) and three releases lost at 100%; the clip, read from the window library's
+source and not reproduced, is applied once per grab and nothing re-applies it. On Windows only, doom-play now asks for the grab again on
+a button-down, on gaining focus and when it infers from the logs that the cursor has left the window (a detector that is an inference,
+scored against his logs in the [record](validation/M5D.md#a7-the-owners-windows-session-of-2026-11-20-and-the-second-round)).
+
+**The retest (2026-11-20, the `c9f54ee` artifact):** nine launches at 100%, 125% and 150%, three of them the first launch after a
+change of display scale, and one two-minute run; 259 presses, every release delivered, no resize line, and fire never stuck
+([figures](validation/M5D.md#the-retest)). **The owner accepted the fault as fixed.**
+
+**Status: accepted as fixed by the owner on 2026-11-20; no longer listed as a known fault. What is not shown:** the cause of the
+launch-capture failure was never reproduced, here or on his machine, and nine clean launches cannot show whether the first grab would
+have failed without the re-grab. doom-play asks for DPI awareness on Windows (`Conf::high_dpi` in `crates/doom-play/src/window.rs`) and
+asks for the grab again; it still has no mouse capture, so a release can still be lost in the cases listed in the
+[M5d record](validation/M5D.md#a1-stuck-fire-on-windows-the-dpi-request). It was tried on one machine. If fire does stick, a click with the
+mouse still and the cursor inside the window clears it, right Ctrl fires without the fault, and a `--input-log` file of the session
+shows what happened. **Sessions recorded with
 the fault are still valid demos:** the demo records the commands the game executed, and the game was told the button was still
 down, so a replay shows the stuck fire as it was played (a valid record of what happened in the game, not of what the hand did); the
 owner's session passes the genuine comparison.

@@ -37,7 +37,8 @@ pub use frames::{
 };
 pub use gamma::GAMMA;
 pub use recorder::{
-    DemoCommands, RecordError, Recorder, TIC_CAP, Timestamp, session_name, wire24_admits,
+    DEMO_HEADER_BYTES, DemoCommands, RecordError, Recorder, TIC_CAP, Timestamp, session_name,
+    wire24_admits,
 };
 pub use screens::{
     APP_PALETTE, CLEAR, Screen, glyph, label_band, labelled_pause_overlay, pause_overlay,
@@ -63,9 +64,18 @@ pub const TICRATE: u64 = 35;
 /// The most tics one [`App::update`] runs; the surplus is dropped (`NetUpdate`'s bound,
 /// d_net.c:404; decision S8).
 pub const MAX_TICS_PER_UPDATE: u64 = 5;
-/// The demo is rewritten every this many tics while playing (30 seconds), so a crash loses
-/// at most that much (M5b investigation §3.6).
+/// The demo is rewritten whole every this many tics while playing (30 seconds), so a crash loses
+/// at most that much (M5b investigation §3.6). A host that writes every tic ([`Host::appends`])
+/// still gets this whole rewrite (doom-play's is flushed to the disk), between its appends.
 pub const SAVE_INTERVAL: usize = 35 * 30;
+/// After a failed write of a host that appends ([`Host::appends`]), the app retries a whole
+/// rewrite at the next recorded tic, and while those retries keep failing, at most once every
+/// this many recorded tics (one second of play), instead of at every tic (M5d review MIN-1: a
+/// synced whole rewrite at every tic could stall the game loop under a persistent failure). An
+/// owner-facing choice that can be changed. The whole rewrite every [`SAVE_INTERVAL`] tics, at
+/// the session's end and on restart and quit is made as before, and appends resume only after a
+/// whole rewrite has succeeded. A host that does not opt in never reaches this path.
+pub const FAILED_WRITE_RETRY_TICS: usize = TICRATE as usize;
 /// The label of a session with [`SessionConfig::unrecorded_full_turning`], wherever its state is
 /// shown (decision S3 (ii), owner ruling 2026-11-17).
 pub const UNRECORDED_LABEL: &str = "not recorded: no demo, cannot be replayed";
@@ -100,6 +110,28 @@ pub trait Host {
     }
     /// Rewrites the session file `name`, which [`Host::claim`] created, whole.
     fn save(&mut self, name: &str, bytes: &[u8]) -> Result<(), String>;
+    /// Whether the host keeps the session file current tic by tic (M5d): `true` makes the app
+    /// offer every committed, recorded tic to [`Host::append`] (except the tics on which it
+    /// rewrites the file whole anyway, every [`SAVE_INTERVAL`] tics). The default, `false`, keeps
+    /// the M5b cadence exactly: the file is written when the session begins, every
+    /// [`SAVE_INTERVAL`] tics, at the session's end and on restart and quit when behind, and
+    /// [`Host::append`] is never called.
+    fn appends(&self) -> bool {
+        false
+    }
+    /// Extends the session file `name` by one tic: writes `tail` (the tic's four demo bytes, then
+    /// the end marker `DEMOMARKER`, 0x80, g_game.c:1488) at byte `at`, where the file's old marker
+    /// is, so the file grows by four bytes. The app calls it only while the file holds exactly the
+    /// demo of every earlier tic (the last write succeeded and left `at + 1` bytes) and only when
+    /// [`Host::appends`] says so. A host that cannot make the five bytes land all or nothing at
+    /// this offset returns `Ok(false)`, and the app then rewrites the file whole with
+    /// [`Host::save`]; `Ok(true)` means written; an error is a failed save
+    /// ([`SaveStatus::Failed`]), after which the app rewrites the file whole at the next tic
+    /// (and, while that keeps failing, at most once every [`FAILED_WRITE_RETRY_TICS`] tics).
+    /// The default declines.
+    fn append(&mut self, _name: &str, _at: u64, _tail: &[u8; 5]) -> Result<bool, String> {
+        Ok(false)
+    }
     /// Called after every committed and drawn tic, for headless session verification (M5b
     /// investigation §2.3); a window has no use for it.
     fn tic(&mut self, _report: &TicReport<'_>) {}
@@ -624,6 +656,10 @@ pub struct App {
     started: Timestamp,
     claimed: bool,
     save: SaveStatus,
+    /// While the retries of a failed write keep failing (a host that appends): the recorder
+    /// length from which the next retry is made ([`FAILED_WRITE_RETRY_TICS`]); `None` retries at
+    /// the next tic.
+    retry_from: Option<usize>,
     mode: Mode,
     clock: TicClock,
     events: Vec<Event>,
@@ -685,6 +721,7 @@ impl App {
             started: Timestamp::default(),
             claimed: false,
             save: SaveStatus::NotSaved,
+            retry_from: None,
             mode: Mode::Playing,
             clock: TicClock::default(),
             events: Vec::new(),
@@ -719,6 +756,7 @@ impl App {
         self.drawn = false;
         self.recorder = Recorder::new(self.data.map, self.data.skill, self.cfg.tic_cap);
         self.save = SaveStatus::NotSaved;
+        self.retry_from = None;
         self.clock = TicClock::default();
         self.screen = None;
         self.mode = Mode::Playing;
@@ -838,6 +876,34 @@ impl App {
         &self.save
     }
 
+    /// The host's later word on the session file (M5d): a host that answers [`Host::save`] and
+    /// [`Host::append`] before it has made the write (doom-play hands every write to a writer
+    /// thread) tells the app here, at a moment no tic runs, what became of it. `Ok(())`: the
+    /// file now holds every tic recorded so far ([`SaveStatus::Saved`]). `Err(e)`: its last write
+    /// failed ([`SaveStatus::Failed`]), so the pause overlay and the end screen say so, and
+    /// [`App::restart`] and [`App::quit`] rewrite the file whole, as after any failed save (so
+    /// does the next tic if play resumes, and then at most once every
+    /// [`FAILED_WRITE_RETRY_TICS`] tics while the retries keep failing). An end screen being
+    /// shown is drawn again from the new status. Nothing changes for a session whose file was
+    /// never created, which includes every unrecorded session.
+    pub fn settle_save(&mut self, outcome: Result<(), String>) {
+        if !self.claimed {
+            return;
+        }
+        self.retry_from = None;
+        self.save = match outcome {
+            Ok(()) => SaveStatus::Saved(self.recorder.len()),
+            Err(e) => SaveStatus::Failed(e),
+        };
+        let screen = match &self.mode {
+            Mode::Ended(ending) => Some(self.end_screen(ending)),
+            _ => None,
+        };
+        if screen.is_some() {
+            self.screen = screen;
+        }
+    }
+
     /// Whether the player asked to quit (the save was attempted; see [`App::save_status`]). No
     /// tic runs after it.
     pub fn quit_requested(&self) -> bool {
@@ -922,7 +988,8 @@ impl App {
     }
 
     /// Restarts: saves the current session unless its file already holds every tic (a failed
-    /// save at the session's end is retried here), then begins a new one.
+    /// save at the session's end is retried here; with a host that appends, the file is
+    /// normally current already), then begins a new one.
     pub fn restart(&mut self, host: &mut dyn Host) {
         self.save_if_behind(host);
         self.begin(host);
@@ -1019,6 +1086,49 @@ impl App {
         }
         if self.recorder.len() % SAVE_INTERVAL == 0 {
             self.save(host);
+        } else if self.recorded() && host.appends() {
+            self.append(host);
+        }
+    }
+
+    /// Keeps the file current after a committed, recorded tic (a host that [`Host::appends`]):
+    /// when the file holds exactly the earlier tics, the tic's four bytes and a new marker go at
+    /// the old marker's offset in one write ([`Host::append`]); otherwise (an earlier write
+    /// failed, or the host declines this offset) the file is rewritten whole, which repairs it.
+    /// The forward byte of a recorded tic is never 0x80 (wire 24 refuses forward −128,
+    /// [`wire24_admits`]), so `G_ReadDemoTiccmd`, which tests only a tic's first byte for the
+    /// marker (g_game.c:1493), stops at the new marker and nowhere before it. After a failed
+    /// write, the whole rewrite is retried at the next tic and then at most once every
+    /// [`FAILED_WRITE_RETRY_TICS`] tics while it keeps failing ([`App::retry`]).
+    fn append(&mut self, host: &mut dyn Host) {
+        let n = self.recorder.len();
+        if matches!(self.save, SaveStatus::Failed(_)) {
+            return self.retry(n, host);
+        }
+        let current = self.claimed && n > 0 && self.save == SaveStatus::Saved(n - 1);
+        let (at, bytes) = match self.recorder.last_tic_tail() {
+            Ok(Some(tail)) if current => tail,
+            // the whole rewrite, which also reports a refusal of the demo writer
+            _ => return self.save(host),
+        };
+        self.save = match host.append(&self.name, at, &bytes) {
+            Ok(true) => SaveStatus::Saved(n),
+            Ok(false) => return self.save(host),
+            Err(e) => SaveStatus::Failed(e),
+        };
+    }
+
+    /// The per-tic retry after a failed write (a host that appends; `n` the recorded tics): a
+    /// whole rewrite, unless an earlier retry of this failure failed less than
+    /// [`FAILED_WRITE_RETRY_TICS`] tics ago (then nothing is written this tic, and the status
+    /// stays failed).
+    fn retry(&mut self, n: usize, host: &mut dyn Host) {
+        if self.retry_from.is_some_and(|from| n < from) {
+            return;
+        }
+        self.save(host);
+        if matches!(self.save, SaveStatus::Failed(_)) {
+            self.retry_from = Some(n + FAILED_WRITE_RETRY_TICS);
         }
     }
 
@@ -1034,7 +1144,10 @@ impl App {
             Err(e) => Err(format!("the demo writer refused: {e:?}")),
         };
         self.save = match written {
-            Ok(()) => SaveStatus::Saved(self.recorder.len()),
+            Ok(()) => {
+                self.retry_from = None;
+                SaveStatus::Saved(self.recorder.len())
+            }
             Err(e) => SaveStatus::Failed(e),
         };
     }
