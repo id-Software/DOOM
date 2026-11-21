@@ -179,5 +179,5 @@ original evidence and former guide contents with exact-byte copies and digests.
   design, a measured audio-library comparison, decisions T1–T16 (confirmed 2026-11-18) and the plan;
   in progress; [support](COMPATIBILITY.md#sound-effects-m5c) and [observations](validation/M5C.md)).
 - M5d play fixes (stuck fire on Windows, sound-latency statistics, a session file that Ctrl+C cannot lose):
-  in progress; no separate investigation note, by the owner's instruction ([observations](validation/M5D.md);
+  at the owner's review gate; no separate investigation note, by the owner's instruction ([observations](validation/M5D.md);
   [ROADMAP](ROADMAP.md)).

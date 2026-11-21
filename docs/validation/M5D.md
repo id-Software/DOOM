@@ -1,14 +1,17 @@
 # M5d evidence record
 
-**Status (2026-11-20 15:36 PST):** **second round done after the owner's Windows session; the pull request stays a draft and waits for his retest
-([A8](#a8-the-owners-retest)).** The first round (A1 to A5; the owner's session plan is A6) is unchanged below. On 2026-11-20 the owner ran the
-`b374aaa` artifact on Windows ([A7](#a7-the-owners-windows-session-of-2026-11-20-and-the-second-round)): the launch capture failed in two of five
-launches, the 100% run lost three releases, and every stall in his logs came from file writes on a slow disk. In answer the code gained a
-re-grab of the cursor and a cursor-left report on Windows, writer threads for the session file and the input log (with a declared weakening of
-the kill guarantee), a settle step at a session's end, and a bound on the log's queue. Three more independent reviews followed (3, 4 and 5):
-one major defect in the code, fixed, and one failing test on Windows, fixed; four notes are left open and listed. The final code head is
-`47cdd02`; the full gates ran at `d9cd771`, two test-only commits before it. **Nothing is marked fixed: stuck fire stays a known fault, and
-the hitch and sound dropouts on a slow disk stay open, until the owner rules on his retest.**
+**Status (2026-11-20 23:40 PST):** **the owner retested the second round on Windows and accepted the stuck-fire fix and the slow-disk fix;
+the pull request is ready for his review ([A9](#a9-the-owners-retest-of-2026-11-20-his-rulings-and-the-close)).** The first round (A1 to A5;
+the owner's session plan is A6) is unchanged below. On 2026-11-20 the owner ran the `b374aaa` artifact on Windows
+([A7](#a7-the-owners-windows-session-of-2026-11-20-and-the-second-round)): the launch capture failed in two of five launches, the 100% run
+lost three releases, and every stall in his logs came from file writes on a slow disk. In answer the code gained a re-grab of the cursor
+and a cursor-left report on Windows, writer threads for the session file and the input log (with a declared weakening of the kill
+guarantee), a settle step at a session's end, and a bound on the log's queue; reviews 3, 4 and 5 followed. His retest of the `c9f54ee`
+artifact the same day ([plan](#a8-the-owners-retest), [results](#the-retest)) had no lost release in nine launches and no hitch on the
+slow disk. **What is not shown stays stated: the launch-capture cause was never reproduced, and nine clean launches cannot show whether
+the first grab would have failed without the re-grab.** The close added an exit report that names the sessions not saved after a
+writer-thread panic, review 6, and a local mutation run on `doom-play`. The final code head is `0f26023`; the full gates ran at
+`3868b2c`, two test-only commits before it. Four review items stay open as documented limits, by his ruling.
 
 Observed results of milestone M5d (play fixes from the owner's playtest of M5c). Only observations and the
 library-source readings behind each change appear here. The facts this milestone starts from are in the
@@ -887,7 +890,8 @@ truth table), the reasons and the lines; `window` one test pinning `GRAB_AGAIN`.
 window glue in `Stage` (the `set_cursor_grab(true)` call and the calls that feed the follower), which needs a miniquad display; it
 is compile-checked only. Review 3 later added one test (idle pumps do not count as silent). **Not run:** anything on Windows or macOS.
 
-**Status.** Stuck fire remains a **known fault** until the owner confirms a retest ([A8](#a8-the-owners-retest)). A release can still be
+**Status (as written before the retest; superseded by [A9](#a9-the-owners-retest-of-2026-11-20-his-rulings-and-the-close), where the
+owner accepted the fix).** Stuck fire remains a **known fault** until the owner confirms a retest ([A8](#a8-the-owners-retest)). A release can still be
 lost in the four cases listed under A1; the re-grab narrows the window in which the clip is missing, it is not a capture.
 
 ### The writer threads
@@ -1170,7 +1174,7 @@ by the five tests of `app_settle.rs`; a guard on the recorded demo proved redund
 | N2 (note) | The `stall` self-test's margin narrowed when the first write was slow | The plant now stops before the file would hold more than 200 tics, whatever the operations cost (`90f4710`) |
 | N5 (note) | A 50 ms wait in the log-bound test could flake | The test waits on a gate and asserts the dropped count exactly (`31f3706`) |
 | N4 (note) | After a retry whose later tics were not handed over, the pause box says LAST DEMO SAVE FAILED while the last write succeeded; the file is behind, and quit or restart writes it all | Left; the new R3 test pins it |
-| N6 (note) | If the writer thread panics, earlier sessions left behind are not rewritten at exit | **Not fixed** |
+| N6 (note) | If the writer thread panics, earlier sessions left behind are not rewritten at exit | **Not fixed** *(later the same day the exit was made to name them; they are still not rewritten: [A9](#a-writer-thread-panic-names-the-sessions-not-saved))* |
 
 ### Review 5 (the follow-ups)
 
@@ -1310,6 +1314,9 @@ after this record's commit; the run and the artifact are GitHub's record, linked
 
 ## A8. The owner's retest
 
+*(The retest was carried out on 2026-11-20; its results and the owner's rulings are in
+[A9](#a9-the-owners-retest-of-2026-11-20-his-rulings-and-the-close). The plan is kept as it was written.)*
+
 Nothing is marked fixed until the owner rules. This is the plan for one sitting with the artifact built on the final head of pull
 request [#64](https://github.com/Copgunn/DOOM/pull/64) (the run is linked in the PR). Use **Command Prompt** (`cmd.exe`). Replace
 `C:\path\to\DOOM.WAD` with the IWAD's path and run from the folder the artifact is unzipped into. Make the folders first:
@@ -1384,3 +1391,279 @@ Reads each launch log for downs and ups, `resize`, `capture again` and `cursor-l
 tics; reads the exit lines; runs every `.lmp` through the session check. **Until the owner has ruled, nothing is marked fixed:**
 stuck fire stays a known fault, recording to a slow disk stays documented as causing hitches and dropouts, and the pull request stays
 a draft.
+
+## A9. The owner's retest of 2026-11-20, his rulings and the close
+
+**Scope of this section.** It records the owner's retest of [A8](#a8-the-owners-retest), his rulings on it, and what was done before the
+pull request was marked ready. The figures come from his report and from the orchestrator's reading of his files (read only; counts and
+verdicts only are recorded): `/mnt/d/DoomSessions/m5d-retest` for the launch runs and the two-minute run, and the three exit-line files
+in `C:\DoomSessions\m5d-retest\audio` for the sound runs. Where the files show more than the report said, that is stated.
+
+### The retest
+
+- **When and on what.** 2026-11-20, 16:34 to 16:57 PST, Windows 11, the `doom-play-windows-x86_64` artifact built at `c9f54ee`
+  ([run 44838097212](https://github.com/Copgunn/DOOM/actions/runs/44838097212)). By the files' times the order was: the two-minute
+  run, the three sound runs, then the launches `ch100`, `ch150`, `ch125`, `r125-1` to `r125-3`, `r100-1` to `r100-3` (the plan listed
+  the 100% repeats before the 125% ones). **Part (iv), Ctrl+C and console close, was not run:** the `kills` folder is empty, so no
+  kill of the writer-thread build has been made on Windows.
+- **Smart App Control.** Windows 11's Smart App Control blocked this build outright ("blocked by your organization's Device Guard
+  policy"), while the `b374aaa` build still ran on the same machine. The owner turned Smart App Control off to test. The artifact is
+  unsigned. Why one unsigned build ran and the next did not was not investigated.
+
+**The two-minute run on `D:`** (`run2min`, `--input-log --tic-stats`; the sound device was the Bluetooth headphones of the first
+session):
+
+| Measure | Figure |
+| --- | --- |
+| Tics | 4,587 executed, 0 dropped; every pump that ran a tic ran exactly one (no `ran` of 2 or more) |
+| Tic intervals | mean 28,571.4 us, largest 31,783 us; 22 more than 1 ms from 1/35 s, **0 more than 5 ms** |
+| Sound | underruns 0, overruns 0; queue depth mean 1,216.7, max 1,536 frames |
+| Session file writes | 4,539 (1 claim, 4,530 appends of 4,579 tics, whole rewrites 4 synced and 4 unsynced), 0 failed; longest 481.9 ms (the claim, at tic 0); **at most 11 tics waiting** |
+| Input log writes | 4,593, 0 failed; longest 303.5 ms (at tic 0) |
+| Writes over 20 ms | 26: the claim; 6 of the input log (50.7 to 303.5 ms); 15 appends (24.4 to 116.9 ms; 13 of them between 74 and 117 ms), at tics 97, 411, 612, 670, 1,002, 1,242, 1,594, 1,815, 2,387, 2,580, 2,954, 3,330, 3,341, 3,532 and 4,105; and all 4 synced rewrites, at tics 1,050, 2,100, 3,150 and 4,200 (128.2, 122.7, 144.2 and 131.3 ms). No unsynced rewrite is on the list |
+| Left downs/ups | 27/27; 27 `capture again (button-down)` lines; no `cursor-left`, `resize` or focus line |
+
+The owner felt no hitch. **His reading, which the list supports:** the appends of about 100 ms that recur every few hundred tics were
+the stalls of the first session that no rewrite explained, and the synced rewrites were the ones that followed tics 1,050, 2,100 and so
+on. Those writes still take as long on his disk; they no longer hold the loop. This is one run on one disk.
+
+**The nine launches** (`--input-log`, sessions and logs on `D:`, window 960 by 720 in every log):
+
+| Run | Tics | Left downs/ups | `capture again` lines | Releases at an edge | First raw motion, first press (pump) | Longest session-file write | Most tics waiting |
+| --- | ---: | --- | ---: | ---: | --- | --- | ---: |
+| `ch100` | 2,329 | 57/57 | 57 | 41 | 44, 47 | 634.2 ms (claim) | 17 |
+| `ch150` | 1,871 | 40/40 | 40 | 35 | 1, 31 | 147.5 ms (claim) | 5 |
+| `ch125` | 1,899 | 37/37 | 37 | 33 | 1, 32 | 146.9 ms (claim) | 4 |
+| `r125-1` | 1,108 | 6/6 | 6 | 1 | 31, 125 | not available | not available |
+| `r125-2` | 1,384 | 6/6 | 6 | 0 | 6, 130 | 178.7 ms (claim) | 5 |
+| `r125-3` | 1,371 | 15/15 | 15 | 3 | 20, 173 | 151.8 ms (claim) | 5 |
+| `r100-1` | 1,318 | 7/7 | 7 | 1 | 12, 257 | 146.8 ms (claim) | 5 |
+| `r100-2` | 948 | 29/29 | 29 | 3 | 16, 71 | 114.6 ms (an append) | 5 |
+| `r100-3` | 1,154 | 35/35 | 35 | 4 | 14, 30 | 140.6 ms (an append) | 5 |
+
+- In all nine: downs equal ups (232 in all), no `cursor-left` line, no `resize` line, no focus line, no pump with `ran` of 2 or more and no
+  dropped log line; in the eight whose exit lines exist, 0 failed writes and underruns 0. All 232 `capture again` lines give the reason `button-down`, one per press; **the
+  focus-gained and cursor-left reasons never occurred, so those two paths and the detector did not act in this retest.** Fire never
+  stuck, by the owner's report.
+- `r125-1-terminal.txt` is empty (it was written again 12 s after its log; an empty file with a mistyped name beside it suggests a
+  repeated command), so that run's exit lines are not available. Its input log and demo are complete.
+- **The most tics waiting on `D:` was 17, in `ch100`,** not the 11 of the two-minute run; the owner's report gave the two-minute run's
+  figure. The documentation cites 17.
+- "Releases at an edge" counts button-up lines whose position is on the window's first or last row or column. The three launches after
+  a scale change were dragged hard against the edges; the six repeats had far fewer edge releases than the plan asked.
+
+**What the nine launches show, and what they cannot.** No release was lost in 232 presses across nine launches, three of them the first
+launch after a change of display scale, the condition of both failures in the first session. **The cause of the launch-capture failure was
+never reproduced, on this machine or on his, and nine clean launches cannot show whether the launch grab would have failed without the
+re-grab:** no log line says whether the first clip held, and the build asks for the grab again at every press, so a launch whose first
+clip failed and one whose first clip held look alike once a button has gone down. One reading bears on it and settles nothing: in both failed launches of the first session no raw motion arrived before the
+first press; here raw motion arrived before the first press in all nine, in `ch100` only three pumps before it (pump 44, press at 47). Both
+failures of the first session were first launches after a scale change (2 of 2 such launches then); here 3 of 3 such launches were
+clean. Five launches then and nine now are too few to give a rate, and the two builds were not run side by side.
+
+**The sound runs on `C:`** (wired, "Speakers/Headphones (Realtek(R) Audio)", WASAPI, stream 11,025 Hz; `--audio-report` was on, and by the
+owner's reading of it Windows granted the period times three as asked; one run each, by ear; **not a latency measurement**):
+
+| Run | Options | Tics | Callbacks (frames each) | Queue depth, frames (mean, max) | Underruns (frames) | Longest session-file write; most tics waiting | By ear |
+| --- | --- | ---: | --- | --- | --- | --- | --- |
+| a | default | 2,843 | 1,800 (512) | 1,019.0, 1,024 | 0 | 7.6 ms; 1 | quicker than on Bluetooth |
+| d | period 128 | 2,362 | 5,885 (128) | 786.0, 1,152 | 0 | 6.6 ms; 1 | quicker than a |
+| e | period 128, start buffers 1 | 2,379 | 5,914 (128) | 566.3, 1,024 | 1 (128) | 6.0 ms; 1 | quicker than a; not distinguishable from d |
+
+Against [the arithmetic](#ruling-3-withdrawn-the-arithmetic-as-a-report): run a's maximum of 1,024 and run d's mean of 786.0 and maximum
+of 1,152 lie inside the model's ranges for their periods (512 to 1,536; 384 to 1,152, mean 791.5); run e's maximum of 1,024 is above the
+model's 896 for a one-buffer start, in the run that had an underrun. So with the sessions on an SSD the depths of the first session's
+`D:` runs (maxima of 1,920 and 2,048) did not recur, which fits the owner's conclusion that disk stalls had inflated them. One run each.
+
+### The session check of his files
+
+The orchestrator, 2026-11-20 (PST), with `tools/local/m5c_session_real.py` from a scratch worktree at `c9f54ee`, a scratch copy of the
+IWAD, the genuine engine in its strict, overflow and address variants and the genuine mixer:
+
+- **Every `.lmp` under `/mnt/d/DoomSessions/m5d-retest`: 10 files, 10 of 10 `VERDICT: PASS`, 0 FAIL, 17,969 tics** (the nine launch
+  sessions, 2,329, 1,871, 1,899, 1,108, 1,384, 1,371, 1,318, 948 and 1,154 tics, and the two-minute run, 4,587). The three variants
+  were identical in all ten. Each file's tic count equals the last tic of its input log.
+- **Beyond what the owner asked:** the three sound-run demos in `C:\DoomSessions\m5d-retest\audio`, from scratch copies: **3 of 3
+  `VERDICT: PASS`**, 7,584 tics (2,843, 2,362 and 2,379).
+- **The address variant ran with `ASAN_OPTIONS=detect_leaks=0`: leak detection was disabled, so it is not LeakSanitizer coverage.** The
+  check shows that the files replay equal to the genuine engine; it does not show what he saw or heard. Every session was ended by
+  Esc then Q, so these files say nothing about a kill. The logs are in scratch (not committed).
+
+### The owner's rulings (2026-11-20, after the retest)
+
+| Ruling | What was done |
+| --- | --- |
+| **Stuck fire (A1): accepted as fixed** | README and COMPATIBILITY no longer list it as a known fault; the limits stay stated (the cause never reproduced; the re-grab is not a mouse capture) |
+| **The hitch and the slow-disk sound dropouts: accepted as fixed** | The "keep sessions on an SSD" advice is replaced by the limit that remains: a kill can lose the tics still queued (at most 17 in his ten runs on `D:`; 620 seen once through WSL's view of that drive, in the kill test, whose child runs far faster than play) |
+| **The 2-second wait at a session's end on a stalled disk: accepted as built** | Nothing changed |
+| **The open review items: accepted for this pull request as documented limits** | Listed [below](#the-four-open-review-items-accepted-as-documented-limits); the writer-panic one is on the [roadmap](../ROADMAP.md) |
+| **A writer-thread panic must print a clear error at exit naming the sessions not written** | It was not there: the exit said only that the writer had stopped and named no session. Added, with tests ([below](#a-writer-thread-panic-names-the-sessions-not-saved)) |
+| **The default period: 128 frames with a two-buffer start is the owner's choice, on run d. Not in this pull request** | Nothing changed here: the default stays 512 and both experimental switches stay. It goes in its own small pull request after this one merges, which edits the master test `the_numbers_are_those_of_the_specification` openly |
+| The leftover worktree of the review-4 fix agent and its local branch may be removed; nothing else | Removed (`.claude/worktrees/agent-aac9fb778d3d3aff3`, `fix4-work`, whose commits are all on this branch) |
+| Smart App Control | One paragraph in [COMPATIBILITY](../COMPATIBILITY.md#windows-smart-app-control-blocks-the-unsigned-build); code signing is on the [roadmap](../ROADMAP.md) for the first release |
+
+### The four open review items, accepted as documented limits
+
+| Item | From | The limit |
+| --- | --- | --- |
+| A writer-thread panic | Review 4, N6 | If the session writer's thread panics, the earlier sessions it had left behind (a failed last write) are not rewritten at exit, and the current session's file holds only its last completed write. **Since this section's change the exit names each such session and what its file holds; nothing is rewritten after the panic** ([below](#a-writer-thread-panic-names-the-sessions-not-saved)) |
+| The rewrite of an earlier session at the next claim is one write, not a guarantee | Review 5, N-a | With two whole writes in flight that both fail before the app hears of either, the earlier session's file stays short through the next session and is saved only at exit; a kill during that next session leaves it short, still a valid demo |
+| Three surviving plants in the retry bookkeeping | Review 5, N-b | They change how many write attempts are made, never the data; "not rewritten again at once" has no test in the claim case |
+| Sleeps and one wall-clock assertion in new tests | Review 5, N-c, and the CI note | One assertion of under 500 ms that does not decide a test's outcome, and the timed opener in the quit tests of `closing_tests.rs`; none failed in CI and none was run as a flake campaign |
+
+Two further notes of review 5 stay as recorded there and were not among the four: N-d (the `stall` self-test would miss a plant if the
+first claim took longer than the child's run to tic 1,000) and review 4's N4 (the pause box's wording after a retry).
+
+### A writer-thread panic names the sessions not saved
+
+**What was there at `c9f54ee`** (read from the code): after a panic of the session writer's thread the exit printed one line, "the
+session writer stopped unexpectedly (a panic); the session file holds its last completed write". It named no session; the earlier
+sessions the writer still owed a rewrite were known only to the dead thread and were not mentioned; and the app's own line for the
+current session said "not saved" with no path or tic count, also when its file was whole.
+
+**What was built** (`crates/doom-play` only: `session_writer.rs`, `closing.rs`, `window.rs`; no existing test edited). The loop side keeps
+every session name it handed over as a claim, in order, with the most tics the app recorded in it (one entry per session, not per
+tic); the writer notes in the shared state what its last completed write of each session left in the file, or that another file took
+the name. Only after a panic, at close, the two are compared. Nothing changes when the writer does not panic. Each line follows
+`doom-play: `; `{who}` is "the session" for the session current at exit and "an earlier session" otherwise:
+
+1. Nothing lost: `the session writer stopped unexpectedly (a panic); every session file it was handed holds its whole demo`
+2. Something lost: `the session writer stopped unexpectedly (a panic); the sessions below were not saved, and no rewrite at exit saved them`
+3. A short file: `{who} was not saved: the session writer panicked; {PATH} holds at least {T} of its {N} tics (its last completed write)`
+4. No file: `{who} was not saved: the session writer panicked; {PATH} was not created (no write of it completed)`
+5. The name taken: `{who} was not written: {PATH}: another file took the name before this session's file was created; it was left alone and this session is not written`
+6. Sessions begun after the writer stopped: `the session was not saved, nor was any other session begun after the session writer stopped: no file was created for them` (or, if the current session has a name, `no session begun after the session writer stopped was saved: no file was created for them`)
+7. The current session, when its file is whole: `saved {PATH} ({N} tics)`
+
+Each session gets one line. A small ordering fault was fixed with it: the writer was marked stopped before its receiving end was
+dropped, so a claim could be queued for no one; the receiver is now dropped first. The input log's writer was read and left as it
+was: a panic there already prints "the input log stopped: ..." when it is found.
+
+**Review 6** (Claude Opus 5.5, `claude-opus-5-5`; the reviewer definition sets effort xhigh, which the agent could not see from inside its
+run; a fresh agent that wrote none of the code; range `c9f54ee..23dc8b4`, in a scratch worktree, plants reverted; a cargo-mutants run
+shared the machine, so nothing was timed). **Verdict: ready, with follow-ups; no blocker and no major finding in the range.** It ran
+format (both workspaces), Clippy (debug and release) and rustdoc with warnings denied and the 1.85.0 check on `doom-play` and
+`doom-game`, their tests in debug and release (`doom-play` 116 passed, 2 ignored; `doom-game` 146 passed), the 7 new tests 100 times
+each in debug and release (1,400 passes, 0 failures), 23 plants (15 caught, 8 survived: 2 equivalent, 1 a race no test can hit, 5 test
+gaps), and compared 1,795 master test bodies (the one known difference). **Not run:** Windows, macOS, CI, the other crates, sanitizers,
+fuzzing, mutation testing, the window code under a display.
+
+| Finding | What it said | What was done (commits on the branch) |
+| --- | --- | --- |
+| X1 (major, outside the range) | `the_logs_queue_holds_1024_pumps`, a test of this pull request from `7af7799`, failed 2 of 24 full runs on the loaded machine: if the log thread took its first hand-over during the push loop, the dropped pumps were split over two lines | The test holds the log thread at its gate and asserts 1,025 pumps kept and one `dropped` line of 75 exactly (`ba50628`). With the reviewer's late first receive planted the old test failed 5 of 5 and the new one passed 5 of 5; 400 of 400 repeat runs passed |
+| m1 (minor) | After a panic, an unheard failure of a session whose file is whole still printed "was not fully written" | No such line for a whole session (`4d6b4e1`), with a test |
+| m2 (minor) | "holds T of its N tics" was a lower bound: an append batch that failed after its first write gave "2 of 4" with 3 in the file | The line says "at least T" (`9dd8d95`), with the probe as a test |
+| m3 (minor) | Five plants survived (the taken-name and holds notes on two paths; the lines before the session line after a panic) | Four tests (`7cfdd77`, `d9122a5`); each plant again: caught |
+| n1 (note) | A claim made after `finish` that fails could give one session two lines; unreachable through the window's run | The failed claim's name is used as the current session's after a panic (`af5dc90`, `814ba1b`), three tests. **Limit:** the argument rests on the window's call order, which the writer's interface alone does not enforce |
+| n3 (note) | Doc-comment wordings | Corrected (`98bb0ea`) |
+| n4, n5 (notes) | After a panic an earlier session's own error text is not repeated; while play goes on after a panic, a session begun after the stop reserves a new name at each retry and the pause box can be wrong until exit (both from before the range) | Left; on the [roadmap](../ROADMAP.md) with the rewrite at exit |
+
+The fix agent's plants on the follow-ups: 14 planted, 13 caught by the final tests, and the timing plant of X1 passed as intended.
+**The follow-up commits themselves were read by no reviewer.** Not tested: a panic inside the rewrite at exit beyond the one planted case, a real panic in the running program, and anything on Windows or macOS outside CI.
+
+### The local mutation run on `doom-play`
+
+CI's mutation workflow does not mutate `doom-play`, and no mutation run of any kind had covered the second round's code. The owner
+asked for a local one. cargo-mutants 27.1.0, `-p doom-play --in-diff` on the diff of `crates/doom-play` against master (`d637f7d`), so
+the writer threads, the re-grab and the cursor-left detector are all in it, with `kill_tests.rs` excluded (a test harness; 216 of the
+777 listed mutants were in it); each test run under a 4 GB address-space cap and cargo-mutants' 300 s timeout; from a clean scratch
+worktree on ext4 ([command](../TESTING.md#local-mutation-run-on-doom-play-cis-workflow-does-not-mutate-it)). Other jobs shared the
+machine, so nothing here is a timing.
+
+**First run, at `c9f54ee`** (2026-11-20, 17:05 to 18:13 PST, 3 jobs): **561 mutants: 463 caught, 61 missed, 7 timed out, 30 unviable.**
+
+**Every survivor, by disposition** (a tester agent, Claude Sonnet, effort medium; 19 new tests in `3868b2c`'s commit, no product code and no
+existing test line changed; it re-ran cargo-mutants on the 68 at its own head and the outcome matched each row):
+
+| Disposition | Count | Which |
+| --- | ---: | --- |
+| Killed by a new test | 34 | 24 in `session_writer.rs` (the host's guards on a second session's name, `settle`, `stopped_short`, the forwarding of the clock, the sound and the mute key, and the writer's counters, `take_append`, `flush` and `fail`), 5 in `write_stats.rs`, 2 in `input_log.rs` (`LogThread`'s drop, `LoggedHost::appends`), 2 in `main.rs` (`FsHost::claim`'s fallback line, `run`), 1 in `window.rs` (`print`) |
+| Timed out because a test hangs: detected | 6 | The three mutants of `WriterHost::wait_idle`, `Alive`'s drop, `Writer::run` replaced by nothing, and the `done` counter in `Writer::run`: with each, tests wait forever and the timeout ends the run |
+| Timed out, yet failing existing tests | 1 | `main.rs:350`, `!=` to `==` in `FsHost::claim`: existing tests fail by assertion at once, but other tests then spin through 9,999 claim retries (about 42 s each), so the tool reports a timeout, not a catch. Slow, not a hang |
+| Equivalent | 4 | `cursor_leave::crossed`, `>` to `>=` and `<` to `<=` (they differ only at a motion of exactly zero, where both return false); `write_stats::slow_line`, `>` to `>=` (at exactly 40 entries the branch leaves out none); `window_conf`'s `high_dpi` field, **equivalent on Linux only**: on Windows the existing test `the_window_configuration_asks_for_dpi_awareness_on_windows_only` fails it, and that was not run here |
+| Not testable without a display or a real audio device | 23 | `window.rs`: `play` (it opens a window), `Stage`'s drop and the 17 mutants of `Stage`'s `update`, `draw` and event handlers, which need a miniquad GL context (among them the settle call, the re-grab request and the feeding of the cursor-left detector: **the window's own calls of the tested logic remain compile-checked only**); `audio.rs`: 4 in `probe`, which opens a real device (a probe test was removed earlier for that reason) |
+
+- **So no survivor is left that a test could catch and does not**, by this reading; 27 survive by nature (4 equivalent, 23 behind a
+  display or a device), and the 23 are a real gap: the glue between the window library and the tested logic has no test and was
+  exercised only by the owner's sessions.
+- One new test pins a rule no document states: of two equally long writes the exit line names the first. It is kept and flagged for
+  the owner.
+- The re-grab decision (`mouse_forward.rs`) and the cursor-left detector (`cursor_leave.rs`) had no survivor beyond the two equivalent
+  ones: all 33 mutants of the first were caught, and of the second's 37, 34 were caught, 1 was unviable and 2 are the equivalent pair.
+
+**Second run, at `3868b2c`** (the panic change, review 6's follow-ups and the 19 tests included; 2026-11-20, 19:35 to 21:12 PST, 2
+jobs, the gates running beside it): **591 mutants: 521 caught, 31 missed, 7 timed out, 32 unviable.** The 7 timeouts are the 7 of the
+table. Of the 31 missed, 27 are the table's 4 equivalent and 23 untestable ones, and **4 were new, all in the exit-line code added
+today** (`closing.rs`: the condition of `Play::settle_after_update`, two conditions of `after_panic`, one of `writer_lines`). A tester
+agent wrote four tests for them (`08946d5`, `0f26023`; no product code changed) and re-ran cargo-mutants on `closing.rs` alone at
+`08946d5`: **47 mutants: 46 caught, 1 unviable, 0 missed, 0 timed out.** `0f26023` changes one line of one of those tests for Clippy;
+the mutation run was not repeated on it, and **no whole-crate mutation run was made at the final code head `0f26023`.**
+
+### Gates and CI of the close
+
+**The commits of the close** (`c9f54ee..0f26023`, 16 commits, `crates/doom-play` only): the panic lines and their tests (5), review 6's
+follow-ups (8), the tests for the mutation survivors (3). The last product-code change is `814ba1b`; `7cfdd77` to `0f26023` are tests
+only. No file outside `crates/doom-play/src` changed, and no master test, fixture, golden or trace.
+
+**Full workspace gates at `3868b2c94342d8d4370b7aa548888bf495f40d96`**, from a clean clone under `~/scratch/m5d/gates3` (ext4), by a gates
+agent (Claude Sonnet, effort medium; the docs-tools role), 2026-11-20 19:35 to 22:51 PST, with the commands of
+[A5](#full-workspace-gates). `HEAD` and a clean `git status` were checked at the start and end of every phase. Build jobs capped at 4
+and C reference jobs at 2; the second mutation run shared the machine for the first hour and a half. `/mnt/c` showed 28 to 29 GB free.
+The address-sanitized genuine C runs used `detect_leaks=0` (**not LeakSanitizer coverage**); the fuzz replays and campaigns used
+`detect_leaks=1`. **Every gate that ran passed; no test failed and nothing was re-run.** No timing is claimed.
+
+| Gate | Result |
+| --- | --- |
+| Build, format (both workspaces), Clippy and rustdoc with warnings denied | passed, 0 warnings |
+| `cargo test --workspace --locked` | **2,010 passed, 0 failed, 6 ignored** |
+| Release `doom-sim`, `doom-types` | **1,393 passed, 0 failed, 2 ignored** |
+| Release `doom-render`, `doom-sound`, `doom-game`, `doom-play` | **584 passed, 0 failed, 2 ignored** |
+| Rust 1.85.0, `cargo +1.85.0 test --workspace --locked` | **2,010 passed, 0 failed, 6 ignored**; the known dead-code warning only |
+| Job `stable`, Linux steps after the Rust gates | 64 steps passed; 3 non-Linux steps skipped as on CI |
+| Jobs `M5a genuine renderer`, `M5b genuine status bar, HUD and input`, `M5c genuine sound` | all steps passed, self-tests included |
+| README animations, `--check`; synthetic local tools; fuzz seed tools; documentation check | identical; self-checks pass |
+| Fuzz build, AddressSanitizer, target compiled only | 60 of 60 built |
+| Fuzz seed replays | 7 targets, all exit 0 |
+| Fuzz AddressSanitizer campaigns, 300 s each | 7 targets, no findings, 0 artifact files; **the other 53 targets were compiled only**; no fuzz target exists for `doom-play` |
+| Kill check through the genuine engine, synthetic (100 kills) | 120 files, 55,787 tics, **120 PASS, 0 FAIL**; `SELF-CHECK: PASS` |
+| Kill check through the genuine engine, IWAD copy (50 kills) | 48 files, 6,778 tics, **48 PASS, 0 FAIL**; `SELF-CHECK: PASS` |
+| Lost display, windowed `doom-play --no-sound` (display, SIGINT, SIGKILL; 4, 3 and 3 runs) | 10 of 10 PASS, no run without a demo |
+| Kill test, 500 kills, release, ext4 (the Rust checker) | passed; 494 files, 196,513 tics; lost 0 in 435 kills, 1 in 58, 2 or 3 in 5, 6 in 1, 9 in 1; the torn-append self-test passed (its planted torn file was refused) |
+| The owner's 13 earlier session demos through the genuine engine | **13 of 13 `VERDICT: PASS`**, 27,146 tics |
+| Every `.lmp` then under `/mnt/d/DoomSessions/m5d-retest` through the genuine engine | **14 of 14 `VERDICT: PASS`**, 25,844 tics: the 10 of [the session check above](#the-session-check-of-his-files) again, and 4 more (7,875 tics) that had appeared in a new `lag` folder between 17:28 and 18:46 PST, after the owner's report and outside it |
+
+**After the gates, two commits changed test code only** (`08946d5`, four tests; `0f26023`, one line of one of them). **The full gates were
+not repeated on them.** At the final code head `0f26023a8a13de95f3acbe80c74ebdc46d2d67b1`, from the same clean clone moved to that head
+(`git status` clean), alone on the machine, 2026-11-20 22:52 to 23:30 PST, the orchestrator ran:
+
+| Gate at `0f26023` | Result |
+| --- | --- |
+| Instruction counts (job `Simulation instruction counts`), load average 0.55 at the start | `threshold 3.0%: ok`, 9 workloads, largest increase +0.92%, malloc and realloc counts equal to the baseline. It counts instructions, not time |
+| Build, format (both workspaces), Clippy and rustdoc with warnings denied | passed, 0 warnings |
+| `cargo test --workspace --locked` | **2,014 passed, 0 failed, 6 ignored** |
+| Release `doom-sim`, `doom-types`; release `doom-render`, `doom-sound`, `doom-game`, `doom-play` | **1,393 passed, 0 failed, 2 ignored; 588 passed, 0 failed, 2 ignored** |
+| Rust 1.85.0, `cargo +1.85.0 test --workspace --locked` | **2,014 passed, 0 failed, 6 ignored**; the known dead-code warning only |
+
+**Not run at `0f26023`:** the C generators and genuine-engine jobs, the fuzz builds and campaigns, the kill checks and the session checks
+(all at `3868b2c` above; the two later commits add tests in `closing_tests.rs` only).
+
+**CI.** Three runs, each with all nine jobs green (Detect changes, Stable on ubuntu-latest, windows-latest and macos-latest, Minimum
+Rust 1.85.0, Simulation instruction counts, and the M5a, M5b and M5c genuine-engine jobs):
+
+| Head | Run | What it was the first run of |
+| --- | --- | --- |
+| `23dc8b4` | [44851862388](https://github.com/Copgunn/DOOM/actions/runs/44851862388) | the panic lines and their tests on Windows and macOS |
+| `3868b2c` | [44861791868](https://github.com/Copgunn/DOOM/actions/runs/44861791868) | review 6's follow-ups and the 19 survivor tests (two of them start the test program again as a child process) |
+| `0f26023` | [44871340008](https://github.com/Copgunn/DOOM/actions/runs/44871340008) | **the final code head** |
+
+No run failed in the close. Commits after `0f26023` change documentation only and take CI's documentation fast path; the run on the
+final head is GitHub's record, linked from the pull request. The CI mutation workflow and the Windows artifact workflow were not
+started again: the artifact the owner tested is `c9f54ee`'s, and **no Windows artifact of the final head was built or run by hand.**
+
+**Not done in the close:** nothing ran on Windows or macOS outside CI; no kill of the writer-thread build on Windows; no sound was
+played here; no timing or benchmark of play; LeakSanitizer coverage of the genuine C runs; `DOOM2.WAD`; a review of review 6's
+follow-up commits or of the survivor tests.
+
+**Scratch.** `~/scratch/m5d` is kept until the owner has merged (reports, logs, the mutation outputs); the build outputs and worktrees of
+the close's agents were deleted as each finished. `/mnt/d/DoomSessions/m5d-kills`, `m5d-kills2` and `m5d-kills3` remain the owner's to
+delete.

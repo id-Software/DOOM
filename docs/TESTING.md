@@ -2866,7 +2866,24 @@ or 512 (default 512); any other value exits 2 with a message. They change only h
 nothing with `--no-sound`. With a device open, four lines (`audio device`, `audio settings`, `audio callbacks`, `audio
 queue`) are printed on exit; a setting away from its default is marked `EXPERIMENTAL` on the `audio settings` line. The
 unit tests for the lines and the options run in `cargo test -p doom-play` and open no device. What the options are
-expected to change is arithmetic in the [M5d record](validation/M5D.md#b-the-trial-options); no run on Windows exists yet.
+expected to change is arithmetic in the [M5d record](validation/M5D.md#b-the-trial-options); the owner's Windows runs are in the record's
+[A7](validation/M5D.md#a7-the-owners-windows-session-of-2026-11-20-and-the-second-round) and [A9](validation/M5D.md#a9-the-owners-retest-of-2026-11-20-his-rulings-and-the-close).
+
+### Local mutation run on `doom-play` (CI's workflow does not mutate it)
+
+```sh
+git diff master...HEAD -- crates/doom-play > ~/scratch/mutants/diff.patch
+TMPDIR=~/scratch/mutants/tmp CARGO_PROFILE_DEV_DEBUG=0 \
+  CARGO_TARGET_X86_64_UNKNOWN_LINUX_GNU_RUNNER=~/scratch/mutants/runner.sh \
+  cargo mutants -p doom-play --in-diff ~/scratch/mutants/diff.patch -j 2 --timeout 300 --build-timeout 900 \
+  --exclude crates/doom-play/src/kill_tests.rs -o ~/scratch/mutants/out
+```
+
+`runner.sh` is the memory-cap wrapper described under [mutation testing](#mutation-testing) (`ulimit -v 4000000`, then `exec timeout 600 "$@"`).
+Run it from a clean checkout on the Linux disk with `TMPDIR` on ext4, and **do not set `CARGO_TARGET_DIR` with more than one job**: the jobs
+would share one target directory and a mutant could be tested with another mutant's binary. `kill_tests.rs` is excluded because it is a
+test harness. The mutants in the window's event handlers and in `audio::probe` cannot be caught without a display or a real audio device;
+the dispositions are in the [M5d record](validation/M5D.md#the-local-mutation-run-on-doom-play).
 
 ## Mutation testing
 
