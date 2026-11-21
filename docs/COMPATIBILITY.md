@@ -3444,7 +3444,8 @@ How the doom-play figures are made, link by link (frames at 11,025 Hz, where one
 On both back ends the low end is inside the original's range and the top is above it: under PulseAudio by 40.0 ms (441 frames) to
 the hand-over and 5.2 ms (57 frames) to the end of the buffer; under WASAPI by 51.6 ms (569 frames) to the hand-over and 28.4 ms
 (313 frames) to the end of the buffer. So the arithmetic no longer says that every sound on Windows is later than the original's
-(it said so for the 512-frame period, below); it says a sound can be later, by up to those amounts. **What accounts for it:**
+(it said so for the 512-frame period, below); it says a sound can be later: by up to those amounts measured top against top, and by more
+against an original on a machine slow enough to sit low in its own range. **What accounts for it:**
 in the original the mix happens in the same pass of the main loop as the call, and a blocking write paces the loop, so no
 queue lies between game and device. doom-play adds a queue between a loop paced by tics and a callback paced by the device:
 the two-buffer start plus the wait for the next buffer boundary of the declared schedule (up to 74.9 ms, the largest link, which
@@ -3483,9 +3484,11 @@ queue depth, and offers two experimental trial options, `--experimental-audio-st
 `--experimental-audio-period-frames`, which change only how finished sound reaches the device (presentation only; M5d left the defaults
 unchanged, and nothing is promised to be shorter). The audio library's own `[INFO]` device report is printed only with `--audio-report`.
 Since 2026-11-21, when at least one underrun was counted, one more exit line lists each of the first 32: the session of the launch, the
-tic the game had reached (as the loop last noted it), the frames of silence in that one callback, and how many mixer buffers had been
+session's tics at the loop's last update before it, the frames of silence in that one callback, and how many mixer buffers had been
 queued since the queue last began to fill, after the session's start, a resume or the underrun before. It is a diagnostic so that a run
-shows whether its underruns are the start-up fill running dry; no run with it has been reported yet, and it changes nothing that is played.
+shows whether its underruns are the start-up fill running dry (while playing, a few buffers after a start or a resume). A session that
+has ended sends no more sound and its queue runs out once: that has always been counted as an underrun, is no gap in play, and the line
+marks it. No run with the diagnostic has been reported yet, and it changes nothing that is played or counted.
 The owner's first trial on 2026-11-20 was by ear on Bluetooth headphones with the sessions recorded to a slow disk, so its underrun counts
 are contaminated by disk stalls. He reran three trials the same day on wired output with the sessions on an SSD, one run each, by ear
 (not a latency measurement): a period of 128 frames sounded quicker than the default with no underrun, and a one-buffer start added

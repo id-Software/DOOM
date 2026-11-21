@@ -1,5 +1,7 @@
 # M5d evidence record
 
+**Merged since: the owner merged this pull request, [#64](https://github.com/Copgunn/DOOM/pull/64), on 2026-11-21. The status below is as written before that.**
+
 **Status (2026-11-20 23:55 PST):** **the owner retested the second round on Windows and accepted the stuck-fire fix and the slow-disk fix;
 the pull request is ready for his review ([A9](#a9-the-owners-retest-of-2026-11-20-his-rulings-and-the-close)).** The first round (A1 to A5;
 the owner's session plan is A6) is unchanged below. On 2026-11-20 the owner ran the `b374aaa` artifact on Windows
@@ -1865,7 +1867,9 @@ start, E1M5 has one with three. Five launches cannot tell "one per start" from "
 
 Why it cannot be shown: each exit line gives one total per launch. Nothing records the tic, the session or the time of an underrun, and the
 input log has no audio line and no clock. **To show it, a small diagnostic naming the session and the tic of each underrun would be needed; it
-was not made.** Nothing was measured on a device for this answer.
+was not made.** Nothing was measured on a device for this answer. (Later on 2026-11-21 that diagnostic was made, in
+[pull request #71](https://github.com/Copgunn/DOOM/pull/71): an exit line naming the session and tic of each underrun and marking a session
+that had ended; no run with it is recorded here.)
 
 ### What was not done in the check
 

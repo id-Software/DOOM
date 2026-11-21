@@ -135,11 +135,11 @@ chainsaw, rocket launcher, Spectre, command domain and demo header under wire 23
 the genuine engine tic for tic on all 30 real scripts (E1M2-E1M4, E1M6, E1M7 and E1M1 re-run), with
 the `strict32` build identical; see the [evidence record](validation/M4A.md). The fuzz campaigns were
 re-run clean on the final crates. Mutation survivor work, idle matched timings and simulation-only
-per-tic measurements are recorded. Next: independent review, full gates from clean and the text
-of the existing draft PR. Support is in
+per-tic measurements are recorded. The independent review and the full gates from clean followed
+before the merge. Support is in
 [COMPATIBILITY](COMPATIBILITY.md#original-episode-1-part-1-every-door-floor-plat-stair-donut-light-and-exit-special-keys-items-powers-chainsaw-rocket-launcher-and-spectre-wire-23);
 the schema is [DSIM v39](STATE_FORMAT.md#dsim-v39--episode-1-part-1-every-special-keys-items-powers-and-the-rocket-launcher).
-Remaining: the owner's review and merge.
+The owner reviewed and merged it (above).
 
 ### Previous gameplay foundation — M3h9b: Exploding barrels, pickup scale and every thing angle
 
@@ -538,8 +538,8 @@ monster/player behavior. Further stages require separate owner direction.
     animation, two pairs of independent reviews with their fixes, the mutation runs (every survivor of the first
     three is killed by a test or argued equivalent), and frame-time and tic-jitter timings (WSLg only, recorded, not
     gated). The final gates were all run from a clean clone at `d5a4c4a` (2026-11-17/18; every one passed, including the
-    fourth mutation run; see [step 15](validation/M5B.md#step-15-final-gates-from-clean)). Remaining: CI on the exact final head, the
-    Windows artifact rebuilt on it, the pull request marked ready and the owner's review. [Support](COMPATIBILITY.md#playable-build-m5b) is written. The owner played the
+    fourth mutation run; see [step 15](validation/M5B.md#step-15-final-gates-from-clean)). What remained then (CI on the exact final head, the
+    Windows artifact rebuilt on it, the pull request marked ready and the owner's review) was done before the merge. [Support](COMPATIBILITY.md#playable-build-m5b) is written. The owner played the
     M5c build (M5b's input and picture included) on 2026-11-18 on Windows 11 and under WSLg (see [the owner's playtest](validation/M5C.md#the-owners-playtest-2026-11-18)); beyond that, a human has to judge feel, latency and looks. See the
     [investigation note](M5B_REFERENCE_INVESTIGATION.md#4-owner-decisions-s1s23-with-recommendations).
   - **M5c (sound effects matched to linuxdoom-1.10, and the closing of the status bar face's idle glance
@@ -575,8 +575,8 @@ monster/player behavior. Further stages require separate owner direction.
     CI was green on all nine jobs at `937cf9d` ([record](validation/M5C.md#the-ci-record)). **The final gates** were all run from a clean clone at `a15e0dc` on 2026-11-19 and every one passed (1,876 workspace tests; the Linux steps of the Stable job;
     the M5a, M5b and M5c genuine-engine jobs; all 60 fuzz targets built, 7 seed replays and 10 bounded campaigns on the five M5c targets with no finding; the 61 real runs
     through every local tool; the owner's 13 session demos, all passing) ([record](validation/M5C.md#step-14-final-gates-from-clean); a first run at `937cf9d` was
-    stopped and is superseded). **What remains:** the pull request marked ready with its rewritten body, the Windows artifact and CI on the final head (GitHub's
-    record), and the owner's review. The melt picture is not built: it is original behaviour, so not optional, and no milestone is named for it yet ([checklist](#vanilla-completeness-checklist)). **Observed by the owner on 2026-11-18** (one person, one evening, release builds of
+    stopped and is superseded). **What remained then** (the pull request marked ready with its rewritten body, the Windows artifact and CI on the final head, GitHub's
+    record, and the owner's review) was done before the merge. The melt picture is not built: it is original behaviour, so not optional, and no milestone is named for it yet ([checklist](#vanilla-completeness-checklist)). **Observed by the owner on 2026-11-18** (one person, one evening, release builds of
     `3c1cc5d`; [the owner's playtest](validation/M5C.md#the-owners-playtest-2026-11-18)): on Windows 11 the window opens, the game
     plays at 35 frames a second, the mouse is captured and sound plays, with a delay on every sound that he judged normal for the
     original and left unchanged (the arithmetic puts the Windows range above the original's; both are in the
