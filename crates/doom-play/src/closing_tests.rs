@@ -903,3 +903,218 @@ fn the_logs_queue_holds_1024_pumps() {
     p.quit();
     std::fs::remove_dir_all(&dir).unwrap();
 }
+
+/// A run as [`play`] makes it, over `disk` with whole rewrites panicking while `panic` is set.
+fn play_panicking(dir: &std::path::Path, disk: &Disk, panic: &Arc<AtomicBool>) -> Play {
+    let mut host = LoggedHost {
+        host: writer(
+            dir,
+            TestIo {
+                panic_rewrites: Arc::clone(panic),
+                ..disk.io()
+            },
+        ),
+        log: InputLog::off(),
+    };
+    let cfg = SessionConfig {
+        tic_cap: 1_000,
+        ..SessionConfig::default()
+    };
+    let app = App::new(load(), cfg, &mut host);
+    let mut p = Play::new(app, host, Forward::default(), false);
+    p.app.update(0, &mut p.host);
+    p
+}
+
+/// One `update` as the window makes it ([`step`]) at monotonic time `now` (microseconds).
+fn step_at(p: &mut Play, now: u64) -> Vec<String> {
+    let ended_before = matches!(p.app.mode(), Mode::Ended(_));
+    let u = p.app.update(now, &mut p.host);
+    p.settle_after_update(ended_before);
+    p.pump_end(u, false)
+}
+
+/// Plays until the session has recorded `n` tics, one tic per update (each at the time the app
+/// says the next tic falls due, after a first update that starts a re-based clock; `now` the
+/// time, continued), letting the writer keep up after each update.
+fn play_to(p: &mut Play, now: &mut u64, n: usize) {
+    while p.app.recorder().len() < n {
+        let before = p.app.recorder().len();
+        *now = p.app.next_tic_at().unwrap_or(*now + 1).max(*now);
+        assert!(step_at(p, *now).is_empty());
+        p.host.host.wait_idle();
+        assert!(p.app.recorder().len() <= before + 1, "one tic per update");
+    }
+}
+
+/// The tics a demo file holds (13 header bytes, 4 per tic, the marker).
+fn tics_on_disk(path: &std::path::Path) -> u64 {
+    (std::fs::read(path).unwrap().len() as u64 - 14) / 4
+}
+
+/// The exit lines without the session writer's counters line (its times vary).
+fn without_counters(lines: &[String]) -> Vec<&str> {
+    lines
+        .iter()
+        .filter(|l| !l.starts_with("session file writes: "))
+        .map(String::as_str)
+        .collect()
+}
+
+/// The owner's ruling on a writer-thread panic, through the window's run with a real app. A
+/// (5 tics) is written whole and restarted from. B's append of tic 9 fails, the pause shows it,
+/// and the app's retry at the restart fails too, so the writer leaves B behind holding 8 of its
+/// 9 tics. C's append of tic 11 fails; the app hears of it at tic 12 and its retry at tic 13
+/// hands a whole demo over, whose rewrite panics: C's file holds 10 of its 13 tics. The exit
+/// report as a whole: the panic line, one line for B and one for C (the current session; it
+/// replaces the app's own line), each by path with what its file holds, no "saved" line for
+/// either, and nothing about A.
+#[test]
+fn a_writer_panic_at_exit_names_the_earlier_and_the_current_session() {
+    let dir = scratch("close-panic-names");
+    let disk = Disk::default();
+    let panic = Arc::new(AtomicBool::new(false));
+    let mut p = play_panicking(&dir, &disk, &panic);
+    let mut now = 0;
+    play_to(&mut p, &mut now, 5);
+    let a = dir.join(p.app.session_name());
+    p.app.key(KEY_ESCAPE, true, &mut p.host);
+    p.app.key(b'r', true, &mut p.host);
+    p.host.host.wait_idle();
+    play_to(&mut p, &mut now, 8);
+    disk.fail(true, true);
+    play_to(&mut p, &mut now, 9);
+    p.app.key(KEY_ESCAPE, true, &mut p.host);
+    now += 1;
+    assert!(step_at(&mut p, now).is_empty()); // the paused poll
+    assert_eq!(
+        p.app.save_status(),
+        &SaveStatus::Failed("planted: disk full".into())
+    );
+    let b = dir.join(p.app.session_name());
+    p.app.key(b'r', true, &mut p.host); // the retry fails; the writer leaves B behind
+    p.host.host.wait_idle();
+    disk.fail(false, false);
+    play_to(&mut p, &mut now, 10);
+    disk.fail(true, false);
+    play_to(&mut p, &mut now, 11);
+    disk.fail(false, false);
+    panic.store(true, Ordering::SeqCst);
+    play_to(&mut p, &mut now, 13); // tic 13's retry panics the writer
+    let c = dir.join(p.app.session_name());
+    p.quit();
+    let lines = p.conclude();
+    assert_eq!(
+        without_counters(&lines),
+        [
+            "the session writer stopped unexpectedly (a panic); the sessions below were not \
+             saved, and no rewrite at exit saved them"
+                .to_string(),
+            format!(
+                "an earlier session was not saved: the session writer panicked; {} holds 8 of its \
+                 9 tics (its last completed write)",
+                b.display()
+            ),
+            format!(
+                "the session was not saved: the session writer panicked; {} holds 10 of its 13 \
+                 tics (its last completed write)",
+                c.display()
+            ),
+        ],
+        "{lines:#?}"
+    );
+    assert!(
+        lines.iter().any(|l| l.starts_with("session file writes: ")),
+        "{lines:#?}"
+    );
+    let a_name = a.file_name().unwrap().to_str().unwrap();
+    assert!(!lines.iter().any(|l| l.contains(a_name)), "{lines:#?}");
+    assert_eq!(
+        (tics_on_disk(&a), tics_on_disk(&b), tics_on_disk(&c)),
+        (5, 8, 10)
+    );
+    std::fs::remove_dir_all(&dir).unwrap();
+}
+
+/// The owner's ruling, the other side, through the window's run: a panic that lost nothing (the
+/// whole demo handed over, here by the test as the app's own save would, is what the file
+/// already holds) names no session as not saved and still says the writer stopped. The app's
+/// status says the writer stopped before writing it (writes handed over were not made); the
+/// exit line about the session comes from the writer's report instead, which knows the file
+/// holds every tic: "saved", and no "not saved" line.
+#[test]
+fn a_writer_panic_that_lost_nothing_says_saved_and_that_the_writer_stopped() {
+    let dir = scratch("close-panic-nothing");
+    let disk = Disk::default();
+    let panic = Arc::new(AtomicBool::new(false));
+    let mut p = play_panicking(&dir, &disk, &panic);
+    let mut now = 0;
+    play_to(&mut p, &mut now, 5);
+    let (path, want) = session(&p, &dir);
+    let name = p.app.session_name().to_string();
+    panic.store(true, Ordering::SeqCst);
+    assert_eq!(
+        doom_game::app::Host::save(&mut p.host.host, &name, &want),
+        Ok(())
+    );
+    p.host.host.wait_idle(); // returns once the writer has died
+    p.quit();
+    assert!(
+        matches!(p.app.save_status(), SaveStatus::Failed(_)),
+        "{:?}",
+        p.app.save_status()
+    );
+    let lines = p.conclude();
+    assert_eq!(
+        without_counters(&lines),
+        [
+            format!("saved {} (5 tics)", path.display()),
+            "the session writer stopped unexpectedly (a panic); every session file it was handed \
+             holds its whole demo"
+                .to_string(),
+        ],
+        "{lines:#?}"
+    );
+    assert_eq!(std::fs::read(&path).unwrap(), want);
+    std::fs::remove_dir_all(&dir).unwrap();
+}
+
+/// A session begun after the writer died has no file: its claim cannot be handed over. The exit
+/// says so in one line, instead of the app's own line about it ("not saved: the session writer
+/// stopped"), and says nothing about the earlier session, whose file holds every tic.
+#[test]
+fn a_session_begun_after_a_writer_panic_is_named_as_having_no_file() {
+    let dir = scratch("close-panic-after");
+    let disk = Disk::default();
+    let panic = Arc::new(AtomicBool::new(false));
+    let mut p = play_panicking(&dir, &disk, &panic);
+    let mut now = 0;
+    play_to(&mut p, &mut now, 5);
+    let (path, want) = session(&p, &dir);
+    let name = p.app.session_name().to_string();
+    panic.store(true, Ordering::SeqCst);
+    assert_eq!(
+        doom_game::app::Host::save(&mut p.host.host, &name, &want),
+        Ok(())
+    );
+    p.host.host.wait_idle(); // returns once the writer has died
+    p.app.key(KEY_ESCAPE, true, &mut p.host);
+    p.app.key(b'r', true, &mut p.host);
+    assert_eq!(p.app.session_name(), "", "the claim was refused");
+    play_to(&mut p, &mut now, 3);
+    p.quit();
+    let lines = p.conclude();
+    assert_eq!(
+        without_counters(&lines),
+        [
+            "the session writer stopped unexpectedly (a panic); the sessions below were not \
+             saved, and no rewrite at exit saved them",
+            "the session was not saved, nor was any other session begun after the session writer \
+             stopped: no file was created for them",
+        ],
+        "{lines:#?}"
+    );
+    assert!(!lines.iter().any(|l| l.contains(&name)), "{lines:#?}");
+    assert_eq!(std::fs::read(&path).unwrap(), want);
+    std::fs::remove_dir_all(&dir).unwrap();
+}
