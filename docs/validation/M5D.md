@@ -1793,7 +1793,9 @@ each counted underrun is the queue running dry after it had started.
 
 Why always 128 frames: buffers enter 512 frames at a time and leave 128 at a time, and the queue is emptied at every underrun, session start
 and pause, so its depth at a pull is always a multiple of 128; a pull that finds too few finds none. "128 frames each" is the period, not
-a clue to the cause.
+a clue to the cause. It is also not the length of the gap heard: the counter counts only the frames missing from that one callback, and
+after an underrun the queue plays nothing until it holds 1,024 frames again; that further silence, at least about one tic (28.6 ms) unless a
+catch-up update delivers several buffers at once, is counted nowhere.
 
 By the arithmetic in this record ([Ruling 3 withdrawn: the arithmetic as a report](#ruling-3-withdrawn-the-arithmetic-as-a-report)), with ideal
 clocks a two-buffer start at period 128 never empties the queue: the least model depth at a callback is 384 frames and the hand-over slack is 315
