@@ -122,8 +122,8 @@ actors or map features. Detailed older limits remain available in the complete
 | Player statistics | Only genuine players[0].killcount fallback for absent/unbound sources; no player-pointer scoring |
 | Damage/death | Existing shared services, pain chance 180, delayed sounds, ordinary death/Fall/quarter height |
 | Terminal corpse | COUNTKILL retained; respawn disabled, no extra terminal RNG/movecount work |
-| Respawn/raise | Explicitly unsupported; no Nightmare respawn or arch-vile resurrection |
-| Complete original actor | Deferred: native type 136 identity, state aliases and disabled raise remain adaptations |
+| Respawn/raise | Explicitly unsupported under this profile; no Nightmare respawn or arch-vile resurrection (original behaviour with no milestone named yet: [checklist](ROADMAP.md#vanilla-completeness-checklist)) |
+| Complete original actor | Deferred as of this profile: native type 136 identity, state aliases and disabled raise remain adaptations (the original identities came with the [original-ID profile](#original-id-demon-profile)) |
 
 Only the old COUNTKILL flag projection is removed. Profile 17 uses
 `ActorRegistry::demon_map_context_fixture`, not complete original actor admission.
@@ -329,8 +329,9 @@ bound and fallibly reserves bounded tasks/observations. REJECT returns before BS
 work or scratch reservation. No query consumes RNG or changes canonical state.
 
 Use existing unbound XY/Z, gravity, static openings, spatial storage and read-only
-sight only. Player binding, typed actors, map spawning, AI/hearing, combat/hitscan,
-sliding, dynamic sectors, specials and complete game/map admission remain excluded.
+sight only. As of this profile, player binding, typed actors, map spawning, AI/hearing,
+combat/hitscan, sliding, dynamic sectors, specials and complete game/map admission remain
+excluded ([what came later](#deferred-systems)).
 Original 64-cell `P_PathTraverse` and 128-intercept behavior is unchanged.
 [Source analysis](M3F2_REFERENCE.md) owns the arithmetic derivation;
 [observations](validation/M3F2.md) distinguish genuine C comparisons, independent
@@ -403,16 +404,35 @@ requests as a Rust safety policy. Unsupported actions never silently no-op.
 
 ## Deferred systems
 
-Full player damage/inventory/armor/powers/scoring, multiplayer, Fast/Nightmare
-execution, respawning, resurrection, line and sector specials beyond the static set of
-the [specials policy](#original-monsters-with-sky-and-static-specials) and the seven
-door, lift, floor, switch and exit types of the
-[movers policy](#original-monsters-with-doors-lifts-floors-switches-and-the-exit) (with
-two-sided scrolling walls under the
-[E1M1 policy](#original-monsters-with-two-sided-scrolling-walls-and-static-decorations)), complete
-map/actor spawning, generalized monster interactions, demos and presentation beyond the
-[M5a 3D-view renderer](#software-renderer-m5a) remain
-unsupported. Spectre metadata recognition is not Spectre gameplay compatibility.
+Every policy is frozen: its own section says what it admits and refuses, and it keeps
+refusing what it refused when it was written, even where a later policy admits it. A
+sentence in an older section that begins "as of this policy" or "as of this profile" is
+true of that policy only. This section says where the newest ones stand
+([wire 25](#original-episode-1-part-3-canonical-sound-records-wire-25) and the
+[playable build](#playable-build-m5b) with [sound effects](#sound-effects-m5c)).
+
+**Admitted since the older sections were written, under the later policies only:**
+
+- real players with damage, armor, pickups and weapons (the player policies from
+  [the player body lifecycle](#original-player-body-lifecycle) on);
+- every line and sector special Episode 1 uses, keys, the Spectre and most powers, not
+  invulnerability or berserk
+  ([wire 23](#original-episode-1-part-1-every-door-floor-plat-stair-donut-light-and-exit-special-keys-items-powers-chainsaw-rocket-launcher-and-spectre-wire-23));
+- teleporters, the Baron, hard skill and the one local `DEMO1`
+  ([wire 24](#original-episode-1-part-2-teleporters-the-baron-of-hell-a_bossdeath-and-hard-skill-wire-24));
+- the 3D view ([M5a](#software-renderer-m5a)), the status bar, HUD messages, palette
+  flashes, window and input ([M5b](#playable-build-m5b)) and sound effects
+  ([M5c](#sound-effects-m5c)).
+
+**Still unsupported under every policy:** scoring and the intermission, multiplayer,
+Fast/Nightmare execution, respawning, resurrection, ceilings and crushers and every other
+line and sector special no Episode 1 map uses, things and monsters outside Episode 1,
+general demo playback, and the presentation the playable build does not have (music,
+menus, the automap among it). All of it is original behaviour, so none of it is optional:
+the [vanilla completeness checklist](ROADMAP.md#vanilla-completeness-checklist) lists every such item with the
+milestone named for it, or says that none is named yet.
+
+Spectre metadata recognition is not Spectre gameplay compatibility.
 Source undefined behavior is not a compatibility target; checked Rust rejection
 and adapter-defined evaluation order are recorded separately.
 
@@ -436,8 +456,9 @@ Altered records, reordered names and fixture replacements reject. Native Demon
 136 and state aliases remain explicit fixture adaptations. The separate binding
 below connects MT_SERGEANT to its already admitted subset. MT_SHADOWS, players,
 raise states and other unimplemented dependencies remain metadata without new
-gameplay permission. Spectre gameplay, real
-players, infighting, resurrection and Nightmare/respawn remain deferred.
+gameplay permission. As of M3f4, Spectre gameplay, real
+players, infighting, resurrection and Nightmare/respawn remain deferred
+([what came later](#deferred-systems)).
 
 ## Canonical Demon execution requests
 
@@ -455,9 +476,9 @@ unsupported identity/state requests, wrong owners and stale handles reject safel
 MT_SHADOWS (Spectre) and MT_SHOTGUY (Shotgun Guy) are explicitly excluded.
 
 Canonical definition queries are projections through a validated correspondence,
-not raw original IDs in ActorLife/DSIM. Full actor compatibility, real players,
-generalized infighting, Nightmare/respawn, resurrection, dynamic sectors, new
-hitscan/projectiles and rendering remain deferred. See the
+not raw original IDs in ActorLife/DSIM. As of this binding, full actor compatibility,
+real players, generalized infighting, Nightmare/respawn, resurrection, dynamic sectors, new
+hitscan/projectiles and rendering remain deferred ([what came later](#deferred-systems)). See the
 [mapping](ACTOR_IDENTITIES.md#canonical-demon-execution-binding),
 [source investigation](M3F5_REFERENCE.md) and [observations](validation/M3F5.md).
 
@@ -671,7 +692,8 @@ canonical Demon can be a controlled direct damage source between tics, then must
 be explicitly killed or marked for removal before stepping. Dead-but-allocated
 sources and Demon death/corpse actions remain supported. Player-to-Demon damage is
 restricted to lethal input, avoiding unsupported nonlethal retarget/infighting.
-Automatic targeting and physical Demon melee against the player remain future work.
+As of this policy, automatic targeting and physical Demon melee against the player remain
+future work ([what came later](#deferred-systems)).
 
 mo/attacker retain their original opaque handles after pending removal, retirement
 and reuse. New damage/binding cannot use pending or unavailable actors. Death alone
@@ -753,9 +775,10 @@ represents these observations. Wire policy 3 and a distinct grounded context sch
 select the new behavior with unchanged field/event layout. Old v20/v21/v22 policy 2
 fixtures/readers retain their meanings. advance remains diagnostic-free, and step
 captures only after the same core. [Evidence](validation/M3G3.md) distinguishes new
-C observations, reused history and Rust-only safety policies. Full player controls,
-PlayerThink, roster/automatic Demon attacks, view/camera, weapons, inventory,
-armor/powers, air movement, respawn and multiplayer remain unsupported.
+C observations, reused history and Rust-only safety policies. As of this policy, full
+player controls, PlayerThink, roster/automatic Demon attacks, view/camera, weapons,
+inventory, armor/powers, air movement, respawn and multiplayer remain unsupported
+([what came later](#deferred-systems)).
 
 
 ## Original player command movement
@@ -815,10 +838,10 @@ identity/health/state rejects. Pause retains its historical precedence. `advance
 remains diagnostic-free; `step` uses the same core and captures once on success.
 
 This is a declared P_PlayerThink movement conditional plus P_MovePlayer, not full
-PlayerThink, P_Ticker, P_DeathThink or player roster execution. View/camera/bob,
-weapons/buttons, inventory/powers/cheats, special sectors, airborne controls,
-respawn/multiplayer, arbitrary angled/two-sided walls and automatic Demon
-perception/acquisition remain unsupported. Dying/corpse Demon origins retain
+PlayerThink, P_Ticker, P_DeathThink or player roster execution. As of this policy,
+view/camera/bob, weapons/buttons, inventory/powers/cheats, special sectors, airborne
+controls, respawn/multiplayer, arbitrary angled/two-sided walls and automatic Demon
+perception/acquisition remain unsupported ([what came later](#deferred-systems)). Dying/corpse Demon origins retain
 existing controlled interaction semantics; no live AI/roster is silently enabled.
 
 ## Active original player and Demon acquisition
@@ -895,10 +918,10 @@ Snapshot; `step` captures once after successful advancement. DSIM22 policy5/cont
 select the fixed active contract with unchanged layout; [STATE_FORMAT](STATE_FORMAT.md#dsim-v22-active-player-demon-policy)
 owns its precise identifiers.
 
-Full P_PlayerThink/P_Ticker/P_DeathThink, view/camera, weapons, inventory, powers,
-armor/cheats, roster changes, respawn/multiplayer, generalized targeting/infighting,
-other monster species, sound propagation, arbitrary geometry and autonomous combat
-remain unsupported. [Source findings](M3G5_REFERENCE.md) and
+As of this policy, full P_PlayerThink/P_Ticker/P_DeathThink, view/camera, weapons,
+inventory, powers, armor/cheats, roster changes, respawn/multiplayer, generalized
+targeting/infighting, other monster species, sound propagation, arbitrary geometry and
+autonomous combat remain unsupported ([what came later](#deferred-systems)). [Source findings](M3G5_REFERENCE.md) and
 [observed evidence](validation/M3G5.md) qualify this bounded gameplay composition.
 
 ## Autonomous original Demon-player melee
@@ -1051,9 +1074,10 @@ tic. `advance` constructs no implicit Snapshot; `step` captures once from the
 same execution. [DSIM23](STATE_FORMAT.md#dsim-v23-genuine-player-pistol) adds only
 the required dynamic weapon fields; historical20/21/22 remain intact.
 
-Other weapons, switching, pickups, armor/powers/cheats, respawn, multiplayer,
-other monsters, infighting, full player thinkers, airborne/general geometry,
-dynamic sectors, generalized sound propagation and rendering remain unsupported.
+As of this policy, other weapons, switching, pickups, armor/powers/cheats, respawn,
+multiplayer, other monsters, infighting, full player thinkers, airborne/general geometry,
+dynamic sectors, generalized sound propagation and rendering remain unsupported
+([what came later](#deferred-systems)).
 New source scenarios use defined map angles0/-180 and nonnegative turns; inherited
 negative-turn and ordered spread/jitter qualifications are not new portable
 ISO-C evidence. [Investigation](M3G7_REFERENCE.md),
@@ -1188,9 +1212,9 @@ respawning are outside this executable/diagnostic contract. Audio requests do no
 implement playback or active-sound ownership.
 
 Historical no-pickup policies and DSIM20–24 remain unchanged. DSIM25 separately
-records pickup fields/events; decoding never restores a game. Armor, powers,
-keys, backpacks, other items/weapons, player rebirth, multiplayer, generalized
-specials and dynamic geometry remain excluded. Source evidence, explicit harness
+records pickup fields/events; decoding never restores a game. As of this policy, armor,
+powers, keys, backpacks, other items/weapons, player rebirth, multiplayer, generalized
+specials and dynamic geometry remain excluded ([what came later](#deferred-systems)). Source evidence, explicit harness
 adapters, generation/provenance safety and rollback are separate claims; see
 [investigation](M3G9_REFERENCE_INVESTIGATION.md), [schema](STATE_FORMAT.md#dsim-v25-original-world-pickups)
 and [observations](validation/M3G9.md).
@@ -1280,8 +1304,9 @@ increases after the pickup message and before removal, matching
 `P_TouchSpecialThing`. Recoverable failures roll back RNG, statistics, player
 state, spatial links and events together.
 
-Soulspheres, MegaSpheres, powers, keys, backpacks, item respawn, dropped bonuses,
-new weapons/monsters, multiplayer and dynamic geometry remain excluded. Physical
+As of this policy, soulspheres, MegaSpheres, powers, keys, backpacks, item respawn, dropped
+bonuses, new weapons/monsters, multiplayer and dynamic geometry remain excluded
+([what came later](#deferred-systems)). Physical
 component T40's post-hit result (raw 300 damage exceeding the 30-unit momentum
 admission) stays source-only; its pickup is compared and the hit is atomically
 rejected. See [source investigation](M3G11_REFERENCE_INVESTIGATION.md) and
@@ -1321,8 +1346,9 @@ A dead former human drops MT_CLIP / MT_SHOTGUN / MT_CHAINGUN at its position wit
 MF_DROPPED; dropped ammo is halved by the existing pickup rules. Drops are
 appended after the player in thinker order and are not counted items.
 
-Raise/resurrection, MT_VILE and every other monster type, projectiles, nightmare
-and fast monsters, respawn, multiplayer and dynamic geometry remain excluded.
+As of this policy, raise/resurrection, MT_VILE and every other monster type, projectiles,
+nightmare and fast monsters, respawn, multiplayer and dynamic geometry remain excluded
+([what came later](#deferred-systems)).
 The original attack actions store BAM angles in `int` locals; `angle += spread`
 is signed overflow near 180°. The default original-C build keeps that text under
 the declared GNU wrapping interpretation, and strict audits retype only those
@@ -1384,8 +1410,9 @@ vertical momentum. Floor and ceiling contact, the sky hack, line openings and th
 SHADOW spread are unreachable here; this policy makes no observation claim for them.
 Actor coordinates keep the existing 994-unit preflight bound, so a map whose walls
 lie beyond it rejects a fireball that reaches that distance. A blocked spawn check
-needs overlapping THINGs. Every other projectile and monster, raise, nightmare and fast
-monsters, respawn, multiplayer and dynamic geometry remain excluded. See
+needs overlapping THINGs. As of this policy, every other projectile and monster, raise,
+nightmare and fast monsters, respawn, multiplayer and dynamic geometry remain excluded
+([what came later](#deferred-systems)). See
 [source investigation](M3H2_REFERENCE_INVESTIGATION.md) and
 [observed evidence](validation/M3H2.md).
 
@@ -1439,8 +1466,8 @@ wall reject with the historical spawn errors and unchanged state.
 E1M1-sized rectangles (about 3,900 × 3,200 units) fit when their long walls are
 split at vertices. Non-axis walls stay excluded: with `P_AproxDistance(30,30) = 45`,
 a 22.5° slide can move a player 38 units, more than its 32-unit box, so the wall
-argument does not hold for them. Two-sided lines, height changes, moving sectors,
-other monsters and projectiles remain excluded. See
+argument does not hold for them. As of this policy, two-sided lines, height changes,
+moving sectors, other monsters and projectiles remain excluded ([what came later](#deferred-systems)). See
 [source investigation](M3H3_REFERENCE_INVESTIGATION.md) and
 [observed evidence](validation/M3H3.md).
 
@@ -1490,10 +1517,10 @@ Legal source moves are never rejected. A map that fails a load check is rejected
 the constructor with `MapScaleError::{Geometry, Walls, Blockmap, Lines}`, the inherited
 specials, sky, height-range and inverted-sector rejections, never during play; a spawn
 that does not fit rejects with `MapScaleError::Fit` and unchanged state, and a
-`P_KillMobj` drop that would not fit fails its checked tic. Moving sectors, doors,
-lifts, crushers, line and sector specials, damaging floors, teleporters, sky ceilings,
-non-axis walls, `P_CalcHeight`/view bobbing and every other monster or weapon stay
-excluded. See [source investigation](M3H4_REFERENCE_INVESTIGATION.md) and
+`P_KillMobj` drop that would not fit fails its checked tic. As of this policy, moving
+sectors, doors, lifts, crushers, line and sector specials, damaging floors, teleporters,
+sky ceilings, non-axis walls, `P_CalcHeight`/view bobbing and every other monster or
+weapon stay excluded ([what came later](#deferred-systems)). See [source investigation](M3H4_REFERENCE_INVESTIGATION.md) and
 [observed evidence](validation/M3H4.md).
 
 ## Original monsters among diagonal walls
@@ -1539,10 +1566,10 @@ momentum admission; fireballs stay refused by the projectile control, so every p
 mover is one the proof's clamp covers. A map that fails a load check is
 rejected by the constructor with `MapScaleError::{Geometry, Boundary, Walls, Blockmap,
 Lines}` or the inherited rejections, never during play; a spawn whose box meets a wall
-or whose center lies outside rejects with unchanged state. Moving sectors, doors, lifts,
-crushers, line and sector specials, damaging floors, teleporters, sky ceilings,
-`P_CalcHeight`/view bobbing, cap increases and every other monster, weapon or item stay
-excluded. See [source investigation](M3H5_REFERENCE_INVESTIGATION.md) and
+or whose center lies outside rejects with unchanged state. As of this policy, moving
+sectors, doors, lifts, crushers, line and sector specials, damaging floors, teleporters,
+sky ceilings, `P_CalcHeight`/view bobbing, cap increases and every other monster, weapon
+or item stay excluded ([what came later](#deferred-systems)). See [source investigation](M3H5_REFERENCE_INVESTIGATION.md) and
 [observed evidence](validation/M3H5.md).
 
 ## Original monsters at classic-map scale
@@ -1773,7 +1800,10 @@ constructor with a field-less error and no state is built, never during play:
 | Every 11 and 63 line's front side carries one of the 38 episode-1 `alphSwitchList` names as its upper, lower or middle texture, ignoring ASCII case (decision N9a) | `MapScaleError::SwitchTexture` |
 | Every mover sector has a defined `blockbox`: the `P_GroupLines` box arithmetic stays inside `fixed_t`, so every `P_ChangeSector` of a plane step walks defined BLOCKMAP cells (rule 10, added by the independent review; defensive, since the real-map arithmetic certificate already refuses every constructed counterexample) | `MapScaleError::MoverBlockBox` |
 
-No admitted line is a crusher; crushers are deferred, not emulated. The Stage A sector
+No admitted line is a crusher: under this policy crushers are deferred, not emulated. No
+later policy admits one either (none of wires 20 to 25 adds a crusher line), and ceilings
+and crushers are original behaviour with no milestone named yet
+([checklist](ROADMAP.md#simulation-systems)). The Stage A sector
 special, light and inherited real-map rejections still apply.
 
 Behavior during play:
@@ -1814,12 +1844,15 @@ Behavior during play:
 - **Exit.** The tic in which the exit switch is used completes (thinkers, specials,
   `leveltime`), `level.exit` is set, and every later `advance` or `step` returns
   `SimError::LevelExited` with the state unchanged. The intermission and the next map are
-  out of scope.
+  not part of this policy, nor of any later one so far; they are original behaviour, and
+  the [checklist](ROADMAP.md#intermission-and-finale) says where they stand.
 - **Reborn.** Under this policy a dead player may hold `BT_USE` alone (the only dead
   command besides the empty one). That tic completes, the player state becomes
   `PST_REBORN` (DSIM35 `original_player.0.state` 2), and every later `advance` or `step`
   returns `SimError::PlayerReborn` with the state unchanged (decision N3). The level
-  restart is out of scope. Both refusals are checked before the pause test.
+  restart is not part of this policy, nor of any later one so far; it is original
+  behaviour, and the [checklist](ROADMAP.md#playing-a-single-player-game) says where the
+  reborn reload stands. Both refusals are checked before the pause test.
 - **Vertical invariant V′.** The M3h4 vertical invariant is replaced, under this policy
   only, by V′ (note [§4.1](M3H8_REFERENCE_INVESTIGATION.md#41-b2-the-vertical-invariant-v)):
   besides a thing between its floor and ceiling, it admits a non-shootable thing stuck
@@ -1870,7 +1903,7 @@ The source never gives an item vertical momentum; the next tic is refused
 The [E1M1 policy](#original-monsters-with-two-sided-scrolling-walls-and-static-decorations)
 refuses the call itself.
 
-Still excluded: every other line special (locked doors and keys, the other door, lift,
+Still excluded as of this policy ([what came later](#deferred-systems)): every other line special (locked doors and keys, the other door, lift,
 floor, stair, donut and ceiling types, crushers, teleporters, `raiseToTexture`,
 perpetual and stopping lifts, light-switching and gun lines, the other exits),
 two-sided scrolling walls, sector specials 10, 11 and 14, sky ceilings over movers, the
@@ -2209,7 +2242,9 @@ solid and non-shootable, the 10.5-unit sight window, the `S_GIBS` crunch of a dy
 barrel, the positive-only halving of `P_XYMovement` steps, the lift line crossed by a
 barrel, the angle wrap. Recorded, not emulated (unreachable here): crusher blood on a
 `MF_NOBLOOD` barrel (crushers rejected), the chainsaw thrust exception (saw not admitted),
-the MAP30 stomp (teleporters out of scope). Known limitation of the C evidence: the
+the MAP30 stomp (no teleporters under this policy; Episode 1's came with
+[wire 24](#original-episode-1-part-2-teleporters-the-baron-of-hell-a_bossdeath-and-hard-skill-wire-24),
+and MAP30 is Doom II, which is on the [checklist](ROADMAP.md#doom-ii)). Known limitation of the C evidence: the
 harness's `intercepts[]` carries an abort before a 129th entry, so the unchecked overflow
 of the source is never observed in C; the Rust-only lane refuses the tic.
 
@@ -2710,8 +2745,8 @@ rulings 2026-11-15), the observations in the [evidence record](validation/M5A.md
 | --- | --- |
 | Source equivalence of the frame | The Rust frame equals the genuine renderer's frame, byte for byte, on every comparable synthetic frame in CI (the committed rooms at screenblocks 9, 10 and 11) and on every frame of the 61 scripted Episode 1 runs at screenblocks 11 and 10 (local only; frame counts in the evidence record; DEMO1 as run by the original code, not the DOS 1.9 executable). Two exclusions apply (below): screen columns the genuine read tracker flags as reading undefined memory (R4) are left out of a frame's comparison, and frames with an unknown switch parity (R7) are not compared at all; those are 105 synthetic frames (M5SWTCH, 35 per configuration) and no real-map frame. It is not a claim for other maps, scripts or settings. |
 | Configurations (R2) | Screenblocks 9 (synthetic rooms only), 10 and 11, **high detail**. **Low detail is refused** (the original's `R_DrawColumnLow` is broken in this source); other screenblocks are refused. |
-| Out of scope (R1, M5b) | Status bar, HUD, automap, menus, palette flashes (the palette is chosen by the caller), window, input, sound; the border is never drawn. Player colour translation (players 2-4) is refused (`PlayerTranslation`). |
-| Invulnerability | Not admitted by the simulation (DoomEd 2022, `INVERSECOLORMAP`), so no frame uses fixed colour map 32; it is out of M5a. Light amplification (fixed colour map 1) is covered. |
+| Not part of M5a (R1) | Status bar, HUD, automap, menus, palette flashes (the palette is chosen by the caller), window, input, sound; the border is never drawn. The status bar, HUD, palette flashes, window and input came with [M5b](#playable-build-m5b) and sound effects with [M5c](#sound-effects-m5c); the automap, the menus and the view border are original behaviour with no milestone named yet ([checklist](ROADMAP.md#vanilla-completeness-checklist)). Player colour translation (players 2-4) is refused (`PlayerTranslation`). |
+| Invulnerability | Not admitted by the simulation (DoomEd 2022, `INVERSECOLORMAP`), so no frame uses fixed colour map 32; it is out of M5a, and it is original behaviour with no milestone named yet ([checklist](ROADMAP.md#simulation-systems)). Light amplification (fixed colour map 1) is covered. |
 
 **Vanilla limits (R3).** Reproduced exactly because they are deterministic: `MAXDRAWSEGS` (256) and
 `MAXVISSPRITES` (128) drop silently, as the original does. Refused with a named witness, because the
@@ -2762,7 +2797,9 @@ frames as an uninterrupted run (rewind).
 
 Not claimed: any renderer or presentation behaviour beyond these, the DOS executable's picture, speed (no
 timing gate), or a modern renderer. The window, status bar, HUD and input of M5b are under
-[Playable build (M5b)](#playable-build-m5b); the automap and sound remain out of scope.
+[Playable build (M5b)](#playable-build-m5b) and sound effects under [Sound effects (M5c)](#sound-effects-m5c);
+the automap is not built: it is original behaviour with no milestone named yet
+([checklist](ROADMAP.md#in-game-screen)).
 
 ## Playable build (M5b)
 
@@ -2830,7 +2867,8 @@ treats its lumps by the original's rules; the committed tests use our own genera
 - **Unreachable under wire 24, so not exercised by any level run:** the berserk palette term, the god-mode
   face (covered by unit tests and the one bespoke cheat scenario only, whose cheats are applied through a test
   hook, not by keys), the plasma and BFG arms icons, the skull-key icons 3-5 and the minus sign. The simulation
-  does not admit invulnerability or berserk.
+  does not admit invulnerability or berserk (original behaviour with no milestone named yet:
+  [checklist](ROADMAP.md#simulation-systems)).
 - **Screenblocks 10 and 11 only**, chosen at launch and fixed for the session. At these sizes no border is
   drawn and the HUD erase does nothing, which keeps the frame contract small. Screenblocks 9 and below and low
   detail are refused (M5a decisions R1, R2, S14).
@@ -3052,11 +3090,13 @@ the next tic is due and keeps the library's default swap interval. The mouse is 
   audio library `maudio` is a second dependency of `doom-play` only. `doom-sim`, `doom-sound` and `doom-game` have no
   windowing, audio-device, thread or wall-clock dependency.
 
-### Not in M5b (out of scope, later milestones)
+### Not in M5b (later milestones)
 
 (Sound effects came with [M5c](#sound-effects-m5c); the glance fix and the level-start wipe's draws too.) Music, menus, the automap, save and load, the intermission and level-to-level carry-over, the title
 screen and demo loop, the screen wipe's picture, cheats, vanilla's in-game pause, easy and nightmare skill, low
-detail, screenblocks below 10, multiplayer and joystick input. The modern renderer is listed in
+detail, screenblocks below 10, multiplayer and joystick input. All of these are original behaviour, so none
+is optional: the [vanilla completeness checklist](ROADMAP.md#vanilla-completeness-checklist) gives each one's milestone, says
+that none is named yet or, for the joystick, that it needs the owner's ruling. The modern renderer, which is not original behaviour, is listed in
 [ROADMAP](ROADMAP.md).
 
 ## Sound effects (M5c)
