@@ -260,10 +260,7 @@ impl EventHandler for Stage {
         let now = self.now();
         let play = &mut self.play;
         let ended_before = matches!(play.app.mode(), Mode::Ended(_));
-        let u = play.app.update(now, &mut play.host);
-        if let Some(s) = &mut play.stats {
-            s.record(now, u.ran, u.dropped);
-        }
+        let u = play.update(now);
         // no tic runs from here to the next update: the session file is settled into the app
         // when it is not playing (waiting up to closing::END_WAIT at a session's end)
         play.settle_after_update(ended_before);
