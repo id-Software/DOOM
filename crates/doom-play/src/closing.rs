@@ -26,9 +26,10 @@
 //! current session's line from the app's status ([`crate::window::exit_lines`]), one line per
 //! earlier session the writer left behind ([`earlier_lines`]), and the writers' lines. If the
 //! session writer's thread panicked, its lines ([`panic_lines`]) say so and name every session
-//! whose file does not hold its whole demo, with what the file holds; the current session's line
-//! then comes from the writer's report, not the app's status ([`after_panic`]): "saved" if its
-//! file holds every tic, otherwise the panic's line about it.
+//! whose file does not hold its whole demo, with at least how many tics the file holds (those of
+//! the writer's last completed write of it); the current session's line then comes from the
+//! writer's report, not the app's status ([`after_panic`]): "saved" if its file holds every tic,
+//! otherwise the panic's line about it.
 
 use crate::input_log::LoggedHost;
 use crate::mouse_forward::Forward;
@@ -291,8 +292,8 @@ pub(crate) fn panic_lines(w: &Report, dir: &Path, current: &str) -> Vec<String> 
         let recorded = n.recorded;
         lines.push(match n.file {
             Some(OnDisk::Holds(t)) => format!(
-                "{who} was not saved: the session writer panicked; {} holds {t} of its \
-                 {recorded} tics (its last completed write)",
+                "{who} was not saved: the session writer panicked; {} holds at least {t} of \
+                 its {recorded} tics (its last completed write)",
                 path.display()
             ),
             None => format!(

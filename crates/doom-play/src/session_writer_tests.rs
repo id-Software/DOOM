@@ -1051,13 +1051,13 @@ fn a_writer_panic_names_every_session_whose_file_is_short() {
              saved, and no rewrite at exit saved them"
                 .to_string(),
             format!(
-                "an earlier session was not saved: the session writer panicked; {} holds 1 of its \
-                 2 tics (its last completed write)",
+                "an earlier session was not saved: the session writer panicked; {} holds at \
+                 least 1 of its 2 tics (its last completed write)",
                 path(b)
             ),
             format!(
-                "an earlier session was not saved: the session writer panicked; {} holds 2 of its \
-                 7 tics (its last completed write)",
+                "an earlier session was not saved: the session writer panicked; {} holds at \
+                 least 2 of its 7 tics (its last completed write)",
                 path(c)
             ),
             format!(
@@ -1180,8 +1180,8 @@ fn a_writer_panic_while_moving_on_names_each_session_once() {
              saved, and no rewrite at exit saved them"
                 .to_string(),
             format!(
-                "an earlier session was not saved: the session writer panicked; {} holds 1 of its \
-                 2 tics (its last completed write)",
+                "an earlier session was not saved: the session writer panicked; {} holds at \
+                 least 1 of its 2 tics (its last completed write)",
                 path(b)
             ),
             format!(

@@ -232,7 +232,10 @@ pub(crate) struct Report {
 /// What the writer's last completed write of a session left in its file.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(crate) enum OnDisk {
-    /// The file holds this many tics.
+    /// The writer's last completed write left this many tics in the file. The file holds at
+    /// least this many: a later append of several tics that failed after its first write
+    /// ([`session_file::append_tics`] makes one write per tic) may have added some, and no write
+    /// shortens the file (review 6, m2).
     Holds(u64),
     /// Another file took the name before the claim: never written.
     Taken,

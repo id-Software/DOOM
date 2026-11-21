@@ -1020,13 +1020,13 @@ fn a_writer_panic_at_exit_names_the_earlier_and_the_current_session() {
              saved, and no rewrite at exit saved them"
                 .to_string(),
             format!(
-                "an earlier session was not saved: the session writer panicked; {} holds 8 of its \
-                 9 tics (its last completed write)",
+                "an earlier session was not saved: the session writer panicked; {} holds at \
+                 least 8 of its 9 tics (its last completed write)",
                 b.display()
             ),
             format!(
-                "the session was not saved: the session writer panicked; {} holds 10 of its 13 \
-                 tics (its last completed write)",
+                "the session was not saved: the session writer panicked; {} holds at least 10 \
+                 of its 13 tics (its last completed write)",
                 c.display()
             ),
         ],
