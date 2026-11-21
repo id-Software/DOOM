@@ -43,8 +43,19 @@ impl TicStats {
     }
 
     pub fn summary(&self) -> String {
-        summarize(&self.times, &self.starts, self.dropped)
+        if self.starts.is_empty() {
+            summarize(&self.times, self.dropped)
+        } else {
+            summarize_stretches(&self.times, &self.starts, self.dropped)
+        }
     }
+}
+
+/// The summary text of a run without a break: tics, wall time against tics/35, intervals in
+/// microseconds. The signature and the text are those from before breaks were told apart
+/// ([`summarize_stretches`] with no stretch after the first).
+pub fn summarize(times: &[u64], dropped: u64) -> String {
+    summarize_stretches(times, &[], dropped)
 }
 
 /// The summary text: tics, wall time against tics/35, intervals in microseconds. `starts` are
@@ -52,7 +63,7 @@ impl TicStats {
 /// each above 0 and below `times.len()`); the interval that ends at such a tic is a break (a
 /// pause or an end screen), which is left out of the intervals and of the wall time and is
 /// reported separately. Without a break the text is as it was before breaks were told apart.
-pub fn summarize(times: &[u64], starts: &[usize], dropped: u64) -> String {
+pub fn summarize_stretches(times: &[u64], starts: &[usize], dropped: u64) -> String {
     let n = times.len();
     let (mut d, mut breaks) = (Vec::with_capacity(n), 0u64);
     for (i, w) in times.windows(2).enumerate() {
@@ -104,22 +115,21 @@ mod tests {
     #[test]
     fn the_summary_arithmetic() {
         // intervals 28000, 29000, 30000 us; ideal 28571.4
-        let s = summarize(&[0, 28_000, 57_000, 87_000], &[], 2);
+        let s = summarize(&[0, 28_000, 57_000, 87_000], 2);
         for want in [
             "executed 4, dropped 2",
-            "wall 0.087 s (first to last tic)",
+            "wall 0.087 s",
             "against 0.086 s",
             "mean 29000.0, sd 816.5, min 28000, median 29000, p95 30000, p99 30000, max 30000",
             "more than 1 ms from 1/35 s: 1, more than 5 ms: 0",
         ] {
             assert!(s.contains(want), "{want} not in {s}");
         }
-        assert!(summarize(&[5], &[], 0).contains("too few"));
+        assert!(summarize(&[5], 0).contains("too few"));
         let mut t = TicStats::default();
         t.record(10, 2, 1);
         t.record(20, 0, 3);
         assert_eq!((t.times.clone(), t.dropped), (vec![10, 10], 4));
-        assert!(t.starts.is_empty());
     }
 
     /// A pause of 19 s and an end screen of 5 s between three stretches of play are no
@@ -132,7 +142,7 @@ mod tests {
         let times = [
             0, 28_000, 57_000, 19_057_000, 19_087_000, 24_087_000, 24_115_000,
         ];
-        let s = summarize(&times, &[3, 5], 0);
+        let s = summarize_stretches(&times, &[3, 5], 0);
         for want in [
             "executed 7, dropped 0",
             "wall 0.115 s (3 stretches of play, each first to last tic; the 2 breaks between \
@@ -144,14 +154,14 @@ mod tests {
             assert!(s.contains(want), "{want} not in {s}");
         }
         // counted as before, the breaks are the two longest intervals and 24 s of wall time
-        let before = summarize(&times, &[], 0);
+        let before = summarize_stretches(&times, &[], 0);
         assert!(
             before.contains("wall 24.115 s (first to last tic)"),
             "{before}"
         );
         assert!(before.contains("max 19000000"), "{before}");
         // one break: singular; a stretch of one tic gives no interval
-        let one = summarize(&[0, 28_000, 9_000_000], &[2], 0);
+        let one = summarize_stretches(&[0, 28_000, 9_000_000], &[2], 0);
         assert!(
             one.contains(
                 "wall 0.028 s (2 stretches of play, each first to last tic; the 1 break between \
@@ -159,7 +169,7 @@ mod tests {
             ),
             "{one}"
         );
-        assert!(summarize(&[0, 9_000_000], &[1], 0).contains("too few"));
+        assert!(summarize_stretches(&[0, 9_000_000], &[1], 0).contains("too few"));
     }
 
     /// A stretch begins at the first tic recorded after the clock stopped, however often the
