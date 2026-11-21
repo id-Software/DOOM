@@ -684,7 +684,8 @@ struct Writer {
     left: Vec<Left>,
 }
 
-/// Marks the writer stopped when its thread ends (also by a panic), so no wait hangs.
+/// Marks the writer stopped when its thread ends (also by a panic), so no wait hangs; by then
+/// the receiving end is gone ([`Writer::run`]).
 struct Alive(Arc<Shared>);
 
 impl Drop for Alive {
@@ -698,6 +699,10 @@ impl Writer {
     /// Takes what is queued in batches until the loop's side is gone and the queue is empty.
     fn run(mut self, rx: mpsc::Receiver<Msg>) {
         let _alive = Alive(Arc::clone(&self.shared));
+        // dropped before `_alive` (locals drop in reverse order, also when unwinding): once the
+        // writer is marked stopped, no message can be handed over any more, so a claim after it
+        // is refused, never queued for no one
+        let rx = rx;
         while let Ok(first) = rx.recv() {
             let mut batch = vec![first];
             batch.extend(rx.try_iter());
