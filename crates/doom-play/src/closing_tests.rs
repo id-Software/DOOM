@@ -1175,3 +1175,188 @@ fn the_panic_lines_for_a_taken_name_and_a_refused_claim() {
     );
     std::fs::remove_dir_all(&dir).unwrap();
 }
+
+/// [`play_panicking`] with `--tic-stats` on (the tic interval summary is an exit line before the
+/// session's).
+fn play_panicking_with_stats(dir: &std::path::Path, panic: &Arc<AtomicBool>) -> Play {
+    let mut host = LoggedHost {
+        host: writer(
+            dir,
+            TestIo {
+                panic_rewrites: Arc::clone(panic),
+                ..TestIo::default()
+            },
+        ),
+        log: InputLog::off(),
+    };
+    let cfg = SessionConfig {
+        tic_cap: 1_000,
+        ..SessionConfig::default()
+    };
+    let app = App::new(load(), cfg, &mut host);
+    let mut p = Play::new(app, host, Forward::default(), true);
+    p.app.update(0, &mut p.host);
+    p
+}
+
+/// Review 6, m3: after a panic, the exit lines before the session's (the tic-stats summary, the
+/// device's lines, the layout line) are still printed first, whether the current session's line
+/// is "saved" from the writer's report (its file holds every tic) or the panic's line names it.
+/// Both runs record 5 tics and hand the whole demo over again, and its rewrite panics; in the
+/// second the app then records 2 more tics, which the stopped writer cannot take.
+#[test]
+fn after_a_panic_the_lines_before_the_sessions_are_kept() {
+    for more in [false, true] {
+        let dir = scratch(&format!("close-panic-head-{more}"));
+        let panic = Arc::new(AtomicBool::new(false));
+        let mut p = play_panicking_with_stats(&dir, &panic);
+        let mut now = 0;
+        play_to(&mut p, &mut now, 5);
+        let (path, want) = session(&p, &dir);
+        let name = p.app.session_name().to_string();
+        panic.store(true, Ordering::SeqCst);
+        assert_eq!(
+            doom_game::app::Host::save(&mut p.host.host, &name, &want),
+            Ok(())
+        );
+        p.host.host.wait_idle(); // returns once the writer has died
+        if more {
+            play_to(&mut p, &mut now, 7);
+        }
+        p.quit();
+        let head =
+            crate::window::exit_lines_before_session(&p.app, &p.host.host.fs, p.stats.as_ref());
+        assert!(
+            head.first().is_some_and(|l| l.starts_with("tic-stats: ")),
+            "{head:#?}"
+        );
+        let mut want_lines = head.clone();
+        if more {
+            want_lines.extend([
+                "the session writer stopped unexpectedly (a panic); the sessions below were not \
+                 saved, and no rewrite at exit saved them"
+                    .to_string(),
+                format!(
+                    "the session was not saved: the session writer panicked; {} holds at least 5 \
+                     of its 7 tics (its last completed write)",
+                    path.display()
+                ),
+            ]);
+        } else {
+            want_lines.extend([
+                format!("saved {} (5 tics)", path.display()),
+                "the session writer stopped unexpectedly (a panic); every session file it was \
+                 handed holds its whole demo"
+                    .to_string(),
+            ]);
+        }
+        let lines = p.conclude();
+        let got: Vec<&str> = without_counters(&lines)
+            .into_iter()
+            .filter(|l| !l.starts_with("writes over "))
+            .collect();
+        assert_eq!(got, want_lines, "{lines:#?}");
+        std::fs::remove_dir_all(&dir).unwrap();
+    }
+}
+
+/// Review 6, n1: after a panic, a session whose claim was handed over after the writer's drain
+/// and failed (the app keeps no name for it) is the current session: [`panic_lines`] calls it
+/// "the session" and the app's own line about it is not printed (one line per session). With a
+/// name of its own, or without a panic, the app's name stands.
+#[test]
+fn after_a_panic_a_failed_last_claim_is_the_current_session() {
+    let dir = scratch("close-panic-failed-claim");
+    let p = play(&dir, &Disk::default(), 1_000);
+    let mut report = Report {
+        panicked: true,
+        not_written: vec![
+            crate::session_writer::NotWritten {
+                name: "a.lmp".into(),
+                recorded: 2,
+                file: Some(OnDisk::Holds(1)),
+            },
+            crate::session_writer::NotWritten {
+                name: "b.lmp".into(),
+                recorded: 0,
+                file: None,
+            },
+        ],
+        failed_claim: Some("b.lmp".into()),
+        ..Report::default()
+    };
+    let current = current_session(&report, "");
+    assert_eq!(current, "b.lmp");
+    assert!(matches!(
+        after_panic(&report, &p.app, current, &dir),
+        Current::Named
+    ));
+    let path = |name: &str| dir.join(name).display().to_string();
+    assert_eq!(
+        panic_lines(&report, &dir, current),
+        [
+            "the session writer stopped unexpectedly (a panic); the sessions below were not \
+             saved, and no rewrite at exit saved them"
+                .to_string(),
+            format!(
+                "an earlier session was not saved: the session writer panicked; {} holds at least \
+                 1 of its 2 tics (its last completed write)",
+                path("a.lmp")
+            ),
+            format!(
+                "the session was not saved: the session writer panicked; {} was not created (no \
+                 write of it completed)",
+                path("b.lmp")
+            ),
+        ]
+    );
+    assert_eq!(current_session(&report, "c.lmp"), "c.lmp");
+    report.panicked = false;
+    assert_eq!(current_session(&report, ""), "");
+    drop(p);
+    std::fs::remove_dir_all(&dir).unwrap();
+}
+
+/// Review 6, n1, through the exit report ([`Play::conclude`]): an app whose session has no name
+/// (its claim failed: here the writer was closed before the app's first claim) and a report,
+/// made by hand, of a panic whose last claim was handed over and failed. The exit names that
+/// claim as "the session", once, and the app's own line about the session is not printed.
+#[test]
+fn the_exit_report_names_a_failed_last_claim_as_the_session() {
+    let dir = scratch("close-panic-failed-claim-exit");
+    let mut host = LoggedHost {
+        host: writer(&dir, TestIo::default()),
+        log: InputLog::off(),
+    };
+    host.host.close();
+    let app = App::new(load(), SessionConfig::default(), &mut host);
+    let mut p = Play::new(app, host, Forward::default(), false);
+    p.app.update(0, &mut p.host);
+    assert_eq!(p.app.session_name(), "", "the claim failed");
+    assert!(p.app.recorded());
+    p.closed = Some(Report {
+        panicked: true,
+        not_written: vec![crate::session_writer::NotWritten {
+            name: "b.lmp".into(),
+            recorded: 0,
+            file: None,
+        }],
+        failed_claim: Some("b.lmp".into()),
+        ..Report::default()
+    });
+    assert_eq!(
+        without_counters(&p.conclude()),
+        [
+            "the session writer stopped unexpectedly (a panic); the sessions below were not \
+             saved, and no rewrite at exit saved them"
+                .to_string(),
+            format!(
+                "the session was not saved: the session writer panicked; {} was not created (no \
+                 write of it completed)",
+                dir.join("b.lmp").display()
+            ),
+        ]
+    );
+    drop(p);
+    std::fs::remove_dir_all(&dir).unwrap();
+}
