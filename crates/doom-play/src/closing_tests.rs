@@ -1485,7 +1485,7 @@ fn an_unreported_failure_has_a_line_unless_its_session_is_listed() {
         unreported: vec![("a.lmp".into(), "disk full".into())],
         ..Report::default()
     };
-    assert_eq!(lines(&base), [line.clone()]);
+    assert_eq!(lines(&base), std::slice::from_ref(&line));
     let other = Report {
         not_written: vec![listed("b.lmp")],
         whole: vec![("c.lmp".into(), 2)],
