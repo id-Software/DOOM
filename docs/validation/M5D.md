@@ -172,11 +172,11 @@ measured). From the call that starts a sound to the end of the buffer WASAPI is 
 
 | Start buffers, period | WASAPI, to the end of the requested buffer |
 | --- | --- |
-| 2, 512 (default) | 167.9 to 260.6 ms |
+| 2, 512 (the default until 2026-11-21) | 167.9 to 260.6 ms |
 | 1, 512 | 139.3 to 232.0 ms |
 | 2, 256 | 98.2 to 167.7 ms |
 | 1, 256 | 69.7 to 139.1 ms |
-| 2, 128 | 63.4 to 121.3 ms |
+| 2, 128 (the default since 2026-11-21) | 63.4 to 121.3 ms |
 | 1, 128 | 34.8 to 92.7 ms |
 
 The original built with its in-process sound code: above 0 to 92.9 ms on the same basis. A one-buffer start leaves no
@@ -1382,7 +1382,7 @@ whatever the result; the result only informs a later choice.
 
 As in A6, part 3, with the console visible (no `2>`), three runs each of about 2 s, 10 s and 40 s or more, into
 `D:\DoomSessions\m5d-retest\kills`. Expect a file that may lack the last tics the disk had not yet taken (the
-[new limit](../COMPATIBILITY.md#a-session-is-safe-on-windows-and-macos-only-when-doom-play-ends-it-a-limit-not-yet-lifted-there));
+[new limit](../COMPATIBILITY.md#a-killed-session-two-kills-shown-on-windows-nothing-shown-on-macos-a-limit));
 the files are checked with the session check, each must replay.
 
 ### What the orchestrator does with it
@@ -1501,6 +1501,49 @@ IWAD, the genuine engine in its strict, overflow and address variants and the ge
 | **The default period: 128 frames with a two-buffer start is the owner's choice, on run d. Not in this pull request** | Nothing changed here: the default stays 512 and both experimental switches stay. It goes in its own small pull request after this one merges, which edits the master test `the_numbers_are_those_of_the_specification` openly |
 | The leftover worktree of the review-4 fix agent and its local branch may be removed; nothing else | Removed (`.claude/worktrees/agent-aac9fb778d3d3aff3`, `fix4-work`, whose commits are all on this branch) |
 | Smart App Control | One paragraph in [COMPATIBILITY](../COMPATIBILITY.md#windows-smart-app-control-blocks-the-unsigned-build); code signing is on the [roadmap](../ROADMAP.md) for the first release |
+
+### The default period becomes 128 frames (2026-11-21, its own pull request)
+
+**What changed.** The ruling row above said the default period of 128 frames with a two-buffer start would go in its own small pull
+request after this one merged; this is that pull request (branch `feat/audio-period-128`, code commit `11dbc40`, awaiting the owner's
+review). M5d itself left the default at 512 frames, as that row says. In `crates/doom-play/src/audio.rs`, `PERIOD_FRAMES` is now 128 (was
+512). The start threshold stays 1,024 frames (two 512-frame buffers) and the cap stays 2,048. `--experimental-audio-period-frames`
+still takes 128, 256 or 512; 256 and 512 are now the values the exit line marks `EXPERIMENTAL` (for example "period asked 512 frames
+(EXPERIMENTAL; default 128)"), and `--audio-probe`, which asks for the default period, now asks for 128. Presentation only: the mixer's
+512-frame buffer, the stream and the demo are unchanged.
+
+**The master test was edited openly.** `the_numbers_are_those_of_the_specification` asserted `PERIOD_FRAMES == BUFFER_FRAMES` (512, the M5c
+specification's period) on its last line. That line now asserts 128 frames, 11.6 ms and four callbacks to one mixer buffer, with a comment
+giving the old line and the ruling. Its buffer, start and cap assertions are untouched.
+
+**The evidence is the owner's:** run d of the retest ([above](#the-retest)) and later runs at 128 in his folder `/mnt/d/DoomM5d2/logs`
+(read only; his message said four later runs, **the folder holds five stats logs, all five listed here**). By the owner's statement the five come from the
+same build as the retest (`c9f54ee`, the M5d docs head before the close; the logs do not name the build): Windows, WASAPI, device "Speakers/Headphones (Realtek(R) Audio)",
+stream 11,025 Hz, one machine, played by hand on Episode 1 maps 2, 4, 5, 6 and 9. Every log says "period asked 128 frames (EXPERIMENTAL;
+default 512); start threshold 1024 frames (2 buffers)" (the default was 512 in that build) and every callback was 128 frames.
+
+| Run | Tics executed | Callbacks | Queue depth at a callback: mean, max (frames) | Underruns (frames of silence) | Overruns |
+| --- | ---: | ---: | --- | --- | ---: |
+| Retest run d (for comparison, [above](#the-retest)) | 2,362 | 5,885 | 786.0, 1,152 | 0 | 0 |
+| E1M2 | 6,462 | 16,073 | 796.1, 1,152 | 1 (128) | 0 |
+| E1M4 | 4,430 | 11,015 | 824.8, 1,280 | 0 | 0 |
+| E1M5 | 10,817 | 28,594 | 829.1, 1,536 | 1 (128) | 0 |
+| E1M6 | 12,327 | 30,447 | 811.2, 1,536 | 2 (256) | 0 |
+| E1M9 (three sessions of one launch) | 10,034 | 24,959 | 723.8, 1,280 | 3 (384) | 0 |
+
+The E1M5 run includes a pause of about 19 s (its `--tic-stats` maximum interval is 19.4 s; the queue depth counts exclude paused time).
+
+**What this shows and does not show.** One machine and one output device, judged by ear and by the exit-line counters; it is not a latency
+measurement. With run d that is six runs at 128, with 0 to 3 underruns each: 7 underruns in total across the five later runs and 0 in run d; no
+overrun in any. **The "128 frames" of each underrun is not the length of the gap heard.** The counter counts only the frames missing from
+the one callback that found the queue empty (128 frames, 11.6 ms); after an underrun the queue plays nothing until it holds 1,024 frames
+again, and that further silence, at least about one tic (28.6 ms) unless a catch-up update delivers several buffers at once, is not
+counted anywhere. **Four of the five later runs had a deepest queue above the model's maximum of 1,152 frames for this period** (1,280,
+1,536, 1,536 and 1,280; E1M4 did so with no underrun and no update that ran two tics), so the device's callbacks did not arrive as evenly
+as the model assumes; this is not explained. The counters give totals only, so the logs do not say when an underrun
+happened. The owner heard 128 as quicker than 512, by ear; no number of milliseconds is claimed. The arithmetic for both periods is
+[above](#ruling-3-withdrawn-the-arithmetic-as-a-report), and [Compatibility](../COMPATIBILITY.md#sound-latency-arithmetic-not-measured)
+says its latency figures were not recomputed for 128.
 
 ### The four open review items, accepted as documented limits
 
@@ -1669,3 +1712,167 @@ follow-up commits or of the survivor tests.
 **Scratch.** `~/scratch/m5d` is kept until the owner has merged (reports, logs, the mutation outputs); the build outputs and worktrees of
 the close's agents were deleted as each finished. `/mnt/d/DoomSessions/m5d-kills`, `m5d-kills2` and `m5d-kills3` remain the owner's to
 delete.
+
+
+## A10. Addendum: the session check of the owner's hand-played demos (2026-11-21)
+
+Written after the merge of the M5d pull request. Counts and verdicts only: no map content, coordinates or lump names appear here, and the
+owner's logs and demos stay on his disks and in scratch. Everything below was observed on 2026-11-21 (America/Los_Angeles); the owner's
+own statements are marked as such.
+
+### The check
+
+The owner asked for his hand-played demos to be run through the session check. The tool is `tools/local/m5c_session_real.py` (commands in
+[Testing](../TESTING.md#m5c-sound-effects-the-genuine-sound-logic-and-mixer)), run with `--jobs 2` from a scratch checkout of master
+(`c5c5330`, the merge of the M5d pull request): the release Rust example against the genuine linuxdoom-1.10 engine in its strict, overflow
+and address variants, plus the genuine mixer. **The address variant ran with `ASAN_OPTIONS=detect_leaks=0`: leak detection was disabled, so
+this is not LeakSanitizer coverage.** The demos were copied to scratch on ext4 and the real IWAD was a scratch copy, used locally only.
+The tool exited 0. **14 files, 14 of 14 `VERDICT: PASS`, 0 FAIL, 60,659 tics.** The three variants were identical in all 14, and the detector
+of decision T12 (a result that depends on memory layout) fired 0 times in all 14.
+
+**`/mnt/d/DoomSessions/m5d-final`** (owner's statement: three demos from the final head `9610b51`, the Windows artifact of run
+[44882265251](https://github.com/Copgunn/DOOM/actions/runs/44882265251)):
+
+| Demo (map) | Tics | How it ended (owner's statement) | Verdict |
+| --- | ---: | --- | --- |
+| E1M1, the smoke run | 2,203 | Esc then Q | PASS |
+| E1M1 | 1,461 | killed by Ctrl+C | PASS |
+| E1M1 | 1,581 | killed by closing the console | PASS |
+
+Total 5,245 tics. Each file is 14 + 4n bytes (8,826, 5,858 and 6,338 bytes), which is a 13-byte header, four bytes per tic and the end marker, and
+the folder holds no temporary file (only the three demos and the two smoke logs).
+
+**`/mnt/d/DoomM5d2/doom-sessions`** (owner's statement: build `c9f54ee`, runs on every Episode 1 map). **The folder holds maps 2 to 9 only;
+there is no E1M1 file in it, and E1M1 is covered by the three `m5d-final` demos above.**
+
+| Demo (map) | Tics | How the genuine engine's replay ended | Verdict |
+| --- | ---: | --- | --- |
+| E1M2 | 6,461 | level exit | PASS |
+| E1M3, first | 384 | end marker | PASS |
+| E1M3, second | 5,593 | end marker | PASS |
+| E1M4 | 4,430 | end marker | PASS |
+| E1M5 | 10,817 | end marker | PASS |
+| E1M6 | 12,326 | level exit | PASS |
+| E1M7 | 541 | end marker | PASS |
+| E1M8 | 4,831 | end marker | PASS |
+| E1M9, first | 573 | the player reborn | PASS |
+| E1M9, second | 537 | the player reborn | PASS |
+| E1M9, third | 8,921 | level exit | PASS |
+
+Total 55,414 tics (5,245 + 55,414 = 60,659). "End marker" means the demo's end marker was reached with the level still running; "level exit" means the
+genuine engine had the level completion pending when the demo ran out; "reborn" means the dead player had pressed use. The three E1M9 files
+are three sessions of one launch with two restarts: the input log has two later `session` lines, and 573 + 537 + 8,921 = 10,031 recorded
+tics, while that launch's stats line says 10,034 executed.
+
+**Logs.** `/mnt/d/DoomM5d2/logs` holds stats and input logs for five launches only (maps 2, 4, 5, 6 and 9); maps 3, 7 and 8 have none.
+In all five, every pump line has `dropped=0`. The smoke run's two logs are in `/mnt/d/DoomSessions/m5d-final`.
+
+**The smoke run's log.** The input log has 2,208 pump lines, every one with `dropped=0`: 2,203 with `ran=1` and 5 with `ran=0` (the first
+pump, which only starts the clock, and four while paused before Q). The exit lines say: executed 2,203, dropped 0, wall 62.914 s against
+62.914 s expected, 4 intervals more than 1 ms from 1/35 s and 0 more than 5 ms; period asked 512 (that build's default), 1,379 callbacks of 512
+frames, queue depth mean 1,121.3 and max 1,536, 0 underruns and 0 overruns; 2,171 session-file writes, 0 failed, the longest 408.9 ms (the
+claim at tic 0) and at most 9 tics waiting; "saved ... (2203 tics)".
+
+### What the two kills show
+
+The owner's instruction was that if the two kills pass, the advice to end a Windows session with Esc then Q can go. They passed, so it went
+([COMPATIBILITY](../COMPATIBILITY.md#a-killed-session-two-kills-shown-on-windows-nothing-shown-on-macos-a-limit),
+[README](../../README.md)). **Shown:** two kills of the final build (`9610b51`) on Windows, on one machine (the owner's), with the sessions
+folder on his `D:` disk, which he states is NTFS (from WSL the drive appears only as a 9p mount, so the file system type was not checked
+here): one Ctrl+C in the console and one close of the console. Both files are valid demos (1,461 and 1,581 tics) and both pass the
+genuine-engine session check. **Not shown:** how many tics had been played beyond what each file holds (a killed process prints no exit
+line, and the folder holds no input log for these two runs); End task, which was not run; any other machine, disk or file system, including
+FAT, exFAT and network shares (the caveat about refused hard links stays); macOS, where nothing was run. Two kills are not a rate.
+
+### Question 1: at a level exit the stats say N tics executed and the demo holds N-1. Is that what the original records?
+
+**No. The original records one more command, at the tic in which the level is completed, and goes on recording through the intermission;
+our demo is the first N-1 of those commands, and N counts the refused attempt that follows.**
+
+Observed. E1M2: stats "executed 6462", file 6,461 tics. E1M6: 12,327 and 12,326. E1M9: 10,034 executed against 10,031 recorded over its
+three sessions, one extra per session end (two deaths and one exit). In each input log, the pump that ends a session has `ran=1` and the
+mode after it is `ended`: one such pump for E1M2, one for E1M6 and three for E1M9. (The smoke run ended by Esc then Q, has no such pump,
+and its executed count equals its tics, 2,203.)
+
+Why, in our code. The tic in which the player presses use on the exit switch is committed and recorded; it is the demo's last command. The
+next update gathers a command and offers it to the simulation, which refuses it with `LevelExited` (`crates/doom-sim/src/lib.rs`,
+`advance`: "G_Ticker runs a pending gameaction before anything else"). The app drops that command from the recorder and ends the session
+(`crates/doom-game/src/app/mod.rs`, `run_tic`: `self.recorder.drop_last(); return self.end(ending_of(...))`), but `App::update` has
+already counted the attempt in `ran`. `--tic-stats` counts `ran`, so it says N; the demo holds the N-1 committed commands. The same
+happens at a death, where the refused tic is the reborn (`PlayerReborn`).
+
+What the original does, in `linuxdoom-1.10` (line numbers checked against the files in this repository on 2026-11-21):
+
+- `G_ExitLevel` only sets `gameaction = ga_completed` (`g_game.c:1002-1006`; the walk-over exit line special calls it, `p_spec.c:679`, and the exit switches
+  do too). It runs inside `P_Ticker` (`g_game.c:730`) of the tic whose command pressed the switch, and that command was already written to the demo
+  earlier in the same `G_Ticker` call, as the next point shows.
+- At the top of the next `G_Ticker`, the pending action runs: `case ga_completed: G_DoCompleted ();` (`g_game.c:636-637`), and
+  `G_DoCompleted` sets `gamestate = GS_INTERMISSION` (`g_game.c:1133`).
+- In that same call, and in every later call, for every player in the game and with no test of `gamestate`, the command is copied and
+  `if (demoplayback) G_ReadDemoTiccmd (cmd); if (demorecording) G_WriteDemoTiccmd (cmd);` runs (`g_game.c:660-669`). So the original writes a
+  command for the tic in which the level is completed and for every intermission tic after it (`case GS_INTERMISSION: WI_Ticker ();`,
+  `g_game.c:736-737`).
+- Recording stops only in `G_CheckDemoStatus`, which writes the end marker `0x80` and the file (`g_game.c:1677-1683`). It is reached from
+  `G_WriteDemoTiccmd` when `q` is held (`g_game.c:1508-1509`) or the buffer is nearly full (`g_game.c:1515-1519`), and from `I_Error`
+  (`i_system.c:177`; `I_Quit` does not call it).
+
+So the original's own recording of the same play would hold the N-1 commands, then the N-th, then one command per intermission tic until
+the player ended the recording. Our file is a prefix of it: its N-1 commands are what the original would have recorded for those tics
+(that is what the session check compares), and it stops one command before the first point at which the original could have stopped,
+because a session here ends at the exit (decisions S9 and S10: no intermission). Played back in the genuine engine, the N-1 file still
+completes the level: at the call after the last command `G_DoCompleted` runs first, and then `G_ReadDemoTiccmd` meets the end marker
+(`g_game.c:1493-1497`); the check reports this as "genuine end exit" for the three exit demos. Recording across the level change belongs to
+milestone M6a, which is not part of this record.
+
+### Question 2: with period 128, runs had 0 to 3 underruns of 128 frames each, about one per session start. Is that the queue filling at start?
+
+**It cannot be shown from these files, and the fill at a start is not what the counter counts.**
+
+What the counter counts (`crates/doom-play/src/audio.rs`, `Queue::pull`): a pull made before the queue first holds the start threshold returns
+silence without counting (`if !self.started { if self.frames.len() < self.start_frames { return; } ... }`). An underrun is counted only when,
+after output has started, a pull finds too few frames (`if missing > 0 { underruns += 1; ... started = false; }`). The test
+`nothing_plays_before_the_start_threshold_and_underrun_is_silence_counted` pins both. So filling at a start is never an underrun by itself;
+each counted underrun is the queue running dry after it had started.
+
+Why always 128 frames: buffers enter 512 frames at a time and leave 128 at a time, and the queue is emptied at every underrun, session start
+and pause, so its depth at a pull is always a multiple of 128; a pull that finds too few finds none. "128 frames each" is the period, not
+a clue to the cause. It is also not the length of the gap heard: the counter counts only the frames missing from that one callback, and
+after an underrun the queue plays nothing until it holds 1,024 frames again; that further silence, at least about one tic (28.6 ms) unless a
+catch-up update delivers several buffers at once, is counted nowhere.
+
+By the arithmetic in this record ([Ruling 3 withdrawn: the arithmetic as a report](#ruling-3-withdrawn-the-arithmetic-as-a-report)), with ideal
+clocks a two-buffer start at period 128 never empties the queue: the least model depth at a callback is 384 frames and the hand-over slack is 315
+to 442 frames (28.6 to 40.1 ms).
+
+What the five logs do show:
+
+| Launch | Sessions started | Resumes after a pause | Underruns | Latest tic (interval over 1/35 s) | Queue depth mean, max |
+| --- | ---: | ---: | ---: | --- | --- |
+| E1M2 | 1 | 0 | 1 | 5.6 ms (max interval 34,182 us) | 796.1, 1,152 |
+| E1M4 | 1 | 0 (paused, then quit) | 0 | 5.0 ms (33,562 us) | 824.8, 1,280 |
+| E1M5 | 1 | 2 | 1 | not readable: the max interval is a pause; 10 pumps ran two tics | 829.1, 1,536 |
+| E1M6 | 1 | 0 | 2 | 27.8 ms (56,409 us); 4 pumps ran two tics | 811.2, 1,536 |
+| E1M9 | 3 | 0 | 3 | not readable: the max interval (1.29 s) is an end screen | 723.8, 1,280 |
+
+The queue waits for its threshold again after every session start, resume and underrun. Starts plus resumes are 1, 1, 3, 1 and 3, against
+underruns of 1, 0, 1, 2 and 3. That fits "about one per start" loosely and not exactly: E1M4 has none with one start, E1M6 has two with one
+start, E1M5 has one with three. Five launches cannot tell "one per start" from "one every few minutes" (the longer runs have more).
+
+- In E1M2 no tic was more than 5.6 ms late, far inside the 28.6 ms slack, so that underrun was not a late tic: the device took frames ahead
+  of the model (its clock against the loop's, or the timing of its callbacks when output started). The logs cannot say which.
+- In E1M6 one tic was 27.8 ms late, close to the 28.6 ms least slack, so a late tic could account for one of its two.
+- Depth maxima of 1,280 and 1,536 are above the model's 1,152, so the callbacks did not arrive evenly.
+
+Why it cannot be shown: each exit line gives one total per launch. Nothing records the tic, the session or the time of an underrun, and the
+input log has no audio line and no clock. **To show it, a small diagnostic naming the session and the tic of each underrun would be needed; it
+was not made.** Nothing was measured on a device for this answer.
+
+### What was not done in the check
+
+No Windows or macOS run was made here, and no End task. The check says nothing about what was on the owner's screen or in his ears. The
+timings above are the owner's logs, not a measurement made here. The `m5d-final` kills have no input log and no exit line. The M5d2 folder
+has no logs for E1M3, E1M7 or E1M8.
+
+**Scratch.** `~/scratch/m5d` (named in A9's "Scratch" paragraph above, which is left as written) was deleted on 2026-11-21 with the owner's
+leave, after the pull request was merged. This check's scratch, `~/scratch/m5e`, holds the IWAD copy, the demo copies, the logs and the
+check's output, and is deleted when the follow-ups are done.

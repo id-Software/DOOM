@@ -38,10 +38,17 @@ use std::sync::{Arc, Mutex, MutexGuard};
 /// device runs at another rate.
 pub const RATE: SampleRate = SampleRate::Sr11025;
 
-/// The device period asked for, in frames: one 512-frame mixer buffer (§4.7.2). It is a hint:
-/// the backend may change it. The experimental option `--experimental-audio-period-frames`
-/// (milestone M5d, [`Trial`]) can ask for 128 or 256 instead; this default is unchanged.
-pub const PERIOD_FRAMES: u32 = 512;
+/// The device period asked for, in frames: 128, a quarter of one 512-frame mixer buffer
+/// ([`BUFFER_FRAMES`]), 11.6 ms at 11,025 Hz. It is a hint: the backend may change it. The
+/// option `--experimental-audio-period-frames` ([`Trial`]) can ask for 256 or 512 instead.
+///
+/// Until 2026-11-21 the default was 512, one whole mixer buffer (§4.7.2, the M5c
+/// specification). The owner chose 128 with the two-buffer start kept, by ear, on run d of his
+/// Windows retest of 2026-11-20 (docs/validation/M5D.md, which also records his later runs at
+/// 128): the sound is taken from the queue in smaller blocks, so it can leave sooner. It is
+/// presentation only (decision T8); [`BUFFER_FRAMES`], [`START_FRAMES`] and [`CAP_FRAMES`] are
+/// unchanged.
+pub const PERIOD_FRAMES: u32 = 128;
 
 /// The real backends tried on this operating system, by name, in order. Never `Null`, never
 /// `Custom`, never empty where audio is supported.
@@ -329,14 +336,17 @@ pub const CAP_FRAMES: usize = 4 * BUFFER_FRAMES;
 /// tic 1), so every later buffer arrives at least one tic, 315 frames (28.6 ms), before the
 /// device needs it; the price is that the whole latency range moves up by those 315 frames (in
 /// any one session by nothing or by one 512-frame callback, 46.4 ms, depending on the
-/// callback's phase), with 92.9 ms queued at the start, before the device's own buffering. The
+/// callback's phase; that sentence was written for the 512-frame period that was the default
+/// until 2026-11-21, and with [`PERIOD_FRAMES`] at 128 a callback takes 128 frames, 11.6 ms),
+/// with 92.9 ms queued at the start, before the device's own buffering. The
 /// cap of four buffers is unchanged. This is presentation (decision T8): nothing here reaches
 /// the game, and none of it has been measured on a device. (An earlier version of this comment
 /// gave the margin and the price as one whole buffer, 46.4 ms; the latency arithmetic of
 /// 2026-11-18 in docs/validation/M5C.md corrected both figures. The code did not change.)
 ///
 /// Milestone M5d: the experimental option `--experimental-audio-start-buffers 1` ([`Trial`])
-/// sets a one-buffer threshold for the owner's latency trials; this default is unchanged.
+/// sets a one-buffer threshold for the owner's latency trials; this default is unchanged (also
+/// by the change of the default period to 128 frames on 2026-11-21).
 pub const START_FRAMES: usize = 2 * BUFFER_FRAMES;
 
 /// The start thresholds the experimental trial option accepts, in whole buffers.
@@ -347,8 +357,8 @@ pub const TRIAL_PERIOD_FRAMES: [u32; 3] = [128, 256, 512];
 
 /// The experimental device settings of the owner's M5d latency trials (presentation only,
 /// decision T8: they change how the finished stream reaches the device, never the stream, the
-/// game or the demo). [`Trial::DEFAULT`] is the M5c behaviour: a start threshold of
-/// [`START_FRAMES`] and a period of [`PERIOD_FRAMES`].
+/// game or the demo). [`Trial::DEFAULT`] is a start threshold of [`START_FRAMES`] (as in M5c)
+/// and a period of [`PERIOD_FRAMES`] (128 frames since 2026-11-21; 512 in M5c).
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct Trial {
     start_buffers: usize,
@@ -356,7 +366,7 @@ pub struct Trial {
 }
 
 impl Trial {
-    /// The defaults: two buffers and 512 frames.
+    /// The defaults: two buffers and 128 frames.
     pub const DEFAULT: Self = Self {
         start_buffers: START_FRAMES / BUFFER_FRAMES,
         period_frames: PERIOD_FRAMES,
@@ -1040,7 +1050,14 @@ mod tests {
             "k = 315: no slack"
         );
         assert_eq!(CAP_FRAMES * 10_000 / 11_025, 1857);
-        assert_eq!(PERIOD_FRAMES as usize, BUFFER_FRAMES);
+        // The device period. Until 2026-11-21 this line was
+        // `assert_eq!(PERIOD_FRAMES as usize, BUFFER_FRAMES)`: the specification's period of one
+        // whole 512-frame buffer. The owner changed the default to 128 frames (his ruling of
+        // 2026-11-20, docs/validation/M5D.md), so the line was edited with it: 128 frames, 11.6 ms,
+        // four callbacks to one mixer buffer. The buffer, start and cap figures above are as before.
+        assert_eq!(PERIOD_FRAMES, 128);
+        assert_eq!(PERIOD_FRAMES as usize * 10_000 / 11_025, 116);
+        assert_eq!(BUFFER_FRAMES, 4 * PERIOD_FRAMES as usize);
     }
 
     #[test]
@@ -1246,17 +1263,17 @@ mod tests {
     // the native rates and the device's exit lines (Rust-only checks; no device is opened).
 
     #[test]
-    fn the_trial_settings_accept_only_the_listed_values_and_default_to_m5c() {
+    fn the_trial_settings_accept_only_the_listed_values_and_default_to_two_buffers_and_128() {
         let d = Trial::DEFAULT;
-        assert_eq!((d.start_frames(), d.period_frames()), (1024, 512));
+        assert_eq!((d.start_frames(), d.period_frames()), (1024, 128));
         assert_eq!(
             (d.start_frames(), d.period_frames()),
             (START_FRAMES, PERIOD_FRAMES)
         );
         assert_eq!(d.with_start_buffers(2), Some(d), "2 is the default");
-        assert_eq!(d.with_period_frames(512), Some(d), "512 is the default");
+        assert_eq!(d.with_period_frames(128), Some(d), "128 is the default");
         let one = d.with_start_buffers(1).expect("1 is accepted");
-        assert_eq!((one.start_frames(), one.period_frames()), (512, 512));
+        assert_eq!((one.start_frames(), one.period_frames()), (512, 128));
         for bad in [0, 3, 4, 512, usize::MAX] {
             assert_eq!(d.with_start_buffers(bad), None, "{bad}");
         }
@@ -1269,16 +1286,16 @@ mod tests {
         }
         assert_eq!(
             d.describe(),
-            "period asked 512 frames; start threshold 1024 frames (2 buffers)"
+            "period asked 128 frames; start threshold 1024 frames (2 buffers)"
         );
         assert_eq!(
-            one.with_period_frames(128).unwrap().describe(),
-            "period asked 128 frames (EXPERIMENTAL; default 512); start threshold 512 frames \
+            one.with_period_frames(512).unwrap().describe(),
+            "period asked 512 frames (EXPERIMENTAL; default 128); start threshold 512 frames \
              (1 buffer; EXPERIMENTAL; default 1024 frames)"
         );
         assert_eq!(
             d.with_period_frames(256).unwrap().describe(),
-            "period asked 256 frames (EXPERIMENTAL; default 512); start threshold 1024 frames \
+            "period asked 256 frames (EXPERIMENTAL; default 128); start threshold 1024 frames \
              (2 buffers)"
         );
     }
@@ -1480,7 +1497,7 @@ mod tests {
         );
         assert_eq!(
             lines[1],
-            "audio settings: period asked 512 frames; start threshold 1024 frames (2 buffers); \
+            "audio settings: period asked 128 frames; start threshold 1024 frames (2 buffers); \
              granted period and buffer not shown (miniaudio's [INFO] report is off; \
              --audio-report turns it on)"
         );
@@ -1514,7 +1531,7 @@ mod tests {
             [
                 "audio device: backend WASAPI; name \"Speakers (Test)\"; native sample rates \
                  44100 Hz, 48000 Hz; stream 11025 Hz",
-                "audio settings: period asked 512 frames; start threshold 1024 frames (2 \
+                "audio settings: period asked 128 frames; start threshold 1024 frames (2 \
                  buffers); granted period and buffer in miniaudio's [INFO] report at open",
                 "audio callbacks: 40 calls; frames per call min 441, max 512",
                 "audio queue: depth in frames when a callback arrived (not paused) min 0, mean \
@@ -1537,7 +1554,7 @@ mod tests {
         );
         assert_eq!(
             lines[1],
-            "audio settings: period asked 512 frames; start threshold 512 frames (1 buffer; \
+            "audio settings: period asked 128 frames; start threshold 512 frames (1 buffer; \
              EXPERIMENTAL; default 1024 frames); miniaudio's [INFO] report unavailable \
              (MA_INVALID_ARGS)"
         );

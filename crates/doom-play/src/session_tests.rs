@@ -374,7 +374,7 @@ fn the_exit_lines_give_the_device_lines_with_or_without_tic_stats() {
     );
     assert_eq!(
         lines[1],
-        "audio settings: period asked 512 frames; start threshold 1024 frames (2 buffers); \
+        "audio settings: period asked 128 frames; start threshold 1024 frames (2 buffers); \
          miniaudio's [INFO] report unavailable (no device (headless))"
     );
     assert_eq!(
@@ -421,24 +421,40 @@ fn the_exit_lines_give_the_device_lines_with_or_without_tic_stats() {
     );
 }
 
-/// Milestone M5d step A2: the experimental trial settings (a one-buffer start, a 128-frame period)
-/// change nothing in the game: the same script gives the same tics, frames, indices, sound
-/// reports, stream and demo as `--no-sound`; at the sink the pulls are all 128 frames and the exit
-/// lines say the settings are experimental (the one-buffer start itself is tested on the queue in
-/// `audio.rs`: here 128-frame pulls against 315 frames made per tic fill the queue to its cap, so
-/// the start threshold leaves no trace in what is pulled later).
+/// Milestone M5d step A2: the experimental trial settings (a one-buffer start; a period of 128
+/// frames, the default since 2026-11-21, or of 256, which is not the default) change nothing in
+/// the game: the same script gives the same tics, frames, indices, sound reports, stream and demo
+/// as `--no-sound`; at the sink the pulls are all of the period's size and the exit lines say
+/// which settings are experimental (the one-buffer start itself is tested on the queue in
+/// `audio.rs`: here 128-frame or 256-frame pulls against 315 frames made per tic fill the queue to
+/// its cap, so the start threshold leaves no trace in what is pulled later).
 #[test]
 fn the_trial_settings_change_no_tic_frame_index_sound_report_stream_or_demo() {
     let data = load();
     let (base, base_app, _) = run(&data, Output::for_launch(true, Volume::FULL).0, 0, &[]);
+    for (period, described) in [
+        (128usize, "period asked 128 frames"),
+        (256, "period asked 256 frames (EXPERIMENTAL; default 128)"),
+    ] {
+        the_trial_changes_nothing(&data, &base, &base_app, period, described);
+    }
+}
+
+fn the_trial_changes_nothing(
+    data: &GameData,
+    base: &TestHost,
+    base_app: &App,
+    period: usize,
+    described: &str,
+) {
     let trial = Trial::DEFAULT
         .with_start_buffers(1)
-        .and_then(|t| t.with_period_frames(128))
+        .and_then(|t| t.with_period_frames(period as u32))
         .unwrap();
     let (host, app, pulled) = run(
-        &data,
+        data,
         Output::Device(DeviceSink::headless_with(Volume::FULL, trial)),
-        128,
+        period,
         &[],
     );
     assert_eq!(host.seen, base.seen, "tics, frames, indices, sound reports");
@@ -453,13 +469,18 @@ fn the_trial_settings_change_no_tic_frame_index_sound_report_stream_or_demo() {
         panic!("a device sink")
     };
     let p = d.pull_stats();
-    assert_eq!((p.min_frames, p.max_frames), (128, 128));
+    assert_eq!(
+        (p.min_frames, p.max_frames),
+        (period as u64, period as u64),
+        "{period}"
+    );
     assert!(d.counters().overruns > 0, "the queue reached its cap");
     let lines = d.exit_lines();
     assert_eq!(
         lines[1],
-        "audio settings: period asked 128 frames (EXPERIMENTAL; default 512); start threshold 512 \
-         frames (1 buffer; EXPERIMENTAL; default 1024 frames); miniaudio's [INFO] report \
-         unavailable (no device (headless))"
+        format!(
+            "audio settings: {described}; start threshold 512 frames (1 buffer; EXPERIMENTAL; \
+             default 1024 frames); miniaudio's [INFO] report unavailable (no device (headless))"
+        )
     );
 }
