@@ -246,11 +246,13 @@ pub(crate) fn earlier_lines(earlier: &[Earlier], dir: &Path) -> Vec<String> {
 }
 
 /// The writers' lines at exit ([`write_stats::exit_lines`]) and one line per failure the app
-/// never heard of (except for a session [`panic_lines`] names: one line per session).
+/// never heard of, except, after a panic, for a session handed over to the writer: either
+/// [`panic_lines`] names it (one line per session) or its file holds every tic recorded, so a
+/// failed write of it lost nothing (review 6, m1).
 pub(crate) fn writer_lines(w: &Report, log: Option<&WriteTimes>, tic_stats: bool) -> Vec<String> {
     let mut lines = write_stats::exit_lines(Some((&w.counts, &w.times)), log, tic_stats);
     for (name, error) in &w.unreported {
-        if w.not_written.iter().any(|n| &n.name == name) {
+        if w.not_written.iter().any(|n| &n.name == name) || w.whole.iter().any(|(n, _)| n == name) {
             continue;
         }
         lines.push(format!(
