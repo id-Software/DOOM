@@ -1360,3 +1360,156 @@ fn the_exit_report_names_a_failed_last_claim_as_the_session() {
     drop(p);
     std::fs::remove_dir_all(&dir).unwrap();
 }
+
+// ---- mut7: tests for the M5d mutation survivors in closing.rs ----
+
+/// Pins `Play::settle_after_update`'s early return while the app is playing. Its doc comment:
+/// "After the app's update: when it is not playing (and the run has not ended), settles the
+/// session file into the app". The writer holds a failure the app never heard of; the run is
+/// still open and the app is playing, so no settle: the status stays as it was.
+#[test]
+fn nothing_is_settled_into_an_app_that_is_playing() {
+    let dir = scratch("close-mut7-playing");
+    let disk = Disk::default();
+    let mut p = play(&dir, &disk, 1_000);
+    steady(&mut p, 1, 9);
+    disk.fail(true, true);
+    for k in 10..=40 {
+        p.app.update(at(k), &mut p.host);
+        p.host.host.wait_idle();
+    }
+    assert_eq!(p.app.mode(), &Mode::Playing);
+    let before = p.app.save_status().clone();
+    p.settle_after_update(false);
+    assert_eq!(p.app.save_status(), &before, "playing: nothing settled");
+    drop(p);
+    std::fs::remove_dir_all(&dir).unwrap();
+}
+
+/// Pins the first guard of `after_panic`: "The app's line ... always for an unrecorded run", and
+/// the app's line when the writer did not panic. A report whose `whole` holds the current
+/// session would otherwise give the "saved" line.
+#[test]
+fn after_panic_gives_the_apps_line_unless_both_panicked_and_recorded() {
+    let dir = scratch("close-mut7-after-panic-guard");
+    let p = play(&dir, &Disk::default(), 1_000);
+    let whole = vec![("a.lmp".to_string(), 3)];
+    let mut report = Report {
+        panicked: true,
+        whole: whole.clone(),
+        ..Report::default()
+    };
+    assert!(matches!(
+        after_panic(&report, &p.app, "a.lmp", &dir),
+        Current::Saved(_)
+    ));
+    report.panicked = false;
+    assert!(matches!(
+        after_panic(&report, &p.app, "a.lmp", &dir),
+        Current::App
+    ));
+    drop(p);
+    // an unrecorded run
+    let mut host = LoggedHost {
+        host: writer(&dir, TestIo::default()),
+        log: InputLog::off(),
+    };
+    let cfg = SessionConfig {
+        unrecorded_full_turning: true,
+        ..SessionConfig::default()
+    };
+    let app = App::new(load(), cfg, &mut host);
+    assert!(!app.recorded());
+    let report = Report {
+        panicked: true,
+        whole,
+        ..Report::default()
+    };
+    assert!(matches!(
+        after_panic(&report, &app, "a.lmp", &dir),
+        Current::App
+    ));
+    drop(host);
+    std::fs::remove_dir_all(&dir).unwrap();
+}
+
+/// Pins the last test of `after_panic`: "[`panic_lines`]'s line when it names it, or when a claim
+/// was refused and the session has no name". A refused claim with a named current session that
+/// the report does not list, or a nameless current session without a refused claim, gets the
+/// app's line.
+#[test]
+fn a_refused_claim_names_only_a_session_without_a_name() {
+    let dir = scratch("close-mut7-refused");
+    let p = play(&dir, &Disk::default(), 1_000);
+    let mut report = Report {
+        panicked: true,
+        refused: true,
+        ..Report::default()
+    };
+    assert!(matches!(
+        after_panic(&report, &p.app, "", &dir),
+        Current::Named
+    ));
+    assert!(matches!(
+        after_panic(&report, &p.app, "x.lmp", &dir),
+        Current::App
+    ));
+    report.refused = false;
+    assert!(matches!(
+        after_panic(&report, &p.app, "", &dir),
+        Current::App
+    ));
+    drop(p);
+    std::fs::remove_dir_all(&dir).unwrap();
+}
+
+/// Pins `writer_lines`: "one line per failure the app never heard of, except, after a panic, for
+/// a session handed over to the writer: either [`panic_lines`] names it ... or its file holds
+/// every tic recorded". A failure of a session the report lists neither way keeps its line; one
+/// the report lists in `not_written` or `whole` has none.
+#[test]
+fn an_unreported_failure_has_a_line_unless_its_session_is_listed() {
+    let listed = |name: &str| crate::session_writer::NotWritten {
+        name: name.into(),
+        recorded: 1,
+        file: None,
+    };
+    let lines = |w: &Report| -> Vec<String> {
+        writer_lines(w, None, false)
+            .into_iter()
+            .filter(|l| l.contains("was not fully written"))
+            .collect()
+    };
+    let line = "the session file a.lmp was not fully written: disk full".to_string();
+    let base = Report {
+        unreported: vec![("a.lmp".into(), "disk full".into())],
+        ..Report::default()
+    };
+    assert_eq!(lines(&base), [line.clone()]);
+    let other = Report {
+        not_written: vec![listed("b.lmp")],
+        whole: vec![("c.lmp".into(), 2)],
+        ..base.clone_for_mut7()
+    };
+    assert_eq!(lines(&other), [line]);
+    let named = Report {
+        not_written: vec![listed("a.lmp")],
+        ..base.clone_for_mut7()
+    };
+    assert!(lines(&named).is_empty());
+    let whole = Report {
+        whole: vec![("a.lmp".into(), 2)],
+        ..base.clone_for_mut7()
+    };
+    assert!(lines(&whole).is_empty());
+}
+
+impl Report {
+    /// A report with only the failures the app never heard of (`Report` is not `Clone`).
+    fn clone_for_mut7(&self) -> Report {
+        Report {
+            unreported: self.unreported.clone(),
+            ..Report::default()
+        }
+    }
+}
