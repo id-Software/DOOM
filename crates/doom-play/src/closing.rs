@@ -24,11 +24,14 @@
 //! line ([`Play::pump_end`]), so the log's bytes are those of b374aaa for the same events (its
 //! final `pump` line follows the summary). The exit report then says one thing per session: the
 //! current session's line from the app's status ([`crate::window::exit_lines`]), one line per
-//! earlier session the writer left behind ([`earlier_lines`]), and the writers' lines.
+//! earlier session the writer left behind ([`earlier_lines`]), and the writers' lines. If the
+//! session writer's thread panicked, its lines ([`panic_lines`]) say so and name every session
+//! whose file does not hold its whole demo, with what the file holds; a line there about the
+//! current session replaces the app's.
 
 use crate::input_log::LoggedHost;
 use crate::mouse_forward::Forward;
-use crate::session_writer::{Earlier, Report, Settled, WriterHost};
+use crate::session_writer::{Earlier, OnDisk, Report, Settled, WriterHost, lost};
 use crate::tic_stats::TicStats;
 use crate::write_stats::{self, WriteTimes};
 use doom_game::app::{App, Mode, SaveStatus, Update};
@@ -163,9 +166,21 @@ impl Play {
         self.concluded = true;
         let log_times = self.host.log.finish();
         let fs = &self.host.host.fs;
-        let mut lines = crate::window::exit_lines(&self.app, fs, self.stats.as_ref());
+        let current = self.app.session_name();
+        // after a panic, the panic's own line about the current session replaces the app's
+        // (one line per session): when it names the session, or when a claim was refused (the
+        // current session then has no file: every claim after the stop fails)
+        let replaced = self.app.recorded()
+            && ((report.refused && current.is_empty())
+                || report.not_written.iter().any(|n| n.name == current));
+        let mut lines = if replaced {
+            crate::window::exit_lines_before_session(&self.app, fs, self.stats.as_ref())
+        } else {
+            crate::window::exit_lines(&self.app, fs, self.stats.as_ref())
+        };
         lines.extend(earlier_lines(&report.earlier, &fs.dir));
         lines.extend(writer_lines(report, log_times.as_ref(), self.tic_stats));
+        lines.extend(panic_lines(report, &fs.dir, current));
         lines
     }
 }
@@ -196,21 +211,72 @@ pub(crate) fn earlier_lines(earlier: &[Earlier], dir: &Path) -> Vec<String> {
         .collect()
 }
 
-/// The writers' lines at exit ([`write_stats::exit_lines`]), one line per failure the app never
-/// heard of, and one line if the session writer's thread panicked.
+/// The writers' lines at exit ([`write_stats::exit_lines`]) and one line per failure the app
+/// never heard of (except for a session [`panic_lines`] names: one line per session).
 pub(crate) fn writer_lines(w: &Report, log: Option<&WriteTimes>, tic_stats: bool) -> Vec<String> {
     let mut lines = write_stats::exit_lines(Some((&w.counts, &w.times)), log, tic_stats);
     for (name, error) in &w.unreported {
+        if w.not_written.iter().any(|n| &n.name == name) {
+            continue;
+        }
         lines.push(format!(
             "the session file {name} was not fully written: {error}"
         ));
     }
-    if w.panicked {
-        lines.push(
-            "the session writer stopped unexpectedly (a panic); the session file holds its last \
-             completed write"
-                .to_string(),
-        );
+    lines
+}
+
+/// If the session writer's thread panicked: one line saying so, then one line per session whose
+/// file does not hold its whole demo ([`crate::session_writer::NotWritten`]), in the order of their claims, saying what
+/// its file holds (`current` is the app's session at exit, "the session"; the others are "an
+/// earlier session"), and one line if a session was begun after the writer stopped (no file was
+/// created for it). Nothing was rewritten at exit: the writes still queued and the earlier
+/// sessions' copies died with the thread.
+pub(crate) fn panic_lines(w: &Report, dir: &Path, current: &str) -> Vec<String> {
+    if !w.panicked {
+        return Vec::new();
+    }
+    let mut lines = vec![if w.not_written.is_empty() && !w.refused {
+        "the session writer stopped unexpectedly (a panic); every session file it was handed \
+         holds its whole demo"
+            .to_string()
+    } else {
+        "the session writer stopped unexpectedly (a panic); the sessions below were not saved, \
+         and no rewrite at exit saved them"
+            .to_string()
+    }];
+    for n in &w.not_written {
+        let who = if n.name == current {
+            "the session"
+        } else {
+            "an earlier session"
+        };
+        let path = dir.join(&n.name);
+        let recorded = n.recorded;
+        lines.push(match n.file {
+            Some(OnDisk::Holds(t)) => format!(
+                "{who} was not saved: the session writer panicked; {} holds {t} of its \
+                 {recorded} tics (its last completed write)",
+                path.display()
+            ),
+            None => format!(
+                "{who} was not saved: the session writer panicked; {} was not created (no \
+                 write of it completed)",
+                path.display()
+            ),
+            Some(OnDisk::Taken) => format!("{who} was not written: {}", lost(dir, &n.name)),
+        });
+    }
+    if w.refused {
+        lines.push(if current.is_empty() {
+            "the session was not saved, nor was any other session begun after the session \
+             writer stopped: no file was created for them"
+                .to_string()
+        } else {
+            "no session begun after the session writer stopped was saved: no file was created \
+             for them"
+                .to_string()
+        });
     }
     lines
 }

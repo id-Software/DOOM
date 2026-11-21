@@ -395,20 +395,35 @@ impl EventHandler for Stage {
 /// layout-dependence line when a session of the run was labelled by the detector of decision
 /// T12 (always, with or without `--tic-stats`); then where the session's demo went.
 pub(crate) fn exit_lines(app: &App, host: &FsHost, stats: Option<&TicStats>) -> Vec<String> {
+    let mut lines = exit_lines_before_session(app, host, stats);
+    lines.push(session_line(app, host));
+    lines
+}
+
+/// [`exit_lines`] without the last one, where the session's demo went ([`session_line`]).
+pub(crate) fn exit_lines_before_session(
+    app: &App,
+    host: &FsHost,
+    stats: Option<&TicStats>,
+) -> Vec<String> {
     let mut lines = Vec::new();
     if let Some(s) = stats {
         lines.push(s.summary());
     }
     lines.extend(host.audio.device_exit_lines());
     lines.extend(app.layout_dependent_line());
+    lines
+}
+
+/// The last of [`exit_lines`]: where the session's demo went, from the app's status.
+pub(crate) fn session_line(app: &App, host: &FsHost) -> String {
     let path = host.dir.join(app.session_name());
-    lines.push(match app.save_status() {
+    match app.save_status() {
         _ if !app.recorded() => UNRECORDED_LABEL.to_string(),
         SaveStatus::Saved(tics) => format!("saved {} ({tics} tics)", path.display()),
         SaveStatus::Failed(e) => format!("the session was not saved: {e}"),
         SaveStatus::NotSaved => "the session was not saved".to_string(),
-    });
-    lines
+    }
 }
 
 fn button_of(button: miniquad::MouseButton) -> Option<MouseButton> {

@@ -54,6 +54,15 @@
 //! session's file is never left behind without an exit line saying so. A session whose name
 //! another file took is never written.
 //!
+//! **If the writer thread panics** (a fault: no write fails that way), the writes still queued
+//! are never made and the earlier sessions left behind are not rewritten at exit (their copies
+//! died with the thread). The exit report still names every session whose file is short: the
+//! loop side keeps the names it handed over as claims, in order, with the tics the app recorded
+//! in each (the tics of its last call about it), and the writer notes in the shared state what
+//! its last completed write of each session left in the file ([`OnDisk`]); [`WriterHost::close`]
+//! compares the two ([`NotWritten`]). A session begun after the writer stopped has no file (its
+//! claim cannot be handed over), and the report says so ([`Report::refused`]).
+//!
 //! **The atomicity argument** is unchanged in kind: every write the writer makes is one of the
 //! all-or-nothing operations of [`crate::session_file`] (a five-byte write inside one page, or a
 //! temporary file and a rename), made in order on one thread, so at every instant the name holds a
@@ -66,7 +75,7 @@ use crate::FsHost;
 use crate::session_file::{self, Claim, TAIL, append_fits_one_page};
 use crate::write_stats::{Kind, SessionCounts, Timed, WriteTimes};
 use doom_game::app::{AudioSink, Host, Timestamp};
-use std::collections::{BTreeSet, VecDeque};
+use std::collections::{BTreeMap, BTreeSet, VecDeque};
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Condvar, Mutex, MutexGuard, PoisonError, mpsc};
 use std::thread::JoinHandle;
@@ -176,6 +185,10 @@ struct State {
     strays: Vec<(String, String)>,
     /// The earlier sessions left behind and what their rewrite at the writer's end did.
     earlier: Vec<Earlier>,
+    /// What the writer's last completed write of each session left in its file (or that another
+    /// file took its name), for the report after a panic; a session absent here has no file of
+    /// this run (no claim of it completed).
+    files: BTreeMap<String, OnDisk>,
     counts: SessionCounts,
     times: WriteTimes,
     /// The most tics ever queued at a hand-over, and the most snapshots pending.
@@ -205,6 +218,33 @@ pub(crate) struct Report {
     pub(crate) earlier: Vec<Earlier>,
     /// The writer thread panicked.
     pub(crate) panicked: bool,
+    /// After a panic: every session handed over whose file does not hold every tic the app
+    /// recorded in it, in the order of their claims; empty when the writer did not panic.
+    pub(crate) not_written: Vec<NotWritten>,
+    /// After a panic: a claim could not be handed over because the writer had stopped, so a
+    /// session begun after it has no file.
+    pub(crate) refused: bool,
+}
+
+/// What the writer's last completed write of a session left in its file.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(crate) enum OnDisk {
+    /// The file holds this many tics.
+    Holds(u64),
+    /// Another file took the name before the claim: never written.
+    Taken,
+}
+
+/// A session whose file does not hold its whole demo after the writer panicked.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub(crate) struct NotWritten {
+    /// The file's name.
+    pub(crate) name: String,
+    /// The tics the app recorded in the session (those of its last call about it).
+    pub(crate) recorded: u64,
+    /// What the writer's last completed write left in the file; `None` when no write of it
+    /// completed (no file of this run was created).
+    pub(crate) file: Option<OnDisk>,
 }
 
 /// An earlier session whose file did not hold its whole demo when the writer moved on to the
@@ -246,6 +286,11 @@ pub(crate) struct WriterHost {
     reserved: BTreeSet<String>,
     /// The session of the last claim.
     current: Option<String>,
+    /// Every session handed over as a claim, in order, with the most tics the app has recorded
+    /// in it (the tics its calls about it carried), for the report after a panic.
+    handed: Vec<(String, u64)>,
+    /// A claim could not be handed over (the writer had stopped).
+    refused: bool,
     sent: u64,
     appends_sent: u64,
     /// The last append declined at the bound: the next snapshot is a catch-up (unsynced).
@@ -294,6 +339,8 @@ impl WriterHost {
             thread: Some(thread),
             reserved: BTreeSet::new(),
             current: None,
+            handed: Vec::new(),
+            refused: false,
             sent: 0,
             appends_sent: 0,
             declined: false,
@@ -318,6 +365,13 @@ impl WriterHost {
                 .changed
                 .wait(st)
                 .unwrap_or_else(PoisonError::into_inner);
+        }
+    }
+
+    /// Notes that the app has recorded `tics` tics in `name` (a session handed over).
+    fn note_recorded(&mut self, name: &str, tics: u64) {
+        if let Some((_, t)) = self.handed.iter_mut().rev().find(|(n, _)| n == name) {
+            *t = (*t).max(tics);
         }
     }
 
@@ -428,7 +482,9 @@ impl WriterHost {
 
     /// Stops the writer after it has finished every write handed over and rewritten the earlier
     /// sessions it left behind once more ([`Earlier`]), and reports what it did. Later calls
-    /// fail (`Err`); closing again reports the same counts and nothing as unreported.
+    /// fail (`Err`); closing again reports the same counts and nothing as unreported. If the
+    /// writer thread panicked, the report names every session handed over whose file does not
+    /// hold every tic the app recorded in it ([`NotWritten`]) and whether a claim was refused.
     pub(crate) fn close(&mut self) -> Report {
         self.tx = None;
         let panicked = self.thread.take().is_some_and(|t| t.join().is_err());
@@ -438,12 +494,30 @@ impl WriterHost {
             f.reported = true;
             unreported.push((f.name.clone(), f.error.clone()));
         }
+        let not_written = if panicked {
+            self.handed
+                .iter()
+                .filter_map(|(name, recorded)| {
+                    let file = st.files.get(name).copied();
+                    let whole = matches!(file, Some(OnDisk::Holds(t)) if t >= *recorded);
+                    (!whole).then(|| NotWritten {
+                        name: name.clone(),
+                        recorded: *recorded,
+                        file,
+                    })
+                })
+                .collect()
+        } else {
+            Vec::new()
+        };
         Report {
             counts: st.counts.clone(),
             times: st.times.clone(),
             unreported,
             earlier: std::mem::take(&mut st.earlier),
             panicked,
+            not_written,
+            refused: panicked && self.refused,
         }
     }
 }
@@ -475,15 +549,20 @@ impl Host for WriterHost {
         self.reserved.insert(name.to_string());
         self.current = Some(name.to_string());
         self.declined = false;
-        self.send(Msg::Claim {
+        if let Err(e) = self.send(Msg::Claim {
             name: name.to_string(),
             bytes: bytes.to_vec(),
-        })?;
+        }) {
+            self.refused = true;
+            return Err(e);
+        }
+        self.handed.push((name.to_string(), tics_in(bytes.len())));
         self.outcome(name, Ok(())).map(|()| true)
     }
     /// Keeps `bytes` as the session's newest snapshot (replacing a pending one) and returns at
     /// once: `Ok`, or the session's failure while one stands (its retry is this snapshot).
     fn save(&mut self, name: &str, bytes: &[u8]) -> Result<(), String> {
+        self.note_recorded(name, tics_in(bytes.len()));
         let failed = self.failure_of(name);
         let synced = !std::mem::take(&mut self.declined);
         let wake = {
@@ -519,6 +598,7 @@ impl Host for WriterHost {
     /// Queues the tic and returns `Ok(true)` at once; `Ok(false)` at the bound ([`QUEUE_TICS`]),
     /// so that the app hands the whole demo over instead; the session's failure while one stands.
     fn append(&mut self, name: &str, at: u64, tail: &[u8; 5]) -> Result<bool, String> {
+        self.note_recorded(name, tic_at(at));
         if self.current.as_deref() != Some(name) {
             return Err(format!("{name}: not the session this process claimed last"));
         }
@@ -653,7 +733,10 @@ impl Writer {
                             (self.notify)(session_file::fallback_line(&self.dir.join(&s.name)));
                             Some(Ok(tics))
                         }
-                        Ok(Claim::Taken) => Some(Err(lost(&self.dir, &s.name))),
+                        Ok(Claim::Taken) => {
+                            self.note_file(&s.name, OnDisk::Taken);
+                            Some(Err(lost(&self.dir, &s.name)))
+                        }
                         Err(e) => Some(Err(e)),
                     }
                 }
@@ -664,6 +747,9 @@ impl Writer {
                     Some(r.map(|()| tics))
                 }
             };
+            if let Some(Ok(tics)) = &retry {
+                self.note_file(&s.name, OnDisk::Holds(*tics));
+            }
             earlier.push(Earlier {
                 name: l.session.name,
                 error: l.error,
@@ -842,7 +928,14 @@ impl Writer {
         if st.failure.as_ref().is_some_and(|f| f.name == name) {
             st.failure = None;
         }
+        st.files.insert(name.clone(), OnDisk::Holds(tics));
         st.held = Some((name, tics));
+    }
+
+    /// Notes what a completed write (or a claim that found the name taken) left in `name`'s
+    /// file, for the report after a panic.
+    fn note_file(&self, name: &str, on_disk: OnDisk) {
+        self.shared.lock().files.insert(name.to_string(), on_disk);
     }
 
     fn claim(&mut self) {
@@ -866,6 +959,7 @@ impl Writer {
             }
             Ok(Claim::Taken) => {
                 self.set_disk(Disk::Lost);
+                self.note_file(&name, OnDisk::Taken);
                 let e = lost(&self.dir, &name);
                 self.fail(&name, e);
             }
@@ -957,7 +1051,7 @@ impl Writer {
 }
 
 /// The error of a session whose name another file took before the claim.
-fn lost(dir: &Path, name: &str) -> String {
+pub(crate) fn lost(dir: &Path, name: &str) -> String {
     format!(
         "{}: another file took the name before this session's file was created; it was left \
          alone and this session is not written",
