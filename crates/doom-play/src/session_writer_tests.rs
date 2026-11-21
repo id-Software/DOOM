@@ -1195,3 +1195,433 @@ fn a_writer_panic_while_moving_on_names_each_session_once() {
     assert!(!dir.join(c).exists());
     std::fs::remove_dir_all(&dir).unwrap();
 }
+
+/// Faults aimed at one name or one kind of batch, set by the test while the writer runs (review
+/// 6, m2, m3 and n1), on top of [`TestIo`].
+#[derive(Default)]
+struct Aims {
+    /// A claim of this name finds another process's file there (the name was taken).
+    take: Option<String>,
+    /// A claim of this name fails.
+    fail_claims_of: Option<String>,
+    /// A whole rewrite of this name panics (the writer thread dies).
+    panic_rewrites_of: Option<String>,
+    /// An append of more than one tic makes its first write, then fails.
+    fail_after_first: bool,
+}
+
+/// [`TestIo`] with the faults of [`Aims`].
+struct AimedIo {
+    io: TestIo,
+    aims: Arc<Mutex<Aims>>,
+}
+
+impl SessionIo for AimedIo {
+    fn claim(&mut self, dir: &Path, name: &str, bytes: &[u8]) -> Result<Claim, String> {
+        let (take, fail) = {
+            let a = self.aims.lock().unwrap();
+            (
+                a.take.as_deref() == Some(name),
+                a.fail_claims_of.as_deref() == Some(name),
+            )
+        };
+        if fail {
+            return Err("planted: the claim failed".into());
+        }
+        if take {
+            std::fs::write(dir.join(name), b"another process's file").unwrap();
+        }
+        self.io.claim(dir, name, bytes)
+    }
+    fn rewrite(
+        &mut self,
+        dir: &Path,
+        name: &str,
+        bytes: &[u8],
+        synced: bool,
+    ) -> Result<(), String> {
+        let panic = self.aims.lock().unwrap().panic_rewrites_of.as_deref() == Some(name);
+        assert!(
+            !panic,
+            "planted: the writer panics in the rewrite of {name}"
+        );
+        self.io.rewrite(dir, name, bytes, synced)
+    }
+    fn append(
+        &mut self,
+        dir: &Path,
+        name: &str,
+        at: u64,
+        tails: &[[u8; 5]],
+    ) -> Result<bool, String> {
+        let partly = self.aims.lock().unwrap().fail_after_first && tails.len() > 1;
+        if partly {
+            assert_eq!(self.io.append(dir, name, at, &tails[..1]), Ok(true));
+            return Err("planted: disk full after the first tic".into());
+        }
+        self.io.append(dir, name, at, tails)
+    }
+}
+
+/// A writer over [`AimedIo`].
+fn aimed_writer(dir: &Path, io: TestIo, aims: &Arc<Mutex<Aims>>) -> WriterHost {
+    let io = AimedIo {
+        io,
+        aims: Arc::clone(aims),
+    };
+    WriterHost::with_io(fs(dir), Box::new(io), Box::new(|_| {})).unwrap()
+}
+
+/// The exit lines from a closed writer's report after a panic (the writers' lines, then the
+/// panic's), without the counters line (its times vary).
+fn panic_exit_lines(report: &Report, dir: &Path, current: &str) -> Vec<String> {
+    let mut lines = crate::closing::writer_lines(report, None, false);
+    lines.extend(crate::closing::panic_lines(report, dir, current));
+    lines.retain(|l| !l.starts_with("session file writes: "));
+    lines
+}
+
+/// The heading of the panic's lines when a session is named.
+const NAMED: &str = "the session writer stopped unexpectedly (a panic); the sessions below were \
+                     not saved, and no rewrite at exit saved them";
+
+/// Review 6, m1: after a panic, a failure the app never heard of, of a session whose file holds
+/// every tic recorded, gets no "not fully written" line. A holds tic 1; a whole save of that same
+/// tic fails and no call about A comes after it; the writer then panics in A's rewrite when it
+/// moves on to B, whose claim is never made. The report keeps A's failure as unreported and A as
+/// whole; the exit names B only.
+#[test]
+fn after_a_panic_a_whole_session_with_an_unheard_failure_gets_no_line() {
+    let dir = scratch("panic-whole-unheard");
+    let (fail_rewrites, panic) = (
+        Arc::new(AtomicBool::new(false)),
+        Arc::new(AtomicBool::new(false)),
+    );
+    let mut host = writer(
+        &dir,
+        TestIo {
+            fail_rewrites: Arc::clone(&fail_rewrites),
+            panic_rewrites: Arc::clone(&panic),
+            ..TestIo::default()
+        },
+    );
+    let (a, b) = ("a.lmp", "b.lmp");
+    assert_eq!(host.claim(a, &demo(0)), Ok(true));
+    assert_eq!(host.append(a, at_tic(1), &tail_of(1)), Ok(true));
+    host.wait_idle();
+    fail_rewrites.store(true, Ordering::SeqCst);
+    assert_eq!(host.save(a, &demo(1)), Ok(()));
+    host.wait_idle();
+    fail_rewrites.store(false, Ordering::SeqCst);
+    panic.store(true, Ordering::SeqCst);
+    assert_eq!(host.claim(b, &demo(0)), Ok(true)); // A's rewrite panics
+    host.wait_idle();
+    let report = host.close();
+    assert!(report.panicked);
+    assert_eq!(
+        report.unreported,
+        [(a.to_string(), "planted: disk full".to_string())]
+    );
+    assert_eq!(report.whole, [(a.to_string(), 1)]);
+    assert_eq!(std::fs::read(dir.join(a)).unwrap(), demo(1));
+    assert_eq!(
+        panic_exit_lines(&report, &dir, b),
+        [
+            NAMED.to_string(),
+            format!(
+                "the session was not saved: the session writer panicked; {} was not created (no \
+                 write of it completed)",
+                dir.join(b).display()
+            ),
+        ]
+    );
+    std::fs::remove_dir_all(&dir).unwrap();
+}
+
+/// Review 6, m2: the tics a short file's line gives are a lower bound. A holds 2 tics; tics 3 and
+/// 4 go over in one append, whose first write is made and whose second fails, so the file holds
+/// 3 tics; then the rewrite of A's whole demo panics. The line says A's file holds at least 2 of
+/// its 4 tics, and it holds 3.
+#[test]
+fn after_a_panic_a_partly_failed_append_leaves_at_least_the_tics_said() {
+    let dir = scratch("panic-partly");
+    let gate = Gate::closed();
+    gate.set(true);
+    let aims = Arc::new(Mutex::new(Aims::default()));
+    let mut host = aimed_writer(
+        &dir,
+        TestIo {
+            gate: Some(Arc::clone(&gate)),
+            ..TestIo::default()
+        },
+        &aims,
+    );
+    let _open = gate.opens_on_drop();
+    let a = "a.lmp";
+    assert_eq!(host.claim(a, &demo(0)), Ok(true));
+    assert_eq!(host.append(a, at_tic(1), &tail_of(1)), Ok(true));
+    host.wait_idle();
+    gate.set(false);
+    assert_eq!(host.append(a, at_tic(2), &tail_of(2)), Ok(true));
+    gate.await_waiter(); // the writer is held in tic 2's append: tics 3 and 4 make one batch
+    for k in 3..=4 {
+        assert_eq!(host.append(a, at_tic(k), &tail_of(k)), Ok(true));
+    }
+    aims.lock().unwrap().fail_after_first = true;
+    gate.set(true);
+    host.wait_idle();
+    assert_eq!(host.written(a), Some(2));
+    assert_eq!(std::fs::read(dir.join(a)).unwrap(), demo(3));
+    aims.lock().unwrap().panic_rewrites_of = Some(a.to_string());
+    assert!(host.save(a, &demo(4)).is_err()); // the append's failure, now heard; its retry panics
+    host.wait_idle();
+    let report = host.close();
+    assert!(report.panicked);
+    assert_eq!(
+        report.not_written,
+        [NotWritten {
+            name: a.to_string(),
+            recorded: 4,
+            file: Some(OnDisk::Holds(2)),
+        }]
+    );
+    assert_eq!(std::fs::read(dir.join(a)).unwrap(), demo(3));
+    assert_eq!(
+        crate::closing::panic_lines(&report, &dir, a),
+        [
+            NAMED.to_string(),
+            format!(
+                "the session was not saved: the session writer panicked; {} holds at least 2 of \
+                 its 4 tics (its last completed write)",
+                dir.join(a).display()
+            ),
+        ]
+    );
+    std::fs::remove_dir_all(&dir).unwrap();
+}
+
+/// Review 6, m3 (the claim's note that another file took the name): T's claim finds another
+/// process's file under its name, so T is never written; the writer moves on to B and panics in
+/// the rewrite of B's whole demo. After the panic T is named as not written, with the same words
+/// as without a panic (the other file is there; it is not "not created"), and B as short.
+#[test]
+fn after_a_panic_a_taken_name_is_named_as_taken() {
+    let dir = scratch("panic-taken");
+    let aims = Arc::new(Mutex::new(Aims::default()));
+    let mut host = aimed_writer(&dir, TestIo::default(), &aims);
+    let (t, b) = ("t.lmp", "b.lmp");
+    aims.lock().unwrap().take = Some(t.to_string());
+    assert_eq!(host.claim(t, &demo(0)), Ok(true));
+    host.wait_idle();
+    assert_eq!(host.claim(b, &demo(0)), Ok(true));
+    assert_eq!(host.append(b, at_tic(1), &tail_of(1)), Ok(true));
+    host.wait_idle();
+    aims.lock().unwrap().panic_rewrites_of = Some(b.to_string());
+    assert_eq!(host.save(b, &demo(2)), Ok(()));
+    host.wait_idle();
+    let report = host.close();
+    assert!(report.panicked);
+    assert_eq!(
+        std::fs::read(dir.join(t)).unwrap(),
+        b"another process's file",
+        "left alone"
+    );
+    assert_eq!(
+        panic_exit_lines(&report, &dir, b),
+        [
+            NAMED.to_string(),
+            format!("an earlier session was not written: {}", lost(&dir, t)),
+            format!(
+                "the session was not saved: the session writer panicked; {} holds at least 1 of \
+                 its 2 tics (its last completed write)",
+                dir.join(b).display()
+            ),
+        ]
+    );
+    std::fs::remove_dir_all(&dir).unwrap();
+}
+
+/// Review 6, m3 (the notes of the rewrite at exit): a panic in the rewrite at exit, after the
+/// rewrite has dealt with two earlier sessions. T's claims failed, so T was left behind with no
+/// file; at exit its claim finds another process's file under its name. A's and C's last appends
+/// and their rewrites when the writer moved on failed; at exit A is rewritten whole, and the
+/// rewrite of C panics. So T is named as taken, A (now whole) is not named, and C is named with
+/// what its file holds; D, the current session, is whole.
+#[test]
+fn a_panic_in_the_rewrite_at_exit_names_what_the_rewrites_before_it_left() {
+    let dir = scratch("panic-at-exit");
+    let (fail_appends, fail_rewrites) = (
+        Arc::new(AtomicBool::new(false)),
+        Arc::new(AtomicBool::new(false)),
+    );
+    let aims = Arc::new(Mutex::new(Aims::default()));
+    let mut host = aimed_writer(
+        &dir,
+        TestIo {
+            fail_appends: Arc::clone(&fail_appends),
+            fail_rewrites: Arc::clone(&fail_rewrites),
+            ..TestIo::default()
+        },
+        &aims,
+    );
+    let (t, a, c, d) = ("t.lmp", "a.lmp", "c.lmp", "d.lmp");
+    aims.lock().unwrap().fail_claims_of = Some(t.to_string());
+    assert_eq!(host.claim(t, &demo(0)), Ok(true));
+    host.wait_idle();
+    // S holds tic 1 and its append of tic 2 fails
+    let short = |host: &mut WriterHost, s: &str| {
+        assert_eq!(host.append(s, at_tic(1), &tail_of(1)), Ok(true));
+        host.wait_idle();
+        fail_appends.store(true, Ordering::SeqCst);
+        assert_eq!(host.append(s, at_tic(2), &tail_of(2)), Ok(true));
+        host.wait_idle();
+        fail_appends.store(false, Ordering::SeqCst);
+    };
+    // the claim of T fails again when the writer moves on to A: T is left behind with no file
+    assert_eq!(host.claim(a, &demo(0)), Ok(true));
+    short(&mut host, a);
+    // the rewrites of A and C when the writer moves on fail: each is left behind holding 1 of
+    // its 2 tics
+    fail_rewrites.store(true, Ordering::SeqCst);
+    assert_eq!(host.claim(c, &demo(0)), Ok(true));
+    short(&mut host, c);
+    assert_eq!(host.claim(d, &demo(0)), Ok(true));
+    host.wait_idle();
+    fail_rewrites.store(false, Ordering::SeqCst);
+    assert_eq!(host.append(d, at_tic(1), &tail_of(1)), Ok(true));
+    host.wait_idle();
+    {
+        let mut aims = aims.lock().unwrap();
+        aims.fail_claims_of = None;
+        aims.take = Some(t.to_string());
+        aims.panic_rewrites_of = Some(c.to_string());
+    }
+    host.finish();
+    let report = host.close();
+    assert!(report.panicked);
+    assert_eq!(report.unreported, []);
+    assert_eq!(
+        report.whole,
+        [(a.to_string(), 2), (d.to_string(), 1)],
+        "A was rewritten at exit"
+    );
+    assert_eq!(
+        std::fs::read(dir.join(t)).unwrap(),
+        b"another process's file"
+    );
+    assert_eq!(std::fs::read(dir.join(a)).unwrap(), demo(2));
+    assert_eq!(std::fs::read(dir.join(c)).unwrap(), demo(1));
+    assert_eq!(std::fs::read(dir.join(d)).unwrap(), demo(1));
+    assert_eq!(
+        panic_exit_lines(&report, &dir, d),
+        [
+            NAMED.to_string(),
+            format!("an earlier session was not written: {}", lost(&dir, t)),
+            format!(
+                "an earlier session was not saved: the session writer panicked; {} holds at \
+                 least 1 of its 2 tics (its last completed write)",
+                dir.join(c).display()
+            ),
+        ]
+    );
+    std::fs::remove_dir_all(&dir).unwrap();
+}
+
+/// Review 6, n1: a claim handed over after [`WriterHost::finish`] whose outcome is an error (the
+/// writer dies in the rewrite of A when it moves on to B, before B's claim is made) is in the
+/// report as the failed claim, so the exit lines can treat B, which the app keeps no name for,
+/// as the current session. A later claim asked for clears it, and without a panic it is not in
+/// the report.
+#[test]
+fn a_claim_that_fails_after_finish_is_the_failed_claim() {
+    for panics in [true, false] {
+        let dir = scratch(&format!("failed-claim-{panics}"));
+        let (fail_appends, fail_rewrites, panic) = (
+            Arc::new(AtomicBool::new(false)),
+            Arc::new(AtomicBool::new(false)),
+            Arc::new(AtomicBool::new(false)),
+        );
+        let mut host = writer(
+            &dir,
+            TestIo {
+                fail_appends: Arc::clone(&fail_appends),
+                fail_rewrites: Arc::clone(&fail_rewrites),
+                panic_rewrites: Arc::clone(&panic),
+                ..TestIo::default()
+            },
+        );
+        let (a, b) = ("a.lmp", "b.lmp");
+        assert_eq!(host.claim(a, &demo(0)), Ok(true));
+        assert_eq!(host.append(a, at_tic(1), &tail_of(1)), Ok(true));
+        host.wait_idle();
+        fail_appends.store(true, Ordering::SeqCst);
+        assert_eq!(host.append(a, at_tic(2), &tail_of(2)), Ok(true));
+        host.finish();
+        // A's rewrite when the writer moves on to B panics, or fails (then B's claim is made)
+        panic.store(panics, Ordering::SeqCst);
+        fail_rewrites.store(!panics, Ordering::SeqCst);
+        let claimed = host.claim(b, &demo(0));
+        assert_eq!(claimed.is_err(), panics, "{claimed:?}");
+        let report = host.close();
+        assert_eq!(report.panicked, panics);
+        if panics {
+            assert_eq!(claimed, Err(STOPPED.to_string()));
+            assert_eq!(report.failed_claim.as_deref(), Some(b));
+            assert_eq!(
+                report.not_written,
+                [
+                    NotWritten {
+                        name: a.to_string(),
+                        recorded: 2,
+                        file: Some(OnDisk::Holds(1)),
+                    },
+                    NotWritten {
+                        name: b.to_string(),
+                        recorded: 0,
+                        file: None,
+                    },
+                ]
+            );
+        } else {
+            assert_eq!(report.failed_claim, None);
+        }
+        std::fs::remove_dir_all(&dir).unwrap();
+    }
+    // a later claim asked for (here one that finds the name handed over already) clears it
+    let dir = scratch("failed-claim-cleared");
+    let panic = Arc::new(AtomicBool::new(false));
+    let fail_appends = Arc::new(AtomicBool::new(false));
+    let mut host = writer(
+        &dir,
+        TestIo {
+            fail_appends: Arc::clone(&fail_appends),
+            panic_rewrites: Arc::clone(&panic),
+            ..TestIo::default()
+        },
+    );
+    assert_eq!(host.claim("a.lmp", &demo(0)), Ok(true));
+    assert_eq!(host.append("a.lmp", at_tic(1), &tail_of(1)), Ok(true));
+    host.wait_idle();
+    fail_appends.store(true, Ordering::SeqCst);
+    assert_eq!(host.append("a.lmp", at_tic(2), &tail_of(2)), Ok(true));
+    host.finish();
+    panic.store(true, Ordering::SeqCst);
+    assert!(host.claim("b.lmp", &demo(0)).is_err());
+    assert_eq!(host.claim("b.lmp", &demo(0)), Ok(false));
+    assert_eq!(host.close().failed_claim, None);
+    std::fs::remove_dir_all(&dir).unwrap();
+    // a claim after finish that fails on the disk with no panic: not in the report
+    let dir = scratch("failed-claim-no-panic");
+    let aims = Arc::new(Mutex::new(Aims::default()));
+    let mut host = aimed_writer(&dir, TestIo::default(), &aims);
+    host.finish();
+    aims.lock().unwrap().fail_claims_of = Some("a.lmp".into());
+    assert_eq!(
+        host.claim("a.lmp", &demo(0)),
+        Err("planted: the claim failed".to_string())
+    );
+    let report = host.close();
+    assert!(!report.panicked);
+    assert_eq!(report.failed_claim, None);
+    std::fs::remove_dir_all(&dir).unwrap();
+}
