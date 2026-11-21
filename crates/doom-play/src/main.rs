@@ -127,6 +127,11 @@ starting [INFO]: the backend, the device, its sample rate, and the period and bu
 granted) is printed on standard error. On exit, lines starting \"audio\" give the device's
 name and native sample rates, the settings asked for, the sizes of the device's callbacks,
 how full the sound queue was when they came, and the gaps (underruns) and overruns counted.
+When a gap was counted, one more line lists each (the first 32): the session of this
+launch, the tic the game had reached, the frames of silence in that callback, and how many
+mixer buffers had been queued since the queue last began to fill (after the session's start,
+a resume or the gap before). A gap a few buffers after a start or a resume is the start-up
+fill running dry.
 
 Session files: the demo is written by a thread of its own, so a slow disk never holds up
 the game; a session ended without its quit (Ctrl+C, a closed window or console, a lost

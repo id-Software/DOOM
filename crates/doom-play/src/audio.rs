@@ -467,6 +467,42 @@ pub struct Counters {
     pub dropped_frames: u64,
 }
 
+/// How many underruns the exit lines list one by one ([`underrun_line`]); the rest are only
+/// counted. The list's storage is reserved when the queue is made, so the device's callback
+/// never allocates for it.
+pub const UNDERRUNS_LISTED: usize = 32;
+
+/// Why the queue last began to fill from empty towards its start threshold.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum Fill {
+    /// A session started ([`Queue::session_start`]), or the queue is new.
+    SessionStart,
+    /// The app resumed from a pause ([`Queue::resume`]).
+    Resume,
+    /// An underrun before this one.
+    Underrun,
+}
+
+/// Where the game was at one underrun (diagnostics only, printed in the exit lines; added
+/// 2026-11-21 so that a run answers whether its underruns are the start-up fill).
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct Underrun {
+    /// The session of the launch, counted from 1 ([`Queue::session_start`] calls so far; 0
+    /// only for a queue no session was started on).
+    pub session: u64,
+    /// The tics of that session committed when the loop last said so before the callback came
+    /// ([`Queue::note_tic`], after every update of the app; 0 before the first).
+    pub tic: u64,
+    /// The frames of silence this one callback wrote ([`Counters::underrun_frames`] is their
+    /// sum). They are what one callback missed, not the length of the gap heard.
+    pub frames: u64,
+    /// Why the queue had last begun to fill.
+    pub fill: Fill,
+    /// The mixer buffers pushed since it began to fill. A small number after
+    /// [`Fill::SessionStart`] or [`Fill::Resume`] is the start-up fill running dry.
+    pub buffers: u64,
+}
+
 /// What the device's callback saw, pull by pull (diagnostics only, printed in the exit lines
 /// whenever a device is open; milestone M5d).
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
@@ -534,6 +570,15 @@ pub struct Queue {
     counters: Counters,
     start_frames: usize,
     stats: PullStats,
+    /// Sessions started so far ([`Underrun::session`]).
+    session: u64,
+    /// The loop's last [`Queue::note_tic`] of this session ([`Underrun::tic`]).
+    tic: u64,
+    /// Why the queue last began to fill, and the buffers pushed since.
+    fill: Fill,
+    fill_buffers: u64,
+    /// The first [`UNDERRUNS_LISTED`] underruns, in order.
+    underruns: Vec<Underrun>,
 }
 
 impl Queue {
@@ -549,6 +594,11 @@ impl Queue {
             counters: Counters::default(),
             start_frames: START_FRAMES,
             stats: PullStats::default(),
+            session: 0,
+            tic: 0,
+            fill: Fill::SessionStart,
+            fill_buffers: 0,
+            underruns: Vec::with_capacity(UNDERRUNS_LISTED),
         }
     }
 
@@ -568,6 +618,7 @@ impl Queue {
             return;
         }
         self.frames.extend(buffer.iter().copied());
+        self.fill_buffers += 1;
         let over = self.frames.len().saturating_sub(CAP_FRAMES);
         if over > 0 {
             self.frames.drain(..over);
@@ -609,6 +660,16 @@ impl Queue {
             self.counters.underruns += 1;
             self.counters.underrun_frames += missing;
             self.started = false;
+            if self.underruns.len() < UNDERRUNS_LISTED {
+                self.underruns.push(Underrun {
+                    session: self.session,
+                    tic: self.tic,
+                    frames: missing,
+                    fill: self.fill,
+                    buffers: self.fill_buffers,
+                });
+            }
+            (self.fill, self.fill_buffers) = (Fill::Underrun, 0);
         }
     }
 
@@ -623,12 +684,28 @@ impl Queue {
     pub fn resume(&mut self) {
         self.paused = false;
         self.started = false;
+        (self.fill, self.fill_buffers) = (Fill::Resume, 0);
     }
 
     /// A new session: queued frames of the previous one are dropped.
     pub fn session_start(&mut self) {
         self.frames.clear();
         self.started = false;
+        self.session += 1;
+        self.tic = 0;
+        (self.fill, self.fill_buffers) = (Fill::SessionStart, 0);
+    }
+
+    /// The loop says how many tics of the session are committed (after every update of the
+    /// app): an underrun is recorded with the last such number ([`Underrun::tic`]). Diagnostics
+    /// only: nothing but the underrun list reads it.
+    pub fn note_tic(&mut self, tic: u64) {
+        self.tic = tic;
+    }
+
+    /// The first [`UNDERRUNS_LISTED`] underruns, in order.
+    pub fn underruns(&self) -> &[Underrun] {
+        &self.underruns
     }
 
     /// Mutes or unmutes; returns whether it is now muted. Frames keep leaving the queue while
@@ -754,18 +831,71 @@ impl DeviceSink {
         lock(&self.queue).pull_stats()
     }
 
+    /// The session's committed tics, from the loop ([`Queue::note_tic`]).
+    pub fn note_tic(&self, tic: u64) {
+        lock(&self.queue).note_tic(tic);
+    }
+
+    /// The first [`UNDERRUNS_LISTED`] underruns, in order.
+    pub fn underruns(&self) -> Vec<Underrun> {
+        lock(&self.queue).underruns().to_vec()
+    }
+
     /// The device's exit lines (milestone M5d), each to be printed after `doom-play: `: what
     /// the device reported and the settings asked for, what its pulls saw, and what the queue
     /// counted. One fact per field, units named.
+    ///
+    /// When at least one underrun was counted, one more line follows ([`underrun_line`]): the
+    /// session and tic of each. Without an underrun there is no such line.
     pub fn exit_lines(&self) -> Vec<String> {
-        device_lines(
+        let counters = self.counters();
+        let mut lines = device_lines(
             self.backend(),
             &self.facts,
             self.trial,
             &self.pull_stats(),
-            &self.counters(),
-        )
+            &counters,
+        );
+        lines.extend(underrun_line(&self.underruns(), counters.underruns));
+        lines
     }
+}
+
+/// The exit line that says where the game was at each underrun, `None` when `total` (the
+/// counted underruns) is 0. `listed` are the first of them ([`UNDERRUNS_LISTED`] at most); the
+/// line says how many more were counted and not listed.
+pub fn underrun_line(listed: &[Underrun], total: u64) -> Option<String> {
+    if total == 0 {
+        return None;
+    }
+    let each: Vec<String> = listed
+        .iter()
+        .map(|u| {
+            let why = match u.fill {
+                Fill::SessionStart => "the session's start",
+                Fill::Resume => "a resume",
+                Fill::Underrun => "the underrun before",
+            };
+            format!(
+                "session {} tic {}, {} frames, {} buffer{} after {why}",
+                u.session,
+                u.tic,
+                u.frames,
+                u.buffers,
+                if u.buffers == 1 { "" } else { "s" }
+            )
+        })
+        .collect();
+    let more = match total.saturating_sub(listed.len() as u64) {
+        0 => String::new(),
+        n => format!("; {n} more not listed"),
+    };
+    Some(format!(
+        "audio underruns, each: session of this launch (from 1) and its tics committed when \
+         the callback came, frames of silence in that callback, mixer buffers queued since \
+         the queue last began to fill and why: {}{more}",
+        each.join("; ")
+    ))
 }
 
 /// The native sample rates as the exit lines and the probe give them.
@@ -933,6 +1063,14 @@ impl Output {
         match self {
             Self::Device(d) => Some((d.backend(), d.counters())),
             Self::Discard(_) => None,
+        }
+    }
+
+    /// The session's committed tics, from the loop, for the underrun list
+    /// ([`Queue::note_tic`]); nothing without a device.
+    pub fn note_tic(&self, tic: u64) {
+        if let Self::Device(d) = self {
+            d.note_tic(tic);
         }
     }
 
@@ -1594,5 +1732,171 @@ mod tests {
             line.is_none() && out.device_exit_lines().is_empty(),
             "--no-sound"
         );
+    }
+}
+
+/// The underrun list (2026-11-21): where the game was at each underrun. Rust-only checks of a
+/// diagnostic; nothing here is evidence about what a person hears.
+#[cfg(test)]
+mod underrun_tests {
+    use super::*;
+
+    const BUF: [[i16; 2]; BUFFER_FRAMES] = [[1, 1]; BUFFER_FRAMES];
+
+    /// Pushes `buffers` buffers and pulls `frames` frames in one callback.
+    fn run(q: &mut Queue, buffers: usize, frames: usize) {
+        for _ in 0..buffers {
+            q.push(&BUF);
+        }
+        q.pull(&mut vec![0; 2 * frames]);
+    }
+
+    /// Each underrun is recorded with the session, the loop's last tic count, the frames that
+    /// one callback missed, and the buffers pushed since the queue last began to fill and why.
+    #[test]
+    fn an_underrun_is_recorded_with_its_session_tic_frames_and_fill() {
+        let mut q = Queue::new(Volume::FULL);
+        assert!(q.underruns().is_empty());
+        q.session_start();
+        q.note_tic(3);
+        run(&mut q, 2, 1100); // 1,024 queued, 1,100 asked: the start-up fill runs dry
+        let first = Underrun {
+            session: 1,
+            tic: 3,
+            frames: 76,
+            fill: Fill::SessionStart,
+            buffers: 2,
+        };
+        assert_eq!(q.underruns(), [first]);
+        // waiting for the threshold is no underrun and is not listed
+        run(&mut q, 1, 100);
+        assert_eq!(q.underruns().len(), 1);
+        // the next one is counted from the underrun before: 3 buffers (1,536) since then
+        q.note_tic(40);
+        run(&mut q, 2, 1546);
+        let second = Underrun {
+            session: 1,
+            tic: 40,
+            frames: 10,
+            fill: Fill::Underrun,
+            buffers: 3,
+        };
+        assert_eq!(q.underruns()[1], second);
+        // a pause drops the queue; pushes while paused are not counted; after the resume the
+        // fill begins again
+        q.pause();
+        run(&mut q, 5, 4000);
+        q.resume();
+        q.note_tic(41);
+        run(&mut q, 2, 1030);
+        let third = Underrun {
+            session: 1,
+            tic: 41,
+            frames: 6,
+            fill: Fill::Resume,
+            buffers: 2,
+        };
+        assert_eq!(q.underruns()[2], third);
+        // a new session: its number goes up and its tic count is 0 until the loop says more
+        q.note_tic(999);
+        q.session_start();
+        run(&mut q, 2, 1025);
+        let fourth = Underrun {
+            session: 2,
+            tic: 0,
+            frames: 1,
+            fill: Fill::SessionStart,
+            buffers: 2,
+        };
+        assert_eq!(q.underruns(), [first, second, third, fourth]);
+        let c = q.counters();
+        assert_eq!((c.underruns, c.underrun_frames), (4, 76 + 10 + 6 + 1));
+    }
+
+    /// The list holds the first [`UNDERRUNS_LISTED`]; later ones are counted only, and the list
+    /// never grows beyond the storage reserved for it.
+    #[test]
+    fn the_list_stops_at_its_limit_and_the_count_goes_on() {
+        let mut q = Queue::new(Volume::FULL);
+        q.session_start();
+        for tic in 0..UNDERRUNS_LISTED as u64 + 5 {
+            q.note_tic(tic);
+            run(&mut q, 2, 1025);
+        }
+        assert_eq!(q.counters().underruns, UNDERRUNS_LISTED as u64 + 5);
+        assert_eq!(q.underruns().len(), UNDERRUNS_LISTED);
+        assert_eq!(q.underruns()[UNDERRUNS_LISTED - 1].tic, 31);
+        assert_eq!(q.underruns.capacity(), UNDERRUNS_LISTED);
+        let line = underrun_line(q.underruns(), q.counters().underruns).unwrap();
+        assert!(line.ends_with("; 5 more not listed"), "{line}");
+        assert_eq!(line.matches("session 1 tic ").count(), UNDERRUNS_LISTED);
+    }
+
+    /// The line's exact text; no line without an underrun.
+    #[test]
+    fn the_underrun_line_names_each_and_there_is_none_without_one() {
+        assert_eq!(underrun_line(&[], 0), None);
+        let listed = [
+            Underrun {
+                session: 1,
+                tic: 3,
+                frames: 76,
+                fill: Fill::SessionStart,
+                buffers: 2,
+            },
+            Underrun {
+                session: 1,
+                tic: 2051,
+                frames: 128,
+                fill: Fill::Underrun,
+                buffers: 1,
+            },
+            Underrun {
+                session: 2,
+                tic: 0,
+                frames: 64,
+                fill: Fill::Resume,
+                buffers: 0,
+            },
+        ];
+        assert_eq!(
+            underrun_line(&listed, 3).unwrap(),
+            "audio underruns, each: session of this launch (from 1) and its tics committed when \
+             the callback came, frames of silence in that callback, mixer buffers queued since \
+             the queue last began to fill and why: session 1 tic 3, 76 frames, 2 buffers after \
+             the session's start; session 1 tic 2051, 128 frames, 1 buffer after the underrun \
+             before; session 2 tic 0, 64 frames, 0 buffers after a resume"
+        );
+    }
+
+    /// A device sink's exit lines: the four device lines alone without an underrun, and the
+    /// underrun line after them with one. Without a device there is nothing to note.
+    #[test]
+    fn the_sinks_exit_lines_gain_the_underrun_line_only_after_an_underrun() {
+        let mut d = DeviceSink::headless(Volume::FULL);
+        d.session_start();
+        d.note_tic(7);
+        d.buffer(&BUF);
+        d.buffer(&BUF);
+        d.pull(&mut [0; 2 * 1024]);
+        assert_eq!(d.exit_lines().len(), 4);
+        d.pull(&mut [0; 2 * 128]);
+        let lines = d.exit_lines();
+        assert_eq!(lines.len(), 5);
+        assert!(lines[3].contains("underruns 1 (128 frames of silence)"));
+        assert!(
+            lines[4]
+                .ends_with(": session 1 tic 7, 128 frames, 2 buffers after the session's start"),
+            "{}",
+            lines[4]
+        );
+        let out = Output::Device(d);
+        out.note_tic(8);
+        assert_eq!(
+            out.device_exit_lines(),
+            lines,
+            "a note changes no past line"
+        );
+        Output::Discard(Discard::default()).note_tic(1);
     }
 }

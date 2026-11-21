@@ -1513,3 +1513,39 @@ impl Report {
         }
     }
 }
+
+/// The underrun diagnostic (2026-11-21): after every update the loop tells the sound queue the
+/// session's committed tics, playing or not, so an underrun is recorded with the tic the game
+/// had reached. A headless device sink stands in for the device; Rust-only.
+#[test]
+fn every_update_tells_the_sound_queue_the_sessions_tic() {
+    use crate::audio::{BUFFER_FRAMES, DeviceSink, Output, Volume};
+    use doom_game::app::AudioSink as _;
+    let dir = scratch("underrun-tic");
+    let disk = Disk::default();
+    let mut p = play(&dir, &disk, 100);
+    p.host.host.fs.audio = Output::Device(DeviceSink::headless(Volume::FULL));
+    steady(&mut p, 1, 5);
+    let tic = p.app.tic();
+    assert!(tic > 0, "tics ran");
+    let Output::Device(d) = &mut p.host.host.fs.audio else {
+        unreachable!()
+    };
+    // whatever the session queued so far is taken, and more: one underrun
+    d.buffer(&[[1, 1]; BUFFER_FRAMES]);
+    d.buffer(&[[1, 1]; BUFFER_FRAMES]);
+    d.pull(&mut vec![0; 2 * 100_000]);
+    let noted: Vec<u64> = d.underruns().iter().map(|u| u.tic).collect();
+    assert_eq!(noted, [tic]);
+    // a later update moves the number on
+    steady(&mut p, 6, 7);
+    let tic = p.app.tic();
+    let Output::Device(d) = &mut p.host.host.fs.audio else {
+        unreachable!()
+    };
+    d.buffer(&[[1, 1]; BUFFER_FRAMES]);
+    d.buffer(&[[1, 1]; BUFFER_FRAMES]);
+    d.pull(&mut vec![0; 2 * 100_000]);
+    assert_eq!(d.underruns().last().map(|u| u.tic), Some(tic));
+    assert_eq!(d.underruns().len(), 2);
+}
