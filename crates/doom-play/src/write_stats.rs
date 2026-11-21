@@ -57,7 +57,10 @@ pub(crate) struct WriteTimes {
     pub(crate) count: u64,
     /// Operations that failed.
     pub(crate) failed: u64,
-    /// The longest operation.
+    /// The longest operation. The tie rule: of operations that took exactly as long, the one
+    /// recorded first stays the longest ([`WriteTimes::record`] replaces it only for a strictly
+    /// longer one), so the exit line names the earliest of them. The test
+    /// `of_two_equally_long_writes_the_first_is_the_longest` pins this.
     pub(crate) longest: Option<Timed>,
     /// The operations slower than [`SLOW`], in order, at most [`SLOW_LISTED`].
     pub(crate) slow: Vec<Timed>,
@@ -70,6 +73,9 @@ impl WriteTimes {
     pub(crate) fn record(&mut self, t: Timed, ok: bool) {
         self.count += 1;
         self.failed += u64::from(!ok);
+        // The tie rule: strictly longer, so of two operations that took exactly as long the
+        // first recorded is kept as the longest (pinned by the test
+        // `of_two_equally_long_writes_the_first_is_the_longest`).
         if self.longest.is_none_or(|l| t.took > l.took) {
             self.longest = Some(t);
         }
@@ -305,9 +311,11 @@ mod mut6_tests {
         }
     }
 
-    /// [`WriteTimes::longest`] is "the longest operation": of two that took exactly as long, the
-    /// first is named (the same strictness as the slow list's "over"). The tie rule is not
-    /// written elsewhere; this test records it.
+    /// [`WriteTimes::longest`] is "the longest operation". The tie rule: of two that took exactly
+    /// as long, the first recorded is named, because [`WriteTimes::record`] replaces the longest
+    /// only for a strictly longer operation (the same strictness as the slow list's "over").
+    /// The rule is written on the field and beside the comparison in `record`; this test pins
+    /// it: with `>=` there, the rewrite at tic 9 would be named and this test would fail.
     #[test]
     fn of_two_equally_long_writes_the_first_is_the_longest() {
         let t0 = Instant::now();

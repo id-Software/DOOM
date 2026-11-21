@@ -111,6 +111,23 @@ impl Play {
         }
     }
 
+    /// The app's update at monotonic time `now_us`, noted for `--tic-stats`. When the app's tic
+    /// clock is not running as the update begins (the app is paused or on an end screen, or was
+    /// resumed or restarted since the update before: [`App::next_tic_at`] gives no time), the
+    /// statistics are told so first, so that the time since the last tic, which was the
+    /// player's, is not taken for an interval between tics ([`TicStats::clock_stopped`]).
+    pub(crate) fn update(&mut self, now_us: u64) -> Update {
+        let stopped = self.app.next_tic_at().is_none();
+        let u = self.app.update(now_us, &mut self.host);
+        if let Some(s) = &mut self.stats {
+            if stopped {
+                s.clock_stopped();
+            }
+            s.record(now_us, u.ran, u.dropped);
+        }
+        u
+    }
+
     /// After the app's update: when it is not playing (and the run has not ended), settles the
     /// session file into the app, waiting up to [`END_WAIT`] if the session ended in this update
     /// (`ended_before` is whether it had ended before it).
