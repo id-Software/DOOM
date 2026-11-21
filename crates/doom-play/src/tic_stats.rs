@@ -7,6 +7,12 @@
 //! the loop, so it is no interval and no wall time here; the summary says how many stretches
 //! there were and how long the breaks between them took. (Before 2026-11-21 that time was
 //! counted: the owner's 19 s pause showed as the longest interval and as extra wall time.)
+//!
+//! A limit of that rule: a break runs from the last tic before the clock stopped to the first
+//! tic after it started again, so a stall of the loop at either edge of a break is inside the
+//! break and is not seen as an interval. If the loop freezes and the player presses Esc during
+//! the freeze, the pause is handled before the next update, the late tics never fall due, and
+//! the freeze shows only as part of the break's time.
 
 /// Executed-tic times (microseconds on the loop's monotonic clock) and the dropped count.
 #[derive(Default)]

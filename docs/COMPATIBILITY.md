@@ -2985,7 +2985,7 @@ fault ([evidence](validation/M5B.md#step-7b-full-resolution-unrecorded-turning))
   command is dropped); a tic whose frame is refused after the simulation committed it **is**, so the demo
   reproduces the refusal and its replay ends the same way (the test refuses tic 15 and saves a 16-tic demo).
   **A dead player gets no hint.** After a death the game keeps running with the view on the floor until the
-  player presses use; nothing on screen says so, and the owner, playing on 2026-11-21, took it for a freeze. The
+  player presses use; nothing on screen says so, and the owner took it for a freeze (his report of 2026-11-21). The
   original shows no prompt there either (`P_DeathThink` only tests the use button, p_user.c:227-228), so nothing
   is changed; what use does after a death is taken up by milestone M6a (decision U6 of its investigation note, which
   is on pull request #65 and not yet on master).

@@ -58,7 +58,8 @@ usage: doom-play --iwad PATH [options]
   --tic-stats          measurement aid: print, on exit, the intervals between executed tics
                        (taken from the loop's monotonic clock) to stderr; no other effect.
                        Pauses and the end screen between sessions are not intervals: the
-                       line gives their number and their time separately
+                       line gives their number and their time separately (a stall
+                       right at a pause is inside that time)
   --input-log FILE     diagnostic: write to FILE (replaced if it exists) one line for every
                        raw input the window library delivers (mouse buttons, motion and
                        cursor position, keys, focus) and for every event sent to the game,
