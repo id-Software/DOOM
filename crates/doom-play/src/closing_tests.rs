@@ -868,7 +868,10 @@ fn each_earlier_session_left_behind_gets_one_line() {
 
 /// Review 3, m3: the log as doom-play makes it ([`InputLog::threaded`]) keeps at most
 /// [`crate::input_log::LOG_QUEUE_PUMPS`] pumps waiting (1,024) besides the one being written:
-/// with the file stalled for 1,100 pumps, the rest are dropped and counted.
+/// with the file stalled for 1,100 pumps, the thread holds the first in its write, the next
+/// 1,024 wait and the last 75 are dropped, counted in one line before the summary's (pump
+/// 1,101). Review 6, X1: the test waits until the thread is held in the first pump's write
+/// before it hands the others over, so the counts do not depend on when the thread first runs.
 #[test]
 fn the_logs_queue_holds_1024_pumps() {
     assert_eq!(crate::input_log::LOG_QUEUE_PUMPS, 1_024);
@@ -881,24 +884,30 @@ fn the_logs_queue_holds_1024_pumps() {
     let mut p = play(&dir, &Disk::default(), 1_000);
     let mut log = InputLog::threaded(Box::new(text.clone())).unwrap();
     let _open = gate.opens_on_drop();
-    for _ in 0..1_100 {
+    for k in 0..1_100 {
         log.pump_end(&p.app, 1, 0, false);
+        if k == 0 {
+            // the thread has taken the first pump and is held in its write
+            gate.await_waiter();
+        }
     }
     gate.set(true);
     log.summary(0);
     log.finish();
     let got = String::from_utf8(text.bytes.lock().unwrap().clone()).unwrap();
     let kept = got.lines().filter(|l| l.starts_with("pump ")).count();
-    assert!(kept == 1_024 || kept == 1_025, "{kept}");
-    let dropped = 1_100 - kept;
-    assert!(
-        got.contains(&format!(
-            "{dropped} lines of {dropped} pumps were not written"
-        )),
-        "{}",
-        got.lines()
-            .find(|l| l.starts_with("dropped"))
-            .unwrap_or("no dropped line")
+    assert_eq!(kept, 1_025);
+    let pumps: Vec<&str> = got
+        .lines()
+        .filter(|l| l.starts_with("pump "))
+        .filter_map(|l| l.split(' ').nth(1))
+        .collect();
+    let first: Vec<String> = (1..=1_025).map(|n: u32| n.to_string()).collect();
+    assert_eq!(pumps, first, "the first 1,025 pumps, in order");
+    let dropped: Vec<&str> = got.lines().filter(|l| l.starts_with("dropped")).collect();
+    assert_eq!(
+        dropped,
+        ["dropped 1101 0 75 lines of 75 pumps were not written: the log's writer was behind"]
     );
     p.quit();
     std::fs::remove_dir_all(&dir).unwrap();
