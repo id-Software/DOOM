@@ -1625,3 +1625,404 @@ fn a_claim_that_fails_after_finish_is_the_failed_claim() {
     assert_eq!(report.failed_claim, None);
     std::fs::remove_dir_all(&dir).unwrap();
 }
+
+// ---- M5d mutation-survivor tests (mut6): each pins the behaviour in its comment ----
+
+/// `take_append`: "skipped when a later snapshot already holds it". Tic 2 is offered after a whole
+/// demo of 2 tics, so the file stays that demo and no failure is recorded. Pins `tic_at` (the
+/// tic count after the append whose five bytes go at 13 + 4(k - 1) is k).
+#[test]
+fn a_tic_a_later_snapshot_already_holds_is_skipped() {
+    let dir = scratch("mut6-skip");
+    let ops = Arc::new(Mutex::new(Vec::new()));
+    let mut host = writer(
+        &dir,
+        TestIo {
+            ops: Arc::clone(&ops),
+            ..TestIo::default()
+        },
+    );
+    let name = "a.lmp";
+    assert_eq!(host.claim(name, &demo(0)), Ok(true));
+    assert_eq!(host.save(name, &demo(2)), Ok(()));
+    assert_eq!(host.append(name, at_tic(2), &tail_of(2)), Ok(true));
+    host.finish();
+    let report = host.close();
+    assert!(!report.panicked);
+    assert_eq!(report.unreported, []);
+    assert_eq!(std::fs::read(dir.join(name)).unwrap(), demo(2));
+    assert_eq!(
+        *ops.lock().unwrap(),
+        [
+            Op::Claim,
+            Op::Rewrite {
+                synced: true,
+                tics: 2
+            }
+        ]
+    );
+    std::fs::remove_dir_all(&dir).unwrap();
+}
+
+/// `WriterHost::note_waiting`: "how many tics are waiting once `name` will hold `tics`", counted
+/// from what the writer's last completed write left in that session's own file (the field's
+/// documentation: "the most tics the app had handed over that the file did not hold yet"). A
+/// whole demo of 5 tics handed over while the file holds 3 has 2 waiting; a session whose claim
+/// has not completed has nothing in its file, whatever another session's file holds.
+#[test]
+fn the_most_tics_waiting_counts_from_the_sessions_own_file() {
+    let dir = scratch("mut6-waiting");
+    let gate = Gate::closed();
+    gate.set(true);
+    let mut host = writer(
+        &dir,
+        TestIo {
+            gate: Some(Arc::clone(&gate)),
+            ..TestIo::default()
+        },
+    );
+    let _open = gate.opens_on_drop();
+    let (a, b) = ("a.lmp", "b.lmp");
+    assert_eq!(host.claim(a, &demo(0)), Ok(true));
+    for k in 1..=3 {
+        assert_eq!(host.append(a, at_tic(k), &tail_of(k)), Ok(true));
+        host.wait_idle();
+    }
+    assert_eq!(host.shared.lock().counts.most_waiting, 1);
+    assert_eq!(host.save(a, &demo(5)), Ok(()));
+    assert_eq!(
+        host.shared.lock().counts.most_waiting,
+        2,
+        "5 tics handed over, the file holds 3"
+    );
+    host.wait_idle();
+    assert_eq!(host.written(a), Some(5));
+    gate.set(false); // B's claim cannot complete: the file of A is the last one written
+    assert_eq!(host.claim(b, &demo(0)), Ok(true));
+    assert_eq!(host.save(b, &demo(8)), Ok(()));
+    assert_eq!(
+        host.shared.lock().counts.most_waiting,
+        8,
+        "B's file holds nothing, A's 5 tics do not count for it"
+    );
+    gate.set(true);
+    host.finish();
+    host.close();
+    std::fs::remove_dir_all(&dir).unwrap();
+}
+
+/// `WriterHost::stopped_short`: "whether the writer thread ended before finishing every message
+/// sent". A writer closed after it made every write handed over did not stop short, so the
+/// synchronous outcome of a call is `Ok`, not "the session writer stopped before writing it".
+/// Below the public API: after `close` every call that sends fails with "closed" before it
+/// reaches this check, and a writer panic leaves `done` behind `sent`; only a direct call sees
+/// the stopped writer with nothing left over.
+#[test]
+fn a_writer_closed_after_every_write_did_not_stop_short() {
+    let dir = scratch("mut6-short");
+    let mut host = writer(&dir, TestIo::default());
+    assert_eq!(host.claim("a.lmp", &demo(0)), Ok(true));
+    host.finish();
+    let report = host.close();
+    assert!(!report.panicked);
+    assert!(!host.stopped_short());
+    assert_eq!(host.outcome("a.lmp", Ok(())), Ok(()));
+    std::fs::remove_dir_all(&dir).unwrap();
+}
+
+/// `WriterHost::settle` "waits at most `wait` for the writer to finish every write handed over":
+/// with nothing left to write it answers at once, however long it may wait (an hour here; a watchdog
+/// frees it after 10 s and the test fails), and says what the file holds. A session never handed over has
+/// no file of this run: nothing is known, `Pending` (the `held` session is another one).
+#[test]
+fn settle_answers_at_once_when_the_writer_has_nothing_left() {
+    let dir = scratch("mut6-settle");
+    let mut host = writer(&dir, TestIo::default());
+    assert_eq!(host.claim("a.lmp", &demo(0)), Ok(true));
+    assert_eq!(host.append("a.lmp", at_tic(1), &tail_of(1)), Ok(true));
+    host.wait_idle();
+    // a watchdog frees a settle that keeps waiting (by marking the writer stopped), so that a
+    // fault ends the test with a failure instead of an hour's wait
+    let shared = Arc::clone(&host.shared);
+    let (answered, listen) = mpsc::channel::<()>();
+    let watchdog = std::thread::spawn(move || {
+        let stuck = listen.recv_timeout(Duration::from_secs(10)).is_err();
+        if stuck {
+            shared.lock().alive = false;
+            shared.changed.notify_all();
+        }
+        stuck
+    });
+    let settled = host.settle("a.lmp", Duration::from_secs(3600));
+    answered.send(()).unwrap();
+    assert!(
+        !watchdog.join().unwrap(),
+        "settle kept waiting for a writer with nothing left to write"
+    );
+    assert_eq!(settled, Settled::Written(1));
+    assert_eq!(host.settle("b.lmp", Duration::ZERO), Settled::Pending);
+    std::fs::remove_dir_all(&dir).unwrap();
+}
+
+/// The writer host answers the clock, the sound output and the mute key through the file host
+/// ([`FsHost`] for "the clock, the directory and the sound"): a real date (month 1-12), a sound
+/// sink, and a mute key press that reaches the device (headless sink: no real device is opened).
+#[test]
+fn the_writer_host_forwards_the_clock_the_sound_and_the_mute_key() {
+    use crate::audio::{DeviceSink, Volume};
+    use crate::keys::Mute;
+    let dir = scratch("mut6-forward");
+    let mut file_host = fs(&dir);
+    file_host.audio = Output::Device(DeviceSink::headless(Volume::FULL));
+    let mut host =
+        WriterHost::with_io(file_host, Box::new(TestIo::default()), Box::new(|_| {})).unwrap();
+    let t = host.timestamp();
+    assert!(t.year >= 2024, "{t:?}");
+    assert!((1..=12).contains(&t.month), "{t:?}");
+    assert!((1..=31).contains(&t.day), "{t:?}");
+    assert!(host.audio().is_some());
+    host.toggle_mute(); // muted now
+    assert_eq!(
+        host.fs.audio.toggle_mute(),
+        Some(false),
+        "the key press reached the device: this second toggle unmutes"
+    );
+    host.close();
+    std::fs::remove_dir_all(&dir).unwrap();
+}
+
+/// `WriterHost::save` keeps the newest snapshot "of that session (a newer one replaces it in
+/// place)": a whole demo of another session does not replace a pending one of this session; both
+/// wait, and each file ends as its own demo handed over.
+#[test]
+fn a_snapshot_of_another_session_does_not_replace_a_pending_one() {
+    let dir = scratch("mut6-two-snapshots");
+    let gate = Gate::closed();
+    let mut host = writer(
+        &dir,
+        TestIo {
+            gate: Some(Arc::clone(&gate)),
+            ..TestIo::default()
+        },
+    );
+    let _open = gate.opens_on_drop();
+    let (a, b) = ("a.lmp", "b.lmp");
+    assert_eq!(host.claim(a, &demo(0)), Ok(true));
+    gate.await_waiter(); // the writer is held inside A's claim
+    assert_eq!(host.save(a, &demo(1)), Ok(()));
+    assert_eq!(host.claim(b, &demo(0)), Ok(true));
+    assert_eq!(host.save(b, &demo(2)), Ok(()));
+    assert_eq!(host.queue_depth().1, 2, "one pending snapshot per session");
+    gate.set(true);
+    host.finish();
+    let report = host.close();
+    assert_eq!(report.unreported, []);
+    assert_eq!(std::fs::read(dir.join(a)).unwrap(), demo(1));
+    assert_eq!(std::fs::read(dir.join(b)).unwrap(), demo(2));
+    std::fs::remove_dir_all(&dir).unwrap();
+}
+
+/// `Writer::take_append`: a tic is "queued for the file when the file is current (or a whole
+/// rewrite is pending anyway)". The session's file was taken by another process (never written),
+/// then a tic out of step and a tic in step are offered in one batch: the in-step tic is not
+/// queued for the file (that would make the flush report the loss again, replacing the failure
+/// of the tic out of step that the app was to hear).
+#[test]
+fn a_tic_is_not_queued_for_a_file_that_another_process_took() {
+    let dir = scratch("mut6-lost-append");
+    let gate = Gate::closed();
+    let mut host = writer(
+        &dir,
+        TestIo {
+            gate: Some(Arc::clone(&gate)),
+            race: true,
+            ..TestIo::default()
+        },
+    );
+    let _open = gate.opens_on_drop();
+    let name = "a.lmp";
+    assert_eq!(host.claim(name, &demo(0)), Ok(true));
+    gate.await_waiter(); // the writer is held inside the claim, which will find the name taken
+    assert_eq!(host.append(name, 29, &tail_of(5)), Ok(true)); // out of step
+    assert_eq!(host.append(name, 13, &tail_of(1)), Ok(true)); // in step with the copy
+    gate.set(true);
+    host.wait_idle();
+    let failure = host.shared.lock().failure.as_ref().map(|f| f.error.clone());
+    assert_eq!(
+        failure.as_deref(),
+        Some("a.lmp: a tic at byte 29, but the writer's copy holds 14 bytes")
+    );
+    assert_eq!(
+        std::fs::read(dir.join(name)).unwrap(),
+        b"another process's file"
+    );
+    host.close();
+    std::fs::remove_dir_all(&dir).unwrap();
+}
+
+/// `Writer::flush`: "nothing until the app hands a whole demo over (its retry cadence, ruling
+/// 4)" for a file the writer no longer vouches for. A tic in step is queued and then a tic out
+/// of step marks the file stale, in one batch: nothing is written for either, and the file
+/// stays as the claim left it.
+#[test]
+fn nothing_is_written_to_a_file_marked_stale_until_a_whole_demo_comes() {
+    let dir = scratch("mut6-stale-batch");
+    let gate = Gate::closed();
+    let ops = Arc::new(Mutex::new(Vec::new()));
+    let mut host = writer(
+        &dir,
+        TestIo {
+            gate: Some(Arc::clone(&gate)),
+            ops: Arc::clone(&ops),
+            ..TestIo::default()
+        },
+    );
+    let _open = gate.opens_on_drop();
+    let name = "a.lmp";
+    assert_eq!(host.claim(name, &demo(0)), Ok(true));
+    gate.await_waiter();
+    assert_eq!(host.append(name, 13, &tail_of(1)), Ok(true)); // in step
+    assert_eq!(host.append(name, 29, &tail_of(5)), Ok(true)); // out of step: stale
+    gate.set(true);
+    host.wait_idle();
+    assert_eq!(*ops.lock().unwrap(), [Op::Claim]);
+    assert_eq!(std::fs::read(dir.join(name)).unwrap(), demo(0));
+    let failure = host.shared.lock().failure.as_ref().map(|f| f.error.clone());
+    assert_eq!(
+        failure.as_deref(),
+        Some("a.lmp: a tic at byte 29, but the writer's copy holds 18 bytes")
+    );
+    host.close();
+    std::fs::remove_dir_all(&dir).unwrap();
+}
+
+/// The exit line's counts ([`crate::write_stats::session_line`], the field documentation of
+/// [`SessionCounts`]): one claim, three append operations (two wrote a tic each; one found the
+/// file not the length the copy expected, wrote nothing and was repaired by an unsynced whole
+/// rewrite), two synced whole rewrites (the app's saves) and one more unsynced (a catch-up).
+#[test]
+fn the_exit_counts_tell_each_kind_of_operation_apart() {
+    let dir = scratch("mut6-counts");
+    let mut host = writer(&dir, TestIo::default());
+    let name = "a.lmp";
+    assert_eq!(host.claim(name, &demo(0)), Ok(true));
+    host.wait_idle();
+    for k in 1..=2 {
+        assert_eq!(host.append(name, at_tic(k), &tail_of(k)), Ok(true));
+        host.wait_idle();
+    }
+    // another process changed the file: the next append is declined and repaired
+    std::fs::write(dir.join(name), vec![0u8; 100]).unwrap();
+    assert_eq!(host.append(name, at_tic(3), &tail_of(3)), Ok(true));
+    host.wait_idle();
+    assert_eq!(std::fs::read(dir.join(name)).unwrap(), demo(3));
+    for _ in 0..2 {
+        assert_eq!(host.save(name, &demo(3)), Ok(()));
+        host.wait_idle();
+    }
+    host.declined = true; // as after an append declined at the bound: the next snapshot is unsynced
+    assert_eq!(host.save(name, &demo(3)), Ok(()));
+    host.wait_idle();
+    let report = host.close();
+    assert!(!report.panicked);
+    let c = &report.counts;
+    assert_eq!(
+        (
+            c.claims,
+            c.appends,
+            c.appended_tics,
+            c.declined_appends,
+            c.synced_rewrites,
+            c.rewrites
+        ),
+        (1, 3, 2, 1, 2, 2)
+    );
+    assert_eq!((report.times.count, report.times.failed), (8, 0));
+    let line = crate::write_stats::session_line(&report.counts, &report.times);
+    assert!(
+        line.starts_with(
+            "session file writes: 8 (claims 1, appends 3 of 2 tics, 1 appends declined, whole \
+             rewrites 2 synced and 2 unsynced), 0 failed;"
+        ),
+        "{line}"
+    );
+    std::fs::remove_dir_all(&dir).unwrap();
+}
+
+/// `Writer::fail`: "a repeat of the standing one changes nothing". A whole rewrite that fails
+/// again with the failure the app has already been told about does not make it unreported again:
+/// the exit report lists no failure the app never heard of.
+#[test]
+fn a_repeated_failure_stays_reported() {
+    let dir = scratch("mut6-repeat");
+    let fail_rewrites = Arc::new(AtomicBool::new(false));
+    let mut host = writer(
+        &dir,
+        TestIo {
+            fail_rewrites: Arc::clone(&fail_rewrites),
+            ..TestIo::default()
+        },
+    );
+    let name = "a.lmp";
+    assert_eq!(host.claim(name, &demo(0)), Ok(true));
+    host.wait_idle();
+    fail_rewrites.store(true, Ordering::SeqCst);
+    assert_eq!(host.save(name, &demo(1)), Ok(()));
+    host.wait_idle(); // the rewrite failed: a failure the app has not heard of
+    // this call tells the app (the retry is this snapshot), and the retry fails the same way
+    assert_eq!(
+        host.save(name, &demo(1)),
+        Err("planted: disk full".to_string())
+    );
+    host.wait_idle();
+    let report = host.close();
+    assert_eq!(report.unreported, []);
+    std::fs::remove_dir_all(&dir).unwrap();
+}
+
+/// A disk whose every whole rewrite fails with a different message (`planted 1`, `planted 2`,
+/// ...); the other operations are the disk's.
+#[derive(Default)]
+struct Numbered(usize);
+
+impl SessionIo for Numbered {
+    fn claim(&mut self, dir: &Path, name: &str, bytes: &[u8]) -> Result<Claim, String> {
+        RealIo.claim(dir, name, bytes)
+    }
+    fn rewrite(&mut self, _: &Path, _: &str, _: &[u8], _: bool) -> Result<(), String> {
+        self.0 += 1;
+        Err(format!("planted {}", self.0))
+    }
+    fn append(
+        &mut self,
+        dir: &Path,
+        name: &str,
+        at: u64,
+        tails: &[[u8; 5]],
+    ) -> Result<bool, String> {
+        RealIo.append(dir, name, at, tails)
+    }
+}
+
+/// `Writer::fail`, the other side: a different failure of the same session replaces the standing
+/// one, which the app had been told about, so the new one is unreported until the app hears it
+/// (the exit report lists it).
+#[test]
+fn a_different_failure_replaces_the_standing_one() {
+    let dir = scratch("mut6-different");
+    let mut host =
+        WriterHost::with_io(fs(&dir), Box::new(Numbered::default()), Box::new(|_| {})).unwrap();
+    let name = "a.lmp";
+    assert_eq!(host.claim(name, &demo(0)), Ok(true));
+    host.wait_idle();
+    assert_eq!(host.save(name, &demo(1)), Ok(()));
+    host.wait_idle(); // "planted 1"
+    assert_eq!(host.save(name, &demo(1)), Err("planted 1".to_string()));
+    host.wait_idle(); // the retry fails with "planted 2"
+    let report = host.close();
+    assert_eq!(
+        report.unreported,
+        [(name.to_string(), "planted 2".to_string())]
+    );
+    std::fs::remove_dir_all(&dir).unwrap();
+}

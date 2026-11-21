@@ -909,3 +909,61 @@ mod tests {
         );
     }
 }
+
+/// Mutation-survivor tests of M5d (mut6).
+#[cfg(test)]
+mod mut6_tests {
+    use super::*;
+
+    const CHILD: &str = "DOOM_PLAY_TEST_CLAIM_CHILD";
+    const NAME: &str = "mut6_tests::the_fallback_line_is_printed_only_for_the_fallback_claim";
+
+    /// [`FsHost::claim`] prints [`session_file::fallback_line`] on standard error when the claim
+    /// took the fallback ("the one line printed on standard error when a claim took the
+    /// fallback"), and nothing otherwise. Which one happens depends on the file system's hard
+    /// links, so the parent asks the same directory first. The child process claims a name and
+    /// the parent reads its standard error (the harness captures what a test prints).
+    #[test]
+    fn the_fallback_line_is_printed_only_for_the_fallback_claim() {
+        if let Some(dir) = std::env::var_os(CHILD) {
+            let mut host = FsHost {
+                dir: PathBuf::from(dir),
+                audio: Output::Discard(audio::Discard::default()),
+            };
+            assert_eq!(host.claim("a.lmp", b"demo"), Ok(true));
+            return;
+        }
+        let base =
+            std::env::temp_dir().join(format!("doom-play-claim-line-{}", std::process::id()));
+        let probe = session_file::claim_kind(&base.join("probe"), "a.lmp", b"demo").unwrap();
+        let child_dir = base.join("child");
+        let out = std::process::Command::new(std::env::current_exe().unwrap())
+            .args([NAME, "--exact", "--nocapture", "--test-threads=1"])
+            .env(CHILD, &child_dir)
+            .output()
+            .unwrap();
+        assert!(out.status.success(), "{out:?}");
+        let err = String::from_utf8_lossy(&out.stderr);
+        let line = session_file::fallback_line(&child_dir.join("a.lmp"));
+        assert_eq!(
+            err.contains(&line),
+            probe == session_file::Claim::Created,
+            "{err}"
+        );
+        assert_eq!(std::fs::read(child_dir.join("a.lmp")).unwrap(), b"demo");
+        std::fs::remove_dir_all(&base).unwrap();
+    }
+
+    /// [`run`] reads the IWAD first and names the file it could not read: with no such file it
+    /// returns that error (before any window or display is needed), not success.
+    #[test]
+    fn run_refuses_an_iwad_that_cannot_be_read() {
+        let missing =
+            std::env::temp_dir().join(format!("doom-play-no-such-iwad-{}.wad", std::process::id()));
+        let o = parse(vec!["--iwad".to_string(), missing.display().to_string()])
+            .unwrap()
+            .unwrap();
+        let e = run(o).unwrap_err();
+        assert!(e.starts_with(&format!("{}: ", missing.display())), "{e}");
+    }
+}

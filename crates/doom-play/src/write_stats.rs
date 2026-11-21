@@ -290,3 +290,87 @@ mod tests {
         );
     }
 }
+
+/// Mutation-survivor tests of M5d (mut6).
+#[cfg(test)]
+mod mut6_tests {
+    use super::*;
+
+    fn timed(kind: Kind, tic: u64, us: u64, began: Instant) -> Timed {
+        Timed {
+            kind,
+            tic,
+            took: Duration::from_micros(us),
+            began,
+        }
+    }
+
+    /// [`WriteTimes::longest`] is "the longest operation": of two that took exactly as long, the
+    /// first is named (the same strictness as the slow list's "over"). The tie rule is not
+    /// written elsewhere; this test records it.
+    #[test]
+    fn of_two_equally_long_writes_the_first_is_the_longest() {
+        let t0 = Instant::now();
+        let mut w = WriteTimes::default();
+        w.record(timed(Kind::Append, 5, 3_000, t0), true);
+        w.record(timed(Kind::Rewrite, 9, 3_000, t0), true);
+        assert_eq!(w.longest.map(|l| (l.kind, l.tic)), Some((Kind::Append, 5)));
+    }
+
+    /// [`slow_line`] lists at most [`SLOW_LISTED`] and counts "the rest" ("N more not listed"):
+    /// two writers with 21 slow writes each have 42, so 40 are listed and 2 are not.
+    #[test]
+    fn the_slow_list_counts_exactly_the_writes_it_leaves_out() {
+        let t0 = Instant::now();
+        let (mut a, mut b) = (WriteTimes::default(), WriteTimes::default());
+        for k in 0..21u64 {
+            a.record(
+                timed(Kind::Append, k, 30_000, t0 + Duration::from_millis(2 * k)),
+                true,
+            );
+            b.record(
+                timed(Kind::Log, k, 30_000, t0 + Duration::from_millis(2 * k + 1)),
+                true,
+            );
+        }
+        assert_eq!((a.slow.len(), b.slow.len()), (21, 21));
+        let line = slow_line(&[&a, &b]);
+        assert!(line.ends_with("; 2 more not listed"), "{line}");
+        assert_eq!(line.matches(" at tic ").count(), SLOW_LISTED, "{line}");
+    }
+
+    /// [`exit_lines`]: "the session writer's line when it made any operation" (none made: no
+    /// line), and the slow-write line only "with `--tic-stats`" and when some writer was timed.
+    #[test]
+    fn the_exit_lines_follow_what_ran_and_what_was_asked_for() {
+        let t0 = Instant::now();
+        let counts = SessionCounts::default();
+        let none = WriteTimes::default();
+        // no operation made, no log: nothing, with or without --tic-stats
+        assert_eq!(
+            exit_lines(Some((&counts, &none)), None, false),
+            Vec::<String>::new()
+        );
+        assert_eq!(
+            exit_lines(Some((&counts, &none)), None, true),
+            Vec::<String>::new()
+        );
+        assert_eq!(exit_lines(None, None, true), Vec::<String>::new());
+        let mut some = WriteTimes::default();
+        some.record(timed(Kind::Claim, 0, 1_000, t0), true);
+        // one operation made: its line, and the slow line only with --tic-stats
+        let plain = exit_lines(Some((&counts, &some)), None, false);
+        assert_eq!(plain.len(), 1, "{plain:?}");
+        assert!(
+            plain[0].starts_with("session file writes: 1 ("),
+            "{plain:?}"
+        );
+        let stats = exit_lines(Some((&counts, &some)), None, true);
+        assert_eq!(stats.len(), 2, "{stats:?}");
+        assert_eq!(stats[0], plain[0]);
+        assert_eq!(stats[1], "writes over 20 ms: none");
+        // the log alone is timed too
+        assert_eq!(exit_lines(None, Some(&some), false).len(), 1);
+        assert_eq!(exit_lines(None, Some(&some), true).len(), 2);
+    }
+}

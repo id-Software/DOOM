@@ -971,3 +971,71 @@ mod logged_host_tests {
         std::fs::remove_dir_all(&dir).unwrap();
     }
 }
+
+/// Mutation-survivor tests of M5d (mut6).
+#[cfg(test)]
+mod mut6_tests {
+    use super::*;
+    use doom_game::app::Timestamp;
+    use std::sync::{Arc, Mutex};
+
+    /// A writer the log's thread can own, which the test reads back.
+    #[derive(Clone, Default)]
+    struct Sink(Arc<Mutex<Vec<u8>>>);
+
+    impl Write for Sink {
+        fn write(&mut self, b: &[u8]) -> std::io::Result<usize> {
+            self.0.lock().unwrap().extend_from_slice(b);
+            Ok(b.len())
+        }
+        fn flush(&mut self) -> std::io::Result<()> {
+            Ok(())
+        }
+    }
+
+    /// The thread's drop "writes what is left (as a dropped buffered writer would) and joins the
+    /// thread": a line not yet handed over (no pump ended) is in the file once the log is dropped.
+    #[test]
+    fn dropping_a_threaded_log_writes_what_is_left() {
+        let sink = Sink::default();
+        let mut log = InputLog::threaded(Box::new(sink.clone())).unwrap();
+        log.line("raw", 0, format_args!("last words"));
+        drop(log);
+        let text = String::from_utf8(sink.0.lock().unwrap().clone()).unwrap();
+        assert_eq!(text, "raw 1 0 last words\n");
+    }
+
+    /// A host that keeps the defaults of [`Host`]: its files are not kept current tic by tic.
+    struct Plain;
+
+    impl Host for Plain {
+        fn timestamp(&mut self) -> Timestamp {
+            Timestamp {
+                year: 2026,
+                month: 11,
+                day: 20,
+                hour: 0,
+                minute: 0,
+                second: 0,
+            }
+        }
+        fn exists(&mut self, _: &str) -> bool {
+            false
+        }
+        fn save(&mut self, _: &str, _: &[u8]) -> Result<(), String> {
+            Ok(())
+        }
+    }
+
+    /// [`Host::appends`] says whether the host keeps the file current tic by tic; the logging
+    /// wrapper must say what the host proper says (here: it does not), or the app would offer
+    /// tics to a host that declines them.
+    #[test]
+    fn the_wrapper_says_what_the_host_says_about_appends() {
+        let h = LoggedHost {
+            host: Plain,
+            log: InputLog::off(),
+        };
+        assert!(!h.appends());
+    }
+}

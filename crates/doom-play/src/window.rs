@@ -495,3 +495,34 @@ mod tests {
         }
     }
 }
+
+/// Mutation-survivor tests of M5d (mut6).
+#[cfg(test)]
+mod mut6_tests {
+    use super::*;
+
+    const CHILD: &str = "DOOM_PLAY_TEST_PRINT_CHILD";
+    const NAME: &str = "window::mut6_tests::the_exit_report_goes_to_standard_error_after_the_name";
+
+    /// [`print`]: "the exit report's lines, each after `doom-play: `" on standard error. The
+    /// test runs itself as a child process (the harness captures what a test prints, so the
+    /// parent could not read it) and reads the child's standard error. No window is opened.
+    #[test]
+    fn the_exit_report_goes_to_standard_error_after_the_name() {
+        if std::env::var_os(CHILD).is_some() {
+            print(vec!["first line".to_string(), "second line".to_string()]);
+            return;
+        }
+        let out = std::process::Command::new(std::env::current_exe().unwrap())
+            .args([NAME, "--exact", "--nocapture", "--test-threads=1"])
+            .env(CHILD, "1")
+            .output()
+            .unwrap();
+        assert!(out.status.success(), "{out:?}");
+        let err = String::from_utf8_lossy(&out.stderr);
+        assert!(
+            err.contains("doom-play: first line\ndoom-play: second line\n"),
+            "{err}"
+        );
+    }
+}
