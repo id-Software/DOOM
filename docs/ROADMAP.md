@@ -162,8 +162,8 @@ digests and DSIM bytes. Maintenance in the same milestone (owner request, 2026-1
 docs-only CI fast path, a detect-changes job that lets a documentation-only push skip the
 heavy steps inside each required job so every required check still reports.
 
-Status on `feat/m3h9b-barrels`: implemented and in owner review (draft pull request #55,
-not merged); every local gate, the matched timings, the fuzz campaigns and the independent
+Status: done; merged into master as pull request #55 on 2026-11-05 (branch
+`feat/m3h9b-barrels`); every local gate, the matched timings, the fuzz campaigns and the independent
 review are recorded. See [source investigation](M3H9B_REFERENCE_INVESTIGATION.md),
 [support](COMPATIBILITY.md#original-monsters-with-exploding-barrels-pickup-scale-and-every-thing-angle)
 and [observations](validation/M3H9B.md). Decisions F1–F11 are adopted; the owner
@@ -528,8 +528,8 @@ monster/player behavior. Further stages require separate owner direction.
     menus, palette flashes, window, input, sound, low detail, a modern renderer.
   - **M5b (playable: window, input, status bar, HUD messages, palette flashes and the real-time loop on
     the wire-24 simulation and the M5a renderer).** Phase 1, the investigation, is done (2026-11-17); owner
-    decisions S1–S23 were confirmed by the owner on 2026-11-17, and Phase 2 is at the review stage (draft
-    [PR #62](https://github.com/Copgunn/DOOM/pull/62); status on 2026-11-17). Done and recorded in the
+    decisions S1–S23 were confirmed by the owner on 2026-11-17, and Phase 2 was merged as
+    [PR #62](https://github.com/Copgunn/DOOM/pull/62) on 2026-11-18. Done and recorded in the
     [evidence record](validation/M5B.md): the genuine status bar, HUD and input harnesses, the Rust status bar,
     HUD and `Display`, the input core, the app core and the `doom-play` window (a first play check and a
     focus-loss check ran under WSLg), session verification against the genuine engine, all 61 real Episode 1
@@ -543,8 +543,8 @@ monster/player behavior. Further stages require separate owner direction.
     M5c build (M5b's input and picture included) on 2026-11-18 on Windows 11 and under WSLg (see [the owner's playtest](validation/M5C.md#the-owners-playtest-2026-11-18)); beyond that, a human has to judge feel, latency and looks. See the
     [investigation note](M5B_REFERENCE_INVESTIGATION.md#4-owner-decisions-s1s23-with-recommendations).
   - **M5c (sound effects matched to linuxdoom-1.10, and the closing of the status bar face's idle glance
-    gap, S15).** In progress on the branch `feat/m5c-sound` (draft [PR #63](https://github.com/Copgunn/DOOM/pull/63);
-    status on 2026-11-18). Sound starts and the level-start wipe draw `M_Random`, so modelling both makes the idle
+    gap, S15).** Merged as [PR #63](https://github.com/Copgunn/DOOM/pull/63) on 2026-11-19 (branch
+    `feat/m5c-sound`). Sound starts and the level-start wipe draw `M_Random`, so modelling both makes the idle
     face's left, ahead or right glance match the genuine engine replaying the session's demo. The owner confirmed
     decisions T1-T16 on 2026-11-18 (the reference is "linuxdoom-1.10 built with its in-process sound code (one define
     removed)"). **Done and recorded** in the [evidence record](validation/M5C.md): the genuine sound-logic and mixer
@@ -596,7 +596,7 @@ monster/player behavior. Further stages require separate owner direction.
     minutes (the follow-up is below). Support is in [COMPATIBILITY](COMPATIBILITY.md#sound-effects-m5c). See the
     [investigation note](M5C_REFERENCE_INVESTIGATION.md) and its
     [owner decisions](M5C_REFERENCE_INVESTIGATION.md#5-owner-decisions-t1t16-with-recommendations).
-  - **M5d (play fixes), in progress on the branch `feat/m5d-play-fixes` ([evidence record](validation/M5D.md)); the first item of the next milestone, by the owner's ruling of 2026-11-19.** *Status 2026-11-20: after the owner's Windows session a second round followed (re-grab and cursor-left report, writer threads, settle at a session's end; [record](validation/M5D.md#a7-the-owners-windows-session-of-2026-11-20-and-the-second-round)); on his retest the same day he accepted the stuck-fire fix and the slow-disk fix ([record](validation/M5D.md#a9-the-owners-retest-of-2026-11-20-his-rulings-and-the-close)); the pull request is at his review gate. Follow-ups by his rulings are listed after item (d).* In this order: (a) **the stuck-fire fix** (proposed, untested):
+  - **M5d (play fixes), merged as [PR #64](https://github.com/Copgunn/DOOM/pull/64) on 2026-11-21 (branch `feat/m5d-play-fixes`; [evidence record](validation/M5D.md)); the first item of the next milestone, by the owner's ruling of 2026-11-19.** *Status 2026-11-20: after the owner's Windows session a second round followed (re-grab and cursor-left report, writer threads, settle at a session's end; [record](validation/M5D.md#a7-the-owners-windows-session-of-2026-11-20-and-the-second-round)); on his retest the same day he accepted the stuck-fire fix and the slow-disk fix ([record](validation/M5D.md#a9-the-owners-retest-of-2026-11-20-his-rulings-and-the-close)); the pull request was then at his review gate, and he merged it on 2026-11-21. Follow-ups by his rulings are listed after item (d).* In this order: (a) **the stuck-fire fix** (proposed, untested):
     ask the window library for DPI awareness (`Conf { high_dpi: true, .. }` in `crates/doom-play/src/window.rs`) so that the client rectangle, the clip
     rectangle and the cursor share physical pixels and the clip holds the cursor inside the window; the requested size and the picture's fit are then in
     physical pixels and must be checked. Acceptance: on Windows at 100%, 125% and 150% scaling, a session of drag-firing against every edge with
@@ -613,7 +613,7 @@ monster/player behavior. Further stages require separate owner direction.
     `crates/doom-play/src/audio.rs:601`; M3: the log's module comment states the exceptions to its pump rule and what position a button line carries on Windows).
     **Follow-ups, by the owner's rulings of 2026-11-20 ([record](validation/M5D.md#a9-the-owners-retest-of-2026-11-20-his-rulings-and-the-close)):**
     (1) **the default sound period becomes 128 frames, with the two-buffer start kept**: done in its own small pull request after M5d merged (branch
-    `feat/audio-period-128`, 2026-11-21, awaiting the owner's review); it edited the master test `the_numbers_are_those_of_the_specification` openly
+    `feat/audio-period-128`, [PR #67](https://github.com/Copgunn/DOOM/pull/67), merged by the owner on 2026-11-21); it edited the master test `the_numbers_are_those_of_the_specification` openly
     ([record](validation/M5D.md#the-default-period-becomes-128-frames-2026-11-21-its-own-pull-request)). (2) **A panic of the session writer's thread** (accepted as a documented limit in
     M5d): the exit names every session whose file is short and what it holds, but nothing is rewritten after the panic, so the writes still queued and
     the earlier sessions awaiting a rewrite are lost. The candidate fix is a synchronous rewrite by the loop thread at exit, from the app's own recording

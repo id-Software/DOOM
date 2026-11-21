@@ -177,7 +177,7 @@ original evidence and former guide contents with exact-byte copies and digests.
   (the original C facts of the sound logic, every call that starts a sound, the mixer, `M_Random` and the
   level-start wipe, the two genuine-engine harness prototypes, what the simulation gives today, the Rust
   design, a measured audio-library comparison, decisions T1–T16 (confirmed 2026-11-18) and the plan;
-  in progress; [support](COMPATIBILITY.md#sound-effects-m5c) and [observations](validation/M5C.md)).
+  merged as PR #63; [support](COMPATIBILITY.md#sound-effects-m5c) and [observations](validation/M5C.md)).
 - M5d play fixes (stuck fire on Windows, sound-latency statistics, a session file that Ctrl+C cannot lose):
-  at the owner's review gate; no separate investigation note, by the owner's instruction ([observations](validation/M5D.md);
+  merged as PR #64; no separate investigation note, by the owner's instruction ([observations](validation/M5D.md);
   [ROADMAP](ROADMAP.md)).

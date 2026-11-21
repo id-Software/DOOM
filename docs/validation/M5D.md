@@ -1505,8 +1505,8 @@ IWAD, the genuine engine in its strict, overflow and address variants and the ge
 ### The default period becomes 128 frames (2026-11-21, its own pull request)
 
 **What changed.** The ruling row above said the default period of 128 frames with a two-buffer start would go in its own small pull
-request after this one merged; this is that pull request (branch `feat/audio-period-128`, code commit `11dbc40`, awaiting the owner's
-review). M5d itself left the default at 512 frames, as that row says. In `crates/doom-play/src/audio.rs`, `PERIOD_FRAMES` is now 128 (was
+request after this one merged; this is that pull request (branch `feat/audio-period-128`, code commit `11dbc40`; it awaited the owner's
+review when this was written, and he merged it on 2026-11-21 as [PR #67](https://github.com/Copgunn/DOOM/pull/67)). M5d itself left the default at 512 frames, as that row says. In `crates/doom-play/src/audio.rs`, `PERIOD_FRAMES` is now 128 (was
 512). The start threshold stays 1,024 frames (two 512-frame buffers) and the cap stays 2,048. `--experimental-audio-period-frames`
 still takes 128, 256 or 512; 256 and 512 are now the values the exit line marks `EXPERIMENTAL` (for example "period asked 512 frames
 (EXPERIMENTAL; default 128)"), and `--audio-probe`, which asks for the default period, now asks for 128. Presentation only: the mixer's
@@ -1543,7 +1543,7 @@ counted anywhere. **Four of the five later runs had a deepest queue above the mo
 as the model assumes; this is not explained. The counters give totals only, so the logs do not say when an underrun
 happened. The owner heard 128 as quicker than 512, by ear; no number of milliseconds is claimed. The arithmetic for both periods is
 [above](#ruling-3-withdrawn-the-arithmetic-as-a-report), and [Compatibility](../COMPATIBILITY.md#sound-latency-arithmetic-not-measured)
-says its latency figures were not recomputed for 128.
+said then that its latency figures were not recomputed for 128 (they were recomputed later on 2026-11-21, as arithmetic, not measured).
 
 ### The four open review items, accepted as documented limits
 

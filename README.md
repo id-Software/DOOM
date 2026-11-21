@@ -77,15 +77,15 @@ Four broad ways to play classic Doom; each non-vanilla one would be a separate o
 
 ## Where it's (maybe) going
 
-Ideas, not promises, one line each; the [roadmap](docs/ROADMAP.md#ideas-under-consideration) has more.
+Everything the original does is planned work: none of it is optional, only its milestone is open ([checklist](docs/ROADMAP.md#vanilla-completeness-checklist)). The rest are ideas, not promises, one line each ([more](docs/ROADMAP.md#ideas-under-consideration)).
 
 **Track 1: Faithful.** Vanilla stays exact; anything that changes it lives in a separate optional mode.
 
-- **Original demo playback.** Replay vanilla demos to the last tic, the strongest proof of exactness.
+- **Planned: original demo playback.** Replay vanilla demos to the last tic, the strongest proof of exactness.
+- **Planned: the full game and Doom II.** After Episode 1, the other episodes and Doom II, just as exact.
 - **Faster progress.** Port whole systems at once, checked on real maps and demos.
 - **One vanilla mode, plus a limit-removing one.** Fold the policies into one; another lifts limits.
 - **An optional "fixed" mode.** Off unless chosen, it would correct known original bugs.
-- **The full game and Doom II.** After Episode 1, the other episodes and Doom II, just as exact.
 
 **Track 2: Presentation.** The renderer only reads game state, so it can never change gameplay.
 
