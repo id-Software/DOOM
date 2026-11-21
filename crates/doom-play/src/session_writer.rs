@@ -221,6 +221,9 @@ pub(crate) struct Report {
     /// After a panic: every session handed over whose file does not hold every tic the app
     /// recorded in it, in the order of their claims; empty when the writer did not panic.
     pub(crate) not_written: Vec<NotWritten>,
+    /// After a panic: every other session handed over (its file holds every tic the app recorded
+    /// in it), with that count; empty when the writer did not panic.
+    pub(crate) whole: Vec<(String, u64)>,
     /// After a panic: a claim could not be handed over because the writer had stopped, so a
     /// session begun after it has no file.
     pub(crate) refused: bool,
@@ -494,22 +497,21 @@ impl WriterHost {
             f.reported = true;
             unreported.push((f.name.clone(), f.error.clone()));
         }
-        let not_written = if panicked {
-            self.handed
-                .iter()
-                .filter_map(|(name, recorded)| {
-                    let file = st.files.get(name).copied();
-                    let whole = matches!(file, Some(OnDisk::Holds(t)) if t >= *recorded);
-                    (!whole).then(|| NotWritten {
+        let (mut not_written, mut whole) = (Vec::new(), Vec::new());
+        if panicked {
+            for (name, recorded) in &self.handed {
+                let file = st.files.get(name).copied();
+                if matches!(file, Some(OnDisk::Holds(t)) if t >= *recorded) {
+                    whole.push((name.clone(), *recorded));
+                } else {
+                    not_written.push(NotWritten {
                         name: name.clone(),
                         recorded: *recorded,
                         file,
-                    })
-                })
-                .collect()
-        } else {
-            Vec::new()
-        };
+                    });
+                }
+            }
+        }
         Report {
             counts: st.counts.clone(),
             times: st.times.clone(),
@@ -517,6 +519,7 @@ impl WriterHost {
             earlier: std::mem::take(&mut st.earlier),
             panicked,
             not_written,
+            whole,
             refused: panicked && self.refused,
         }
     }

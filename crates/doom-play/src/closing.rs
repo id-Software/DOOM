@@ -26,8 +26,9 @@
 //! current session's line from the app's status ([`crate::window::exit_lines`]), one line per
 //! earlier session the writer left behind ([`earlier_lines`]), and the writers' lines. If the
 //! session writer's thread panicked, its lines ([`panic_lines`]) say so and name every session
-//! whose file does not hold its whole demo, with what the file holds; a line there about the
-//! current session replaces the app's.
+//! whose file does not hold its whole demo, with what the file holds; the current session's line
+//! then comes from the writer's report, not the app's status ([`after_panic`]): "saved" if its
+//! file holds every tic, otherwise the panic's line about it.
 
 use crate::input_log::LoggedHost;
 use crate::mouse_forward::Forward;
@@ -167,22 +168,55 @@ impl Play {
         let log_times = self.host.log.finish();
         let fs = &self.host.host.fs;
         let current = self.app.session_name();
-        // after a panic, the panic's own line about the current session replaces the app's
-        // (one line per session): when it names the session, or when a claim was refused (the
-        // current session then has no file: every claim after the stop fails)
-        let replaced = self.app.recorded()
-            && ((report.refused && current.is_empty())
-                || report.not_written.iter().any(|n| n.name == current));
-        let mut lines = if replaced {
-            crate::window::exit_lines_before_session(&self.app, fs, self.stats.as_ref())
-        } else {
-            crate::window::exit_lines(&self.app, fs, self.stats.as_ref())
+        let stats = self.stats.as_ref();
+        let mut lines = match after_panic(report, &self.app, &fs.dir) {
+            Current::App => crate::window::exit_lines(&self.app, fs, stats),
+            Current::Saved(line) => {
+                let mut lines = crate::window::exit_lines_before_session(&self.app, fs, stats);
+                lines.push(line);
+                lines
+            }
+            Current::Named => crate::window::exit_lines_before_session(&self.app, fs, stats),
         };
         lines.extend(earlier_lines(&report.earlier, &fs.dir));
         lines.extend(writer_lines(report, log_times.as_ref(), self.tic_stats));
         lines.extend(panic_lines(report, &fs.dir, current));
         lines
     }
+}
+
+/// Where the current session's exit line comes from.
+enum Current {
+    /// The app's status ([`crate::window::session_line`]).
+    App,
+    /// The writer's report after a panic: the file holds every tic recorded.
+    Saved(String),
+    /// [`panic_lines`] names it.
+    Named,
+}
+
+/// After a panic of the session writer, the current session's exit line comes from the writer's
+/// report instead of the app's status (one line per session): "saved PATH (N tics)" when its
+/// file holds every tic recorded (the app's status then says the writer stopped before writes
+/// handed over were made, which added nothing to the file); [`panic_lines`]'s line when it names
+/// it, or when a claim was refused and the session has no name (every claim after the stop
+/// fails, so it is a session begun after it). The app's line otherwise, and always for an
+/// unrecorded run.
+fn after_panic(w: &Report, app: &App, dir: &Path) -> Current {
+    let current = app.session_name();
+    if !w.panicked || !app.recorded() {
+        return Current::App;
+    }
+    if let Some((_, tics)) = w.whole.iter().find(|(n, _)| n == current) {
+        return Current::Saved(format!(
+            "saved {} ({tics} tics)",
+            dir.join(current).display()
+        ));
+    }
+    if w.not_written.iter().any(|n| n.name == current) || (w.refused && current.is_empty()) {
+        return Current::Named;
+    }
+    Current::App
 }
 
 /// One exit line per earlier session the writer left behind ([`Earlier`]): saved by the rewrite
