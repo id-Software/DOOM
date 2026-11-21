@@ -3431,24 +3431,37 @@ the two-buffer start plus the wait for the next buffer boundary of the declared 
 one 512-frame callback); on WASAPI, miniaudio pulls a chunk one period before the engine has room for it and the three
 requested periods keep two ahead, which add 46.4 ms and 46.4 ms beyond the original's.
 
+**These figures, and "the whole range is above it" for WASAPI, are arithmetic for the 512-frame period that was the default until
+2026-11-21. The table has not been recomputed for the 128-frame default that replaced it.** One cell exists for 128, by the same
+arithmetic and likewise not measured: to the end of the device buffer under WASAPI,
+[63.4 to 121.3 ms](validation/M5D.md#a2-sound-latency-on-windows-statistics-and-trial-options) against the original's above 0 to 92.9 ms,
+so at the current default the two ranges overlap and the arithmetic no longer says that every sound on Windows is later than the
+original's. The model queue depths for both periods are in the
+[M5d record](validation/M5D.md#ruling-3-withdrawn-the-arithmetic-as-a-report) (at a callback, two-buffer start: minimum 384, mean 791.5,
+maximum 1,152 frames for 128, against 512, 980.5 and 1,536 for 512; four of the owner's five later runs at 128 had a deepest queue
+above that maximum, which is not explained); the owner heard 128 as quicker, by ear, and no number of milliseconds is claimed.
+
 **The owner's judgement stands beside this and is not reconciled with it.** He heard a delay on every sound, judged it
-normal for the original, and ruled that nothing changes (the two-buffer start stays). He judged by ear, on one machine,
-on one evening; the arithmetic says the Windows range lies above the original's. Neither is measured against the other.
+normal for the original, and ruled on 2026-11-18 (M5c) that nothing changes (the two-buffer start stays; the period became 128
+frames later, below). He judged by ear, on one machine, on one evening; the arithmetic for the 512-frame period then in use says
+the Windows range lies above the original's. Neither is measured against the other.
 **Latency is presentation and outside every claim** (above). The tables, the sources, the links that could be shortened
 later and the unknowns are in the [evidence record](validation/M5C.md#sound-latency-the-arithmetic-in-full).
 
 **M5d added measurements of the device, not a fix.** On exit `doom-play` prints the audio backend, device, callback counts and
 queue depth, and offers two experimental trial options, `--experimental-audio-start-buffers` and
-`--experimental-audio-period-frames`, which change only how finished sound reaches the device (presentation only; the defaults
-are unchanged and nothing is promised to be shorter). The audio library's own `[INFO]` device report is printed only with `--audio-report`.
+`--experimental-audio-period-frames`, which change only how finished sound reaches the device (presentation only; M5d left the defaults
+unchanged, and nothing is promised to be shorter). The audio library's own `[INFO]` device report is printed only with `--audio-report`.
 The owner's first trial on 2026-11-20 was by ear on Bluetooth headphones with the sessions recorded to a slow disk, so its underrun counts
 are contaminated by disk stalls. He reran three trials the same day on wired output with the sessions on an SSD, one run each, by ear
 (not a latency measurement): a period of 128 frames sounded quicker than the default with no underrun, and a one-buffer start added
 nothing he could hear and gave one underrun ([figures](validation/M5D.md#the-retest)). **He chose a period of 128 frames with the
-two-buffer start as the future default; that change is not in M5d. The default here stays 512 frames**, and the change goes in its own
-pull request ([ROADMAP](ROADMAP.md)). The WASAPI period count is not offered: the audio library's safe API
+two-buffer start as the future default; that change was not in M5d, which left the default at 512 frames.** Since 2026-11-21 (its own
+pull request, awaiting his review: [ROADMAP](ROADMAP.md)) **the default period is 128 frames with the two-buffer start kept**; 256 and 512
+remain available through the experimental option and are marked `EXPERIMENTAL` on the exit line. The figures, from six runs on one machine
+and one device, by ear and by counters, are in the [M5d record](validation/M5D.md#the-default-period-becomes-128-frames-2026-11-21-its-own-pull-request). The WASAPI period count is not offered: the audio library's safe API
 cannot set it. Their arithmetic and the one run on this machine are in the [M5d record](validation/M5D.md#a2-sound-latency-on-windows-statistics-and-trial-options);
-the Windows runs are the owner's two trials.
+the Windows runs are the owner's two trials of 2026-11-20 and his later runs at 128 linked above.
 
 ### Windows Smart App Control blocks the unsigned build
 

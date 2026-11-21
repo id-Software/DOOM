@@ -612,8 +612,9 @@ monster/player behavior. Further stages require separate owner direction.
     points are closed (M1: the log gains a line for each committed tic's command or fire bit and names the session; M2: the stale test comment at
     `crates/doom-play/src/audio.rs:601`; M3: the log's module comment states the exceptions to its pump rule and what position a button line carries on Windows).
     **Follow-ups, by the owner's rulings of 2026-11-20 ([record](validation/M5D.md#a9-the-owners-retest-of-2026-11-20-his-rulings-and-the-close)):**
-    (1) **the default sound period becomes 128 frames, with the two-buffer start kept**, in its own small pull request after M5d merges; it edits the
-    master test `the_numbers_are_those_of_the_specification` openly. (2) **A panic of the session writer's thread** (accepted as a documented limit in
+    (1) **the default sound period becomes 128 frames, with the two-buffer start kept**: done in its own small pull request after M5d merged (branch
+    `feat/audio-period-128`, 2026-11-21, awaiting the owner's review); it edited the master test `the_numbers_are_those_of_the_specification` openly
+    ([record](validation/M5D.md#the-default-period-becomes-128-frames-2026-11-21-its-own-pull-request)). (2) **A panic of the session writer's thread** (accepted as a documented limit in
     M5d): the exit names every session whose file is short and what it holds, but nothing is rewritten after the panic, so the writes still queued and
     the earlier sessions awaiting a rewrite are lost. The candidate fix is a synchronous rewrite by the loop thread at exit, from the app's own recording
     and from copies of the earlier sessions kept where both threads can reach them; two smaller points go with it (while play continues after a panic the

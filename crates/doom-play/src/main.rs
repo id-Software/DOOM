@@ -89,17 +89,18 @@ usage: doom-play --iwad PATH [options]
 Experimental options, for the owner's M5d sound-latency trials. Presentation only: they
 change how the finished sound reaches the audio device, never the game, the sound logic,
 the mixer, the picture or the demo. They do nothing without an audio device (or with
---no-sound). Leaving them out keeps the defaults, which are unchanged.
+--no-sound). Leaving them out keeps the defaults.
   --experimental-audio-start-buffers N
                        1 or 2 (default 2): how many 512-frame buffers of mixed sound
                        are queued before output starts, and starts again after every
                        gap (underrun) and every resume. 1 starts one tic (about
                        28.6 ms) sooner but leaves no margin, so gaps are likely.
   --experimental-audio-period-frames N
-                       128, 256 or 512 (default 512): the device period asked for, in
-                       frames at 11,025 Hz; the sound is taken from the queue in
-                       blocks of exactly this size. Smaller can be sooner, with more
-                       callbacks and more risk of gaps; the backend may not grant it.
+                       128, 256 or 512 (default 128; it was 512 before 2026-11-21):
+                       the device period asked for, in frames at 11,025 Hz; the sound
+                       is taken from the queue in blocks of exactly this size. Smaller
+                       can be sooner, with more callbacks and more risk of gaps; the
+                       backend may not grant it.
   On exit, the lines starting \"audio\" echo a setting that is not at its default.
 
 Keys: Esc or Pause pauses (then Esc or Pause resumes, R restarts, Q quits); on an end screen
@@ -657,10 +658,10 @@ mod tests {
     #[test]
     fn experimental_audio_options() {
         let o = parse(args("--iwad a.wad")).unwrap().unwrap();
-        assert_eq!(o.trial, Trial::DEFAULT, "defaults unchanged");
+        assert_eq!(o.trial, Trial::DEFAULT, "the defaults");
         for (given, start, period) in [
-            ("--experimental-audio-start-buffers 1", 512, 512),
-            ("--experimental-audio-start-buffers 2", 1024, 512),
+            ("--experimental-audio-start-buffers 1", 512, 128),
+            ("--experimental-audio-start-buffers 2", 1024, 128),
             ("--experimental-audio-period-frames 128", 1024, 128),
             ("--experimental-audio-period-frames 256", 1024, 256),
             ("--experimental-audio-period-frames 512", 1024, 512),
@@ -677,9 +678,9 @@ mod tests {
             (
                 "--experimental-audio-start-buffers 1 --experimental-audio-start-buffers 2",
                 1024,
-                512,
+                128,
             ),
-            ("--no-sound --experimental-audio-start-buffers 1", 512, 512),
+            ("--no-sound --experimental-audio-start-buffers 1", 512, 128),
         ] {
             let o = parse(args(&format!("--iwad a.wad {given}")))
                 .unwrap()
@@ -749,11 +750,11 @@ mod tests {
             "Presentation only",
             "never the game, the sound logic,\nthe mixer, the picture or the demo",
             "do nothing without an audio device (or with\n--no-sound)",
-            "the defaults, which are unchanged",
+            "Leaving them out keeps the defaults.",
             "--experimental-audio-start-buffers N",
             "1 or 2 (default 2)",
             "--experimental-audio-period-frames N",
-            "128, 256 or 512 (default 512)",
+            "128, 256 or 512 (default 128; it was 512 before 2026-11-21)",
             "echo a setting that is not at its default",
         ] {
             assert!(text.contains(want), "{want}");
