@@ -273,11 +273,13 @@ pub(crate) fn writer_lines(w: &Report, log: Option<&WriteTimes>, tic_stats: bool
 }
 
 /// If the session writer's thread panicked: one line saying so, then one line per session whose
-/// file does not hold its whole demo ([`crate::session_writer::NotWritten`]), in the order of their claims, saying what
-/// its file holds (`current` is the app's session at exit, "the session"; the others are "an
-/// earlier session"), and one line if a session was begun after the writer stopped (no file was
-/// created for it). Nothing was rewritten at exit: the writes still queued and the earlier
-/// sessions' copies died with the thread.
+/// file does not hold its whole demo ([`crate::session_writer::NotWritten`]), in the order of
+/// their claims, saying what its file holds (`current` is the current session at exit, "the
+/// session"; the others are "an earlier session"), and one line if a session was begun after the
+/// writer stopped (no file was created for it). None of the sessions named was saved by a
+/// rewrite at exit: the writes still queued, and the copies of the earlier sessions not yet
+/// rewritten when the writer died, died with the thread (a session rewritten at exit before the
+/// panic holds every tic and is not named).
 pub(crate) fn panic_lines(w: &Report, dir: &Path, current: &str) -> Vec<String> {
     if !w.panicked {
         return Vec::new();

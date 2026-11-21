@@ -55,13 +55,14 @@
 //! another file took is never written.
 //!
 //! **If the writer thread panics** (a fault: no write fails that way), the writes still queued
-//! are never made and the earlier sessions left behind are not rewritten at exit (their copies
-//! died with the thread). The exit report still names every session whose file is short: the
-//! loop side keeps the names it handed over as claims, in order, with the tics the app recorded
-//! in each (the tics of its last call about it), and the writer notes in the shared state what
-//! its last completed write of each session left in the file ([`OnDisk`]); [`WriterHost::close`]
-//! compares the two ([`NotWritten`]). A session begun after the writer stopped has no file (its
-//! claim cannot be handed over), and the report says so ([`Report::refused`]).
+//! are never made, and the earlier sessions left behind that the rewrite at exit had not reached
+//! are not rewritten (their copies died with the thread). The exit report still names every
+//! session whose file is short: the loop side keeps the names it handed over as claims, in order,
+//! with the tics the app recorded in each (the most tics any of its calls about it carried), and
+//! the writer notes in the shared state what its last completed write of each session left in the
+//! file ([`OnDisk`]); [`WriterHost::close`] compares the two ([`NotWritten`]). A session begun
+//! after the writer stopped has no file (its claim cannot be handed over), and the report says so
+//! ([`Report::refused`]).
 //!
 //! **The atomicity argument** is unchanged in kind: every write the writer makes is one of the
 //! all-or-nothing operations of [`crate::session_file`] (a five-byte write inside one page, or a
@@ -252,7 +253,7 @@ pub(crate) enum OnDisk {
 pub(crate) struct NotWritten {
     /// The file's name.
     pub(crate) name: String,
-    /// The tics the app recorded in the session (those of its last call about it).
+    /// The tics the app recorded in the session (the most any of its calls about it carried).
     pub(crate) recorded: u64,
     /// What the writer's last completed write left in the file; `None` when no write of it
     /// completed (no file of this run was created).
