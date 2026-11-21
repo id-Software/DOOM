@@ -1,6 +1,6 @@
 # M5d evidence record
 
-**Status (2026-11-20 23:40 PST):** **the owner retested the second round on Windows and accepted the stuck-fire fix and the slow-disk fix;
+**Status (2026-11-20 23:55 PST):** **the owner retested the second round on Windows and accepted the stuck-fire fix and the slow-disk fix;
 the pull request is ready for his review ([A9](#a9-the-owners-retest-of-2026-11-20-his-rulings-and-the-close)).** The first round (A1 to A5;
 the owner's session plan is A6) is unchanged below. On 2026-11-20 the owner ran the `b374aaa` artifact on Windows
 ([A7](#a7-the-owners-windows-session-of-2026-11-20-and-the-second-round)): the launch capture failed in two of five launches, the 100% run
@@ -1656,8 +1656,10 @@ Rust 1.85.0, Simulation instruction counts, and the M5a, M5b and M5c genuine-eng
 | `3868b2c` | [44861791868](https://github.com/Copgunn/DOOM/actions/runs/44861791868) | review 6's follow-ups and the 19 survivor tests (two of them start the test program again as a child process) |
 | `0f26023` | [44871340008](https://github.com/Copgunn/DOOM/actions/runs/44871340008) | **the final code head** |
 
-No run failed in the close. Commits after `0f26023` change documentation only and take CI's documentation fast path; the run on the
-final head is GitHub's record, linked from the pull request. The CI mutation workflow and the Windows artifact workflow were not
+No run failed in the close. Commits after `0f26023` change documentation only. They do not take CI's documentation fast path, because
+they change this record and the workflow sends every change under `docs/validation/` down the full path; so the final head gets a full
+run, which is GitHub's record, linked from the pull request. (The same holds for the record commits of the earlier rounds, where this
+record said "fast path".) The CI mutation workflow and the Windows artifact workflow were not
 started again: the artifact the owner tested is `c9f54ee`'s, and **no Windows artifact of the final head was built or run by hand.**
 
 **Not done in the close:** nothing ran on Windows or macOS outside CI; no kill of the writer-thread build on Windows; no sound was
