@@ -168,7 +168,7 @@ impl Play {
         self.concluded = true;
         let log_times = self.host.log.finish();
         let fs = &self.host.host.fs;
-        let current = current_session(report, &self.app);
+        let current = current_session(report, self.app.session_name());
         let stats = self.stats.as_ref();
         let mut lines = match after_panic(report, &self.app, current, &fs.dir) {
             Current::App => crate::window::exit_lines(&self.app, fs, stats),
@@ -219,11 +219,12 @@ fn after_panic(w: &Report, app: &App, current: &str, dir: &Path) -> Current {
     Current::App
 }
 
-/// The current session's name for the exit lines: the app's, except after a panic when the app
-/// has none and its last claim was handed over and failed ([`Report::failed_claim`]): that claim
-/// was the current session's, so it gets one line, as "the session" (review 6, n1).
-fn current_session<'a>(w: &'a Report, app: &'a App) -> &'a str {
-    match (&w.failed_claim, app.session_name()) {
+/// The current session's name for the exit lines: the app's (`app_name`), except after a panic
+/// when the app has none and its last claim was handed over and failed
+/// ([`Report::failed_claim`]): that claim was the current session's, so it gets one line, as "the
+/// session" (review 6, n1).
+fn current_session<'a>(w: &'a Report, app_name: &'a str) -> &'a str {
+    match (&w.failed_claim, app_name) {
         (Some(name), "") if w.panicked => name,
         (_, name) => name,
     }
