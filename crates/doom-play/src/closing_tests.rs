@@ -1118,3 +1118,51 @@ fn a_session_begun_after_a_writer_panic_is_named_as_having_no_file() {
     assert_eq!(std::fs::read(&path).unwrap(), want);
     std::fs::remove_dir_all(&dir).unwrap();
 }
+
+/// The panic's lines for the cases the runs above do not reach: a session whose name another
+/// file took (never written; the same words as its line when the writer does not die), as the
+/// current or an earlier session, and a refused claim, worded for a current session with no
+/// name (begun after the stop) or, defensively, with one.
+#[test]
+fn the_panic_lines_for_a_taken_name_and_a_refused_claim() {
+    let dir = scratch("close-panic-taken");
+    let report = Report {
+        panicked: true,
+        not_written: vec![crate::session_writer::NotWritten {
+            name: "t.lmp".into(),
+            recorded: 4,
+            file: Some(OnDisk::Taken),
+        }],
+        refused: true,
+        ..Report::default()
+    };
+    let taken = crate::session_writer::lost(&dir, "t.lmp");
+    assert!(taken.starts_with(&dir.join("t.lmp").display().to_string()));
+    let head = "the session writer stopped unexpectedly (a panic); the sessions below were not \
+                saved, and no rewrite at exit saved them";
+    assert_eq!(
+        panic_lines(&report, &dir, ""),
+        [
+            head.to_string(),
+            format!("an earlier session was not written: {taken}"),
+            "the session was not saved, nor was any other session begun after the session writer \
+             stopped: no file was created for them"
+                .to_string(),
+        ]
+    );
+    assert_eq!(
+        panic_lines(&report, &dir, "t.lmp"),
+        [
+            head.to_string(),
+            format!("the session was not written: {taken}"),
+            "no session begun after the session writer stopped was saved: no file was created \
+             for them"
+                .to_string(),
+        ]
+    );
+    assert!(
+        panic_lines(&Report::default(), &dir, "").is_empty(),
+        "no panic"
+    );
+    std::fs::remove_dir_all(&dir).unwrap();
+}
