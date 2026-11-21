@@ -58,7 +58,7 @@ in-process sound code (one define removed), under [a declared schedule](docs/COM
   in part or not at all ([renderer](docs/COMPATIBILITY.md#software-renderer-m5a), [status
   bar](docs/COMPATIBILITY.md#playable-build-m5b), [with sound](docs/validation/M5C.md)).
 - Doom's sound effects (no music): which sounds start, on which channel, at what volume, stereo position and pitch, and the mixer's
-  16-bit samples, equal the genuine engine's on [the runs checked](docs/validation/M5C.md). The owner has heard it play ([what he observed](docs/COMPATIBILITY.md#what-the-owner-observed-2026-11-18)); by arithmetic, sound on Windows is
+  16-bit samples, equal the genuine engine's on [the runs checked](docs/validation/M5C.md). The owner has heard it play ([what he observed](docs/COMPATIBILITY.md#what-the-owner-observed-2026-11-18)); by arithmetic, sound on Windows may be
   later than the original's ([latency](docs/COMPATIBILITY.md#sound-latency-arithmetic-not-measured)), and what the speakers add is [not part of
   the claim](docs/COMPATIBILITY.md#the-app-with-sound-and-what-is-presentation).
 

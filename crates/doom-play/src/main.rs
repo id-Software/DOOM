@@ -99,8 +99,8 @@ the mixer, the picture or the demo. They do nothing without an audio device (or 
                        128, 256 or 512 (default 128; it was 512 before 2026-11-21):
                        the device period asked for, in frames at 11,025 Hz; the sound
                        is taken from the queue in blocks of exactly this size. Smaller
-                       can be sooner, with more callbacks; the backend may not grant
-                       it.
+                       can be sooner, with more callbacks and more risk of gaps; the
+                       backend may not grant it.
   On exit, the lines starting \"audio\" echo a setting that is not at its default.
 
 Keys: Esc or Pause pauses (then Esc or Pause resumes, R restarts, Q quits); on an end screen

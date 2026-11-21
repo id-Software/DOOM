@@ -172,11 +172,11 @@ measured). From the call that starts a sound to the end of the buffer WASAPI is 
 
 | Start buffers, period | WASAPI, to the end of the requested buffer |
 | --- | --- |
-| 2, 512 (default) | 167.9 to 260.6 ms |
+| 2, 512 (the default until 2026-11-21) | 167.9 to 260.6 ms |
 | 1, 512 | 139.3 to 232.0 ms |
 | 2, 256 | 98.2 to 167.7 ms |
 | 1, 256 | 69.7 to 139.1 ms |
-| 2, 128 | 63.4 to 121.3 ms |
+| 2, 128 (the default since 2026-11-21) | 63.4 to 121.3 ms |
 | 1, 128 | 34.8 to 92.7 ms |
 
 The original built with its in-process sound code: above 0 to 92.9 ms on the same basis. A one-buffer start leaves no
@@ -1517,8 +1517,8 @@ specification's period) on its last line. That line now asserts 128 frames, 11.6
 giving the old line and the ruling. Its buffer, start and cap assertions are untouched.
 
 **The evidence is the owner's:** run d of the retest ([above](#the-retest)) and later runs at 128 in his folder `/mnt/d/DoomM5d2/logs`
-(read only; his message said four later runs, **the folder holds five stats logs, all five listed here**). The five come from the same
-build as the retest (`c9f54ee`, the M5d docs head before the close), Windows, WASAPI, device "Speakers/Headphones (Realtek(R) Audio)",
+(read only; his message said four later runs, **the folder holds five stats logs, all five listed here**). By the owner's statement the five come from the
+same build as the retest (`c9f54ee`, the M5d docs head before the close; the logs do not name the build): Windows, WASAPI, device "Speakers/Headphones (Realtek(R) Audio)",
 stream 11,025 Hz, one machine, played by hand on Episode 1 maps 2, 4, 5, 6 and 9. Every log says "period asked 128 frames (EXPERIMENTAL;
 default 512); start threshold 1024 frames (2 buffers)" (the default was 512 in that build) and every callback was 128 frames.
 
@@ -1534,8 +1534,13 @@ default 512); start threshold 1024 frames (2 buffers)" (the default was 512 in t
 The E1M5 run includes a pause of about 19 s (its `--tic-stats` maximum interval is 19.4 s; the queue depth counts exclude paused time).
 
 **What this shows and does not show.** One machine and one output device, judged by ear and by the exit-line counters; it is not a latency
-measurement. With run d that is six runs at 128, with 0 to 3 underruns each, every underrun 128 frames (11.6 ms of silence): 7 underruns in
-total across the five later runs and 0 in run d; no overrun in any. The counters give totals only, so the logs do not say when an underrun
+measurement. With run d that is six runs at 128, with 0 to 3 underruns each: 7 underruns in total across the five later runs and 0 in run d; no
+overrun in any. **The "128 frames" of each underrun is not the length of the gap heard.** The counter counts only the frames missing from
+the one callback that found the queue empty (128 frames, 11.6 ms); after an underrun the queue plays nothing until it holds 1,024 frames
+again, and that further silence, at least about one tic (28.6 ms) unless a catch-up update delivers several buffers at once, is not
+counted anywhere. **Four of the five later runs had a deepest queue above the model's maximum of 1,152 frames for this period** (1,280,
+1,536, 1,536 and 1,280; E1M4 did so with no underrun and no update that ran two tics), so the device's callbacks did not arrive as evenly
+as the model assumes; this is not explained. The counters give totals only, so the logs do not say when an underrun
 happened. The owner heard 128 as quicker than 512, by ear; no number of milliseconds is claimed. The arithmetic for both periods is
 [above](#ruling-3-withdrawn-the-arithmetic-as-a-report), and [Compatibility](../COMPATIBILITY.md#sound-latency-arithmetic-not-measured)
 says its latency figures were not recomputed for 128.

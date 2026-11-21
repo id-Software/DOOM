@@ -43,9 +43,9 @@ pub const RATE: SampleRate = SampleRate::Sr11025;
 /// option `--experimental-audio-period-frames` ([`Trial`]) can ask for 256 or 512 instead.
 ///
 /// Until 2026-11-21 the default was 512, one whole mixer buffer (§4.7.2, the M5c
-/// specification). The owner chose 128 with the two-buffer start kept, by ear and on the
-/// counters of his Windows runs (docs/validation/M5D.md, the retest's run d and the later runs
-/// at 128): the sound is taken from the queue in smaller blocks, so it leaves sooner. It is
+/// specification). The owner chose 128 with the two-buffer start kept, by ear, on run d of his
+/// Windows retest of 2026-11-20 (docs/validation/M5D.md, which also records his later runs at
+/// 128): the sound is taken from the queue in smaller blocks, so it can leave sooner. It is
 /// presentation only (decision T8); [`BUFFER_FRAMES`], [`START_FRAMES`] and [`CAP_FRAMES`] are
 /// unchanged.
 pub const PERIOD_FRAMES: u32 = 128;
