@@ -1502,6 +1502,44 @@ IWAD, the genuine engine in its strict, overflow and address variants and the ge
 | The leftover worktree of the review-4 fix agent and its local branch may be removed; nothing else | Removed (`.claude/worktrees/agent-aac9fb778d3d3aff3`, `fix4-work`, whose commits are all on this branch) |
 | Smart App Control | One paragraph in [COMPATIBILITY](../COMPATIBILITY.md#windows-smart-app-control-blocks-the-unsigned-build); code signing is on the [roadmap](../ROADMAP.md) for the first release |
 
+### The default period becomes 128 frames (2026-11-21, its own pull request)
+
+**What changed.** The ruling row above said the default period of 128 frames with a two-buffer start would go in its own small pull
+request after this one merged; this is that pull request (branch `feat/audio-period-128`, code commit `11dbc40`, awaiting the owner's
+review). M5d itself left the default at 512 frames, as that row says. In `crates/doom-play/src/audio.rs`, `PERIOD_FRAMES` is now 128 (was
+512). The start threshold stays 1,024 frames (two 512-frame buffers) and the cap stays 2,048. `--experimental-audio-period-frames`
+still takes 128, 256 or 512; 256 and 512 are now the values the exit line marks `EXPERIMENTAL` (for example "period asked 512 frames
+(EXPERIMENTAL; default 128)"), and `--audio-probe`, which asks for the default period, now asks for 128. Presentation only: the mixer's
+512-frame buffer, the stream and the demo are unchanged.
+
+**The master test was edited openly.** `the_numbers_are_those_of_the_specification` asserted `PERIOD_FRAMES == BUFFER_FRAMES` (512, the M5c
+specification's period) on its last line. That line now asserts 128 frames, 11.6 ms and four callbacks to one mixer buffer, with a comment
+giving the old line and the ruling. Its buffer, start and cap assertions are untouched.
+
+**The evidence is the owner's:** run d of the retest ([above](#the-retest)) and later runs at 128 in his folder `/mnt/d/DoomM5d2/logs`
+(read only; his message said four later runs, **the folder holds five stats logs, all five listed here**). The five come from the same
+build as the retest (`c9f54ee`, the M5d docs head before the close), Windows, WASAPI, device "Speakers/Headphones (Realtek(R) Audio)",
+stream 11,025 Hz, one machine, played by hand on Episode 1 maps 2, 4, 5, 6 and 9. Every log says "period asked 128 frames (EXPERIMENTAL;
+default 512); start threshold 1024 frames (2 buffers)" (the default was 512 in that build) and every callback was 128 frames.
+
+| Run | Tics executed | Callbacks | Queue depth at a callback: mean, max (frames) | Underruns (frames of silence) | Overruns |
+| --- | ---: | ---: | --- | --- | ---: |
+| Retest run d (for comparison, [above](#the-retest)) | 2,362 | 5,885 | 786.0, 1,152 | 0 | 0 |
+| E1M2 | 6,462 | 16,073 | 796.1, 1,152 | 1 (128) | 0 |
+| E1M4 | 4,430 | 11,015 | 824.8, 1,280 | 0 | 0 |
+| E1M5 | 10,817 | 28,594 | 829.1, 1,536 | 1 (128) | 0 |
+| E1M6 | 12,327 | 30,447 | 811.2, 1,536 | 2 (256) | 0 |
+| E1M9 (three sessions of one launch) | 10,034 | 24,959 | 723.8, 1,280 | 3 (384) | 0 |
+
+The E1M5 run includes a pause of about 19 s (its `--tic-stats` maximum interval is 19.4 s; the queue depth counts exclude paused time).
+
+**What this shows and does not show.** One machine and one output device, judged by ear and by the exit-line counters; it is not a latency
+measurement. With run d that is six runs at 128, with 0 to 3 underruns each, every underrun 128 frames (11.6 ms of silence): 7 underruns in
+total across the five later runs and 0 in run d; no overrun in any. The counters give totals only, so the logs do not say when an underrun
+happened. The owner heard 128 as quicker than 512, by ear; no number of milliseconds is claimed. The arithmetic for both periods is
+[above](#ruling-3-withdrawn-the-arithmetic-as-a-report), and [Compatibility](../COMPATIBILITY.md#sound-latency-arithmetic-not-measured)
+says its latency figures were not recomputed for 128.
+
 ### The four open review items, accepted as documented limits
 
 | Item | From | The limit |
