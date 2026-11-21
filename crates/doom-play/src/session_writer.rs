@@ -227,6 +227,12 @@ pub(crate) struct Report {
     /// After a panic: a claim could not be handed over because the writer had stopped, so a
     /// session begun after it has no file.
     pub(crate) refused: bool,
+    /// After a panic: the last claim asked for was handed over and its outcome was an error, so
+    /// the app keeps no name for that session (review 6, n1). A claim's outcome can be an error
+    /// only after [`WriterHost::finish`], whose one call from the app (its save on quit) is the
+    /// last, so in the window's run this is the app's current session. `None` when the writer
+    /// did not panic.
+    pub(crate) failed_claim: Option<String>,
 }
 
 /// What the writer's last completed write of a session left in its file.
@@ -297,6 +303,8 @@ pub(crate) struct WriterHost {
     handed: Vec<(String, u64)>,
     /// A claim could not be handed over (the writer had stopped).
     refused: bool,
+    /// The last claim asked for was handed over and its outcome was an error ([`Report`]).
+    failed_claim: Option<String>,
     sent: u64,
     appends_sent: u64,
     /// The last append declined at the bound: the next snapshot is a catch-up (unsynced).
@@ -347,6 +355,7 @@ impl WriterHost {
             current: None,
             handed: Vec::new(),
             refused: false,
+            failed_claim: None,
             sent: 0,
             appends_sent: 0,
             declined: false,
@@ -524,6 +533,7 @@ impl WriterHost {
             not_written,
             whole,
             refused: panicked && self.refused,
+            failed_claim: self.failed_claim.clone().filter(|_| panicked),
         }
     }
 }
@@ -549,6 +559,7 @@ impl Host for WriterHost {
     /// Answered at once (see the module documentation): `Ok(false)` for a taken or handed-over
     /// name; otherwise the claim is queued and `Ok(true)`.
     fn claim(&mut self, name: &str, bytes: &[u8]) -> Result<bool, String> {
+        self.failed_claim = None;
         if self.exists(name) {
             return Ok(false);
         }
@@ -563,7 +574,11 @@ impl Host for WriterHost {
             return Err(e);
         }
         self.handed.push((name.to_string(), tics_in(bytes.len())));
-        self.outcome(name, Ok(())).map(|()| true)
+        let outcome = self.outcome(name, Ok(()));
+        if outcome.is_err() {
+            self.failed_claim = Some(name.to_string());
+        }
+        outcome.map(|()| true)
     }
     /// Keeps `bytes` as the session's newest snapshot (replacing a pending one) and returns at
     /// once: `Ok`, or the session's failure while one stands (its retry is this snapshot).

@@ -168,9 +168,9 @@ impl Play {
         self.concluded = true;
         let log_times = self.host.log.finish();
         let fs = &self.host.host.fs;
-        let current = self.app.session_name();
+        let current = current_session(report, &self.app);
         let stats = self.stats.as_ref();
-        let mut lines = match after_panic(report, &self.app, &fs.dir) {
+        let mut lines = match after_panic(report, &self.app, current, &fs.dir) {
             Current::App => crate::window::exit_lines(&self.app, fs, stats),
             Current::Saved(line) => {
                 let mut lines = crate::window::exit_lines_before_session(&self.app, fs, stats);
@@ -202,9 +202,8 @@ enum Current {
 /// handed over were made, which added nothing to the file); [`panic_lines`]'s line when it names
 /// it, or when a claim was refused and the session has no name (every claim after the stop
 /// fails, so it is a session begun after it). The app's line otherwise, and always for an
-/// unrecorded run.
-fn after_panic(w: &Report, app: &App, dir: &Path) -> Current {
-    let current = app.session_name();
+/// unrecorded run. `current` is the session's name ([`current_session`]).
+fn after_panic(w: &Report, app: &App, current: &str, dir: &Path) -> Current {
     if !w.panicked || !app.recorded() {
         return Current::App;
     }
@@ -218,6 +217,16 @@ fn after_panic(w: &Report, app: &App, dir: &Path) -> Current {
         return Current::Named;
     }
     Current::App
+}
+
+/// The current session's name for the exit lines: the app's, except after a panic when the app
+/// has none and its last claim was handed over and failed ([`Report::failed_claim`]): that claim
+/// was the current session's, so it gets one line, as "the session" (review 6, n1).
+fn current_session<'a>(w: &'a Report, app: &'a App) -> &'a str {
+    match (&w.failed_claim, app.session_name()) {
+        (Some(name), "") if w.panicked => name,
+        (_, name) => name,
+    }
 }
 
 /// One exit line per earlier session the writer left behind ([`Earlier`]): saved by the rewrite
