@@ -77,7 +77,7 @@ Four broad ways to play classic Doom; each non-vanilla one would be a separate o
 
 ## Where it's (maybe) going
 
-Everything the original does is planned work: none of it is optional, only its milestone is open ([checklist](docs/ROADMAP.md#vanilla-completeness-checklist)). The rest are ideas, not promises, one line each ([more](docs/ROADMAP.md#ideas-under-consideration)).
+Everything the original does is planned work, apart from a few DOS-era and X11 pieces declined by ruling; only the milestone is open ([checklist](docs/ROADMAP.md#vanilla-completeness-checklist)). The rest are ideas, not promises, one line each ([more](docs/ROADMAP.md#ideas-under-consideration)).
 
 **Track 1: Faithful.** Vanilla stays exact; anything that changes it lives in a separate optional mode.
 
@@ -110,7 +110,7 @@ compared after every tic. Expected results come from a separate program written 
 against itself; sanitizers, fuzzing and mutation testing back that up. Anything not proven identical is refused, not guessed.
 
 ## Play it (limited)
-The `doom-play` program opens a window for one Episode 1 map (E1M1 to E1M9; skill `hmp` or `uv`) with your own `DOOM.WAD` (read in
+The `doom-play` program opens a window for one Episode 1 map (E1M1 to E1M9, skill `hmp` or `uv`, except that E1M7 on `uv` is refused at load: [table](docs/COMPATIBILITY.md#skills-and-maps-load-table)) with your own `DOOM.WAD` (read in
 place, never distributed). It is playable only in this limited way: to really play Doom, use an established source port such as
 [Chocolate Doom](https://www.chocolate-doom.org/). From the cloned top folder (`--help` lists every option):
 

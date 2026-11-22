@@ -411,8 +411,9 @@ milestones before it, all merged.
 The next milestone is **M6a: Episode 1 from start to finish, in one session** (the intermission, the next map and
 the finale of Episode 1). Its Phase 1, the investigation, is written on the branch `feat/m6a-episode1-continuous`
 ([draft PR #65](https://github.com/Copgunn/DOOM/pull/65)) and waits for the owner's rulings on its decisions U1 to
-U15; nothing of it is on master. Also waiting for the owner: the items of the
-[vanilla completeness checklist](#vanilla-completeness-checklist) marked "needs the owner's ruling". Exact review
+U15; nothing of it is on master. The items of the
+[vanilla completeness checklist](#vanilla-completeness-checklist) that waited for a ruling were ruled on on
+2026-11-21 (declined, or in M6b, or in a later milestone the owner will name). Exact review
 state belongs to GitHub.
 
 ## Open follow-ups and plans from earlier milestones
@@ -429,7 +430,7 @@ state belongs to GitHub.
 - **Later bounds and skills.** Barrels beyond 16 and pickups beyond 64 for the rest of
   Episode 1 need more actor slots (the M3h9b note's §5.3 formula) and their own evidence.
   Easy and hard skill (E4 option ii) were deferred by decision F10, not dropped: hard skill came
-  with M4b, and easy skill moves to M4c (proposed, under [Later](#later)).
+  with M4b, and easy skill is ruled into M6a (PR #65, in progress; owner's ruling, 2026-11-21, under [Later](#later)).
 
 Also revisit the rules the 14 other IWAD maps break (13 with one-sided walls of odd
 degree, crossing or facing away from their sector, one BLOCKMAP with missing listings)
@@ -507,8 +508,19 @@ The entries marked merged below are done; they keep their place here because thi
   testing, fuzzing and matched timings are recorded in the evidence record (the short-workload slowdown
   reproduces only from the 9p mount, not on ext4, so it is not a code regression; it is carried to the
   performance milestone below).
-- **M4c (proposed, pending the owner).** Pause, easy skill and the reborn reload as an
-  admitted transition; level transitions stay a later direction.
+- **M4c (proposed, pending the owner): superseded by the owner's rulings of 2026-11-21.** It proposed pause, easy
+  skill and the reborn reload as an admitted transition. By the rulings, pause goes to M6b below, and easy skills
+  and the reborn reload to M6a (PR #65, in progress, not merged); no M4c will be made. Level transitions stay a
+  later direction.
+- **M6b, nightmare skill and the original's pause (named by the owner's ruling of 2026-11-21; not started).**
+  Nightmare: respawning monsters (`P_NightmareRespawn`, `p_mobj.c:357-407`, with its trigger at `p_mobj.c:452-470`
+  and the unchanged reaction time at `p_mobj.c:503-504`), fast monsters and the skill's other sites
+  (the spawn option bit `p_mobj.c:743-751`; the skill limit and the respawn and fast set-up in `G_InitNew`,
+  `g_game.c:1379-1380` and `g_game.c:1416-1436`; double ammunition `p_inter.c:95-101`; the chase and missile rules
+  `p_enemy.c:719-720` and `p_enemy.c:738-742`), together with the original's pause command (the Pause key and the
+  pause command in the tic command, `g_game.c:426-430`, `g_game.c:561-565`, `g_game.c:698-712`; the stopped game,
+  `p_tick.c:135-136`). Citations checked against `linuxdoom-1.10/` on 2026-11-21. Its own investigation, owner
+  decisions and evidence come first, as for every milestone.
 - **M4p, simulation performance (merged as PR #60, merge commit 82e2207, 2026-11-15; decisions P1–P9 confirmed
   by the owner on 2026-11-15; see the [investigation note](M4P_REFERENCE_INVESTIGATION.md)).** Make
   `Simulation::advance` faster on the real Episode 1 maps without changing any digest, DSIM byte, refusal or
@@ -661,7 +673,11 @@ where it stands.
 ## Vanilla completeness checklist
 
 **The owner's standing rule (2026-11-21): nothing linuxdoom-1.10 does is optional.** A size cap decides which
-milestone something lands in, never whether it lands.
+milestone something lands in, never whether it lands. The only exceptions are the items the owner declined by
+explicit ruling on 2026-11-21: separate DOS programs (the IPX and the serial and modem drivers), a separate
+process (the sound server), build options (timer-driven sound, the French build), the X11 window and its
+options, and id's in-house or DOS-only paths (`-statcopy`, `-cdrom`, the development-directory options); the
+memory zone is not ported as a mechanism. Each is marked on its row with its reason. Nothing else is optional.
 
 The list was built file by file from the original source at the repository's upstream commit
 `a77dfb96cb91780ca334d0d4cfd86957558007e0` (the directories `linuxdoom-1.10/`, `sndserv/`, `ipx/` and `sersrc/`),
@@ -673,13 +689,16 @@ and in [COMPATIBILITY](COMPATIBILITY.md) on 2026-11-21:
 - **done (M…)**: delivered by that milestone, within the support and limits COMPATIBILITY gives it. "Baseline"
   means the merged foundations at the top of [Done](#done).
 - **partly done (M…)**: what is done, then what is not.
-- **in M4c (proposed, pending the owner)**: the one milestone this roadmap already names for unfinished
-  original behaviour (pause, easy skill and the reborn reload, under [Later](#later)). Two broader directions
-  under Later are also named where they apply: "M4 — Demo compatibility" and the M3e direction for moving
-  sectors.
+- **in M6a (PR #65, in progress)** and **in M6b**: the milestone the owner's rulings of 2026-11-21 name for the item
+  (see [Later](#later)). M6a is not merged, so nothing marked so is done. Two broader directions under Later are
+  also named where they apply: "M4 — Demo compatibility" and the M3e direction for moving sectors.
+- **in a later milestone, to be named by the owner**: ruled in on 2026-11-21, no milestone named yet.
 - **not started**: no milestone is named for it yet. It is not optional; it waits for the owner to name one.
-- **needs the owner's ruling**: code in the source that may not belong in a port (a DOS program, a separate
-  process, a build option, id's in-house paths). It is listed so nothing is lost; the reason is given.
+- **declined by the owner's ruling (2026-11-21)**: code in the source that is a separate DOS program, a separate
+  process, a build option or id's in-house path, declined by the owner's explicit ruling; the reason is given on
+  each row. These rows are the only exceptions to the standing rule, and the list is closed. The memory zone is
+  a variant: not ported as a mechanism, with the behaviour that depends on it listed
+  [below](#zone-dependent-behaviour).
 
 Work still on a branch is not counted until it is merged: M6a (Episode 1 from start to finish,
 [PR #65](https://github.com/Copgunn/DOOM/pull/65)) covers the intermission, the next map and the finale of Episode 1,
@@ -693,8 +712,8 @@ linuxdoom-1.10 does not have (no file in the source refers to one).
 | What | C files | Status |
 | --- | --- | --- |
 | Game mode from the IWAD's file name: shareware, registered, retail, commercial (Doom II, Plutonia and TNT all run as commercial) | `d_main.c:563` (`IdentifyVersion`), `doomdef.c`, `doomstat.c` | partly done (M5b): `doom-play` takes shareware, registered or retail from the file name; the Doom II, Plutonia, TNT and French names not started |
-| French Doom II: its file name sets the language, which changes only which quit message is shown | `d_main.c:658-667`, `m_menu.c:1100-1105` | not started |
-| French text, compiled only with a `-DFRENCH` define | `dstrings.h:34`, `d_french.h` | needs the owner's ruling: the shipped `Makefile:9` does not set the define |
+| French Doom II: its file name sets the language, which changes only which quit message is shown | `d_main.c:658-667`, `m_menu.c:1100-1105` | not started; it lands with Doom II (the owner's ruling of 2026-11-21 declined only the `-DFRENCH` build, below) |
+| French text, compiled only with a `-DFRENCH` define | `dstrings.h:34`, `d_french.h` | **declined by the owner's ruling (2026-11-21)**: the shipped `Makefile:9` does not set the define |
 | Finding the IWAD through `DOOMWADDIR`, and the configuration file `~/.doomrc` through `HOME` | `d_main.c:575-615` | not started |
 | WAD files: the directory, lump lookup and caching | `w_wad.c:292`, `w_wad.c:325`, `w_wad.c:351` | done (baseline) |
 | Extra WAD files (`-file`), the "modified game" notice that waits for Enter, the shareware refusal and the registered-lump check | `d_main.c:938-946`, `d_main.c:1024-1061`, `w_wad.c:141` | not started |
@@ -702,7 +721,7 @@ linuxdoom-1.10 does not have (no file in the source refers to one).
 | Start-up text: the version banner, the shareware or commercial notice, the start-up messages | `d_main.c:817-875`, `d_main.c:1064-1113` | not started |
 | The command line itself | `i_main.c`, `m_argv.c:41` (`M_CheckParm`) | not started: `doom-play` has its own options; the next table says where one stands in for an original option |
 | The configuration file: the defaults table (keys, mouse, volumes, screen size, detail, gamma, chat macros, sound server, memory), read at start, written at quit | `m_misc.c:234`, `m_misc.c:340`, `m_misc.c:308`, `i_system.c:116` | not started (`doom-play` reads no configuration file, M5b decision S7) |
-| The memory zone and its size (`mb_used`) | `z_zone.c`, `i_system.c:71-76` | needs the owner's ruling: Rust ownership replaces it; only its errors and its memory layout can be observed |
+| The memory zone and its size (`mb_used`) | `z_zone.c`, `i_system.c:71-76` | not ported as a mechanism (owner's ruling, 2026-11-21); behaviour that depends on it is handled case by case and listed ([the list](#zone-dependent-behaviour)). Reason: Rust ownership replaces it; only its errors and its memory layout can be observed |
 | Error exits (`I_Error`) | `i_system.c:162` | partly done (M5c): the errors the admitted features reach are refusals that keep the state (decision T11) |
 | The clock and quitting: `I_GetTime` at 35 tics a second; `I_Quit` leaves the net game, stops sound and writes the configuration | `i_system.c:88`, `i_system.c:116` | partly done (M5b): the app's own loop runs 35 tics a second; the net and configuration steps of quitting not started |
 
@@ -733,10 +752,10 @@ Every `M_CheckParm` call in `linuxdoom-1.10/`; the DOS drivers' own options are 
 | `-debugfile` | `d_main.c:359`, `d_net.c:166` | not started |
 | `-nodraw`, `-noblit` | `g_game.c:1627-1628`, `d_main.c:209` | not started |
 | `-net`, `-port`, `-dup`, `-extratic` | `i_net.c:255-316` | not started |
-| `-statcopy` | `d_main.c:1116`, `g_game.c:1137` | needs the owner's ruling: it passes a memory address to an external DOS statistics program |
-| `-cdrom` | `d_main.c:877`, `g_game.c:1278`, `m_menu.c:520`, `m_menu.c:583` | needs the owner's ruling: it writes to the DOS directory `c:\doomdata` |
-| `-shdev`, `-regdev`, `-comdev`, `-wart` (with the reloadable `~` WAD files) | `d_main.c:617-656`, `d_main.c:909-936`, `w_wad.c:236` | needs the owner's ruling: they load from id Software's in-house development directories |
-| `-2`, `-3`, `-4`, `-disp`, `-geom`, `-grabmouse` | `i_video.c:719-744` | needs the owner's ruling: options of the X11 window (see [platform](#platform)) |
+| `-statcopy` | `d_main.c:1116`, `g_game.c:1137` | **declined by the owner's ruling (2026-11-21)**: it passes a memory address to an external DOS statistics program |
+| `-cdrom` | `d_main.c:877`, `g_game.c:1278`, `m_menu.c:520`, `m_menu.c:583` | **declined by the owner's ruling (2026-11-21)**: it writes to the DOS directory `c:\doomdata` |
+| `-shdev`, `-regdev`, `-comdev`, `-wart` (with the reloadable `~` WAD files) | `d_main.c:617-656`, `d_main.c:909-936`, `w_wad.c:236` | **declined by the owner's ruling (2026-11-21)**: they load from id Software's in-house development directories |
+| `-2`, `-3`, `-4`, `-disp`, `-geom`, `-grabmouse` | `i_video.c:719-744` | **declined by the owner's ruling (2026-11-21)**: options of the X11 window (see [platform](#platform)) |
 
 ### Title screen, demo loop and menus
 
@@ -783,11 +802,11 @@ Every `M_CheckParm` call in `linuxdoom-1.10/`; the DOS drivers' own options are 
 | --- | --- | --- |
 | Sound effects: which sound starts, on which channel, with which priority, volume, stereo position and pitch | `s_sound.c:255`, `s_sound.c:519`, `s_sound.c:753`, `sounds.c` | done (M5c) |
 | The in-process mixer at 11,025 Hz, and handing its buffers to the device | `i_sound.c:539`, `i_sound.c:666`, `i_sound.c:738` | done (M5c): the reference is linuxdoom-1.10 with its in-process sound code (decision T2); what the device adds is presentation |
-| The separate sound server the shipped build uses | `sndserv/soundsrv.c`, `sndserv/linux.c`, `sndserv/sounds.c`, `sndserv/wadread.c`, `i_sound.c:62-65`, `doomdef.h:84` | needs the owner's ruling: a separate process; M5c's reference is the in-process mixer (decision T2) |
-| Timer-driven sound output (`SNDINTR`) | `i_sound.c:917-985`, `doomdef.h:85` | needs the owner's ruling: a build option the shipped build leaves off |
+| The separate sound server the shipped build uses | `sndserv/soundsrv.c`, `sndserv/linux.c`, `sndserv/sounds.c`, `sndserv/wadread.c`, `i_sound.c:62-65`, `doomdef.h:84` | **declined by the owner's ruling (2026-11-21)**: a separate process; M5c's reference is the in-process mixer (decision T2) |
+| Timer-driven sound output (`SNDINTR`) | `i_sound.c:917-985`, `doomdef.h:85` | **declined by the owner's ruling (2026-11-21)**: a build option the shipped build leaves off |
 | The sound-effect and music volume settings | `s_sound.c:616`, `s_sound.c:631`, `m_menu.c:816-850` | not started (`doom-play --volume` is the app's own option) |
 | Music selection: the song of each map, the intermission, the finale and the title; pausing; `idmus` | `s_sound.c:497-515`, `s_sound.c:644-706`, `sounds.c` | not started |
-| Music playback | `i_sound.c:830-890`, `sndserv/linux.c:67` | needs the owner's ruling: linuxdoom-1.10 plays no music (these functions are empty), so there is no reference to compare a music player with |
+| Music playback | `i_sound.c:830-890`, `sndserv/linux.c:67` | in a later milestone, to be named by the owner (owner's ruling, 2026-11-21): linuxdoom-1.10 has no music reference (these functions are empty), so a music player cannot be compared with the original |
 
 ### Playing a single-player game
 
@@ -795,15 +814,17 @@ Every `M_CheckParm` call in `linuxdoom-1.10/`; the DOS drivers' own options are 
 | --- | --- | --- |
 | Skill: Hurt Me Plenty (medium) | `p_mobj.c:743-751` | done (M3h9c, M4a) |
 | Skill: Ultra-Violence (hard) | `p_mobj.c:743-751` | done (M4b) |
-| Skills: I'm Too Young To Die (double ammunition, half damage) and Hey, Not Too Rough | `p_mobj.c:743-751`, `p_inter.c:95-101`, `p_inter.c:799-800` | in M4c (proposed, pending the owner), which names "easy skill" |
-| Skill: Nightmare: fast monsters, respawning monsters, double ammunition, its own chase rules | `g_game.c:1416-1436`, `p_mobj.c:357` (`P_NightmareRespawn`), `p_enemy.c:672` (`A_Chase`), `m_menu.c:898` | not started |
+| Skills: I'm Too Young To Die (double ammunition, half damage) and Hey, Not Too Rough | `p_mobj.c:743-751`, `p_inter.c:95-101`, `p_inter.c:799-800` | in M6a (PR #65, in progress): the owner ruled easy skills into M6a on 2026-11-21 |
+| Skill: Nightmare: fast monsters, respawning monsters, double ammunition, its own chase rules | `g_game.c:1379-1380`, `g_game.c:1416-1436`, `p_mobj.c:357-407` (`P_NightmareRespawn`), `p_mobj.c:452-470`, `p_mobj.c:503-504`, `p_enemy.c:672` (`A_Chase`), `p_enemy.c:719-720`, `p_enemy.c:738-742`, `m_menu.c:898` | in M6b (owner's ruling, 2026-11-21) |
 | A new game: the skill and episode limits of each game mode, the random reset, each episode's sky | `g_game.c:1345`, `g_game.c:1365` (`G_InitNew`) | partly done (M4b, M5b): a new game straight onto an Episode 1 map on medium or hard; the rest not started |
 | The level exit and the secret exit | `g_game.c:1002`, `g_game.c:1009` | done (M3h8, M4a): the exit tic completes and is recorded; the next tic is refused until the intermission exists |
 | Finishing a level: the players finish, statistics and par times go to the intermission | `g_game.c:779`, `g_game.c:978-998`, `g_game.c:1020` | not started |
 | The next map: the normal order, the secret level and the way back, Doom II's maps 15, 31 and 32 | `g_game.c:1064-1110`, `g_game.c:1147-1179` | not started |
 | What the player carries to the next map (health, armour, weapons, ammunition, backpack) and loses (keys, powers) | `g_game.c:779-792`, `p_mobj.c:642` | not started |
-| Death and the reborn reload | `p_user.c:182` (`P_DeathThink`), `g_game.c:800`, `g_game.c:924` (`G_DoReborn`) | partly done (M3h9c): the death view and the reborn request; the reload is in M4c (proposed, pending the owner) |
-| The original's pause: the Pause key, the pause command in the demo, the stopped game, the pause picture, paused music | `g_game.c:426-430`, `g_game.c:561-565`, `g_game.c:698-712`, `p_tick.c:135-136`, `d_main.c:303-311`, `s_sound.c:497` | in M4c (proposed, pending the owner); `doom-play`'s Esc pause is the app's own (M5b) |
+| Every Episode 1 map on every skill (E1M1-E1M9 x skills 0-4): each pair loads and plays, with no thing refused at spawn | `p_mobj.c:743-751` (the skill spawn bits) | partly done (M4b, M5b): skills 2 and 3 load on 17 of the 18 pairs and E1M7 on skill 3 is refused at load, skills 0 and 1 are not admitted, skill 4 is not admitted ([the table](COMPATIBILITY.md#skills-and-maps-load-table)). Milestones, confirmed by the owner on 2026-11-21: **M6a** for skills 0-3 (its load report for all 36 pairs, naming the refusing thing and rule for each refusal, comes before easy skills are admitted; if M6a's size cap is reached first, the owner names the milestone the remainder moves to, and nothing is dropped) and **M6b** for skill 4. Proving a refused spawn takes: (a) the thing and the bound that refuses it (M6a's report); (b) a source investigation of what linuxdoom-1.10 does for that case, cited by file:line; (c) a synthetic scene reproducing it, run through the genuine engine and Rust in CI; (d) admission under a new explicit configuration (wire 26; wires 1-25 keep refusing, their rules are frozen); (e) real-map runs on that map and skill compared tic for tic, locally |
+| A monster or a corpse ending up behind a one-sided wall, with the game continuing: a move is refused only when the thing's box would straddle a one-sided line, so a thing whose box already overlaps such a wall can be carried wholly behind it in one move, for example by the thrust of damage | `p_map.c:189-212` (`PIT_CheckLine`), `p_mobj.c:137-164` (`P_XYMovement`), `p_inter.c:817-831` (the damage thrust) | not started, milestone to be named by the owner: not optional. By the owner's ruling of 2026-11-21, M6a ([PR #65](https://github.com/Copgunn/DOOM/pull/65), in progress) admits such a monster at spawn under its new configuration only and refuses the tic, with the state preserved, if a move would put its centre behind the walls; that refusal is a declared limit, not this behaviour. Its size and a proposed milestone follow M6a's investigation |
+| Death and the reborn reload | `p_user.c:182` (`P_DeathThink`), `g_game.c:800`, `g_game.c:924` (`G_DoReborn`) | partly done (M3h9c): the death view and the reborn request; the reload is in M6a (PR #65, in progress; owner's ruling, 2026-11-21) |
+| The original's pause: the Pause key, the pause command in the demo, the stopped game, the pause picture, paused music | `g_game.c:426-430`, `g_game.c:561-565`, `g_game.c:698-712`, `p_tick.c:135-136`, `d_main.c:303-311`, `s_sound.c:497` | in M6b (owner's ruling, 2026-11-21); `doom-play`'s Esc pause is the app's own (M5b) |
 | The turbo message | `g_game.c:671-679` | done (M4a) |
 | The game states and what each draws (level, intermission, finale, demo screen) | `g_game.c:605` (`G_Ticker`), `d_main.c:193` (`D_Display`) | partly done (M5b): the level; the others not started |
 
@@ -859,8 +880,8 @@ Every `M_CheckParm` call in `linuxdoom-1.10/`; the DOS drivers' own options are 
 | --- | --- | --- |
 | Starting a network game and keeping the tics in step: packets, resending, `ticdup` | `d_net.c:368` (`NetUpdate`), `d_net.c:476`, `d_net.c:555`, `d_net.c:602`, `d_net.c:636` (`TryRunTics`) | not started |
 | The Linux UDP network driver | `i_net.c:90-348` | not started |
-| The DOS IPX driver (`-nodes`, `-port`, `-vector`) | `ipx/IPXSETUP.C`, `ipx/IPXNET.C`, `ipx/DOOMNET.C` | needs the owner's ruling: a separate DOS program that starts DOOM and talks to it through an interrupt vector |
-| The DOS serial and modem driver (`-com2` to `-com4`, `-port`, `-irq`, `-8250`, `-dial`, `-answer`, the baud rates) | `sersrc/SERSETUP.C`, `sersrc/PORT.C`, `sersrc/DOOMNET.C` | needs the owner's ruling: a separate DOS program that drives the serial port's hardware |
+| The DOS IPX driver (`-nodes`, `-port`, `-vector`) | `ipx/IPXSETUP.C`, `ipx/IPXNET.C`, `ipx/DOOMNET.C` | **declined by the owner's ruling (2026-11-21)**: a separate DOS program that starts DOOM and talks to it through an interrupt vector |
+| The DOS serial and modem driver (`-com2` to `-com4`, `-port`, `-irq`, `-8250`, `-dial`, `-answer`, the baud rates) | `sersrc/SERSETUP.C`, `sersrc/PORT.C`, `sersrc/DOOMNET.C` | **declined by the owner's ruling (2026-11-21)**: a separate DOS program that drives the serial port's hardware |
 | The consistency check between players | `g_game.c:681-695` | not started |
 | Co-operative play: up to four players, their starts, respawning at a start, the body queue | `g_game.c:210`, `g_game.c:844` (`G_CheckSpot`), `g_game.c:924-966`, `p_mobj.c:740` | not started |
 | Deathmatch and altdeath: random starts, weapons that stay, items that come back, frags | `g_game.c:897`, `p_setup.c:109`, `p_mobj.c:578`, `p_inter.c:168`, `p_inter.c:668` | not started |
@@ -941,10 +962,10 @@ Every `M_CheckParm` call in `linuxdoom-1.10/`; the DOS drivers' own options are 
 
 | What | C files | Status |
 | --- | --- | --- |
-| The X11 window with shared memory, the palette upload, 2x to 4x scaling | `i_video.c:352`, `i_video.c:538-594`, `i_video.c:692`, `i_video.c:920-930` | needs the owner's ruling: `doom-play` has its own window (M5b); the frame and palette it shows are the original's |
+| The X11 window with shared memory, the palette upload, 2x to 4x scaling | `i_video.c:352`, `i_video.c:538-594`, `i_video.c:692`, `i_video.c:920-930` | **declined by the owner's ruling (2026-11-21)**: `doom-play` has its own window (M5b); the frame and palette it shows are the original's |
 | Keyboard and mouse events from X11: key translation, mouse grab and motion | `i_video.c:97`, `i_video.c:194`, `i_video.c:309` | partly done (M5b): the key translation was checked against a declared stand-in for Xlib; the app feeds its own event stream (decision S4) |
 | Building each tic's command from keys and mouse, double-click use included | `g_game.c:237` (`G_BuildTiccmd`), `g_game.c:504` (`G_Responder`) | done (M5b), cheat keys excepted |
-| The joystick | `g_game.c:583-590`, `m_menu.c:1362` | needs the owner's ruling: the game and the menus handle joystick events, but no linuxdoom-1.10 driver produces them |
+| The joystick | `g_game.c:583-590`, `m_menu.c:1362` | in a later milestone, to be named by the owner (owner's ruling, 2026-11-21): the handling in `g_game.c` and the menus, fed by a modern controller, because no linuxdoom-1.10 driver produces the events |
 
 ### Limits, overflows and quirks
 
@@ -958,12 +979,20 @@ Every `M_CheckParm` call in `linuxdoom-1.10/`; the DOS drivers' own options are 
 | 256 drawsegs and 128 vissprites, dropped silently | `r_defs.h:55`, `r_things.h:31` | done (M5a) |
 | Tables that stop the original when full: 30 lifts, 30 ceilings, 16 buttons | `p_spec.h:244`, `p_spec.h:306`, `p_spec.h:518` | partly done (M3h8): more than 30 lifts or 16 switches are refused at load; ceilings not started |
 
+### Zone-dependent behaviour
+
+The memory zone (`z_zone.c`) is not ported (owner's ruling, 2026-11-21). Behaviour of the original that depends on
+it is handled case by case and listed here, each case with its own decision and evidence. So far COMPATIBILITY
+records these two, both refused by Rust instead of modelled: a blocked stair step and a blocked
+`raiseToNearestAndChange` plat, where the genuine C runner reads zero-filled zone memory
+([runtime witnesses](COMPATIBILITY.md#runtime-witnesses)). No other case is recorded yet; none is invented here.
+
 ## Ideas under consideration
 
 These are ideas, not commitments. None is scheduled, and each would need its own
 investigation, owner decision and evidence before it became a milestone. The exception is
 anything the original does (original demo playback, the full original game and Doom II): by the
-owner's standing rule of 2026-11-21 it is not optional, only its milestone is still open (see the
+owner's standing rule of 2026-11-21 it is not optional (apart from the items he declined by ruling that day), only its milestone is still open (see the
 [vanilla completeness checklist](#vanilla-completeness-checklist)). They are listed
 here so that the README can summarize them in one place; the README's "Where it's (maybe)
 going" list changes only with the owner's approval. They fall into three tracks.
