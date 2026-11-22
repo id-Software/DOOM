@@ -404,6 +404,8 @@ requests as a Rust safety policy. Unsupported actions never silently no-op.
 
 ## Deferred systems
 
+The [quirk register](QUIRKS.md) lists the quirks of the original that these systems will have to meet, one row each.
+
 Every policy is frozen: its own section says what it admits and refuses, and it keeps
 refusing what it refused when it was written, even where a later policy admits it. A
 sentence in an older section that begins "as of this policy" or "as of this profile" is
@@ -1884,6 +1886,8 @@ largest reachable height, the `Δ` of V′ and the number of sectors an admitted
 move; `doom_sim::special_window_lines(&Map)` returns the largest window count of the
 `spechit` rule. Both are admission queries; neither builds a simulation.
 
+The [quirk register](QUIRKS.md) lists the quirks of the original behind the fidelity gaps and refusals below, one row each.
+
 Fidelity gaps and refusals:
 
 - **`SpecialCross` witness.** A position check that would append a ninth `spechit` entry
@@ -2458,6 +2462,8 @@ overflow occurs on any matched run.
 
 ### Explicitly not admitted
 
+The [quirk register](QUIRKS.md) lists the quirks of the original behind this list, one row each.
+
 - **Teleportation:** special 97 and thing 14 (the landing) - M4b with E1M5, E1M8 and E1M9.
 - **The Baron and `A_BossDeath`** (E1M8) and every thing outside the lists above; an
   unsupported thing is `MapSpawnError::UnsupportedType`, an unsupported action is an explicit
@@ -2905,6 +2911,8 @@ treats its lumps by the original's rules; the committed tests use our own genera
 
 ### Declared contracts, witnesses and refusals
 
+The [quirk register](QUIRKS.md) lists the quirks of the original behind this list, one row each.
+
 - **The sound-free, wipe-free `M_Random` contract** (decision S15, above): `M_Random` is 0 at a new game and
   only the status bar draws it. Every frame claim in this section carries that qualifier; the app under M5c runs
   under [another contract](#the-display-contract-with-sound-m5c) instead.
@@ -3220,6 +3228,8 @@ switch-parity frames, the cheat codes the app does not forward) still apply as t
 subject to everything listed [below](#the-app-with-sound-and-what-is-presentation).
 
 ### Refusals instead of the original's errors (decision T11)
+
+The [quirk register](QUIRKS.md) lists the quirks of the original behind this list, one row each.
 
 Where the original stops with `I_Error`, or reads memory it does not own, this port refuses with a typed error **at
 the exact start, with every part of the state unchanged**. None of these is reachable on an Episode 1 map of the

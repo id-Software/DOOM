@@ -969,6 +969,9 @@ Every `M_CheckParm` call in `linuxdoom-1.10/`; the DOS drivers' own options are 
 
 ### Limits, overflows and quirks
 
+The [quirk register](QUIRKS.md) lists every quirk of the original, one row each, with its C line and status;
+the rows below are the checklist of what this project still has to do about the limits and overflows.
+
 | What | C files | Status |
 | --- | --- | --- |
 | 128 intercepts | `p_local.h:154`, `p_maputl.c:562` | partly done (M3h6): the tic that would write the 129th is refused (a declared fidelity gap) |
