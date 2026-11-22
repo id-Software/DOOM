@@ -183,6 +183,12 @@ see [ASSETS](ASSETS.md) without accessing such assets for public validation.
 For earlier per-profile procedures and qualified historical sanitizer observations,
 read the [complete testing archive](validation/archive/pre-m3d3j-testing.md).
 
+## BLOCKMAP corner regression
+
+Run `cargo test --locked -p doom-sim --test blockmap_corner` and repeat
+with `--release`. The [corner evidence](validation/BLOCKMAP_CORNER.md)
+identifies the synthetic fixture, original-engine probes and policy checks.
+
 ## Stacked documentation PRs
 
 The existing [workflow](../.github/workflows/rust.yml) automatically validates PRs

@@ -45,24 +45,24 @@ original updates its row in the register (this index and the pages under
 
 Updated on 2026-11-22 (America/Los_Angeles).
 
-- **Rows: 453**, of which 444 are on the 53 C-file pages and 9 are on the [64-bit build only](quirks/64-bit-only.md) page.
+- **Rows: 454**, of which 445 are on the 53 C-file pages and 9 are on the [64-bit build only](quirks/64-bit-only.md) page.
 - How the number came about: the sweep wrote 890 raw entries; the merge made 443 rows; the first assembly (commit 2c2ee84) joined 23 pairs into 420 rows; the revision after the independent review and the owner's rulings joined 10 more (listed below), split 10 of the 11 mixed-status rows into 23 rows by status (one row per status; the 11th, Q-p_setup-536, became a row of the 64-bit page), moved 3 rows to the 64-bit page and added 6 rows there: 420 - 10 + 13 + 6 = 429.
-- The separate lists: [recorded in only one place and in no note](quirks/only-one-place.md) (12 whole or partial rows and a list of readings); [not traced to a C line](quirks/not-traced.md) (none left); [dropped, and why](quirks/dropped.md) (54 entries); [where the documents disagree](quirks/disagreements.md) (75 entries, 7 marked policy claim, 1 unsettled); [the 64-bit build only](quirks/64-bit-only.md) (9 rows).
+- The separate lists: [recorded in only one place and in no note](quirks/only-one-place.md) (12 whole or partial rows and a list of readings); [not traced to a C line](quirks/not-traced.md) (none left); [dropped, and why](quirks/dropped.md) (54 entries); [where the documents disagree](quirks/disagreements.md) (75 entries, 7 marked policy claim); [the 64-bit build only](quirks/64-bit-only.md) (9 rows).
 
-The 2026-11-22 follow-up split 24 more rows into 48 and classified 48 rows from the Rust code and existing tests. The status counts below describe the current register.
+The 2026-11-22 follow-up split 24 more rows into 48 and classified 48 rows from the Rust code and existing tests. A separate refusal row records the historical endpoint policy for a stalled trace. The status counts below describe the current register.
 
-### Status of the 444 rows on the C-file pages
+### Status of the 445 rows on the C-file pages
 
 Each row carries one status. The 64-bit page records whether the reference harness is affected.
 
 | Status | Rows |
 | --- | ---: |
 | reproduced | 268 |
-| refused | 84 |
+| refused | 85 |
 | not yet ported | 47 |
 | not reproduced (declared …) | 44 |
 | comment only | 1 |
-| Total | 444 |
+| Total | 445 |
 
 ## Rows by C file
 
@@ -92,7 +92,7 @@ One page per C file (a header counts as its own file); each page carries its own
 | [p_inter.c](quirks/p_inter.c.md) | 25 |
 | [p_lights.c](quirks/p_lights.c.md) | 2 |
 | [p_map.c](quirks/p_map.c.md) | 39 |
-| [p_maputl.c](quirks/p_maputl.c.md) | 16 |
+| [p_maputl.c](quirks/p_maputl.c.md) | 17 |
 | [p_mobj.c](quirks/p_mobj.c.md) | 37 |
 | [p_plats.c](quirks/p_plats.c.md) | 4 |
 | [p_pspr.c](quirks/p_pspr.c.md) | 9 |
@@ -124,7 +124,7 @@ One page per C file (a header counts as its own file); each page carries its own
 | [w_wad.c](quirks/w_wad.c.md) | 1 |
 | [wi_stuff.c](quirks/wi_stuff.c.md) | 2 |
 
-| **Total** | **444** |
+| **Total** | **445** |
 
 No page: p_local.h (its two rows were joined into rows of p_map.c and p_maputl.c; see the lists below).
 
@@ -198,6 +198,8 @@ Later pull requests should cite ids as text, not as links to an id anchor.
 | Q-r_plane-398 | Q-r_plane-398a, Q-r_plane-398b |
 | Q-s_sound-364 | Q-s_sound-364a, Q-s_sound-364b |
 | Q-tables-59 | Q-tables-59a, Q-tables-59b |
+
+The corner follow-up also split Q-p_maputl-871 into Q-p_maputl-871a and Q-p_maputl-871b.
 
 #### Ids moved to the 64-bit page (3)
 

@@ -148,10 +148,12 @@ witness, and the evidence. It adds no mover, collision, traversal or scheduler c
   `path`/`intercept` reproduce this.
 - **`P_PathTraverse`** ([p_maputl.c:743](../linuxdoom-1.10/p_maputl.c)): the `FRACUNIT`
   nudge off cell boundaries (777–781), the DDA that steps one axis per iteration
-  (866–875) and the 64-iteration cap (846). A diagonal trace that passes exactly through
-  a cell corner visits only two of the four cells (one step per iteration): a line
-  listed only in a skipped cell is not found. This is the source's behavior with its
-  own BLOCKMAP and is kept (`movement::path`, `combat_trace.rs:160`).
+  (866–875) and the 64-iteration cap (846). A line listed only in a skipped
+  cell is missed. The exact-corner probes on 2026-11-22 corrected the earlier
+  two-cell account. Travel direction and the fixed-point intercepts govern the
+  next step. If neither axis test holds, the loop revisits the same cell to the
+  cap and processes the intercepts already collected.
+  [Genuine-engine corner evidence](validation/BLOCKMAP_CORNER.md#direct-traces).
 - **`PIT_AddThingIntercepts`** ([p_maputl.c:616](../linuxdoom-1.10/p_maputl.c)) and
   **`P_TraverseIntercepts`** ([p_maputl.c:683](../linuxdoom-1.10/p_maputl.c)) do not read
   line angles. `PTR_AimTraverse` ([p_map.c:816](../linuxdoom-1.10/p_map.c)) and

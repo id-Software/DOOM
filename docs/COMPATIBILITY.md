@@ -1049,6 +1049,11 @@ range is2048. Both use the same source BLOCKMAP/intercept service. Original
 P_PathTraverse processes collected intercepts after its bounded64-cell loop even
 when the endpoint was not reached; this newly observed pistol domain admits that
 finite result. Historical trace APIs retain their stricter endpoint rejection.
+For example, the direct aim and attack APIs of historical combat profile 5
+return `Combat(TraversalLimit)` if the traversal exhausts its budget before
+reaching the endpoint. The call preserves canonical state. Historical profile 6
+uses the same collector for its direct aim and attack APIs. See the
+[corner test](validation/BLOCKMAP_CORNER.md#historical-endpoint-policy).
 Puff37 and Blood38 are real allocated thinkers with source RNG and same-tic
 thinker insertion, not presentation placeholders. Walls and misses cannot
 fabricate Demon damage.
@@ -1545,9 +1550,14 @@ carried. The source's reading quirks are reproduced, never corrected: a box whos
 lies exactly on a diagonal wall is blocked from the wall's front side but not from its
 back, a box approaching from the back may stop up to `1/L` units past the line, a slide
 trace starting in that sliver can pick a wall it runs parallel to with fraction 0, a
-player running straight into a convex 45°/45° tip slides in place, and a diagonal trace
-through a BLOCKMAP cell corner visits two of the four cells. The proof is in the
-[investigation](M3H5_REFERENCE_INVESTIGATION.md#4-the-admitted-domain-and-the-proof).
+player running straight into a convex 45°/45° tip slides in place, and the BLOCKMAP trace makes at most one axis step per iteration. Fixed-point
+rounding and the direction of travel determine which cells it visits at a corner.
+If neither step test succeeds, the trace revisits the cell until the 64-iteration
+cap and then processes the intercepts it collected. This applies to the slide
+and use walk and to the in-game weapon traces covered by the source-budget
+collector. The [corner evidence](validation/BLOCKMAP_CORNER.md) records exact
+crossings and near misses. The [investigation](M3H5_REFERENCE_INVESTIGATION.md#4-the-admitted-domain-and-the-proof)
+gives the geometry bounds.
 
 | Admitted at load | Value | Why |
 | --- | ---: | --- |
