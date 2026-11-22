@@ -77,7 +77,7 @@ Four broad ways to play classic Doom; each non-vanilla one would be a separate o
 
 ## Where it's (maybe) going
 
-Everything the original does is planned work: none of it is optional, only its milestone is open ([checklist](docs/ROADMAP.md#vanilla-completeness-checklist)). The rest are ideas, not promises, one line each ([more](docs/ROADMAP.md#ideas-under-consideration)).
+Everything the original does is planned work, except the few items the owner declined by ruling on 2026-11-21 (DOS network drivers, the separate sound server, the X11 window and some build and development options): none of the rest is optional, only its milestone is open ([checklist](docs/ROADMAP.md#vanilla-completeness-checklist)). The rest are ideas, not promises, one line each ([more](docs/ROADMAP.md#ideas-under-consideration)).
 
 **Track 1: Faithful.** Vanilla stays exact; anything that changes it lives in a separate optional mode.
 

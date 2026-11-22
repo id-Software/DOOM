@@ -122,7 +122,7 @@ actors or map features. Detailed older limits remain available in the complete
 | Player statistics | Only genuine players[0].killcount fallback for absent/unbound sources; no player-pointer scoring |
 | Damage/death | Existing shared services, pain chance 180, delayed sounds, ordinary death/Fall/quarter height |
 | Terminal corpse | COUNTKILL retained; respawn disabled, no extra terminal RNG/movecount work |
-| Respawn/raise | Explicitly unsupported under this profile; no Nightmare respawn or arch-vile resurrection (original behaviour with no milestone named yet: [checklist](ROADMAP.md#vanilla-completeness-checklist)) |
+| Respawn/raise | Explicitly unsupported under this profile; no Nightmare respawn or arch-vile resurrection (original behaviour: Nightmare respawn is in M6b by the owner's ruling of 2026-11-21, arch-vile resurrection has no milestone named yet: [checklist](ROADMAP.md#vanilla-completeness-checklist)) |
 | Complete original actor | Deferred as of this profile: native type 136 identity, state aliases and disabled raise remain adaptations (the original identities came with the [original-ID profile](#original-id-demon-profile)) |
 
 Only the old COUNTKILL flag projection is removed. Profile 17 uses
@@ -430,7 +430,8 @@ line and sector special no Episode 1 map uses, things and monsters outside Episo
 general demo playback, and the presentation the playable build does not have (music,
 menus, the automap among it). All of it is original behaviour, so none of it is optional:
 the [vanilla completeness checklist](ROADMAP.md#vanilla-completeness-checklist) lists every such item with the
-milestone named for it, or says that none is named yet.
+milestone named for it, or says that none is named yet. The only exceptions are the items the owner declined by
+ruling on 2026-11-21, each marked there with its reason.
 
 Spectre metadata recognition is not Spectre gameplay compatibility.
 Source undefined behavior is not a compatibility target; checked Rust rejection
@@ -3095,8 +3096,8 @@ the next tic is due and keeps the library's default swap interval. The mouse is 
 (Sound effects came with [M5c](#sound-effects-m5c); the glance fix and the level-start wipe's draws too.) Music, menus, the automap, save and load, the intermission and level-to-level carry-over, the title
 screen and demo loop, the screen wipe's picture, cheats, vanilla's in-game pause, easy and nightmare skill, low
 detail, screenblocks below 10, multiplayer and joystick input. All of these are original behaviour, so none
-is optional: the [vanilla completeness checklist](ROADMAP.md#vanilla-completeness-checklist) gives each one's milestone, says
-that none is named yet or, for the joystick, that it needs the owner's ruling. The modern renderer, which is not original behaviour, is listed in
+is optional except what the owner declined by ruling on 2026-11-21: the [vanilla completeness checklist](ROADMAP.md#vanilla-completeness-checklist) gives each one's milestone, says
+that none is named yet, or says that it was declined (music and the joystick are in, in later milestones the owner will name). The modern renderer, which is not original behaviour, is listed in
 [ROADMAP](ROADMAP.md).
 
 ## Sound effects (M5c)
