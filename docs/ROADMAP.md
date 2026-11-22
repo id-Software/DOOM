@@ -96,8 +96,6 @@ M3g4 command/reaction movement, M3g3 physical knockback/corpses, M3g2 genuine-pl
 lifecycle and M3g1 diagnostic-free stepping are merged. Their investigations and
 observations remain linked from the [evidence index](README.md).
 
-## Current milestone
-
 ### M4a: Episode 1, part 1, proven against the genuine engine
 
 Status: done; merged into master as
@@ -404,6 +402,21 @@ commits and CI belong to GitHub. See
 [support](COMPATIBILITY.md#autonomous-original-demon-player-melee) and
 [observations](validation/M3G6.md).
 
+## Current milestone
+
+No milestone is in progress on master. The last one merged is M5d (play fixes,
+[PR #64](https://github.com/Copgunn/DOOM/pull/64), 2026-11-21), described under [Later](#later) with the M4b to M5c
+milestones before it, all merged.
+
+The next milestone is **M6a: Episode 1 from start to finish, in one session** (the intermission, the next map and
+the finale of Episode 1). Its Phase 1, the investigation, is written on the branch `feat/m6a-episode1-continuous`
+([draft PR #65](https://github.com/Copgunn/DOOM/pull/65)) and waits for the owner's rulings on its decisions U1 to
+U15; nothing of it is on master. Also waiting for the owner: the items of the
+[vanilla completeness checklist](#vanilla-completeness-checklist) marked "needs the owner's ruling". Exact review
+state belongs to GitHub.
+
+## Open follow-ups and plans from earlier milestones
+
 ### Next narrow gameplay milestone
 
 - **M3h9c follow-ups.** The real-E1M1 harness is merged (M3h9c, above). The
@@ -477,6 +490,9 @@ This plan does not authorize commercial-asset access, new map formats or broader
 monster/player behavior. Further stages require separate owner direction.
 
 ## Later
+
+The entries marked merged below are done; they keep their place here because this list is in dependency order
+(see the note at its end). Where the project is now is under [Current milestone](#current-milestone).
 
 - **M4b (merged as PR #58, 2026-11-14; decisions I1–I13 confirmed by the owner on 2026-11-10; see the
   [investigation note](M4B_REFERENCE_INVESTIGATION.md)).** Teleportation (line 97 and the landing thing), the
