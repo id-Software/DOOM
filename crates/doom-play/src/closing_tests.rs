@@ -1386,6 +1386,51 @@ fn nothing_is_settled_into_an_app_that_is_playing() {
     std::fs::remove_dir_all(&dir).unwrap();
 }
 
+/// The underrun diagnostic (2026-11-21): after every update the loop tells the sound queue the
+/// session's committed tics and whether the app is playing, also in the update in which the
+/// session ends, so an underrun is recorded with the tic the loop last noted and an ended
+/// session's queue running dry is told apart. A headless device sink stands in for the device;
+/// Rust-only.
+#[test]
+fn every_update_tells_the_sound_queue_the_sessions_tic() {
+    use crate::audio::{BUFFER_FRAMES, DeviceSink, Output, Volume};
+    use doom_game::app::AudioSink as _;
+    /// Two buffers in, far more asked: one underrun; what it recorded.
+    fn underrun(p: &mut Play) -> (u64, bool) {
+        let Output::Device(d) = &mut p.host.host.fs.audio else {
+            unreachable!()
+        };
+        d.buffer(&[[1, 1]; BUFFER_FRAMES]);
+        d.buffer(&[[1, 1]; BUFFER_FRAMES]);
+        d.pull(&mut vec![0; 2 * 100_000]);
+        let u = *d.underruns().last().expect("an underrun");
+        (u.tic, u.playing)
+    }
+    let dir = scratch("underrun-tic");
+    let disk = Disk::default();
+    let mut p = play(&dir, &disk, 8);
+    p.host.host.fs.audio = Output::Device(DeviceSink::headless(Volume::FULL));
+    steady(&mut p, 1, 5);
+    let tic = p.app.tic();
+    assert!(tic > 0 && p.app.mode() == &Mode::Playing, "tics ran");
+    assert_eq!(underrun(&mut p), (tic, true));
+    // a later update moves the number on
+    steady(&mut p, 6, 7);
+    assert!(p.app.tic() > tic);
+    assert_eq!(underrun(&mut p), (p.app.tic(), true));
+    // the update in which the session ends (the tic cap) is noted too, as not playing
+    let mut k = 8;
+    while p.app.mode() == &Mode::Playing {
+        assert!(k < 20, "the cap of 8 tics ends the session");
+        step(&mut p, k);
+        k += 1;
+    }
+    assert!(matches!(p.app.mode(), Mode::Ended(_)));
+    assert_eq!(underrun(&mut p), (p.app.tic(), false));
+    drop(p);
+    std::fs::remove_dir_all(&dir).unwrap();
+}
+
 /// Pins the first guard of `after_panic`: "The app's line ... always for an unrecorded run", and
 /// the app's line when the writer did not panic. A report whose `whole` holds the current
 /// session would otherwise give the "saved" line.

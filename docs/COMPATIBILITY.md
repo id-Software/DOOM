@@ -2265,7 +2265,7 @@ per-tic comparison covers the rest of the capture.
 
 ## Original Episode 1, part 1: every door, floor, plat, stair, donut, light and exit special, keys, items, powers, chainsaw, rocket launcher and Spectre (wire 23)
 
-**Status: not merged; see [ROADMAP](ROADMAP.md#m4a-episode-1-part-1-proven-against-the-genuine-engine).** The command-domain
+**Status: merged (M4a, PR #57, 2026-11-10; see [ROADMAP](ROADMAP.md#m4a-episode-1-part-1-proven-against-the-genuine-engine)).** The command-domain
 lift, the version-110 demo header for maps 1-9 and the real-map Rust runs are done. Against the genuine
 engine, Rust matches tic for tic on the 25 authored scripts of E1M2, E1M3, E1M4, E1M6 and E1M7 and on the
 five E1M1 scripts re-run under wire 23, with no refuse-the-tic witness firing (see
@@ -2644,7 +2644,7 @@ the goldens and fixtures in `cargo test`.
 
 ## Original Episode 1, part 3: canonical sound records (wire 25)
 
-**Status: on the milestone branch `feat/m5c-sound` (draft [PR #63](https://github.com/Copgunn/DOOM/pull/63)), not merged; milestone status is in [ROADMAP](ROADMAP.md).** Wire 25 is wire 24 plus
+**Status: merged (M5c, [PR #63](https://github.com/Copgunn/DOOM/pull/63), 2026-11-19); milestone status is in [ROADMAP](ROADMAP.md).** Wire 25 is wire 24 plus
 what sound needs, and **nothing else** (decisions T3 and T4, confirmed by the owner on 2026-11-18). It makes no
 sound: it lets the simulation say, tic by tic, which sounds the original would start and stop and from where, so
 that [the sound logic](#sound-effects-m5c) can run on them.
@@ -3422,29 +3422,60 @@ Nothing here was measured. Each figure is arithmetic from our code or from the l
 from a library's source; what depends on the operating system's audio engine, the drivers, WSLg's remote-desktop audio,
 clocks and timer resolution is not known without measuring on a machine.
 
+**The table is for the 128-frame device period, the default since 2026-11-21, with the two-buffer start. It was recomputed on
+2026-11-21 by the link model of the [M5c record](validation/M5C.md#sound-latency-the-arithmetic-in-full) with the period changed from
+512 to 128 frames. It is arithmetic, not measured, and assumes the back end grants the period asked for.**
+
 | From the call that starts a sound to | linuxdoom-1.10 built with its in-process sound code | doom-play under PulseAudio (WSLg) | doom-play under WASAPI (Windows) |
 |---|---|---|---|
-| the hand-over to the operating system | above 0 to 46.4 ms (about 46.4 ms on a fast machine) | 28.6 to 121.3 ms | 75.0 to 167.7 ms |
-| the end of the device buffer it asks for | above 0 to 92.9 ms (about 92.9 ms) | 75.0 to 167.7 ms | 167.9 to 260.6 ms |
+| the hand-over to the operating system | above 0 to 46.4 ms (about 46.4 ms on a fast machine) | 28.6 to 86.4 ms | 40.2 to 98.0 ms |
+| the end of the device buffer it asks for | above 0 to 92.9 ms (about 92.9 ms) | 40.2 to 98.0 ms | 63.4 to 121.3 ms |
 
-**The plain answer: doom-play does not sit inside the original's range.** Under PulseAudio the low end is inside it and
-the top is above it (by 74.8 ms); under WASAPI the whole range is above it (by 28.6 ms at the low end and 121.3 ms at the
-top, to the hand-over). Sound on Windows is therefore, by arithmetic, later than the original's. **What accounts for it:**
+How the doom-play figures are made, link by link (frames at 11,025 Hz, where one frame is 0.0907 ms; arithmetic, not measured):
+
+| Link, at a period of 128 frames | Least | Most |
+|---|---|---|
+| The declared schedule and the two-buffer start (`315 + d`; the period does not change it) | 315 frames, 28.6 ms | 826 frames, 74.9 ms |
+| The callback's phase: 0 to one frame less than a period | 0 | 127 frames, 11.5 ms |
+| WASAPI only: a pulled chunk waits for one period of room | 128 frames, 11.6 ms | 128 frames, 11.6 ms |
+| **Sum to the hand-over, PulseAudio** | **315 frames, 28.6 ms** | **953 frames, 86.4 ms** |
+| **Sum to the hand-over, WASAPI** | **443 frames, 40.2 ms** | **1,081 frames, 98.0 ms** |
+| Buffer ahead, PulseAudio: one period (`tlength`) | 128 frames, 11.6 ms | 128 frames, 11.6 ms |
+| Buffer ahead, WASAPI: two of the three periods asked for | 256 frames, 23.2 ms | 256 frames, 23.2 ms |
+| **Total to the end of the buffer asked for, PulseAudio** | **443 frames, 40.2 ms** | **1,081 frames, 98.0 ms** |
+| **Total to the end of the buffer asked for, WASAPI** | **699 frames, 63.4 ms** | **1,337 frames, 121.3 ms** |
+
+**The plain answer: at this default doom-play's ranges overlap the original's and reach above it; they do not sit inside it.**
+On both back ends the low end is inside the original's range and the top is above it: under PulseAudio by 40.0 ms (441 frames) to
+the hand-over and 5.2 ms (57 frames) to the end of the buffer; under WASAPI by 51.6 ms (569 frames) to the hand-over and 28.4 ms
+(313 frames) to the end of the buffer. So the arithmetic no longer says that every sound on Windows is later than the original's
+(it said so for the 512-frame period, below); it says a sound can be later: by up to those amounts measured top against top, and by more
+against an original on a machine slow enough to sit low in its own range. **What accounts for it:**
 in the original the mix happens in the same pass of the main loop as the call, and a blocking write paces the loop, so no
 queue lies between game and device. doom-play adds a queue between a loop paced by tics and a callback paced by the device:
-the two-buffer start plus the wait for the next buffer boundary of the declared schedule, and the callback's phase (up to
-one 512-frame callback); on WASAPI, miniaudio pulls a chunk one period before the engine has room for it and the three
-requested periods keep two ahead, which add 46.4 ms and 46.4 ms beyond the original's.
+the two-buffer start plus the wait for the next buffer boundary of the declared schedule (up to 74.9 ms, the largest link, which
+the period does not change), and the callback's phase (up to one 128-frame callback); on WASAPI, miniaudio pulls a chunk one period
+before the engine has room for it and the three requested periods keep two ahead (11.6 ms and 23.2 ms at this period).
 
-**These figures, and "the whole range is above it" for WASAPI, are arithmetic for the 512-frame period that was the default until
-2026-11-21. The table has not been recomputed for the 128-frame default that replaced it.** One cell exists for 128, by the same
-arithmetic and likewise not measured: to the end of the device buffer under WASAPI,
-[63.4 to 121.3 ms](validation/M5D.md#a2-sound-latency-on-windows-statistics-and-trial-options) against the original's above 0 to 92.9 ms,
-so at the current default the two ranges overlap and the arithmetic no longer says that every sound on Windows is later than the
-original's. The model queue depths for both periods are in the
-[M5d record](validation/M5D.md#ruling-3-withdrawn-the-arithmetic-as-a-report) (at a callback, two-buffer start: minimum 384, mean 791.5,
-maximum 1,152 frames for 128, against 512, 980.5 and 1,536 for 512; four of the owner's five later runs at 128 had a deepest queue
-above that maximum, which is not explained); the owner heard 128 as quicker, by ear, and no number of milliseconds is claimed.
+**What this arithmetic leaves out.** It assumes the device's callbacks arrive evenly and the back end grants what is asked. Neither
+is shown: in one scratch probe WSLg's sink granted three quarters of the length asked for
+([record](validation/M5D.md#observed-on-this-machine-linux-under-wslg-silence-only)), and the model's queue depth at a callback for
+this period (two-buffer start: minimum 384, mean 791.5, maximum 1,152 frames;
+[M5d record](validation/M5D.md#ruling-3-withdrawn-the-arithmetic-as-a-report)) was exceeded in four of the owner's five later runs
+at 128, whose deepest queue was above that maximum, which is not explained; a deeper queue means more delay than the table gives.
+The owner heard 128 as quicker than 512, by ear, and no number of milliseconds is claimed.
+
+**The 512-frame period, the default until 2026-11-21** (the same arithmetic, in full in the
+[M5c record](validation/M5C.md#sound-latency-the-arithmetic-in-full); not measured; it can still be chosen with
+`--experimental-audio-period-frames 512`):
+
+| From the call that starts a sound to | doom-play under PulseAudio (WSLg) | doom-play under WASAPI (Windows) |
+|---|---|---|
+| the hand-over to the operating system | 28.6 to 121.3 ms | 75.0 to 167.7 ms |
+| the end of the device buffer it asks for | 75.0 to 167.7 ms | 167.9 to 260.6 ms |
+
+At that period the whole WASAPI range was above the original's (by 28.6 ms at the low end and 121.3 ms at the top, to the
+hand-over), and under PulseAudio the top was above it by 74.8 ms.
 
 **The owner's judgement stands beside this and is not reconciled with it.** He heard a delay on every sound, judged it
 normal for the original, and ruled on 2026-11-18 (M5c) that nothing changes (the two-buffer start stays; the period became 128
@@ -3457,12 +3488,18 @@ later and the unknowns are in the [evidence record](validation/M5C.md#sound-late
 queue depth, and offers two experimental trial options, `--experimental-audio-start-buffers` and
 `--experimental-audio-period-frames`, which change only how finished sound reaches the device (presentation only; M5d left the defaults
 unchanged, and nothing is promised to be shorter). The audio library's own `[INFO]` device report is printed only with `--audio-report`.
+Since 2026-11-21, when at least one underrun was counted, one more exit line lists each of the first 32: the session of the launch, the
+session's tics at the loop's last update before it, the frames of silence in that one callback, and how many mixer buffers had been
+queued since the queue last began to fill, after the session's start, a resume or the underrun before. It is a diagnostic so that a run
+shows whether its underruns are the start-up fill running dry (while playing, a few buffers after a start or a resume). A session that
+has ended sends no more sound and its queue runs out once: that has always been counted as an underrun, is no gap in play, and the line
+marks it. No run with the diagnostic has been reported yet, and it changes nothing that is played or counted.
 The owner's first trial on 2026-11-20 was by ear on Bluetooth headphones with the sessions recorded to a slow disk, so its underrun counts
 are contaminated by disk stalls. He reran three trials the same day on wired output with the sessions on an SSD, one run each, by ear
 (not a latency measurement): a period of 128 frames sounded quicker than the default with no underrun, and a one-buffer start added
 nothing he could hear and gave one underrun ([figures](validation/M5D.md#the-retest)). **He chose a period of 128 frames with the
 two-buffer start as the future default; that change was not in M5d, which left the default at 512 frames.** Since 2026-11-21 (its own
-pull request, awaiting his review: [ROADMAP](ROADMAP.md)) **the default period is 128 frames with the two-buffer start kept**; 256 and 512
+pull request, [#67](https://github.com/Copgunn/DOOM/pull/67), which he merged that day) **the default period is 128 frames with the two-buffer start kept**; 256 and 512
 remain available through the experimental option and are marked `EXPERIMENTAL` on the exit line. The figures, from six runs on one machine
 and one device, by ear and by counters, are in the [M5d record](validation/M5D.md#the-default-period-becomes-128-frames-2026-11-21-its-own-pull-request). The WASAPI period count is not offered: the audio library's safe API
 cannot set it. Their arithmetic and the one run on this machine are in the [M5d record](validation/M5D.md#a2-sound-latency-on-windows-statistics-and-trial-options);

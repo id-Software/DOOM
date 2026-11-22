@@ -388,7 +388,8 @@ impl EventHandler for Stage {
 /// the tic interval summary; whenever a device is open (with or without `--tic-stats`;
 /// milestone M5d) the device's lines ([`crate::audio::DeviceSink::exit_lines`]: what it
 /// reported, the settings asked for, the callbacks' sizes, the queue's depth, underruns and
-/// overruns), which replace the counters line `--tic-stats` printed before; the run's
+/// overruns, and after an underrun the session and tic of each), which
+/// replace the counters line `--tic-stats` printed before; the run's
 /// layout-dependence line when a session of the run was labelled by the detector of decision
 /// T12 (always, with or without `--tic-stats`); then where the session's demo went.
 pub(crate) fn exit_lines(app: &App, host: &FsHost, stats: Option<&TicStats>) -> Vec<String> {

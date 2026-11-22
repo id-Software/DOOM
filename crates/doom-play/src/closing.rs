@@ -131,7 +131,13 @@ impl Play {
     /// After the app's update: when it is not playing (and the run has not ended), settles the
     /// session file into the app, waiting up to [`END_WAIT`] if the session ended in this update
     /// (`ended_before` is whether it had ended before it).
+    ///
+    /// First, in every update, it tells the sound queue the session's committed tics and whether
+    /// the app is playing, which the queue keeps only to say where the game was at an underrun
+    /// ([`crate::audio::Queue::note_tic`]).
     pub(crate) fn settle_after_update(&mut self, ended_before: bool) {
+        let playing = self.app.mode() == &Mode::Playing;
+        self.host.host.fs.audio.note_tic(self.app.tic(), playing);
         if self.closed.is_some() || self.app.mode() == &Mode::Playing {
             return;
         }

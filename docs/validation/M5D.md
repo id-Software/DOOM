@@ -1,5 +1,7 @@
 # M5d evidence record
 
+**Merged since: the owner merged this pull request, [#64](https://github.com/Copgunn/DOOM/pull/64), on 2026-11-21. The status below is as written before that.**
+
 **Status (2026-11-20 23:55 PST):** **the owner retested the second round on Windows and accepted the stuck-fire fix and the slow-disk fix;
 the pull request is ready for his review ([A9](#a9-the-owners-retest-of-2026-11-20-his-rulings-and-the-close)).** The first round (A1 to A5;
 the owner's session plan is A6) is unchanged below. On 2026-11-20 the owner ran the `b374aaa` artifact on Windows
@@ -1505,8 +1507,8 @@ IWAD, the genuine engine in its strict, overflow and address variants and the ge
 ### The default period becomes 128 frames (2026-11-21, its own pull request)
 
 **What changed.** The ruling row above said the default period of 128 frames with a two-buffer start would go in its own small pull
-request after this one merged; this is that pull request (branch `feat/audio-period-128`, code commit `11dbc40`, awaiting the owner's
-review). M5d itself left the default at 512 frames, as that row says. In `crates/doom-play/src/audio.rs`, `PERIOD_FRAMES` is now 128 (was
+request after this one merged; this is that pull request (branch `feat/audio-period-128`, code commit `11dbc40`; it awaited the owner's
+review when this was written, and he merged it on 2026-11-21 as [PR #67](https://github.com/Copgunn/DOOM/pull/67)). M5d itself left the default at 512 frames, as that row says. In `crates/doom-play/src/audio.rs`, `PERIOD_FRAMES` is now 128 (was
 512). The start threshold stays 1,024 frames (two 512-frame buffers) and the cap stays 2,048. `--experimental-audio-period-frames`
 still takes 128, 256 or 512; 256 and 512 are now the values the exit line marks `EXPERIMENTAL` (for example "period asked 512 frames
 (EXPERIMENTAL; default 128)"), and `--audio-probe`, which asks for the default period, now asks for 128. Presentation only: the mixer's
@@ -1543,7 +1545,7 @@ counted anywhere. **Four of the five later runs had a deepest queue above the mo
 as the model assumes; this is not explained. The counters give totals only, so the logs do not say when an underrun
 happened. The owner heard 128 as quicker than 512, by ear; no number of milliseconds is claimed. The arithmetic for both periods is
 [above](#ruling-3-withdrawn-the-arithmetic-as-a-report), and [Compatibility](../COMPATIBILITY.md#sound-latency-arithmetic-not-measured)
-says its latency figures were not recomputed for 128.
+said then that its latency figures were not recomputed for 128 (they were recomputed later on 2026-11-21, as arithmetic, not measured).
 
 ### The four open review items, accepted as documented limits
 
@@ -1865,7 +1867,9 @@ start, E1M5 has one with three. Five launches cannot tell "one per start" from "
 
 Why it cannot be shown: each exit line gives one total per launch. Nothing records the tic, the session or the time of an underrun, and the
 input log has no audio line and no clock. **To show it, a small diagnostic naming the session and the tic of each underrun would be needed; it
-was not made.** Nothing was measured on a device for this answer.
+was not made.** Nothing was measured on a device for this answer. (Later on 2026-11-21 that diagnostic was made, in
+[pull request #71](https://github.com/Copgunn/DOOM/pull/71): an exit line naming the session and tic of each underrun and marking a session
+that had ended; no run with it is recorded here.)
 
 ### What was not done in the check
 

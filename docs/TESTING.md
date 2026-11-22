@@ -2864,7 +2864,7 @@ doom-play --iwad DOOM.WAD --experimental-audio-start-buffers 1 --experimental-au
 `--experimental-audio-start-buffers N` takes 1 or 2 (default 2) and `--experimental-audio-period-frames N` takes 128, 256
 or 512 (default 128 since 2026-11-21; it was 512 until then); any other value exits 2 with a message. They change only how mixed sound reaches the device, and do
 nothing with `--no-sound`. With a device open, four lines (`audio device`, `audio settings`, `audio callbacks`, `audio
-queue`) are printed on exit; a setting away from its default is marked `EXPERIMENTAL` on the `audio settings` line (so a period of 256 or 512 is marked, 128 is not;
+queue`) are printed on exit, and since 2026-11-21 a fifth (`audio underruns`) after them when at least one underrun was counted; a setting away from its default is marked `EXPERIMENTAL` on the `audio settings` line (so a period of 256 or 512 is marked, 128 is not;
 `--audio-probe` asks for the default period, 128). The
 unit tests for the lines and the options run in `cargo test -p doom-play` and open no device. What the options are
 expected to change is arithmetic in the [M5d record](validation/M5D.md#b-the-trial-options); the owner's Windows runs are in the record's
