@@ -185,9 +185,19 @@ read the [complete testing archive](validation/archive/pre-m3d3j-testing.md).
 
 ## BLOCKMAP corner regression
 
-Run `cargo test --locked -p doom-sim --test blockmap_corner` and repeat
-with `--release`. The [corner evidence](validation/BLOCKMAP_CORNER.md)
-identifies the synthetic fixture, original-engine probes and policy checks.
+```sh
+python3 tools/reference/blockmap_corner_wad.py --check
+python3 tools/reference/blockmap_corner_probe.py
+cargo test --locked -p doom-sim --test blockmap_corner
+cargo test --locked -p doom-sim --test blockmap_corner --release
+```
+
+The fixture check compares bytes in memory and returns nonzero on a difference
+or a missing file. Run the generator without `--check` to rebuild the fixture,
+or pass `--out /tmp/blockmap_corner.wad` to write a separate copy. The genuine
+probe uses the GNU C host and M4b runner described above. The
+[corner evidence](validation/BLOCKMAP_CORNER.md) records its cases and the
+scope of the Rust rerun.
 
 ## Stacked documentation PRs
 

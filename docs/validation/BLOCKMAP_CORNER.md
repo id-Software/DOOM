@@ -1,9 +1,12 @@
 # BLOCKMAP corner traversal evidence
 
-Observed on 2026-11-22 Pacific time. All maps and demos were synthetic. The
-reference is Linux DOOM 1.10 at `a77dfb96cb91780ca334d0d4cfd86957558007e0`,
-run through the existing [M4b whole-engine driver](../../tools/reference/m4b_build.py)
-and [M5c sound driver](../../tools/reference/m5c_build.py).
+All maps and demos are synthetic. The reference is Linux DOOM 1.10 at
+`a77dfb96cb91780ca334d0d4cfd86957558007e0`, run through the existing
+[M4b whole-engine driver](../../tools/reference/m4b_build.py) and
+[M5c sound driver](../../tools/reference/m5c_build.py). The direct traces
+and 21-scene matrix below are the earlier session's observations recorded
+at `60b30c0`. This session's commands and results are under
+[Follow-up rerun](#follow-up-rerun).
 
 ## Direct traces
 
@@ -87,10 +90,8 @@ The test compares complete canonical bytes before and after the refusals.
 It also checks successful direct aim from the control position.
 
 Historical profile 5's refusal is the documented endpoint requirement. The
-original continues to the intercept callbacks for S3. The same regression
-pins the original's 64-visit shot and its collected hit on wires 7 and 25.
-Source-derived expectations in the test come from the C probe. The
-unchanged-state assertions check Rust policy.
+original continues to the intercept callbacks for S3. The unchanged-state
+assertions check Rust policy.
 [Compatibility policy](../COMPATIBILITY.md#genuine-player-pistol-combat).
 
 ## Fixture provenance
@@ -98,8 +99,53 @@ unchanged-state assertions check Rust policy.
 [blockmap_corner.wad](../../tests/reference/blockmap_corner.wad) is S3 from
 the synthetic scene generator in the
 [previous investigation sources](https://github.com/Copgunn/DOOM/tree/14f4246cddcc726b4e6bfb239be15a0a75d28dad/wip/quirks-b-corner).
-The generator reuses the public M4a and M4b map builders and uses blank
-graphics. S3 has one room, one void pillar and one player start. C10S is
-the same map with the player start one map unit west. The rerun relocated
-the scratch paths and checked the driver results explicitly. The historical
-runner for wires 7–16 places the player through the public body API.
+The in-tree [fixture generator](../../tools/reference/blockmap_corner_wad.py)
+reconstructs the branch's existing S3 bytes from the public M4a and M4b
+map builders and blank resources. S3 has one room, one void pillar and one
+player start. C10S changes only the player start by one map unit west.
+`--check` regenerated S3 in memory and matched all 46,426 bytes
+(`d464b2d2e58be8bccee75d4b9637684c94c7531c02fb8b4d7a1f59f8fe58cdc6`).
+
+## Follow-up rerun
+
+The fresh run on 2026-11-22 Pacific time used these commands from the repo root.
+See [testing](../TESTING.md#blockmap-corner-regression) for fixture regeneration.
+
+```sh
+python3 tools/reference/blockmap_corner_wad.py --check
+python3 tools/reference/blockmap_corner_probe.py
+cargo test --locked -p doom-sim --test blockmap_corner
+cargo test --locked -p doom-sim --test blockmap_corner --release
+```
+
+- **Genuine C.** The committed probe generated S3 and C10S and ran a 71-tic
+  demo in each. For each scene, the frozen strict, signed-overflow and
+  address/undefined sanitizer builds and the observed strict build agreed
+  on all 72 state dumps, including load. The sanitizer variants reported no
+  runtime diagnostics. The address build used `ASAN_OPTIONS=detect_leaks=0`
+  and the M4b runner disables alignment checking for its LP64 zone layout.
+  The probe observed three aim walks and one pistol shot on tic 34 per
+  scene. S3 visited cell (2, 2) once and cell (3, 2) 63 times before
+  hitting line 0. C10S reached (11, 15) after 23 visits and hit line 5.
+- **Direct C calls.** The observed strict build ran eight exact corner
+  crossings, all four travel directions at slope magnitudes 1 and 2.
+  Both positive signs caused the first cell to repeat, both negative
+  signs caused the first side cell to repeat, and mixed signs visited a
+  side cell and the diagonal endpoint cell. Four separate horizontal calls
+  targeted endpoint cells 62, 63, 64 and 70 from cell 0. They made 63, 64,
+  64 and 64 visits respectively. The last two stopped at cell 63.
+- **Rust.** Each of wires 7–25 ran S3 and C10S through its own normal
+  pistol setup and tic commands, for 38 runs in debug and 38 in release.
+  All reached the shot on tic 34. The start, delta, complete cell order,
+  collected linedef identities and fractions, and resolved hit agreed with
+  the genuine C observations. The same test binary checked attack and
+  explicit-call refusals on canonical wires 2–6, explicit-call refusals on
+  historical profiles 2–4, and historical profiles 5 and 6's endpoint
+  refusal and successful control aim. It checked canonical state after
+  refusals.
+
+The fresh corner runs covered these two pistol scenes through the shot.
+They did not repeat the earlier 21-scene matrix, 46 cross-language direct
+cases, use or barrel scenes, whole-frame DSIM comparisons, sound comparisons,
+or mutations. The four long horizontal checks were direct C calls. No case
+attempted a 129th intercept, an in-game exact-corner slide, or an IWAD map.

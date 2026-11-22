@@ -4,8 +4,8 @@
 use doom_map::{Map, MapLimits};
 use doom_sim::{
     ActorSpec, ActorTypeId, AttackResult, CombatError, CombatEvent, Event, LineAttack,
-    MapContextOptions, PlayerSlot, SimError, Simulation, Skill, SpawnHeight, TicCommand,
-    TraceObject, WeaponInventory,
+    MapContextOptions, OriginalRegistryError, PlayerSlot, SimError, Simulation, Skill, SpawnHeight,
+    TicCommand, TraceObject, WeaponInventory,
 };
 use doom_types::Fixed;
 use doom_wad::{Limits, Wad};
@@ -19,8 +19,16 @@ const ATTACK: LineAttack = LineAttack {
 };
 
 fn map() -> Map {
-    let bytes = include_bytes!("../../../tests/reference/blockmap_corner.wad");
-    let wad = Wad::parse(bytes, Limits::default()).unwrap();
+    scene_map(308)
+}
+
+fn scene_map(x: i16) -> Map {
+    let mut bytes = include_bytes!("../../../tests/reference/blockmap_corner.wad").to_vec();
+    let wad = Wad::parse(&bytes, Limits::default()).unwrap();
+    let things = wad.lumps()[wad.find("THINGS").unwrap()].range();
+    assert_eq!(things.len(), 10);
+    bytes[things.start..things.start + 2].copy_from_slice(&x.to_le_bytes());
+    let wad = Wad::parse(&bytes, Limits::default()).unwrap();
     Map::from_wad(&wad, "E1M1", MapLimits::default()).unwrap()
 }
 
@@ -57,47 +65,146 @@ fn fire(mut sim: Simulation, turn: i16) -> AttackResult {
     panic!("pistol trace never ran");
 }
 
-fn wire_seven_shot(x: i16) -> AttackResult {
-    let mut sim =
-        Simulation::original_player_demon_pistol_map(map(), 64, MapContextOptions::default())
+fn pistol_world(wire: u32, x: i16) -> Simulation {
+    type WithLimit = fn(Map, u32, MapContextOptions) -> Result<Simulation, OriginalRegistryError>;
+    type FromMap = fn(Map, MapContextOptions) -> Result<Simulation, OriginalRegistryError>;
+    let limited: [WithLimit; 7] = [
+        Simulation::original_player_demon_pistol_map,
+        Simulation::original_player_demon_weapons_map,
+        Simulation::original_player_pickups_map,
+        Simulation::original_player_armor_map,
+        Simulation::original_player_bonuses_map,
+        Simulation::original_player_monsters_map,
+        Simulation::original_player_imps_map,
+    ];
+    let from_map: [FromMap; 10] = [
+        Simulation::original_player_map_scale_map,
+        Simulation::original_player_heights_map,
+        Simulation::original_player_diagonal_map,
+        Simulation::original_player_real_map_map,
+        Simulation::original_player_specials_map,
+        Simulation::original_player_movers_map,
+        Simulation::original_player_e1m1_map,
+        Simulation::original_player_barrels_map,
+        Simulation::original_player_level_map,
+        Simulation::original_player_episode1_map,
+    ];
+    let map = scene_map(x);
+    let context = MapContextOptions::default();
+    let mut sim = match wire {
+        7..=13 => limited[(wire - 7) as usize](map, 64, context),
+        14..=23 => from_map[(wire - 14) as usize](map, context),
+        24 => Simulation::original_player_episode1_v2_map(map, 1, Skill::Medium, context),
+        25 => Simulation::original_player_episode1_v3_map(map, 1, Skill::Medium, context),
+        _ => unreachable!("unexpected wire {wire}"),
+    }
+    .unwrap_or_else(|error| panic!("wire {wire} setup: {error:?}"));
+    assert_eq!(sim.original_execution_profile().unwrap().wire_id(), wire);
+
+    if wire >= 17 {
+        let report = sim.spawn_map_things().unwrap();
+        assert!(report.spawned.is_empty());
+        assert_eq!(report.player_body.is_some(), wire >= 22);
+    }
+    if wire < 22 {
+        sim.spawn_player_body(PlayerSlot::One, position(x)).unwrap();
+    }
+    if wire == 7 {
+        sim.initialize_player_pistol(PlayerSlot::One, 50).unwrap();
+    } else {
+        sim.initialize_player_weapons(PlayerSlot::One, WeaponInventory::default())
             .unwrap();
-    sim.spawn_player_body(PlayerSlot::One, position(x)).unwrap();
-    sim.initialize_player_pistol(PlayerSlot::One, 50).unwrap();
-    fire(sim, TURN)
+    }
+    if wire >= 18 {
+        sim.spawn_level_specials().unwrap();
+    }
+    sim
+}
+
+fn assert_pistol_walk(
+    wire: u32,
+    x: i16,
+    shot: AttackResult,
+    cells: &[[i32; 2]],
+    lines: &[(u16, i32)],
+) {
+    assert_eq!(shot.trace.origin, position(x), "wire {wire}, x {x}");
+    assert_eq!(
+        shot.trace.delta.map(Fixed::bits),
+        [77_240_320, 109_762_560],
+        "wire {wire}, x {x}"
+    );
+    assert_eq!(shot.trace.cells, cells, "wire {wire}, x {x}");
+    assert_eq!(
+        shot.hit,
+        Some(TraceObject::Line(lines[0].0)),
+        "wire {wire}, x {x}"
+    );
+    assert_eq!(shot.trace.intercepts.len(), lines.len() + 1);
+    assert!(matches!(
+        shot.trace.intercepts[0].object,
+        TraceObject::Actor(_)
+    ));
+    for (intercept, &(line, fraction)) in shot.trace.intercepts[1..].iter().zip(lines) {
+        assert_eq!(
+            intercept.object,
+            TraceObject::Line(line),
+            "wire {wire}, x {x}"
+        );
+        assert_eq!(intercept.fraction.bits(), fraction, "wire {wire}, x {x}");
+    }
 }
 
 #[test]
 fn source_budget_collects_and_resolves_after_64_cell_visits() {
-    let mut sim = Simulation::original_player_episode1_v3_map(
-        map(),
-        1,
-        Skill::Medium,
-        MapContextOptions::default(),
-    )
-    .unwrap();
-    sim.spawn_map_things().unwrap();
-    sim.initialize_player_weapons(PlayerSlot::One, WeaponInventory::default())
-        .unwrap();
-    sim.spawn_level_specials().unwrap();
+    let mut stalled = [[3, 2]; 64];
+    stalled[0] = [2, 2];
+    let control = [
+        [2, 2],
+        [2, 3],
+        [3, 3],
+        [3, 4],
+        [4, 4],
+        [4, 5],
+        [5, 5],
+        [5, 6],
+        [5, 7],
+        [6, 7],
+        [6, 8],
+        [7, 8],
+        [7, 9],
+        [7, 10],
+        [8, 10],
+        [8, 11],
+        [9, 11],
+        [9, 12],
+        [10, 12],
+        [10, 13],
+        [10, 14],
+        [11, 14],
+        [11, 15],
+    ];
+    for wire in 7..=25 {
+        let turn = if wire < 22 { TURN } else { 7 * 256 };
 
-    // S3, genuine P_PathTraverse shot on tic 34. The initial cell takes one visit
-    // and the stalled side cell takes the remaining 63. Line 0 still produces a hit.
-    for shot in [wire_seven_shot(308), fire(sim, 7 * 256)] {
-        assert_eq!(shot.trace.cells.len(), 64);
-        assert_eq!(shot.trace.cells[0], [2, 2]);
-        assert!(shot.trace.cells[1..].iter().all(|&cell| cell == [3, 2]));
-        assert_eq!(shot.hit, Some(TraceObject::Line(0)));
-        assert_eq!(shot.trace.intercepts.len(), 2);
-        assert_eq!(shot.trace.intercepts[1].fraction.bits(), 19_251);
+        // The genuine shot on tic 34 still hits line 0 after the S3 walk stalls.
+        assert_pistol_walk(
+            wire,
+            308,
+            fire(pistol_world(wire, 308), turn),
+            &stalled,
+            &[(0, 19_251)],
+        );
+
+        // C10S, the same geometry and angle with the player one map unit west.
+        assert_pistol_walk(
+            wire,
+            307,
+            fire(pistol_world(wire, 307), turn),
+            &control,
+            &[(5, 6_573), (7, 6_886), (0, 19_251)],
+        );
     }
-
-    // C10S, the same geometry and angle with the player one map unit west.
-    let control = wire_seven_shot(307);
-    assert_eq!(control.trace.cells.len(), 23);
-    assert_eq!(control.trace.cells.last(), Some(&[11, 15]));
-    assert_eq!(control.hit, Some(TraceObject::Line(5)));
-    assert_eq!(control.trace.intercepts.len(), 4);
-    assert_eq!(control.trace.intercepts[1].fraction.bits(), 6_573);
 }
 
 #[test]
@@ -130,14 +237,15 @@ fn historical_endpoint_refusal_preserves_canonical_state() {
 #[test]
 fn original_wires_before_pistol_refuse_attack_commands_and_explicit_shots() {
     let context = MapContextOptions::default();
-    for make in [
+    for (wire, make) in (2..=6).zip([
         Simulation::original_player_map,
         Simulation::original_player_knockback_map,
         Simulation::original_player_command_map,
         Simulation::original_player_demon_map,
         Simulation::original_player_demon_melee_map,
-    ] {
+    ]) {
         let mut sim = make(map(), 64, context).unwrap();
+        assert_eq!(sim.original_execution_profile().unwrap().wire_id(), wire);
         let shooter = sim
             .spawn_player_body(PlayerSlot::One, position(308))
             .unwrap();
@@ -149,10 +257,12 @@ fn original_wires_before_pistol_refuse_attack_commands_and_explicit_shots() {
             })),
             Err(SimError::UnsupportedButtons)
         );
+        assert_eq!(sim.snapshot().canonical_bytes(), before);
         assert_eq!(
             sim.aim_line_attack(shooter, ATTACK.angle, ATTACK.range),
             Err(SimError::Combat(CombatError::Profile))
         );
+        assert_eq!(sim.snapshot().canonical_bytes(), before);
         assert_eq!(
             sim.line_attack(shooter, ATTACK),
             Err(SimError::Combat(CombatError::Profile))
