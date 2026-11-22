@@ -110,7 +110,7 @@ compared after every tic. Expected results come from a separate program written 
 against itself; sanitizers, fuzzing and mutation testing back that up. Anything not proven identical is refused, not guessed.
 
 ## Play it (limited)
-The `doom-play` program opens a window for one Episode 1 map (E1M1 to E1M9; skill `hmp` or `uv`) with your own `DOOM.WAD` (read in
+The `doom-play` program opens a window for one Episode 1 map (E1M1 to E1M9, skill `hmp` or `uv`, except that E1M7 on `uv` is refused at load: [table](docs/COMPATIBILITY.md#skills-and-maps-load-table)) with your own `DOOM.WAD` (read in
 place, never distributed). It is playable only in this limited way: to really play Doom, use an established source port such as
 [Chocolate Doom](https://www.chocolate-doom.org/). From the cloned top folder (`--help` lists every option):
 

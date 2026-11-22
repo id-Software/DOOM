@@ -3055,10 +3055,36 @@ fault ([evidence](validation/M5B.md#step-7b-full-resolution-unrecorded-turning))
 - **Game mode comes from the IWAD file name**, as linuxdoom's `IdentifyVersion` does: `doom1.wad` is shareware,
   `doomu.wad` retail, anything else registered (the mode of the M5a and M4b real-map runs). A registered-mode
   game cannot load a shareware IWAD's switch textures.
-- **Skills and maps.** E1M1-E1M9 on skill 2 or 3 only: `--skill 2` or `hmp` is Hurt Me Plenty and `--skill 3`
-  or `uv` is Ultra-Violence. These are the demo-header values; vanilla's own `-skill` counts from 1, so they are
-  vanilla's `-skill 3` and `-skill 4`. `--map` outside 1-9 and other skills are refused at load, as is a missing
-  map or a truncated WAD.
+- **Skills and maps.** Only skills 2 and 3 are admitted, and not on every
+  map: `--skill 2` or `hmp` is Hurt Me Plenty and `--skill 3` or `uv` is Ultra-Violence. These are the demo-header
+  values; vanilla's own `-skill` counts from 1, so they are vanilla's `-skill 3` and `-skill 4`. `--map` outside
+  1-9 and other skills are refused at load, as is a missing map or a truncated WAD. Observed by the orchestrator on
+  2026-11-21 (local, read-only): a scratch probe of `GameData::load_with_sound` at master cc78cc3 (wire 25,
+  registered mode, the owner's four-episode `DOOM.WAD`), 36 map and skill pairs; this table holds counts and rule
+  names only. Skill 4 (nightmare) was not probed and is not admitted (milestone M6b).
+  The map-by-skill [load table](#skills-and-maps-load-table) follows.
+
+### Skills and maps load table
+
+| Map | Skill 0 | Skill 1 | Skill 2 (`hmp`) | Skill 3 (`uv`) |
+| --- | --- | --- | --- | --- |
+| E1M1 | refused at load: `Domain` | refused at load: `Domain` | loads | loads |
+| E1M2 | refused at load: `Domain` | refused at load: `Domain` | loads | loads |
+| E1M3 | refused at load: `Domain` | refused at load: `Domain` | loads | loads |
+| E1M4 | refused at load: `Domain` | refused at load: `Domain` | loads | loads |
+| E1M5 | refused at load: `Domain` | refused at load: `Domain` | loads | loads |
+| E1M6 | refused at load: `Domain` | refused at load: `Domain` | loads | loads |
+| E1M7 | refused at load: `Domain` | refused at load: `Domain` | loads | refused at load: `Admission(Monster(Arithmetic))` |
+| E1M8 | refused at load: `Domain` | refused at load: `Domain` | loads | loads |
+| E1M9 | refused at load: `Domain` | refused at load: `Domain` | loads | loads |
+
+Which thing on E1M7 and which exact bound refuses it is not yet known (the spawn-time sites, read but not
+traced, are in `crates/doom-sim/src/demon_map_spawn.rs:164-174`: a position-admission margin and a vertical
+witness; this page does not say which fires). The refusal is the existing `MonsterError::Arithmetic` ("outside
+the existing bounds", `crates/doom-sim/src/monsters.rs:21-22`). "Loads" means admitted, not "compared with the
+genuine engine": the comparison runs are listed in the
+[real-map evidence](#original-episode-1-part-2-teleporters-the-baron-of-hell-a_bossdeath-and-hard-skill-wire-24)
+(the figures stay there; E1M7 on skill 3 has no comparison run).
 
 ### Presentation (outside the proven frame)
 
