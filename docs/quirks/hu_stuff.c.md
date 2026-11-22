@@ -1,0 +1,21 @@
+# Quirks in hu_stuff.c
+
+[Back to the register index](../QUIRKS.md). The quirk register's rows for `hu_stuff.c`, in line order; how to read a row, the status words and the sources are explained on the index page.
+
+## Rows (6)
+
+| Quirk | C file and line | What a player sees or hears | Status | Small C change removes it? | Sources |
+| --- | --- | --- | --- | --- | --- |
+| <a id="Q-hu_stuff-399"></a>**Q-hu_stuff-399** `if (french)` tests the Language_t enumerator, the constant 1, not the language variable, so shiftxform is always the French table and chat input always goes through ForeignTranslation. | hu_stuff.c:399-402, 730-731; doomdef.h:63-70 | chat input only; nothing in single player. | not yet ported (chat is netgame only) | yes: test `language == french` | M5B note 1.5.10 item 4, 1.5.1 fact 1 |
+| <a id="Q-hu_stuff-429"></a>**Q-hu_stuff-429** HU_Start resets message_on and the two message flags but not message_counter, and HU_Ticker restarts the 140-tic counter for every message it takes, even identical text, with no deduplication. | hu_stuff.c:429-432, 512-531 | picking up the same item twice within the timeout keeps the line on screen longer; a message from the previous level can end early or late. | reproduced (M5B record step 3: the message rows match the genuine engine, including on the real-map runs; the saved display state keeps message_counter) | yes: for the missing reset; the restart is arguably intended | M5B note 1.5.1 fact 5, 1.5.4 item 1, 1.5.12, 1.6 items 5 and 8; M5B record steps 3 and 7a |
+| <a id="Q-hu_stuff-454"></a>**Q-hu_stuff-454** the Plutonia and TNT map name tables exist, but the HU_Start cases that select them are commented out under FIXME, so those games fall to the default case and show Doom II's names. | hu_stuff.c:208, 247, 446-467 (verified; the commented cases are at 454-461) | wrong map titles (on the automap) in Plutonia and TNT. | not yet ported (docs/ROADMAP.md, Doom II map names: "not started"; the title is drawn only on the automap, out of scope for M5b) | yes: uncomment, testing gamemission not gamemode | [ROADMAP#doom-ii](../ROADMAP.md#doom-ii); M5B note 1.5.1 fact 3.5 |
+| <a id="Q-hu_stuff-518"></a>**Q-hu_stuff-518** HU_Ticker clears player->message only when it takes the message, which depends on showMessages and the message_nottobefuckedwith/dontfuckwithme flags, so a message can stay pending in the player struct for up to 139 tics (or until the toggle). | hu_stuff.c:512-533 | with messages off, pickup text is not shown and the pointer lingers; not stated for default play. | reproduced for showMessages != 0 (M5B note S16/S17: record-and-mask in the runner and a HUD-side derivation cross-checked, `MessageUnderivable`); the pending cases (showMessages 0, a protected message) are not supported (M5B note 1.5.13 option (a)). | yes: clear the pointer unconditionally | M5B note 1.5.3 item 5, 1.5.13 question 1, 2.1.2, 4 S16 and S17; M5B record step 1 |
+| <a id="Q-hu_stuff-522"></a>**Q-hu_stuff-522** player->message is a single pointer, so when two messages are assigned in one tic only the last survives (P_PlayerThink runs before P_RunThinkers, so a pickup overwrites a locked-door message). | hu_stuff.c:520-531; p_tick.c:148-152 | a locked-door message can be replaced by a pickup message in the same tic. | reproduced (M5B record steps 3 and 5: "the derived message compared with the genuine one on every tic") | yes: a message queue | M5B note 1.5.4 item 3, 1.6 item 5 |
+| <a id="Q-hu_stuff-522-2"></a>**Q-hu_stuff-522-2** plr is NULL until the first HU_Start, which runs only from P_SpawnPlayer for the console player, so a level with no console-player start makes HU_Ticker dereference NULL. | hu_stuff.c:428, 522; p_mobj.c:693-699 | not stated (a crash on a malformed map). | not yet ported (not reachable on admitted maps) | yes: test plr for NULL | M5B note 1.5.1 fact 4, 1.5.10 item 5 |
+
+## Notes on the hu_stuff.c rows
+
+- **Q-hu_stuff-454**: The commented cases test gamemode against the mission constants pack_plut and pack_tnt, so uncommenting alone would not select them.
+- **Q-hu_stuff-522**: The turbo message (g_game.c:672 row) is overwritten the same way.
+- **Q-hu_stuff-522-2**: the note labels it an inference.
+- **Q-hu_stuff-522**: the note marks the order an inference from the call sequence.

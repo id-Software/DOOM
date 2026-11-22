@@ -969,8 +969,8 @@ Every `M_CheckParm` call in `linuxdoom-1.10/`; the DOS drivers' own options are 
 
 ### Limits, overflows and quirks
 
-The [quirk register](QUIRKS.md) lists every quirk of the original, one row each, with its C line and status;
-the rows below are the checklist of what this project still has to do about the limits and overflows.
+The [quirk register](QUIRKS.md) lists the quirks of the original that the 2026-11-21 sweep found, with the C line and the status of each (one page per C file under [quirks/](quirks/));
+it is not claimed to be complete. The rows below are the checklist of what this project still has to do about the limits and overflows.
 
 | What | C files | Status |
 | --- | --- | --- |

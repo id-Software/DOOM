@@ -1,0 +1,14 @@
+# Quirks in m_misc.c
+
+[Back to the register index](../QUIRKS.md). The quirk register's rows for `m_misc.c`, in line order; how to read a row, the status words and the sources are explained on the index page.
+
+## Rows (2)
+
+| Quirk | C file and line | What a player sees or hears | Status | Small C change removes it? | Sources |
+| --- | --- | --- | --- | --- | --- |
+| <a id="Q-m_misc-282"></a>**Q-m_misc-282** snd_channels defaults to 3, so the sound logic tracks only three sounds at once although the mixer has eight channels; a fourth sound replaces a tracked one or is not started (and still draws its random number). | m_misc.c:282, i_sound.c:94 | some sounds are not heard when several play at once. | reproduced (wire 25 / M5c, decision T13 row 8) | yes: raise snd_channels | [COMPAT#audible-quir…](../COMPATIBILITY.md#audible-quirks-of-this-source-reproduced-as-they-are-decision-t13) (row 8) |
+| <a id="Q-m_misc-282-2"></a>**Q-m_misc-282-2** M_LoadDefaults stores every value read from the config file unchecked, so snd_channels can be any int, key_*/mouseb_*/joyb_* outside their legal ranges later index arrays out of bounds, and an out-of-range sfx volume reaches S_SetSfxVolume, which stops with I_Error. | m_misc.c:282, m_misc.c:388-396, s_sound.c:634-635 | not stated (undefined behaviour or an I_Error from a bad config file). | not yet ported ("No configuration file is read in M5b", decision S7; ROADMAP checklist "The configuration file ... not started"); doom-sound refuses a channel count or volume outside its configuration bounds (`SoundRefusal::Config`, a Rust-only check) | yes: range-check on load | M5B §1.1.6, §1.1.9 item 42, §1.1.11 question 5, §4 S7; M5C §1.1.2; [ROADMAP#vanilla-comp…](../ROADMAP.md#vanilla-completeness-checklist); [COMPAT#refusals-ins…](../COMPATIBILITY.md#refusals-instead-of-the-originals-errors-decision-t11) (closing paragraph: "a volume or channel count outside the configuration bounds" is a Rust-only check); [STATE_FORMAT](../STATE_FORMAT.md):2517 (numChannels 0..=64, line from the sweep); doom-sound/src/logic.rs:48-49, 113-114, 164-166 |
+
+## Notes on the m_misc.c rows
+
+- **Q-m_misc-282-2**: M5C line 128 says a config file can set any int for snd_channels and that M_LoadDefaults has no range check; the other consequences in this row are the register builder's reading of the C.
