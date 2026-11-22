@@ -43,24 +43,26 @@ original updates its row in the register (this index and the pages under
 
 ## Totals
 
-Built and revised on 2026-11-21 (America/Los_Angeles); these are counts of that day's build, not a live count.
+Updated on 2026-11-22 (America/Los_Angeles).
 
-- **Rows: 429**, of which 420 are on the 53 C-file pages and 9 are on the [64-bit build only](quirks/64-bit-only.md) page.
+- **Rows: 453**, of which 444 are on the 53 C-file pages and 9 are on the [64-bit build only](quirks/64-bit-only.md) page.
 - How the number came about: the sweep wrote 890 raw entries; the merge made 443 rows; the first assembly (commit 2c2ee84) joined 23 pairs into 420 rows; the revision after the independent review and the owner's rulings joined 10 more (listed below), split 10 of the 11 mixed-status rows into 23 rows by status (one row per status; the 11th, Q-p_setup-536, became a row of the 64-bit page), moved 3 rows to the 64-bit page and added 6 rows there: 420 - 10 + 13 + 6 = 429.
 - The separate lists: [recorded in only one place and in no note](quirks/only-one-place.md) (12 whole or partial rows and a list of readings); [not traced to a C line](quirks/not-traced.md) (none left); [dropped, and why](quirks/dropped.md) (54 entries); [where the documents disagree](quirks/disagreements.md) (75 entries, 7 marked policy claim, 1 unsettled); [the 64-bit build only](quirks/64-bit-only.md) (9 rows).
 
-### Status of the 420 rows on the C-file pages
+The 2026-11-22 follow-up split 24 more rows into 48 and classified 48 rows from the Rust code and existing tests. The status counts below describe the current register.
 
-The first word of a row's status is one of the words explained under "How to read a row"; the 11 rows that began with another phrase were split, one row per status (ids with a letter suffix, `a`, `b`, `c`). In 24 further rows, found by a word search of the status text, the text also names a second status for a narrower part of the same situation (for example a limit beyond which the row is refused); the first word is the row's status and those 24 were not split, because the owner's ruling covered the 11. The 64-bit page has no status column: it says whether the reference harness is affected.
+### Status of the 444 rows on the C-file pages
+
+Each row carries one status. The 64-bit page records whether the reference harness is affected.
 
 | Status | Rows |
-| --- | --- |
-| reproduced | 240 |
-| refused | 68 |
-| not yet ported | 35 |
-| not reproduced (declared ...) | 29 |
-| not determined from the documents | 48 |
-| Total | 420 |
+| --- | ---: |
+| reproduced | 268 |
+| refused | 84 |
+| not yet ported | 47 |
+| not reproduced (declared …) | 44 |
+| comment only | 1 |
+| Total | 444 |
 
 ## Rows by C file
 
@@ -71,59 +73,60 @@ One page per C file (a header counts as its own file); each page carries its own
 | [d_main.c](quirks/d_main.c.md) | 11 |
 | [d_net.c](quirks/d_net.c.md) | 5 |
 | [doomdef.h](quirks/doomdef.h.md) | 1 |
-| [f_wipe.c](quirks/f_wipe.c.md) | 2 |
-| [g_game.c](quirks/g_game.c.md) | 29 |
+| [f_wipe.c](quirks/f_wipe.c.md) | 3 |
+| [g_game.c](quirks/g_game.c.md) | 32 |
 | [hu_lib.c](quirks/hu_lib.c.md) | 3 |
 | [hu_stuff.c](quirks/hu_stuff.c.md) | 6 |
 | [i_sound.c](quirks/i_sound.c.md) | 21 |
 | [i_system.c](quirks/i_system.c.md) | 2 |
-| [i_video.c](quirks/i_video.c.md) | 12 |
+| [i_video.c](quirks/i_video.c.md) | 13 |
 | [info.c](quirks/info.c.md) | 1 |
 | [m_bbox.c](quirks/m_bbox.c.md) | 1 |
 | [m_fixed.c](quirks/m_fixed.c.md) | 2 |
-| [m_menu.c](quirks/m_menu.c.md) | 2 |
+| [m_menu.c](quirks/m_menu.c.md) | 3 |
 | [m_misc.c](quirks/m_misc.c.md) | 2 |
 | [p_ceilng.c](quirks/p_ceilng.c.md) | 1 |
 | [p_doors.c](quirks/p_doors.c.md) | 6 |
 | [p_enemy.c](quirks/p_enemy.c.md) | 27 |
-| [p_floor.c](quirks/p_floor.c.md) | 12 |
-| [p_inter.c](quirks/p_inter.c.md) | 24 |
+| [p_floor.c](quirks/p_floor.c.md) | 13 |
+| [p_inter.c](quirks/p_inter.c.md) | 25 |
 | [p_lights.c](quirks/p_lights.c.md) | 2 |
-| [p_map.c](quirks/p_map.c.md) | 37 |
-| [p_maputl.c](quirks/p_maputl.c.md) | 14 |
-| [p_mobj.c](quirks/p_mobj.c.md) | 34 |
+| [p_map.c](quirks/p_map.c.md) | 39 |
+| [p_maputl.c](quirks/p_maputl.c.md) | 16 |
+| [p_mobj.c](quirks/p_mobj.c.md) | 37 |
 | [p_plats.c](quirks/p_plats.c.md) | 4 |
-| [p_pspr.c](quirks/p_pspr.c.md) | 8 |
+| [p_pspr.c](quirks/p_pspr.c.md) | 9 |
 | [p_saveg.c](quirks/p_saveg.c.md) | 4 |
 | [p_setup.c](quirks/p_setup.c.md) | 7 |
 | [p_sight.c](quirks/p_sight.c.md) | 7 |
-| [p_spec.c](quirks/p_spec.c.md) | 19 |
-| [p_switch.c](quirks/p_switch.c.md) | 7 |
+| [p_spec.c](quirks/p_spec.c.md) | 21 |
+| [p_switch.c](quirks/p_switch.c.md) | 8 |
 | [p_telept.c](quirks/p_telept.c.md) | 3 |
 | [p_tick.c](quirks/p_tick.c.md) | 1 |
 | [p_user.c](quirks/p_user.c.md) | 7 |
 | [r_bsp.c](quirks/r_bsp.c.md) | 1 |
-| [r_data.c](quirks/r_data.c.md) | 9 |
+| [r_data.c](quirks/r_data.c.md) | 10 |
 | [r_defs.h](quirks/r_defs.h.md) | 1 |
 | [r_draw.c](quirks/r_draw.c.md) | 8 |
-| [r_main.c](quirks/r_main.c.md) | 4 |
-| [r_plane.c](quirks/r_plane.c.md) | 4 |
+| [r_main.c](quirks/r_main.c.md) | 5 |
+| [r_plane.c](quirks/r_plane.c.md) | 5 |
 | [r_segs.c](quirks/r_segs.c.md) | 9 |
 | [r_sky.c](quirks/r_sky.c.md) | 1 |
 | [r_things.c](quirks/r_things.c.md) | 4 |
-| [s_sound.c](quirks/s_sound.c.md) | 20 |
+| [s_sound.c](quirks/s_sound.c.md) | 21 |
 | [sndserv/wadread.c](quirks/sndserv-wadread.c.md) | 2 |
 | [sounds.h](quirks/sounds.h.md) | 1 |
 | [st_lib.c](quirks/st_lib.c.md) | 4 |
 | [st_stuff.c](quirks/st_stuff.c.md) | 16 |
 | [st_stuff.h](quirks/st_stuff.h.md) | 1 |
-| [tables.c](quirks/tables.c.md) | 3 |
+| [tables.c](quirks/tables.c.md) | 4 |
 | [v_video.c](quirks/v_video.c.md) | 5 |
 | [w_wad.c](quirks/w_wad.c.md) | 1 |
 | [wi_stuff.c](quirks/wi_stuff.c.md) | 2 |
 
+| **Total** | **444** |
+
 No page: p_local.h (its two rows were joined into rows of p_map.c and p_maputl.c; see the lists below).
-| | **420** |
 
 Other pages: [recorded in only one place](quirks/only-one-place.md), [not traced to a C line](quirks/not-traced.md), [dropped, and why](quirks/dropped.md), [where the documents disagree](quirks/disagreements.md) and [the 64-bit build only](quirks/64-bit-only.md).
 
@@ -167,6 +170,35 @@ Later pull requests should cite ids as text, not as links to an id anchor.
 | Q-s_sound-367 | Q-s_sound-367a, Q-s_sound-367b |
 | Q-v_video-171 | Q-v_video-171a, Q-v_video-171b |
 
+#### More ids split by status on 2026-11-22 (24 rows into 48)
+
+| Original id | Now the rows |
+| --- | --- |
+| Q-f_wipe-159 | Q-f_wipe-159a, Q-f_wipe-159b |
+| Q-g_game-579 | Q-g_game-579a, Q-g_game-579b |
+| Q-g_game-1421 | Q-g_game-1421a, Q-g_game-1421b |
+| Q-g_game-1508 | Q-g_game-1508a, Q-g_game-1508b |
+| Q-i_video-641 | Q-i_video-641a, Q-i_video-641b |
+| Q-m_menu-1131 | Q-m_menu-1131a, Q-m_menu-1131b |
+| Q-p_floor-169 | Q-p_floor-169a, Q-p_floor-169b |
+| Q-p_inter-476 | Q-p_inter-476a, Q-p_inter-476b |
+| Q-p_map-240 | Q-p_map-240a, Q-p_map-240b |
+| Q-p_map-1290 | Q-p_map-1290a, Q-p_map-1290b |
+| Q-p_maputl-472 | Q-p_maputl-472a, Q-p_maputl-472b |
+| Q-p_maputl-846 | Q-p_maputl-846a, Q-p_maputl-846b |
+| Q-p_mobj-150-2 | Q-p_mobj-150-2a, Q-p_mobj-150-2b |
+| Q-p_mobj-672 | Q-p_mobj-672a, Q-p_mobj-672b |
+| Q-p_mobj-794 | Q-p_mobj-794a, Q-p_mobj-794b |
+| Q-p_pspr-542 | Q-p_pspr-542a, Q-p_pspr-542b |
+| Q-p_spec-503 | Q-p_spec-503a, Q-p_spec-503b |
+| Q-p_spec-658 | Q-p_spec-658a, Q-p_spec-658b |
+| Q-p_switch-224 | Q-p_switch-224a, Q-p_switch-224b |
+| Q-r_data-685 | Q-r_data-685a, Q-r_data-685b |
+| Q-r_main-484 | Q-r_main-484a, Q-r_main-484b |
+| Q-r_plane-398 | Q-r_plane-398a, Q-r_plane-398b |
+| Q-s_sound-364 | Q-s_sound-364a, Q-s_sound-364b |
+| Q-tables-59 | Q-tables-59a, Q-tables-59b |
+
 #### Ids moved to the 64-bit page (3)
 
 | Id | Page |
@@ -205,10 +237,10 @@ This register is only as complete as its sources and the sweeps, and the sweeps 
 - **Id.** `Q-<file>-<line>` is stable; a later pull request points at a row by its id, written in text. Each row carries an HTML anchor of its id, so `quirks/p_map.c.md#Q-p_map-189` works in a browser. Paths of Rust source in the sources column are written without the leading `crates/`.
 - **C file and line.** The lines were opened in `linuxdoom-1.10/` (or `sndserv/`). A document that cites a different line is noted under the table of the file, or in [Where the documents disagree](quirks/disagreements.md) when the difference is the point.
 - **Status.** One of these words first, then the document's own words; a row has one status, and a quirk with several has one row per status:
-  - `reproduced (...)` the Rust engine does what the C does, under the wire or milestone named (the wire numbers are the policy table of [COMPATIBILITY](COMPATIBILITY.md#policies)); where it is reproduced up to a limit and refused beyond it, the row says so;
+  - `reproduced (...)` the Rust engine does what the C does, under the wire or milestone named (the wire numbers are the policy table of [COMPATIBILITY](COMPATIBILITY.md#policies)); its row gives the admitted scope;
   - `refused (...)` the Rust engine does not run the situation: it rejects the map at load, or refuses the tic with a named error or witness and the state preserved, instead of doing what the C does;
   - `not yet ported` the behaviour belongs to a system the project does not have yet, or to a mechanism not admitted under any wire;
-  - `not determined from the documents` no document says what the project does with it; nothing is guessed;
-  - `not reproduced (declared ...)` a document states that the project deliberately does something else (a declared contract of the playable build, or an adapter of the reference harness, for example); the document is quoted.
+  - `not reproduced (declared ...)` a document states that the project deliberately does something else (a declared contract of the playable build, or an adapter of the reference harness, for example); the row cites the contract or adapter;
+  - `comment only` the original comment contains the quirk and has no executable effect.
 - **Small C change removes it?** `yes`, `no` or `unknown`, with at most a few words of why. This is a judgement from reading the C, not a claim that the change is safe: a "yes" never means the project should make it.
 - **Sources.** The documents the row came from. Abbreviations: `COMPAT` is [COMPATIBILITY](COMPATIBILITY.md); `M5A`, `M5B`, `M5C`, `M4A`, `M4B` (a bare one, or "note") are the milestone notes such as [M5B_REFERENCE_INVESTIGATION.md](M5B_REFERENCE_INVESTIGATION.md); "record" or `VAL-M5A` and similar are the evidence records such as [validation/M5B.md](validation/M5B.md); `§` numbers and decision labels such as `S4`, `R3`, `T11` or `H3` are the note's own. "(line from the sweep)" marks a line number the sweep supplied for a document that names only the file. Source files, tools and commits are cited by path and line or SHA. A joined row lists the sources of every row it absorbed, marked "joined from".
