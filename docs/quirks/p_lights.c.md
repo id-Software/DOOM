@@ -1,0 +1,14 @@
+# Quirks in p_lights.c
+
+[Back to the register index](../QUIRKS.md). The quirk register's rows for `p_lights.c`, in line order; how to read a row, the status words and the sources are explained on the index page.
+
+## Rows (2)
+
+| Quirk | C file and line | What a player sees or hears | Status | Small C change removes it? | Sources |
+| --- | --- | --- | --- | --- | --- |
+| <a id="Q-p_lights-83"></a>**Q-p_lights-83** `P_SpawnFireFlicker` sets `maxlight` to the sector's own level but `minlight` to the darkest neighbour plus 16, and `P_FindMinSurroundingLight` starts from the own level, so `minlight` exceeds `maxlight` whenever the darkest neighbour is less than 16 darker than the sector itself (at exactly 16 darker they are equal), and `T_FireFlicker`, whose tests compare against `minlight`, writes `minlight`, brighter than the authored level, on most updates. | p_lights.c:82-83 (the two assignments), p_lights.c:53-58 (T_FireFlicker); p_spec.c:454-476 (P_FindMinSurroundingLight, `min = max` at 463) | from the C: the sector is mostly held at `minlight`, above its own authored level, and goes back to the authored level only on an update that draws `amount` 0 while it is already at `minlight` (derived by the register builder from p_lights.c:53-58; no document says what is seen) | reproduced as part of fire flicker (type 17 admitted from wire 18 / M3h7); the min-above-max case is stated only in the fuzz property ("a fire flicker's `minlight + 16` may exceed `maxlight`") | yes: clamp minlight to maxlight | fuzz/fuzz_targets/player_specials.rs:168-172 (comment); [M3H7#24-light-thi…](../M3H7_REFERENCE_INVESTIGATION.md#24-light-thinkers-and-their-random-draws) (gives the formula "darkest neighbor + 16 (83)" only); [COMPATIBILITY#original-mon…](../COMPATIBILITY.md#original-monsters-with-sky-and-static-specials) (type 17 listed) |
+| <a id="Q-p_lights-111"></a>**Q-p_lights-111** `P_SpawnLightFlash` and `T_LightFlash` time the bright phase with `(P_Random() & maxtime) + 1` where `maxtime` is 64, a single bit, so the bright phase lasts either 1 or 65 tics and nothing between (the dark phase's mask 7 is a proper mask). | p_lights.c:140-142 (spawn), p_lights.c:106, 111 (toggle) | a blinking (type 1) sector stays bright for either 1 tic or 65 tics | reproduced (wire 18 / M3h7 Stage A; the independent review re-checked "`P_Random() & 64`") | yes: use 63 | [M3H7#24-light-thi…](../M3H7_REFERENCE_INVESTIGATION.md#24-light-thinkers-and-their-random-draws) ("masks with the value 64, not 63"); [VAL-M3H7#independent-…](../validation/M3H7.md#independent-review); doom-sim/src/sector_thinkers.rs:198-199 (line from the sweep) |
+
+## Notes on the p_lights.c rows
+
+- **Q-p_lights-83**: [VAL-M3H7](../validation/M3H7.md)'s soak tests check each light "within its thinker's `[minlight, maxlight]` (ordered)" without saying why the bounds are ordered.

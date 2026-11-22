@@ -29,6 +29,9 @@ Return to the [documentation index](README.md) for the file map.
       milestone evidence records, and exact review commits/CI/history in GitHub.
 - [ ] Treat frozen archives and dated source observations as historical evidence,
       not current status. Do not rewrite them to match a later milestone.
+- [ ] If the change finds or reproduces a quirk of the original, update (or add) its
+      row in the [quirk register](QUIRKS.md) (the index and the pages under `docs/quirks/`) in
+      the same PR. The register points to COMPATIBILITY for support status; it does not replace it.
 
 ## 3. Link and text quality
 

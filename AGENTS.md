@@ -75,6 +75,10 @@
 - Documentation is an equal engineering gate alongside source and tests. A milestone
   is not ready when its guides are stale, contradictory, incomplete, misleading
   or difficult for humans to understand; resolving links alone is insufficient.
+- **Quirk register:** [docs/QUIRKS.md](docs/QUIRKS.md) (the index) and the per-C-file pages
+  under `docs/quirks/` are the home of the list of linuxdoom-1.10 quirks. A PR that finds or
+  reproduces a quirk of the original updates its row there in the same PR, and adds the row
+  if it is new.
 - **Documentation authority:** Each information category has one authoritative
   home, mapped in the [documentation index](docs/README.md#documentation-authority).
   Milestone status belongs in ROADMAP, support/limits in COMPATIBILITY, schemas in

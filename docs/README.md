@@ -14,6 +14,7 @@ status tables, test-count lists, commit histories or schema definitions.
 | Purpose, quickstart and high-level capabilities | [README](../README.md) |
 | Current milestone summary and planned work | [ROADMAP](ROADMAP.md) |
 | Exact supported behavior and runtime/parser limits | [COMPATIBILITY](COMPATIBILITY.md) |
+| The list of quirks of the original linuxdoom-1.10 found by the 2026-11-21 sweep (index, with one page per C file under [quirks/](quirks/); support status stays in COMPATIBILITY, and a row cites COMPATIBILITY or the note or record it rests on) | [QUIRKS](QUIRKS.md) |
 | Architecture and subsystem ownership | [ARCHITECTURE](ARCHITECTURE.md) |
 | Original actor/state and runtime identity mapping | [ACTOR_IDENTITIES](ACTOR_IDENTITIES.md) |
 | Execution-context ownership and reference lifetime limits | [COMPATIBILITY](COMPATIBILITY.md#context-and-target-lifetime-contract), with ownership architecture in [ARCHITECTURE](ARCHITECTURE.md) |
@@ -48,6 +49,11 @@ public examples and checks use synthetic or redistributable inputs.
   original source functions under the stated inputs and adapters, not whole-game compatibility.
 
 ## Original-source investigations
+
+The [quirk register](QUIRKS.md) lists the quirks of linuxdoom-1.10 that the 2026-11-21 sweep
+of these notes, the evidence records, the source comments and the history found, with
+the C line, what a player sees, the project's status and a pointer to its source; it
+is not claimed to be complete.
 
 - [M3g1 stepping and transaction-cost audit](M3G1_REFERENCE.md), with
   [observed evidence](validation/M3G1.md).

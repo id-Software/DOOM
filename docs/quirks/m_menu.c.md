@@ -1,0 +1,10 @@
+# Quirks in m_menu.c
+
+[Back to the register index](../QUIRKS.md). The quirk register's rows for `m_menu.c`, in line order; how to read a row, the status words and the sources are explained on the index page.
+
+## Rows (2)
+
+| Quirk | C file and line | What a player sees or hears | Status | Small C change removes it? | Sources |
+| --- | --- | --- | --- | --- | --- |
+| <a id="Q-m_menu-1131"></a>**Q-m_menu-1131** M_ChangeDetail flips detailLevel, prints "low detail mode n.a." to stderr and returns before R_SetViewSize ("FIXME - does not work. Remove anyway?"), so the menu item and F5 change nothing on screen; low detail is reachable only from the config file. | m_menu.c:1131-1147 | the Detail menu item and F5 do nothing visible; a line is printed on the terminal. | not yet ported (menus not started; F-keys withheld, M5b decision S5); low detail itself is refused by the renderer (M5a decision R2) | yes: remove the early return | [M5A](../M5A_REFERENCE_INVESTIGATION.md) (end of §1.6, R2); M5B §1.1.2 fact 9 table, §2.2.4 "Keys the responders ahead act on"; [ROADMAP#vanilla-comp…](../ROADMAP.md#vanilla-completeness-checklist) (row "Low detail") |
+| <a id="Q-m_menu-1519"></a>**Q-m_menu-1519** with the menu closed, M_Responder still starts NULL-origin sounds for -, =, F1-F10 and Esc at the moment of the key press, which draws the shared M_Random between tics and so shifts the status-bar face's random glances. | m_menu.c:1519-1616 (verified: every hot-key case from KEY_MINUS to Esc calls S_StartSound(NULL, ...); F11 does not) | pressing those keys plays their sounds and changes the later face-glance randomness. | not yet ported: "they are not part of a recorded demo, the app does not pass them to the game, and they are not modelled" (COMPAT, decision T14, M5c) | yes: no M_Random draw from menu sounds | [COMPAT#the-status-b…](../COMPATIBILITY.md#the-status-bar-faces-idle-glance-is-closed-with-sound-decision-s15-t14); M5C §1.2.1 note, §1.2.9 item 3, §1.4.2 item 5, §1.4.10 item 3, §5 T14 |
